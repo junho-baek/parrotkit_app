@@ -10,10 +10,15 @@ export default function TabsLayout({
     <AppFrame>
       <div className="flex flex-col h-full">
         {/* Mobile App Style Header - Fixed */}
-        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-center z-10">
-          <div className="flex items-center gap-2">
-            <img src="/parrot-logo.png" alt="Parrot Kit" className="w-6 h-6" />
-            <h1 className="text-xl font-bold text-gray-900">Parrot Kit</h1>
+        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 z-10 relative">
+          {/* Logo - Left */}
+          <a href="/home" className="absolute left-4 top-1/2 -translate-y-1/2">
+            <img src="/parrot-logo.png" alt="Parrot Kit" className="w-7 h-7 hover:scale-110 transition-transform" />
+          </a>
+          
+          {/* Title - Center */}
+          <div className="flex items-center justify-center">
+            <h1 className="text-xl font-bold text-gray-900">ParrotKit</h1>
           </div>
         </div>
 

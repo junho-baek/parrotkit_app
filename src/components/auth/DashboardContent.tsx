@@ -223,7 +223,7 @@ export const Home: React.FC = () => {
             onClick={() => setPlayingVideo(null)}
           >
             <div 
-              className="relative w-full max-w-[360px] aspect-[9/16] bg-black rounded-2xl overflow-hidden shadow-2xl"
+              className="relative w-full max-w-[320px] aspect-[9/16] bg-black rounded-2xl overflow-hidden shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Back Button */}
@@ -633,7 +633,7 @@ export const Settings: React.FC = () => {
           onClick={() => setPlayingVideo(null)}
         >
           <div 
-            className="relative w-full max-w-[360px] aspect-[9/16] bg-black rounded-2xl overflow-hidden shadow-2xl"
+            className="relative w-full max-w-[320px] aspect-[9/16] bg-black rounded-2xl overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Back Button */}

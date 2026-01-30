@@ -16,7 +16,6 @@ interface TrendingReference {
   likes: number;
   duration: string;
   isLiked: boolean;
-  isSaved: boolean;
 }
 
 export const ExploreContent: React.FC = () => {
@@ -42,7 +41,6 @@ export const ExploreContent: React.FC = () => {
             likes: 450,
             duration: '00:25',
             isLiked: false,
-            isSaved: false,
           },
           {
             id: 2,
@@ -54,7 +52,6 @@ export const ExploreContent: React.FC = () => {
             likes: 320,
             duration: '00:30',
             isLiked: false,
-            isSaved: false,
           },
           {
             id: 3,
@@ -66,7 +63,6 @@ export const ExploreContent: React.FC = () => {
             likes: 280,
             duration: '00:35',
             isLiked: false,
-            isSaved: false,
           },
           {
             id: 4,
@@ -78,7 +74,6 @@ export const ExploreContent: React.FC = () => {
             likes: 210,
             duration: '00:28',
             isLiked: false,
-            isSaved: false,
           },
         ];
         
@@ -298,7 +293,7 @@ export const ExploreContent: React.FC = () => {
               onClick={() => setPlayingVideo(null)}
             >
               <div 
-                className="relative w-full max-w-[360px] aspect-[9/16] bg-black rounded-2xl overflow-hidden shadow-2xl"
+                className="relative w-full max-w-[320px] aspect-[9/16] bg-black rounded-2xl overflow-hidden shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Back Button */}
