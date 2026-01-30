@@ -305,32 +305,154 @@ export const AIAssistant: React.FC = () => {
 };
 
 export const Settings: React.FC = () => {
+  const [user, setUser] = React.useState<{
+    email: string;
+    username: string;
+    subscriptionStatus: string;
+    planType: string;
+    subscriptionEndsAt: string | null;
+  } | null>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  // 사용자 정보 및 구독 상태 조회
+  React.useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          window.location.href = '/signin';
+          return;
+        }
+
+        const response = await fetch('/api/user/profile', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  const handleUpgradePlan = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const userStr = localStorage.getItem('user');
+      if (!userStr) return;
+
+      const userData = JSON.parse(userStr);
+      const variantId = process.env.NEXT_PUBLIC_VARIANT_PRO || '1263925';
+
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          variantId,
+          userId: userData.id,
+          userEmail: userData.email,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      }
+    } catch (error) {
+      console.error('Upgrade error:', error);
+      alert('플랜 업그레이드 중 오류가 발생했습니다.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Settings</h1>
       <div className="space-y-6">
+        {/* 구독 상태 카드 */}
         <Card>
-          <h3 className="font-semibold text-gray-900 mb-4">Account Settings</h3>
+          <h3 className="font-semibold text-gray-900 mb-4">구독 정보</h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div>
+                <p className="text-sm text-gray-600">현재 플랜</p>
+                <p className="text-xl font-bold text-gray-900 capitalize">
+                  {user?.planType === 'pro' ? 'Pro Plan' : 'Free Plan'}
+                </p>
+                {user?.subscriptionStatus === 'active' && user?.subscriptionEndsAt && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    다음 결제일: {new Date(user.subscriptionEndsAt).toLocaleDateString('ko-KR')}
+                  </p>
+                )}
+              </div>
+              <div>
+                {user?.planType === 'free' ? (
+                  <button
+                    onClick={handleUpgradePlan}
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2 rounded-lg font-semibold hover:opacity-90"
+                  >
+                    Pro로 업그레이드
+                  </button>
+                ) : (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                    ✓ 활성화
+                  </span>
+                )}
+              </div>
+            </div>
+            
+            {user?.planType === 'free' && (
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-sm text-blue-800">
+                  💡 <strong>Pro Plan 혜택:</strong> 무제한 레시피 분석, 우선 지원, 고급 AI 기능
+                </p>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* 계정 설정 카드 */}
+        <Card>
+          <h3 className="font-semibold text-gray-900 mb-4">계정 설정</h3>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
               <input
                 type="email"
-                defaultValue="user@example.com"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={user?.email || ''}
+                readOnly
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
               <input
                 type="text"
-                defaultValue="username"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={user?.username || ''}
+                readOnly
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
               />
             </div>
-            <button className="bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-600">
-              Save Changes
-            </button>
           </div>
         </Card>
 
@@ -339,11 +461,11 @@ export const Settings: React.FC = () => {
           <div className="space-y-4">
             <label className="flex items-center gap-3">
               <input type="checkbox" defaultChecked className="w-4 h-4" />
-              <span className="text-gray-700">Email notifications</span>
+              <span className="text-gray-700">이메일 알림</span>
             </label>
             <label className="flex items-center gap-3">
               <input type="checkbox" className="w-4 h-4" />
-              <span className="text-gray-700">Marketing emails</span>
+              <span className="text-gray-700">마케팅 이메일</span>
             </label>
           </div>
         </Card>

@@ -8,6 +8,12 @@ export const mvpUsers = pgTable('mvp_users', {
   interests: text('interests').array(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  
+  // Subscription fields
+  subscriptionId: varchar('subscription_id', { length: 255 }),
+  subscriptionStatus: varchar('subscription_status', { length: 50 }).default('free'),
+  planType: varchar('plan_type', { length: 20 }).default('free'),
+  subscriptionEndsAt: timestamp('subscription_ends_at'),
 });
 
 export type User = typeof mvpUsers.$inferSelect;

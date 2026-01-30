@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
         checkoutData: {
           email: userEmail || undefined,
           custom: userId ? {
-            user_id: userId.toString(),
+            userId: userId.toString(),
           } : undefined,
         },
       }

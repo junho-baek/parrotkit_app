@@ -29,31 +29,116 @@ export async function POST(request: NextRequest) {
     switch (meta.event_name) {
       case 'order_created':
         console.log('Order created:', data.attributes.first_order_item);
-        // 주문 생성 처리
         break;
 
       case 'subscription_created':
-        // 구독 생성 처리
-        const userId = data.attributes.custom_data?.user_id;
-        if (userId) {
-          // TODO: users 테이블에 subscription_status 컬럼 추가 후 업데이트
-          console.log(`Subscription created for user ${userId}`);
+        {
+          const customData = data.attributes.custom_data;
+          const userId = customData?.userId;
+          const userEmail = data.attributes.user_email;
+
+          console.log('Subscription created:', { userId, userEmail, subscriptionId: data.id });
+
+          if (userId) {
+            await db.update(mvpUsers)
+              .set({
+                subscriptionId: data.id,
+                subscriptionStatus: 'active',
+                planType: 'pro',
+                subscriptionEndsAt: new Date(data.attributes.renews_at),
+                updatedAt: new Date(),
+              })
+              .where(eq(mvpUsers.id, parseInt(userId)));
+            
+            console.log(`✅ User ${userId} subscription activated`);
+          } else if (userEmail) {
+            // userId가 없으면 이메일로 찾기
+            await db.update(mvpUsers)
+              .set({
+                subscriptionId: data.id,
+                subscriptionStatus: 'active',
+                planType: 'pro',
+                subscriptionEndsAt: new Date(data.attributes.renews_at),
+                updatedAt: new Date(),
+              })
+              .where(eq(mvpUsers.email, userEmail));
+            
+            console.log(`✅ User (${userEmail}) subscription activated`);
+          }
         }
         break;
 
       case 'subscription_updated':
-        // 구독 업데이트 처리
-        console.log('Subscription updated:', data.attributes);
+        {
+          const subscriptionId = data.id;
+          const status = data.attributes.status;
+          
+          console.log('Subscription updated:', { subscriptionId, status });
+
+          await db.update(mvpUsers)
+            .set({
+              subscriptionStatus: status,
+              subscriptionEndsAt: data.attributes.renews_at ? new Date(data.attributes.renews_at) : null,
+              updatedAt: new Date(),
+            })
+            .where(eq(mvpUsers.subscriptionId, subscriptionId));
+          
+          console.log(`✅ Subscription ${subscriptionId} updated to ${status}`);
+        }
         break;
 
       case 'subscription_cancelled':
-        // 구독 취소 처리
-        console.log('Subscription cancelled:', data.attributes);
+        {
+          const subscriptionId = data.id;
+          
+          console.log('Subscription cancelled:', subscriptionId);
+
+          await db.update(mvpUsers)
+            .set({
+              subscriptionStatus: 'cancelled',
+              updatedAt: new Date(),
+            })
+            .where(eq(mvpUsers.subscriptionId, subscriptionId));
+          
+          console.log(`✅ Subscription ${subscriptionId} cancelled`);
+        }
         break;
 
       case 'subscription_payment_success':
-        // 결제 성공 처리
-        console.log('Payment success:', data.attributes);
+        {
+          const subscriptionId = data.attributes.subscription_id;
+          
+          console.log('Payment success:', subscriptionId);
+
+          // 결제 성공 시 구독 연장
+          await db.update(mvpUsers)
+            .set({
+              subscriptionStatus: 'active',
+              subscriptionEndsAt: data.attributes.renews_at ? new Date(data.attributes.renews_at) : null,
+              updatedAt: new Date(),
+            })
+            .where(eq(mvpUsers.subscriptionId, subscriptionId));
+          
+          console.log(`✅ Subscription ${subscriptionId} payment successful, renewed`);
+        }
+        break;
+
+      case 'subscription_expired':
+        {
+          const subscriptionId = data.id;
+          
+          console.log('Subscription expired:', subscriptionId);
+
+          await db.update(mvpUsers)
+            .set({
+              subscriptionStatus: 'expired',
+              planType: 'free',
+              updatedAt: new Date(),
+            })
+            .where(eq(mvpUsers.subscriptionId, subscriptionId));
+          
+          console.log(`✅ Subscription ${subscriptionId} expired, reverted to free plan`);
+        }
         break;
 
       default:
