@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || '');
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -73,18 +72,23 @@ Your capabilities:
 When the user asks to change or modify the script, always output the FULL revised script as a numbered list (1. xxx, 2. xxx, etc.) so they can directly apply it. The user has an "Apply to Script" button that will parse these numbered lines and update the on-screen script.
 Keep responses concise and actionable. Use Korean if the user writes in Korean, English if they write in English.`;
 
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
+    // Gemini doesn't have system parameter, so prepend system prompt to first user message
+    const formattedMessages = messages.map((m, i) => {
+      if (i === 0 && m.role === 'user') {
+        return { role: m.role, content: `${systemPrompt}\n\n${m.content}` };
+      }
+      return m;
     });
 
-    const assistantMessage =
-      response.content[0].type === 'text' ? response.content[0].text : '';
+    // Convert chat history to Gemini format
+    const chatHistory = formattedMessages.slice(0, -1).map(m => ({
+      role: m.role === 'user' ? 'user' : 'model',
+      parts: [{ text: m.content }],
+    }));
+
+    const chat = model.startChat({ history: chatHistory });
+    const result = await chat.sendMessage(formattedMessages[formattedMessages.length - 1].content);
+    const assistantMessage = result.response.text();
 
     return NextResponse.json({
       message: assistantMessage,
