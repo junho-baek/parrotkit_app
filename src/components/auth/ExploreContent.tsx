@@ -27,6 +27,17 @@ export const ExploreContent: React.FC = () => {
 
   const categories = ['All', '🍳 Cooking', '💄 Beauty', '💪 Fitness', '🏠 DIY', '✈️ Travel', '😂 Comedy'];
 
+  // Handle ESC key to close video
+  React.useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPlayingVideo(null);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, []);
+
   React.useEffect(() => {
     const fetchTrendingReferences = async () => {
       try {
@@ -333,26 +344,27 @@ export const ExploreContent: React.FC = () => {
           {/* Video Player Modal */}
           {playingVideo && (
             <div 
-              className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4"
+              className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center p-3"
               onClick={() => setPlayingVideo(null)}
             >
               <div 
-                className="relative w-full max-w-md aspect-[9/16] bg-black rounded-xl overflow-hidden"
+                className="relative w-full max-w-[420px] aspect-[9/16] bg-black rounded-2xl overflow-hidden shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Close Button */}
                 <button
                   onClick={() => setPlayingVideo(null)}
-                  className="absolute top-4 right-4 z-10 bg-black/60 backdrop-blur-sm text-white rounded-full p-2 hover:bg-black/80 transition-colors"
+                  className="absolute -top-12 right-0 z-10 bg-white/10 backdrop-blur-sm text-white rounded-full p-3 hover:bg-white/20 transition-all hover:scale-110"
+                  aria-label="Close video"
                 >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M18 6L6 18M6 6l12 12"/>
                   </svg>
                 </button>
 
                 {/* YouTube iframe */}
                 <iframe
-                  src={`https://www.youtube.com/embed/${playingVideo}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1`}
+                  src={`https://www.youtube.com/embed/${playingVideo}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1&playsinline=1`}
                   className="w-full h-full"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
