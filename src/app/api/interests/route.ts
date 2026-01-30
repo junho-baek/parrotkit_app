@@ -16,7 +16,12 @@ export async function PUT(request: NextRequest) {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as {
+    
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET is not configured');
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET) as {
       userId: number;
     };
 

@@ -51,13 +51,17 @@ export async function POST(request: NextRequest) {
       .returning();
 
     // Generate JWT token
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET is not configured');
+    }
+
     const token = jwt.sign(
       {
         userId: newUser[0].id,
         email: newUser[0].email,
         username: newUser[0].username,
       },
-      process.env.JWT_SECRET || 'fallback-secret',
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
