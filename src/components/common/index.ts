@@ -7,3 +7,5 @@ export { RecipeResult } from './RecipeResult';
 export { CameraShooting } from './CameraShooting';
 export { RecipeVideoPlayer } from './RecipeVideoPlayer';
 export { PromoModal } from './PromoModal';
+export { BottomTabBar } from './BottomTabBar';
+export { AppFrame } from './AppFrame';

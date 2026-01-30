@@ -9,3 +9,4 @@ export { DashboardLayout } from './DashboardLayout';
 export { Home, MyRecipes, Projects, Templates, AIAssistant, Settings } from './DashboardContent';
 export { Recipes } from './RecipesTab';
 export { TopNav } from '../common/TopNav';
+export { ExploreContent } from './ExploreContent';

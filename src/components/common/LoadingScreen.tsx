@@ -10,7 +10,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
   message = 'Creating a video recipe just for you...'
 }) => {
   return (
-    <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-6">
+    <div className="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center p-6">
       {/* Loading Spinner with bouncing logo inside */}
       <div className="relative w-40 h-40">
         <div className="absolute inset-0 border-8 border-gray-200 rounded-full" />

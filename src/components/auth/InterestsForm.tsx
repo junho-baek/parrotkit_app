@@ -105,7 +105,7 @@ export const InterestsForm: React.FC = () => {
         });
       }
       
-      router.push('/submit-video');
+      router.push('/paste');
     } catch (err: any) {
       alert(err.message || '관심사 저장에 실패했습니다. 다시 시도해주세요.');
     } finally {

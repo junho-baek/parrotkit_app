@@ -38,7 +38,7 @@ export const SourceOptionsForm: React.FC = () => {
       setSourceUrl(url);
       setFormData(prev => ({ ...prev, sourceUrl: url }));
     } else {
-      router.push('/submit-video');
+      router.push('/paste');
     }
   }, [router]);
 
@@ -79,7 +79,7 @@ export const SourceOptionsForm: React.FC = () => {
       // const data = await response.json();
       // if (data.success) {
       //   localStorage.removeItem('sourceUrl');
-      router.push('/dashboard');
+      router.push('/home');
       // }
 
       // 성공 메시지 표시
@@ -223,7 +223,7 @@ export const SourceOptionsForm: React.FC = () => {
       </form>
 
       <div className="text-center mt-8">
-        <Link href="/submit-video" className="text-gray-600 text-sm hover:text-gray-900">
+        <Link href="/paste" className="text-gray-600 text-sm hover:text-gray-900">
           ← Change Video
         </Link>
       </div>

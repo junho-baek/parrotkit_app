@@ -1,9 +1,12 @@
 import { SignUpForm } from '@/components/auth';
+import { AppFrame } from '@/components/common';
 
 export default function SignUpPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <SignUpForm />
-    </div>
+    <AppFrame>
+      <div className="flex items-center justify-center flex-1 overflow-y-auto p-4">
+        <SignUpForm />
+      </div>
+    </AppFrame>
   );
 }

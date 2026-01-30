@@ -64,7 +64,7 @@ export const PromoModal: React.FC<PromoModalProps> = ({ onClose }) => {
   const discountPercentage = Math.round(((24 - 9.99) / 24) * 100);
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
       <div className="bg-white rounded-2xl max-w-md w-full p-8 relative animate-scale-in shadow-2xl">
         {/* Close Button */}
         <button

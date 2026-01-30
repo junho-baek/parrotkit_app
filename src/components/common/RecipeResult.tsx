@@ -333,7 +333,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     }
   };
 
-  // 레시피 저장하고 대시보드로 이동
+  // 레시피 저장하고 Recipes 탭으로 이동
   const handleSaveAndGoToDashboard = () => {
     // localStorage에 레시피 저장
     const savedRecipes = JSON.parse(localStorage.getItem('myRecipes') || '[]');
@@ -356,25 +356,25 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     savedRecipes.push(newRecipe);
     localStorage.setItem('myRecipes', JSON.stringify(savedRecipes));
     
-    // 대시보드로 이동
-    window.location.href = '/dashboard?tab=recipes';
+    // Recipes 탭으로 이동
+    window.location.href = '/recipes';
   };
 
   // 선택된 씨에서 디테일 화면
   if (selectedScene) {
     return (
-      <div className="h-screen flex flex-col bg-black overflow-hidden">
+      <div className="absolute inset-0 flex flex-col bg-black overflow-hidden z-50">
         {/* Header */}
         <div className="bg-black border-b border-gray-800 flex-shrink-0">
-          <div className="flex items-center justify-between px-4 py-3 text-white">
+          <div className="flex items-center justify-between px-4 py-3 text-white max-w-md mx-auto">
             <button
               onClick={handleCameraBack}
               className="flex items-center gap-2 font-semibold text-blue-400"
             >
               ← Back
             </button>
-            <span className="text-sm font-medium">#{selectedScene.id}: {selectedScene.title}</span>
-            <div className="text-sm text-gray-400">slow mode</div>
+            <span className="text-sm font-medium truncate">#{selectedScene.id}: {selectedScene.title}</span>
+            <div className="text-xs text-gray-400">slow mode</div>
           </div>
         </div>
 
@@ -403,7 +403,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
         </div>
 
         {/* Content - fills remaining space */}
-        <div className="flex-1 relative overflow-hidden">
+        <div className="flex-1 relative overflow-hidden max-w-md mx-auto w-full">
           {activeTab === 'recipe' ? (
             <RecipeVideoPlayer
               videoUrl={videoUrl}
@@ -427,7 +427,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
         {!chatOpen && (
           <button
             onClick={() => setChatOpen(true)}
-            className="fixed bottom-6 right-6 w-14 h-14 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-all transform hover:scale-110 flex items-center justify-center z-50"
+            className="absolute bottom-6 right-6 w-14 h-14 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-all transform hover:scale-110 flex items-center justify-center z-40"
           >
             <img src="/parrot-logo.png" alt="Chat" className="w-8 h-8" />
           </button>
@@ -435,14 +435,14 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
         {/* Chatbot Bottom Sheet */}
         <div
-          className={`fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ease-out ${
+          className={`absolute bottom-0 left-0 right-0 z-50 transition-transform duration-300 ease-out ${
             chatOpen ? 'translate-y-0' : 'translate-y-full'
           }`}
           style={{ height: `${sheetHeight}vh` }}
         >
           {chatOpen && (
             <div
-              className="fixed inset-0 bg-black/30 -z-10"
+              className="absolute inset-0 bg-black/30 -z-10"
               onClick={() => { setChatOpen(false); setSheetHeight(50); }}
             />
           )}
@@ -535,10 +535,10 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+    <div className="absolute inset-0 bg-gray-50 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-white border-b z-10 shadow-sm flex-shrink-0">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
           <button
             onClick={onBack}
             className="flex items-center gap-2 text-blue-500 font-semibold hover:text-blue-600 transition-colors"
@@ -554,9 +554,9 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
       </div>
 
       {/* Recipe Content - fits in one viewport */}
-      <div className="flex-1 overflow-hidden px-3 pb-2 pt-2 md:p-4">
-        <div className="max-w-7xl mx-auto h-full flex flex-col">
-          <div className="flex items-center justify-between mb-2 flex-shrink-0">
+      <div className="flex-1 overflow-y-auto px-3 pb-2 pt-2">
+        <div className="max-w-md mx-auto h-full flex flex-col">
+          <div className="flex items-center justify-between mb-3 flex-shrink-0">
             <h2 className="text-lg font-bold text-gray-900">Recipe</h2>
             <div className="flex gap-2">
               <button
@@ -578,7 +578,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
           </div>
 
           {/* Scenes Grid - compact, fits in one screen */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 flex-1 auto-rows-fr">
+          <div className="grid grid-cols-2 gap-3 pb-20">
             {scenes.map((scene) => {
               const isCaptured = capturedScenes[scene.id];
 
@@ -586,14 +586,14 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                 <div
                   key={scene.id}
                   onClick={() => handleSceneClick(scene)}
-                  className={`bg-white rounded-lg overflow-hidden hover:shadow-md transition-all cursor-pointer flex flex-col ${
+                  className={`bg-white rounded-xl overflow-hidden hover:shadow-md transition-all cursor-pointer flex flex-col ${
                     isCaptured
                       ? 'ring-2 ring-green-500'
                       : 'border border-gray-200 hover:border-blue-300'
                   }`}
                 >
                   {/* Thumbnail */}
-                  <div className="relative flex-1 min-h-0 overflow-hidden">
+                  <div className="relative aspect-video overflow-hidden">
                     <img
                       src={scene.thumbnail}
                       alt={scene.title}
@@ -612,14 +612,14 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                   </div>
 
                   {/* Scene Info - minimal */}
-                  <div className="px-2 py-1.5 flex items-center justify-between gap-1 flex-shrink-0">
-                    <h3 className="font-semibold text-[11px] text-gray-900 truncate">
+                  <div className="px-3 py-2 flex items-center justify-between gap-2 flex-shrink-0">
+                    <h3 className="font-semibold text-xs text-gray-900 truncate">
                       #{scene.id} {scene.title}
                     </h3>
                     {isCaptured ? (
-                      <span className="text-[10px] text-green-600 font-medium flex-shrink-0">Done</span>
+                      <span className="text-xs text-green-600 font-medium flex-shrink-0">Done</span>
                     ) : (
-                      <span className="text-[10px] text-blue-500 font-medium flex-shrink-0">Shoot</span>
+                      <span className="text-xs text-blue-500 font-medium flex-shrink-0">Shoot</span>
                     )}
                   </div>
                 </div>
@@ -633,7 +633,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
       {!chatOpen && (
         <button
           onClick={() => setChatOpen(true)}
-          className="fixed bottom-6 right-6 w-14 h-14 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-all transform hover:scale-110 flex items-center justify-center z-50"
+          className="absolute bottom-6 right-6 w-14 h-14 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-all transform hover:scale-110 flex items-center justify-center z-40"
         >
           <img src="/parrot-logo.png" alt="Chat" className="w-8 h-8" />
         </button>
@@ -641,7 +641,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
       {/* Chatbot Bottom Sheet */}
       <div
-        className={`fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ease-out ${
+        className={`absolute bottom-0 left-0 right-0 z-50 transition-transform duration-300 ease-out ${
           chatOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
         style={{ height: `${sheetHeight}vh` }}
@@ -649,7 +649,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
         {/* Backdrop */}
         {chatOpen && (
           <div
-            className="fixed inset-0 bg-black/30 -z-10"
+            className="absolute inset-0 bg-black/30 -z-10"
             onClick={() => { setChatOpen(false); setSheetHeight(50); }}
           />
         )}

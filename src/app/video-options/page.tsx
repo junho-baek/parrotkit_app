@@ -1,13 +1,21 @@
 import { SourceOptionsForm } from '@/components/auth';
-import { TopNav } from '@/components/common';
+import { AppFrame } from '@/components/common';
 
 export default function VideoOptionsPage() {
   return (
-    <>
-      <TopNav showNav={true} />
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 pt-24">
-        <SourceOptionsForm />
+    <AppFrame>
+      <div className="flex flex-col h-full">
+        {/* Mobile App Style Header */}
+        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-center">
+          <h1 className="text-xl font-bold text-gray-900">Video Options</h1>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto flex items-center justify-center p-4">
+          <div className="max-w-md w-full">
+            <SourceOptionsForm />
+          </div>
+        </div>
       </div>
-    </>
+    </AppFrame>
   );
 }

@@ -16,7 +16,7 @@ export const Recipes: React.FC = () => {
 
   const handleView = (recipe: any) => {
     // RecipeResult로 이동하기 위해 데이터를 sessionStorage에 저장
-    sessionStorage.setItem('viewRecipe', JSON.stringify({
+    sessionStorage.setItem('recipeData', JSON.stringify({
       scenes: recipe.scenes,
       videoUrl: recipe.videoUrl,
       capturedVideos: recipe.capturedVideos || {}, // 촬영 완료 데이터
@@ -25,7 +25,7 @@ export const Recipes: React.FC = () => {
     }));
     
     // Home 탭으로 이동 (그곳에서 recipeData를 불러옴)
-    window.location.href = '/dashboard?tab=home&view=recipe';
+    window.location.href = '/home?view=recipe';
   };
 
   const handleDelete = (id: number) => {
@@ -52,7 +52,7 @@ export const Recipes: React.FC = () => {
               Create your first video recipe by analyzing a URL!
             </p>
             <button
-              onClick={() => window.location.href = '/dashboard?tab=home'}
+              onClick={() => window.location.href = '/paste'}
               className="px-6 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors"
             >
               Create Recipe

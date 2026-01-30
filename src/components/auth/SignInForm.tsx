@@ -64,11 +64,11 @@ export const SignInForm: React.FC = () => {
         });
       }
 
-      // interests가 없으면 interests 페이지로, 있으면 대시보드로
+      // interests가 없으면 interests 페이지로, 있으면 홈으로
       if (!data.user.interests || data.user.interests.length === 0) {
         router.push('/interests');
       } else {
-        router.push('/dashboard');
+        router.push('/home');
       }
     } catch (err: any) {
       setError(err.message || '로그인에 실패했습니다. 다시 시도해주세요.');

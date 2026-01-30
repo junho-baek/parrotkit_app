@@ -36,73 +36,77 @@ export const URLInputForm: React.FC = () => {
     setLoading(true);
     
     try {
-      // TODO: API 호출 (URL 분석 및 처리)
-      console.log('Submitted URL:', url);
-      alert('URL이 제출되었습니다!');
-      // 다음 단계로 이동
-      // router.push('/video-options');
+      // API 호출 - 비디오 분석
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to analyze video');
+      }
+
+      const data = await response.json();
+      
+      // 레시피 데이터를 sessionStorage에 저장
+      sessionStorage.setItem('recipeData', JSON.stringify({
+        scenes: data.scenes,
+        videoUrl: url,
+        capturedVideos: {},
+        matchResults: {},
+      }));
+
+      // Home 탭으로 이동하여 레시피 표시
+      router.push('/home?view=recipe');
     } catch (error) {
       console.error('URL submit error:', error);
-      alert('오류가 발생했습니다. 다시 시도해주세요.');
+      alert('비디오 분석에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
-        <button 
-          onClick={() => router.push('/dashboard')}
-          className="text-2xl"
-        >
-          ☰
-        </button>
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-gradient-to-br from-red-500 via-yellow-500 to-blue-500 rounded-lg" />
-          <h1 className="text-xl font-bold">Parrot Kit</h1>
-        </div>
-        <div className="w-8" />
-      </div>
-
-      {/* Main Content */}
-      <div className="p-6">
-        <h2 className="text-2xl font-bold mb-2">What's New in Shorts</h2>
-        
-        {/* Video Grid Placeholder */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="aspect-[9/16] bg-gray-200 rounded-lg relative">
-              <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-white text-xs">
-                <span>00:{15 + i}</span>
-                <span>❤️ {(i * 1.2).toFixed(1)}K</span>
-              </div>
-            </div>
-          ))}
+    <Card className="w-full">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="text-center">
+          <div className="text-5xl mb-4">🎬</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Add Reference Video</h2>
+          <p className="text-gray-600">Paste a viral video URL from TikTok, Instagram, or YouTube Shorts</p>
         </div>
 
         {/* URL Input */}
-        <form onSubmit={handleSubmit}>
-          <div className="relative">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
+              Video URL
+            </label>
             <input
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="Paste a URL link"
-              className="w-full px-4 py-4 pr-12 border-2 border-gray-300 rounded-xl text-base focus:outline-none focus:border-blue-500"
+              placeholder="https://www.tiktok.com/@username/video/..."
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               disabled={loading}
             />
-            <button
-              type="submit"
-              disabled={loading || !url.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-blue-500 disabled:opacity-50"
-            >
-              {loading ? '⏳' : '→'}
-            </button>
           </div>
+
+          <button
+            type="submit"
+            disabled={loading || !url.trim()}
+            className="w-full px-8 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+          >
+            {loading ? 'Analyzing...' : 'Analyze Video'}
+          </button>
         </form>
+
+        {/* Info */}
+        <div className="text-center text-sm text-gray-500">
+          <p>💡 We'll analyze the video and create a recipe for you</p>
+        </div>
       </div>
-    </div>
+    </Card>
   );
 };
