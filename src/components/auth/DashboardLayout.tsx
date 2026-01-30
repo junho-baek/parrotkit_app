@@ -24,10 +24,26 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, acti
   ];
 
   const handleTabClick = (tabId: DashboardTab) => {
+    // GA4: 대시보드 탭 전환
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'dashboard_tab_change', {
+        event_category: 'engagement',
+        tab_name: tabId,
+        from_tab: activeTab
+      });
+    }
+    
     router.push(`/dashboard?tab=${tabId}`);
   };
 
   const handleLogout = () => {
+    // GA4: 로그아웃
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'logout', {
+        event_category: 'engagement'
+      });
+    }
+    
     // localStorage 정리
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -87,6 +103,15 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, acti
 
           <Link
             href="/pricing"
+            onClick={() => {
+              // GA4: 대시보드에서 프라이싱 버튼 클릭
+              if (typeof window !== 'undefined' && (window as any).gtag) {
+                (window as any).gtag('event', 'click_pricing_from_dashboard', {
+                  event_category: 'engagement',
+                  event_label: 'dashboard_view_pricing'
+                });
+              }
+            }}
             className="w-full px-4 py-3 text-center bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors duration-200 block mb-4"
           >
             View Pricing

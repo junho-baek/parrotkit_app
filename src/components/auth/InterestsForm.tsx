@@ -35,10 +35,19 @@ export const InterestsForm: React.FC = () => {
     console.log('Before update:', interests[index]);
     
     const updated = [...interests];
+    const willBeSelected = !updated[index].selected;
     updated[index] = {
       ...updated[index],
-      selected: !updated[index].selected
+      selected: willBeSelected
     };
+    
+    // GA4: 관심사 선택/해제
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', willBeSelected ? 'select_interest' : 'deselect_interest', {
+        event_category: 'engagement',
+        interest_name: updated[index].category
+      });
+    }
     
     console.log('After update:', updated[index]);
     setInterests(updated);

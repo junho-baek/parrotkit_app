@@ -25,6 +25,14 @@ export const URLInputForm: React.FC = () => {
       return;
     }
 
+    // GA4: 비디오 URL 제출
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'submit_video_url', {
+        event_category: 'engagement',
+        event_label: 'video_url_submission'
+      });
+    }
+
     setLoading(true);
     
     try {

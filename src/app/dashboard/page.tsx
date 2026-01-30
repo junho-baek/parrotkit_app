@@ -18,6 +18,16 @@ function DashboardContent() {
   const tabParam = searchParams.get('tab') as DashboardTab | null;
   const activeTab = (tabParam || 'home') as DashboardTab;
 
+  // GA4: 대시보드 페이지 조회
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'view_dashboard', {
+        event_category: 'engagement',
+        active_tab: activeTab
+      });
+    }
+  }, [activeTab]);
+
   const renderContent = () => {
     switch (activeTab) {
       case 'home':

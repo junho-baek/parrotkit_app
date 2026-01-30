@@ -4,6 +4,24 @@ import Link from 'next/link';
 import { Button, Card } from '@/components/common';
 
 export default function Home() {
+  const handleSignInClick = () => {
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'click_signin_home', {
+        event_category: 'engagement',
+        event_label: 'home_page_signin'
+      });
+    }
+  };
+
+  const handleSignUpClick = () => {
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'click_signup_home', {
+        event_category: 'engagement',
+        event_label: 'home_page_signup'
+      });
+    }
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <Card className="text-center">
@@ -16,10 +34,10 @@ export default function Home() {
         </div>
 
         <div className="space-y-3">
-          <Link href="/signin" className="block">
+          <Link href="/signin" onClick={handleSignInClick} className="block">
             <Button variant="primary">Sign In</Button>
           </Link>
-          <Link href="/signup" className="block">
+          <Link href="/signup" onClick={handleSignUpClick} className="block">
             <Button variant="secondary">Sign Up</Button>
           </Link>
         </div>
