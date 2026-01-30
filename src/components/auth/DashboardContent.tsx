@@ -88,72 +88,121 @@ export const Home: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="py-12 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Loading...</p>
+      <div className="space-y-4 animate-pulse">
+        <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+        <div className="h-24 bg-gray-200 rounded"></div>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="h-20 bg-gray-200 rounded"></div>
+          <div className="h-20 bg-gray-200 rounded"></div>
+          <div className="h-20 bg-gray-200 rounded"></div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="aspect-[9/16] bg-gray-200 rounded-xl"></div>
+          <div className="aspect-[9/16] bg-gray-200 rounded-xl"></div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="mb-4">
-        <h2 className="text-xl font-bold text-gray-900 mb-1">Welcome Back! 👋</h2>
-        <p className="text-sm text-gray-600">Your recent references and recipes</p>
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="mb-2">
+        <h2 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
+          Welcome Back! <span className="animate-bounce">👋</span>
+        </h2>
+        <p className="text-sm text-gray-600">Your creative workspace</p>
       </div>
 
-      <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-        <div className="flex items-center justify-between">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-3 gap-2.5">
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 p-3">
+          <div className="text-2xl font-bold text-blue-600">{recentReferences.length}</div>
+          <div className="text-[10px] text-blue-700 font-medium mt-0.5">References</div>
+        </Card>
+        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 p-3">
+          <div className="text-2xl font-bold text-purple-600">0</div>
+          <div className="text-[10px] text-purple-700 font-medium mt-0.5">Recipes</div>
+        </Card>
+        <Card className="bg-gradient-to-br from-pink-50 to-pink-100 border-pink-200 p-3">
+          <div className="text-2xl font-bold text-pink-600">0</div>
+          <div className="text-[10px] text-pink-700 font-medium mt-0.5">Views</div>
+        </Card>
+      </div>
+
+      {/* Quick Action Card */}
+      <Card className="bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative flex items-center justify-between">
           <div>
-            <h3 className="text-base font-bold mb-1">Create New Recipe</h3>
-            <p className="text-xs text-blue-100">Paste a viral video URL to get started</p>
+            <h3 className="text-base font-bold mb-1 flex items-center gap-1.5">
+              <span className="text-xl">✨</span> Create Recipe
+            </h3>
+            <p className="text-xs text-white/90">Turn viral videos into actionable recipes</p>
           </div>
           <Link
             href="/paste"
-            className="bg-white text-blue-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-50 transition-colors"
+            className="bg-white text-blue-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:scale-105 transition-transform shadow-lg"
           >
-            + Add
+            + New
           </Link>
         </div>
       </Card>
 
       <div>
-        <h3 className="text-base font-bold text-gray-900 mb-3">Recent References</h3>
+        <h3 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+          <span className="text-lg">📌</span> Recent References
+        </h3>
         
         {recentReferences.length === 0 ? (
-          <Card className="text-center py-12">
-            <div className="text-6xl mb-4">🎬</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No References Yet</h3>
-            <p className="text-gray-600 mb-4">Start by pasting your first viral video URL</p>
-            <Link
-              href="/paste"
-              className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-            >
-              Add Reference
-            </Link>
+          <Card className="border-2 border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100">
+            <div className="text-center py-10">
+              <div className="text-6xl mb-3 animate-pulse">🎬</div>
+              <h3 className="text-base font-bold text-gray-900 mb-1.5">No References Yet</h3>
+              <p className="text-xs text-gray-600 mb-4">Start by pasting your first viral video URL</p>
+              <Link
+                href="/paste"
+                className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
+              >
+                + Add Reference
+              </Link>
+            </div>
           </Card>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             {recentReferences.map((ref) => (
               <Link
                 key={ref.id}
                 href={`/recipes?id=${ref.id}`}
                 className="block group"
               >
-                <div className="relative rounded-xl overflow-hidden shadow-md aspect-[9/16]">
+                <div className="relative rounded-xl overflow-hidden shadow-md aspect-[9/16] ring-2 ring-transparent group-hover:ring-blue-400 transition-all duration-300">
                   <img
                     src={ref.thumbnail}
                     alt={ref.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                    <div className="flex items-center justify-between text-white text-xs mb-1">
-                      <span className="bg-black/50 px-1.5 py-0.5 rounded text-[10px]">{ref.duration}</span>
-                      <span className="flex items-center gap-0.5 text-[10px]">
-                        <span className="text-red-500">❤</span> {ref.views}
+                  {/* Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
+                  
+                  {/* Badge */}
+                  <div className="absolute top-2 right-2">
+                    <span className="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg">
+                      NEW
+                    </span>
+                  </div>
+                  
+                  {/* Content Overlay */}
+                  <div className="absolute bottom-0 left-0 right-0 p-3">
+                    <div className="flex items-center justify-between text-white text-xs mb-1.5">
+                      <span className="bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg text-[10px] font-medium">
+                        {ref.duration}
+                      </span>
+                      <span className="flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg text-[10px] font-medium">
+                        <span className="text-red-400">❤</span> {ref.views}
                       </span>
                     </div>
-                    <p className="text-white font-semibold text-xs line-clamp-1">{ref.title}</p>
+                    <p className="text-white font-bold text-xs line-clamp-2 mb-1">{ref.title}</p>
                     <p className="text-gray-300 text-[10px]">{ref.createdAt}</p>
                   </div>
                 </div>
@@ -288,76 +337,116 @@ export const Settings: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="py-12 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+      <div className="space-y-4 animate-pulse">
+        <div className="h-10 bg-gray-200 rounded w-1/2"></div>
+        <div className="h-32 bg-gray-200 rounded-xl"></div>
+        <div className="h-40 bg-gray-200 rounded-xl"></div>
+        <div className="h-48 bg-gray-200 rounded-xl"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-bold text-gray-900 mb-1">My Page ⚙️</h2>
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="mb-2">
+        <h2 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
+          My Page <span className="text-2xl">⚙️</span>
+        </h2>
         <p className="text-sm text-gray-600">Manage your account and settings</p>
       </div>
 
-      {/* Profile Card */}
-      <Card>
-        <h3 className="font-semibold text-gray-900 text-base mb-3">Profile</h3>
-        <div className="space-y-2">
-          <div>
-            <p className="text-xs text-gray-600">Username</p>
-            <p className="font-medium text-gray-900 text-sm">{user?.username || 'User'}</p>
+      {/* Profile Card with Avatar */}
+      <Card className="relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-100 to-purple-100 rounded-bl-full opacity-50"></div>
+        <div className="relative">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg ring-4 ring-white">
+              {user?.username?.charAt(0).toUpperCase() || 'U'}
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-lg text-gray-900 mb-0.5">{user?.username || 'User'}</h3>
+              <p className="text-sm text-gray-600">{user?.email}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-gray-600">Email</p>
-            <p className="font-medium text-gray-900 text-sm">{user?.email}</p>
+          <div className="flex gap-2">
+            <div className="flex-1 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2.5 text-center border border-blue-200">
+              <div className="text-lg font-bold text-blue-600">12</div>
+              <div className="text-[10px] text-blue-700 font-medium">References</div>
+            </div>
+            <div className="flex-1 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-2.5 text-center border border-purple-200">
+              <div className="text-lg font-bold text-purple-600">8</div>
+              <div className="text-[10px] text-purple-700 font-medium">Recipes</div>
+            </div>
+            <div className="flex-1 bg-gradient-to-br from-pink-50 to-pink-100 rounded-lg p-2.5 text-center border border-pink-200">
+              <div className="text-lg font-bold text-pink-600">2.5K</div>
+              <div className="text-[10px] text-pink-700 font-medium">Views</div>
+            </div>
           </div>
         </div>
       </Card>
 
       {/* Subscription Card */}
-      <Card>
-        <h3 className="font-semibold text-gray-900 text-base mb-3">Subscription</h3>
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-          <div>
-            <p className="text-xs text-gray-600">Current Plan</p>
-            <p className="text-lg font-bold text-gray-900 capitalize">
-              {user?.planType === 'pro' ? 'Pro Plan ⭐' : 'Free Plan'}
-            </p>
+      <Card className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 opacity-5"></div>
+        <div className="relative">
+          <h3 className="font-bold text-base text-gray-900 mb-3 flex items-center gap-2">
+            <span className="text-lg">💎</span> Subscription
+          </h3>
+          <div className="flex items-center justify-between p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200">
+            <div>
+              <p className="text-xs text-gray-600 mb-1">Current Plan</p>
+              <p className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                {user?.planType === 'pro' ? 'Pro Plan ⭐' : 'Free Plan'}
+              </p>
+              <p className="text-[10px] text-gray-500 mt-1">
+                {user?.planType === 'pro' ? 'All features unlocked' : 'Limited features'}
+              </p>
+            </div>
+            {user?.planType === 'free' && (
+              <Link
+                href="/pricing"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-5 py-3 rounded-xl text-sm font-bold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:scale-105"
+              >
+                Upgrade
+              </Link>
+            )}
           </div>
-          {user?.planType === 'free' && (
-            <Link
-              href="/pricing"
-              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90"
-            >
-              Upgrade
-            </Link>
-          )}
         </div>
       </Card>
 
       {/* Quick Actions */}
       <Card>
-        <h3 className="font-semibold text-gray-900 text-base mb-3">Quick Actions</h3>
-        <div className="space-y-1">
+        <h3 className="font-bold text-base text-gray-900 mb-3 flex items-center gap-2">
+          <span className="text-lg">⚡</span> Quick Actions
+        </h3>
+        <div className="space-y-2">
           <Link
             href="/pricing"
-            className="block w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+            className="flex items-center justify-between w-full px-4 py-3.5 rounded-xl bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 transition-all border border-blue-100 hover:border-blue-200 group"
           >
-            💳 View Pricing
+            <span className="flex items-center gap-2.5 text-sm font-bold text-gray-900">
+              <span className="text-xl">💳</span> View Pricing
+            </span>
+            <span className="text-gray-400 group-hover:text-blue-600 transition-colors">→</span>
           </Link>
           <Link
             href="/interests"
-            className="block w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+            className="flex items-center justify-between w-full px-4 py-3.5 rounded-xl bg-gradient-to-r from-pink-50 to-purple-50 hover:from-pink-100 hover:to-purple-100 transition-all border border-pink-100 hover:border-pink-200 group"
           >
-            🎨 Manage Interests
+            <span className="flex items-center gap-2.5 text-sm font-bold text-gray-900">
+              <span className="text-xl">🎨</span> Manage Interests
+            </span>
+            <span className="text-gray-400 group-hover:text-pink-600 transition-colors">→</span>
           </Link>
           <button
             onClick={handleLogout}
-            className="block w-full text-left px-3 py-2.5 rounded-lg hover:bg-red-50 text-red-600 font-semibold transition-colors text-sm"
+            className="flex items-center justify-between w-full px-4 py-3.5 rounded-xl bg-gradient-to-r from-red-50 to-orange-50 hover:from-red-100 hover:to-orange-100 transition-all border border-red-100 hover:border-red-200 group"
           >
-            🚪 Log Out
+            <span className="flex items-center gap-2.5 text-sm font-bold text-red-600">
+              <span className="text-xl">🚪</span> Log Out
+            </span>
+            <span className="text-red-300 group-hover:text-red-600 transition-colors">→</span>
           </button>
         </div>
       </Card>
