@@ -12,6 +12,7 @@ export const Home: React.FC = () => {
   const [recentReferences, setRecentReferences] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [recipeData, setRecipeData] = React.useState<any>(null);
+  const [playingVideo, setPlayingVideo] = React.useState<string | null>(null);
 
   // Check for recipe view
   React.useEffect(() => {
@@ -27,13 +28,14 @@ export const Home: React.FC = () => {
   React.useEffect(() => {
     const fetchRecentReferences = async () => {
       try {
-        // YouTube Shorts Reference
+        // YouTube Shorts Reference - Pasted videos
         const mockData = [
           {
             id: 1,
             videoId: '8qUUuVkhtYQ',
             thumbnail: 'https://img.youtube.com/vi/8qUUuVkhtYQ/maxresdefault.jpg',
             title: 'Amazing Cooking Shorts',
+            creator: '@CookingMaster',
             duration: '00:25',
             views: '5.4K',
             createdAt: '2 hours ago',
@@ -156,43 +158,94 @@ export const Home: React.FC = () => {
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {recentReferences.map((ref) => (
-              <Link
-                key={ref.id}
-                href={`/recipes?id=${ref.id}`}
-                className="block group"
-              >
-                <div className="relative rounded-xl overflow-hidden shadow-md aspect-[9/16] ring-2 ring-transparent group-hover:ring-blue-400 transition-all duration-300">
-                  <img
-                    src={ref.thumbnail}
-                    alt={ref.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                  {/* Gradient Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
-                  
-                  {/* Badge */}
-                  <div className="absolute top-2 right-2">
-                    <span className="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg">
-                      NEW
-                    </span>
-                  </div>
-                  
-                  {/* Content Overlay */}
-                  <div className="absolute bottom-0 left-0 right-0 p-3">
-                    <div className="flex items-center justify-between text-white text-xs mb-1.5">
-                      <span className="bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg text-[10px] font-medium">
-                        {ref.duration}
-                      </span>
-                      <span className="flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg text-[10px] font-medium">
-                        <span className="text-red-400">❤</span> {ref.views}
+              <div key={ref.id} className="group">
+                <div 
+                  onClick={() => setPlayingVideo(ref.videoId)}
+                  className="block relative cursor-pointer"
+                >
+                  <div className="relative rounded-xl overflow-hidden shadow-lg aspect-[9/16] mb-2.5 ring-2 ring-transparent group-hover:ring-blue-400 transition-all duration-300">
+                    <img
+                      src={ref.thumbnail}
+                      alt={ref.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                    
+                    {/* Play Button Overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-black/60 backdrop-blur-sm rounded-full p-4 group-hover:scale-110 transition-transform">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
+                          <path d="M8 5v14l11-7z"/>
+                        </svg>
+                      </div>
+                    </div>
+                    
+                    {/* Gradient Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30"></div>
+                    
+                    {/* Badge */}
+                    <div className="absolute top-2 left-2">
+                      <span className="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1">
+                        <span className="animate-pulse">✨</span> NEW
                       </span>
                     </div>
-                    <p className="text-white font-bold text-xs line-clamp-2 mb-1">{ref.title}</p>
-                    <p className="text-gray-300 text-[10px]">{ref.createdAt}</p>
+
+                    {/* Duration Badge */}
+                    <div className="absolute top-2 right-2 bg-black/70 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-1 rounded-lg">
+                      {ref.duration}
+                    </div>
+
+                    {/* Bottom Info Overlay */}
+                    <div className="absolute bottom-0 left-0 right-0 p-3">
+                      <p className="text-white font-bold text-sm line-clamp-2 mb-1.5 drop-shadow-lg">
+                        {ref.title}
+                      </p>
+                      <p className="text-gray-200 text-xs mb-2 drop-shadow-md">{ref.creator}</p>
+                      <div className="flex items-center justify-between text-white text-xs">
+                        <span className="flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg">
+                          <span>👁</span> {ref.views}
+                        </span>
+                        <span className="bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg">
+                          {ref.createdAt}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </Link>
+              </div>
             ))}
+          </div>
+        )}
+
+        {/* Video Player Modal */}
+        {playingVideo && (
+          <div 
+            className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center p-4"
+            onClick={() => setPlayingVideo(null)}
+          >
+            <div 
+              className="relative w-full max-w-[360px] aspect-[9/16] bg-black rounded-2xl overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Back Button */}
+              <button
+                onClick={() => setPlayingVideo(null)}
+                className="absolute top-4 left-4 z-10 bg-black/50 backdrop-blur-sm text-white rounded-full p-2.5 hover:bg-black/70 transition-all flex items-center gap-2 pr-3"
+                aria-label="Go back"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                <span className="text-sm font-medium">Back</span>
+              </button>
+
+              {/* YouTube iframe */}
+              <iframe
+                src={`https://www.youtube.com/embed/${playingVideo}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1&playsinline=1`}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
           </div>
         )}
       </div>
@@ -204,19 +257,58 @@ export const Home: React.FC = () => {
 export const Recipes: React.FC = () => {
   const [recipes, setRecipes] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const router = useRouter();
 
   React.useEffect(() => {
     const fetchRecipes = async () => {
       try {
-        // TODO: API 연결
-        const mockData = [
-          { id: 1, title: 'Cooking Recipe #1', scenes: 5, createdAt: '2 days ago' },
-          { id: 2, title: 'Beauty Tutorial', scenes: 7, createdAt: '3 days ago' },
-          { id: 3, title: 'Fitness Tips', scenes: 6, createdAt: '1 week ago' },
-        ];
-        setRecipes(mockData);
+        // Fetch real analyzed recipe from API
+        const videoUrl = 'https://www.youtube.com/shorts/8qUUuVkhtYQ';
+        
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: videoUrl,
+            niche: 'Cooking',
+            goal: 'Create engaging cooking content',
+            describe: 'Viral cooking shorts recipe'
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to analyze video');
+        }
+
+        const data = await response.json();
+        
+        const recipeData = {
+          id: 1,
+          videoId: data.videoId,
+          videoUrl: videoUrl,
+          title: 'Amazing Cooking Shorts Recipe',
+          thumbnail: 'https://img.youtube.com/vi/8qUUuVkhtYQ/maxresdefault.jpg',
+          totalScenes: data.scenes.length,
+          capturedCount: data.scenes.length,
+          createdAt: new Date().toISOString(),
+          scenes: data.scenes.map((scene: any, index: number) => ({
+            id: scene.id,
+            timestamp: `${scene.startTime}-${scene.endTime}`,
+            description: scene.description,
+            shotType: index % 3 === 0 ? 'Wide Shot' : index % 3 === 1 ? 'Close-up' : 'Medium Shot',
+            cameraAngle: index % 2 === 0 ? 'Eye Level' : 'Top Down',
+            lighting: 'Natural light',
+            audioNotes: scene.script ? scene.script[0] : 'Background music',
+          })),
+          capturedVideos: {},
+          matchResults: {},
+        };
+        
+        setRecipes([recipeData]);
       } catch (error) {
         console.error('Failed to fetch recipes:', error);
+        // Fallback to mock data if API fails
+        setRecipes([]);
       } finally {
         setLoading(false);
       }
@@ -224,6 +316,20 @@ export const Recipes: React.FC = () => {
 
     fetchRecipes();
   }, []);
+
+  const handleView = (recipe: any) => {
+    // Save recipe data to sessionStorage for viewing
+    sessionStorage.setItem('recipeData', JSON.stringify({
+      scenes: recipe.scenes,
+      videoUrl: recipe.videoUrl,
+      capturedVideos: recipe.capturedVideos || {},
+      matchResults: recipe.matchResults || {},
+      recipeId: recipe.id,
+    }));
+    
+    // Navigate to Home with recipe view
+    router.push('/home?view=recipe');
+  };
 
   if (loading) {
     return (
@@ -234,10 +340,12 @@ export const Recipes: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-bold text-gray-900 mb-1">My Recipes 📋</h2>
-        <p className="text-sm text-gray-600">All your created recipes</p>
+    <div className="space-y-5">
+      <div className="mb-2">
+        <h2 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
+          My Recipes <span className="text-2xl">📋</span>
+        </h2>
+        <p className="text-sm text-gray-600">Your analyzed video recipes</p>
       </div>
 
       {recipes.length === 0 ? (
@@ -247,26 +355,53 @@ export const Recipes: React.FC = () => {
           <p className="text-gray-600 mb-4">Create your first recipe from a viral video</p>
           <Link
             href="/paste"
-            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+            className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-bold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
           >
             Create Recipe
           </Link>
         </Card>
       ) : (
-        <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-4">
           {recipes.map((recipe) => (
-            <Card key={recipe.id} className="hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-gray-900 text-sm mb-0.5">{recipe.title}</h3>
-                  <p className="text-xs text-gray-600">{recipe.scenes} scenes • {recipe.createdAt}</p>
+            <Card key={recipe.id} className="group hover:shadow-xl transition-all p-0 overflow-hidden">
+              {/* Thumbnail */}
+              <div className="relative rounded-t-xl overflow-hidden aspect-[9/16]">
+                <img
+                  src={recipe.thumbnail}
+                  alt={recipe.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
+                <div className="absolute bottom-0 left-0 right-0 p-3">
+                  <div className="flex items-center gap-2 text-white text-xs">
+                    <span className="bg-blue-600 px-2 py-1 rounded-lg font-bold">
+                      🎬 {recipe.totalScenes} scenes
+                    </span>
+                    <span className="bg-green-600 px-2 py-1 rounded-lg font-bold">
+                      ✓ {recipe.capturedCount}
+                    </span>
+                  </div>
                 </div>
-                <Link
-                  href={`/recipes?id=${recipe.id}`}
-                  className="text-blue-600 hover:text-blue-700 font-semibold text-sm"
+              </div>
+
+              <div className="p-3">
+                {/* Title */}
+                <h3 className="font-bold text-sm text-gray-900 mb-2 line-clamp-2">
+                  {recipe.title}
+                </h3>
+
+                {/* Date */}
+                <p className="text-xs text-gray-500 mb-3">
+                  📅 {new Date(recipe.createdAt).toLocaleDateString()}
+                </p>
+
+                {/* View Button */}
+                <button
+                  onClick={() => handleView(recipe)}
+                  className="w-full px-4 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl text-sm font-bold hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg"
                 >
-                  View →
-                </Link>
+                  View Recipe →
+                </button>
               </div>
             </Card>
           ))}
@@ -286,6 +421,8 @@ export const Settings: React.FC = () => {
     planType: string;
   } | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [likedVideos, setLikedVideos] = React.useState<any[]>([]);
+  const [playingVideo, setPlayingVideo] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const fetchUserData = async () => {
@@ -313,6 +450,12 @@ export const Settings: React.FC = () => {
 
     fetchUserData();
   }, [router]);
+
+  // Load liked videos from localStorage
+  React.useEffect(() => {
+    const liked = JSON.parse(localStorage.getItem('likedVideos') || '[]');
+    setLikedVideos(liked);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -435,6 +578,86 @@ export const Settings: React.FC = () => {
           </button>
         </div>
       </Card>
+
+      {/* Liked Videos */}
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <span>❤️</span> Liked Videos
+            <span className="text-sm text-gray-500">({likedVideos.length})</span>
+          </h3>
+        </div>
+        
+        {likedVideos.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">💔</div>
+            <p className="text-gray-500 mb-2">No liked videos yet</p>
+            <p className="text-sm text-gray-400">Go to Explore and like some videos!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            {likedVideos.map((video: any) => (
+              <div
+                key={video.id}
+                className="relative cursor-pointer group"
+                onClick={() => setPlayingVideo(video.videoId)}
+              >
+                <img
+                  src={video.thumbnail}
+                  alt={video.title}
+                  className="w-full aspect-[9/16] object-cover rounded-xl border-2 border-gray-200 group-hover:border-pink-400 transition-all group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-xl transition-all flex items-center justify-center">
+                  <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-2xl">▶️</span>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <p className="text-sm font-semibold text-gray-900 line-clamp-2">{video.title}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-gray-500">{video.creator}</span>
+                    <span className="text-xs text-gray-400">•</span>
+                    <span className="text-xs text-pink-600">❤️ {video.likes}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Video Player Modal */}
+      {playingVideo && (
+        <div
+          className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center p-4"
+          onClick={() => setPlayingVideo(null)}
+        >
+          <div 
+            className="relative w-full max-w-[360px] aspect-[9/16] bg-black rounded-2xl overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Back Button */}
+            <button
+              onClick={() => setPlayingVideo(null)}
+              className="absolute top-4 left-4 z-10 bg-black/50 backdrop-blur-sm text-white rounded-full p-2.5 hover:bg-black/70 transition-all flex items-center gap-2 pr-3"
+              aria-label="Go back"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+              </svg>
+              <span className="text-sm font-medium">Back</span>
+            </button>
+
+            {/* YouTube iframe */}
+            <iframe
+              src={`https://www.youtube.com/embed/${playingVideo}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1&playsinline=1`}
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

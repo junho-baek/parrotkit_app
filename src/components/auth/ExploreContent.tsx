@@ -27,17 +27,6 @@ export const ExploreContent: React.FC = () => {
 
   const categories = ['All', '🍳 Cooking', '💄 Beauty', '💪 Fitness', '🏠 DIY', '✈️ Travel', '😂 Comedy'];
 
-  // Handle ESC key to close video
-  React.useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setPlayingVideo(null);
-      }
-    };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, []);
-
   React.useEffect(() => {
     const fetchTrendingReferences = async () => {
       try {
@@ -119,19 +108,32 @@ export const ExploreContent: React.FC = () => {
       )
     );
 
+    // Save to localStorage for My page
+    const likedVideos = JSON.parse(localStorage.getItem('likedVideos') || '[]');
+    const currentRef = trendingReferences.find(r => r.id === id);
+    
+    if (currentRef) {
+      if (!currentRef.isLiked) {
+        // Add to liked
+        likedVideos.push({
+          id: currentRef.id,
+          videoId: currentRef.videoId,
+          thumbnail: currentRef.thumbnail,
+          title: currentRef.title,
+          creator: currentRef.creator,
+          views: currentRef.views,
+          likes: currentRef.likes + 1,
+          likedAt: new Date().toISOString(),
+        });
+      } else {
+        // Remove from liked
+        const index = likedVideos.findIndex((v: any) => v.id === id);
+        if (index > -1) likedVideos.splice(index, 1);
+      }
+      localStorage.setItem('likedVideos', JSON.stringify(likedVideos));
+    }
+
     try {
-      // TODO: API 호출
-      // Endpoint: POST /api/trending/like
-      // Body: { referenceId: id }
-      // Response: { success: boolean, likes: number }
-      
-      // const response = await fetch('/api/trending/like', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ referenceId: id }),
-      // });
-      // if (!response.ok) throw new Error('Like failed');
-      
       // GA4 이벤트
       if (typeof window !== 'undefined' && (window as any).gtag) {
         (window as any).gtag('event', 'like_trending_reference', {
@@ -153,43 +155,6 @@ export const ExploreContent: React.FC = () => {
               }
             : ref
         )
-      );
-    }
-  };
-
-  // Optimistic UI: Save 토글
-  const handleSave = async (id: number) => {
-    // 즉시 UI 업데이트 (Optimistic)
-    setTrendingReferences(prev =>
-      prev.map(ref => (ref.id === id ? { ...ref, isSaved: !ref.isSaved } : ref))
-    );
-
-    try {
-      // TODO: API 호출
-      // Endpoint: POST /api/trending/save
-      // Body: { referenceId: id }
-      // Response: { success: boolean }
-      
-      // const response = await fetch('/api/trending/save', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ referenceId: id }),
-      // });
-      // if (!response.ok) throw new Error('Save failed');
-      
-      // GA4 이벤트
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'save_trending_reference', {
-          event_category: 'engagement',
-          reference_id: id,
-        });
-      }
-    } catch (error) {
-      console.error('Failed to save:', error);
-      
-      // 실패 시 롤백
-      setTrendingReferences(prev =>
-        prev.map(ref => (ref.id === id ? { ...ref, isSaved: !ref.isSaved } : ref))
       );
     }
   };
@@ -306,37 +271,22 @@ export const ExploreContent: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleLike(ref.id);
-                    }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
-                      ref.isLiked
-                        ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white scale-105'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
-                    }`}
-                  >
-                    <span className="text-base">{ref.isLiked ? '❤️' : '🤍'}</span>
-                    <span>Like</span>
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSave(ref.id);
-                    }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
-                      ref.isSaved
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white scale-105'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
-                    }`}
-                  >
-                    <span className="text-base">{ref.isSaved ? '⭐' : '☆'}</span>
-                    <span>Save</span>
-                  </button>
-                </div>
+                {/* Like Button Only */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleLike(ref.id);
+                  }}
+                  className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all shadow-md ${
+                    ref.isLiked
+                      ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white scale-105'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 hover:scale-105 border-2 border-gray-200'
+                  }`}
+                >
+                  <span className="text-lg">{ref.isLiked ? '❤️' : '🤍'}</span>
+                  <span>{ref.isLiked ? 'Liked' : 'Like'}</span>
+                  <span className="text-xs opacity-75">({ref.likes})</span>
+                </button>
               </div>
             ))}
           </div>
@@ -344,22 +294,23 @@ export const ExploreContent: React.FC = () => {
           {/* Video Player Modal */}
           {playingVideo && (
             <div 
-              className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center p-3"
+              className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center p-4"
               onClick={() => setPlayingVideo(null)}
             >
               <div 
-                className="relative w-full max-w-[420px] aspect-[9/16] bg-black rounded-2xl overflow-hidden shadow-2xl"
+                className="relative w-full max-w-[360px] aspect-[9/16] bg-black rounded-2xl overflow-hidden shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* Close Button */}
+                {/* Back Button */}
                 <button
                   onClick={() => setPlayingVideo(null)}
-                  className="absolute -top-12 right-0 z-10 bg-white/10 backdrop-blur-sm text-white rounded-full p-3 hover:bg-white/20 transition-all hover:scale-110"
-                  aria-label="Close video"
+                  className="absolute top-4 left-4 z-10 bg-black/50 backdrop-blur-sm text-white rounded-full p-2.5 hover:bg-black/70 transition-all flex items-center gap-2 pr-3"
+                  aria-label="Go back"
                 >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M18 6L6 18M6 6l12 12"/>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
                   </svg>
+                  <span className="text-sm font-medium">Back</span>
                 </button>
 
                 {/* YouTube iframe */}

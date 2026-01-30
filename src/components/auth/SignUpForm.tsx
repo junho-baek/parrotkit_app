@@ -76,32 +76,19 @@ export const SignUpForm: React.FC = () => {
         throw new Error(data.error || '회원가입에 실패했습니다.');
       }
 
-      // 회원가입 성공 - 자동 로그인
-      const signinResponse = await fetch('/api/auth/signin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: formData.username,
-          password: formData.password,
-        }),
-      });
-
-      const signinData = await signinResponse.json();
+      // 회원가입 성공 - 토큰과 사용자 정보를 즉시 저장
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
       
-      if (signinResponse.ok) {
-        // 토큰 저장
-        localStorage.setItem('token', signinData.token);
-        localStorage.setItem('user', JSON.stringify(signinData.user));
-        
-        // GA4: 회원가입 완료
-        if (typeof window !== 'undefined' && (window as any).gtag) {
-          (window as any).gtag('event', 'sign_up', {
-            method: 'email'
-          });
-        }
-        
-        router.push('/interests');
+      // GA4: 회원가입 완료
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        (window as any).gtag('event', 'sign_up', {
+          method: 'email'
+        });
       }
+      
+      // Interests 페이지로 이동
+      router.push('/interests');
     } catch (err: any) {
       setError(err.message || '회원가입에 실패했습니다. 다시 시도해주세요.');
     } finally {
@@ -110,68 +97,125 @@ export const SignUpForm: React.FC = () => {
   };
 
   return (
-    <Card>
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Create an Account</h1>
-        <p className="text-gray-600">ParrotKit에 가입해보세요</p>
-      </div>
-
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 via-white to-purple-50 p-4">
+      <Card className="w-full max-w-md card-luxury">
+        <div className="text-center mb-8">
+          <div className="mb-4">
+            <div className="w-16 h-16 mx-auto bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg animate-pulse-glow">
+              <span className="text-3xl">✨</span>
+            </div>
+          </div>
+          <h1 className="text-3xl font-bold mb-2">
+            <span className="gradient-text">Create Account</span>
+          </h1>
+          <p className="text-gray-600">Join ParrotKit today!</p>
         </div>
-      )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <Input
-          type="email"
-          placeholder="Email address"
-          name="email"
-          value={formData.email}
-          onChange={handleChange}
-          required
-        />
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border-2 border-red-200 rounded-xl text-red-700 text-sm animate-fade-in">
+            <div className="flex items-center gap-2">
+              <span>⚠️</span>
+              <span>{error}</span>
+            </div>
+          </div>
+        )}
 
-        <Input
-          type="text"
-          placeholder="User name"
-          name="username"
-          value={formData.username}
-          onChange={handleChange}
-          required
-        />
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700">
+              Email Address
+            </label>
+            <Input
+              type="email"
+              placeholder="Enter your email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-pink-500 focus:ring-4 focus:ring-pink-100 transition-all"
+            />
+          </div>
 
-        <Input
-          type="password"
-          placeholder="Password"
-          name="password"
-          value={formData.password}
-          onChange={handleChange}
-          required
-        />
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700">
+              Username
+            </label>
+            <Input
+              type="text"
+              placeholder="Choose a username"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-pink-500 focus:ring-4 focus:ring-pink-100 transition-all"
+            />
+          </div>
 
-        <Input
-          type="password"
-          placeholder="Re-type password"
-          name="confirmPassword"
-          value={formData.confirmPassword}
-          onChange={handleChange}
-          required
-        />
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700">
+              Password
+            </label>
+            <Input
+              type="password"
+              placeholder="Create a password (min. 6 characters)"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-pink-500 focus:ring-4 focus:ring-pink-100 transition-all"
+            />
+          </div>
 
-        <Button type="submit" disabled={loading}>
-          {loading ? 'Creating...' : 'Submit'}
-        </Button>
-      </form>
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700">
+              Confirm Password
+            </label>
+            <Input
+              type="password"
+              placeholder="Re-type your password"
+              name="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-pink-500 focus:ring-4 focus:ring-pink-100 transition-all"
+            />
+          </div>
 
-      <div className="text-center mt-6">
-        <p className="text-gray-600 text-sm">
-          Already have an account?{' '}
-          <Link href="/signin" className="text-blue-500 hover:underline font-semibold">
-            Sign In to your account
+          <Button 
+            type="submit" 
+            disabled={loading}
+            className="w-full btn-primary mt-6"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                </svg>
+                Creating account...
+              </span>
+            ) : (
+              'Create Account'
+            )}
+          </Button>
+        </form>
+
+        <div className="mt-6">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t-2 border-gray-200"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-white text-gray-500 font-medium">Already have an account?</span>
+            </div>
+          </div>
+          <Link href="/signin" className="block mt-4">
+            <button type="button" className="w-full btn-secondary">
+              Sign In
+            </button>
           </Link>
-        </p>
-      </div>
-    </Card>
+        </div>
+      </Card>
+    </div>
   );
 };

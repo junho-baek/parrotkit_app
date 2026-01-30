@@ -78,55 +78,100 @@ export const SignInForm: React.FC = () => {
   };
 
   return (
-    <Card>
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Sign In</h1>
-        <p className="text-gray-600">Welcome back !</p>
-      </div>
-
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-4">
+      <Card className="w-full max-w-md card-luxury">
+        <div className="text-center mb-8">
+          <div className="mb-4">
+            <div className="w-16 h-16 mx-auto bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg animate-pulse-glow">
+              <span className="text-3xl">🦜</span>
+            </div>
+          </div>
+          <h1 className="text-3xl font-bold mb-2">
+            <span className="gradient-text">Sign In</span>
+          </h1>
+          <p className="text-gray-600">Welcome back to ParrotKit!</p>
         </div>
-      )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <Input
-          type="email"
-          placeholder="Username or email address"
-          name="email"
-          value={formData.email}
-          onChange={handleChange}
-          required
-        />
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border-2 border-red-200 rounded-xl text-red-700 text-sm animate-fade-in">
+            <div className="flex items-center gap-2">
+              <span>⚠️</span>
+              <span>{error}</span>
+            </div>
+          </div>
+        )}
 
-        <Input
-          type="password"
-          placeholder="Password"
-          name="password"
-          value={formData.password}
-          onChange={handleChange}
-          required
-        />
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700">
+              Email or Username
+            </label>
+            <Input
+              type="email"
+              placeholder="Enter your email or username"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+            />
+          </div>
 
-        <Button type="submit" disabled={loading}>
-          {loading ? 'Signing in...' : 'Submit'}
-        </Button>
-      </form>
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700">
+              Password
+            </label>
+            <Input
+              type="password"
+              placeholder="Enter your password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+            />
+          </div>
 
-      <div className="text-center mt-6">
-        <p className="text-gray-600 text-sm mb-4">
-          <Link href="#" className="text-blue-500 hover:underline font-semibold">
-            Forgot your password?
+          <Button 
+            type="submit" 
+            disabled={loading}
+            className="w-full btn-primary mt-6"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                </svg>
+                Signing in...
+              </span>
+            ) : (
+              'Sign In'
+            )}
+          </Button>
+        </form>
+
+        <div className="mt-6 space-y-4">
+          <div className="text-center">
+            <Link href="#" className="text-indigo-600 hover:text-indigo-700 font-semibold text-sm hover:underline transition-colors">
+              Forgot your password?
+            </Link>
+          </div>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t-2 border-gray-200"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-white text-gray-500 font-medium">Don't have an account?</span>
+            </div>
+          </div>
+          <Link href="/signup" className="block">
+            <button className="w-full btn-secondary">
+              Create Account
+            </button>
           </Link>
-        </p>
-        <p className="text-gray-600 text-sm">
-          Don't have an account yet?{' '}
-          <Link href="/signup" className="text-blue-500 hover:underline font-semibold">
-            Sign up
-          </Link>
-        </p>
-      </div>
-    </Card>
+        </div>
+      </Card>
+    </div>
   );
 };

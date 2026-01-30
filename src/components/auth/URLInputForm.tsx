@@ -2,11 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card } from '@/components/common';
+import { Card, LoadingScreen } from '@/components/common';
 
 export const URLInputForm: React.FC = () => {
   const router = useRouter();
   const [url, setUrl] = useState('');
+  const [niche, setNiche] = useState('');
+  const [goal, setGoal] = useState('');
+  const [describe, setDescribe] = useState('');
   const [loading, setLoading] = useState(false);
 
   // 로그인 체크
@@ -40,7 +43,7 @@ export const URLInputForm: React.FC = () => {
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, niche, goal, describe }),
       });
 
       if (!response.ok) {
@@ -67,13 +70,17 @@ export const URLInputForm: React.FC = () => {
     }
   };
 
+  if (loading) {
+    return <LoadingScreen message="Creating video recipe..." />;
+  }
+
   return (
     <Card className="w-full">
       <div className="space-y-6">
         {/* Header */}
         <div className="text-center">
           <div className="text-5xl mb-4">🎬</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Add Reference Video</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Paste Reference</h2>
           <p className="text-gray-600">Paste a viral video URL from TikTok, Instagram, or YouTube Shorts</p>
         </div>
 
@@ -81,7 +88,7 @@ export const URLInputForm: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-semibold text-gray-900 mb-2">
-              Video URL
+              Video URL *
             </label>
             <input
               type="url"
@@ -89,6 +96,49 @@ export const URLInputForm: React.FC = () => {
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://www.tiktok.com/@username/video/..."
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              disabled={loading}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
+              Niche (Optional)
+            </label>
+            <input
+              type="text"
+              value={niche}
+              onChange={(e) => setNiche(e.target.value)}
+              placeholder="e.g., Cooking, Fitness, Beauty..."
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              disabled={loading}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
+              Goal (Optional)
+            </label>
+            <input
+              type="text"
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+              placeholder="What do you want to achieve with this recipe?"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              disabled={loading}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
+              Describe (Optional)
+            </label>
+            <textarea
+              value={describe}
+              onChange={(e) => setDescribe(e.target.value)}
+              placeholder="Additional notes or specific requirements..."
+              rows={3}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none"
               disabled={loading}
             />
           </div>
