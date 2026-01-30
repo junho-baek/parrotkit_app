@@ -27,31 +27,16 @@ export const Home: React.FC = () => {
   React.useEffect(() => {
     const fetchRecentReferences = async () => {
       try {
-        // TODO: API 연결 시 실제 데이터 가져오기
+        // YouTube Shorts Reference
         const mockData = [
           {
             id: 1,
-            thumbnail: 'https://via.placeholder.com/300x400/ec4899/ffffff?text=Recipe+1',
-            title: 'Viral Cooking Recipe',
+            videoId: '8qUUuVkhtYQ',
+            thumbnail: 'https://img.youtube.com/vi/8qUUuVkhtYQ/maxresdefault.jpg',
+            title: 'Amazing Cooking Shorts',
             duration: '00:25',
             views: '5.4K',
             createdAt: '2 hours ago',
-          },
-          {
-            id: 2,
-            thumbnail: 'https://via.placeholder.com/300x400/8b5cf6/ffffff?text=Recipe+2',
-            title: 'Beauty Tutorial',
-            duration: '00:30',
-            views: '6.6K',
-            createdAt: '5 hours ago',
-          },
-          {
-            id: 3,
-            thumbnail: 'https://via.placeholder.com/300x400/f97316/ffffff?text=Recipe+3',
-            title: 'Fitness Tips',
-            duration: '00:35',
-            views: '7.8K',
-            createdAt: '1 day ago',
           },
         ];
         setRecentReferences(mockData);
