@@ -11,8 +11,46 @@ interface PricingCardProps {
 export const PricingCard: React.FC<PricingCardProps> = ({ plan }) => {
   const isFree = plan.price === 0;
   const [loading, setLoading] = React.useState(false);
+  const [timeLeft, setTimeLeft] = React.useState({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  });
+
+  // 세일 종료 카운트다운
+  React.useEffect(() => {
+    if (!plan.saleEndDate) return;
+
+    const calculateTimeLeft = () => {
+      const saleEndDate = new Date(plan.saleEndDate);
+      const now = new Date();
+      const difference = saleEndDate.getTime() - now.getTime();
+
+      if (difference > 0) {
+        setTimeLeft({
+          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((difference / 1000 / 60) % 60),
+          seconds: Math.floor((difference / 1000) % 60),
+        });
+      } else {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      }
+    };
+
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+
+    return () => clearInterval(timer);
+  }, [plan.saleEndDate]);
   
   const handleCTAClick = async () => {
+    // Coming Soon 플랜은 클릭 불가
+    if (plan.comingSoon) {
+      return;
+    }
+
     // GA4: 가격 플랜 CTA 클릭
     if (typeof window !== 'undefined' && (window as any).gtag) {
       (window as any).gtag('event', isFree ? 'select_free_plan' : 'begin_checkout', {
@@ -40,7 +78,7 @@ export const PricingCard: React.FC<PricingCardProps> = ({ plan }) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          variantId: process.env.NEXT_PUBLIC_LEMONSQUEEZY_PRODUCT_PRO,
+          variantId: process.env.NEXT_PUBLIC_VARIANT_PRO,
           userId: userData?.id,
           userEmail: userData?.email,
         }),
@@ -66,44 +104,147 @@ export const PricingCard: React.FC<PricingCardProps> = ({ plan }) => {
     <div className="bg-white rounded-2xl border border-gray-200 p-6 flex flex-col h-full shadow-sm hover:shadow-md transition-shadow">
       {/* Header */}
       <div className="text-center mb-6">
+        {plan.popular && (
+          <div className="inline-block bg-blue-500 text-white text-xs font-semibold px-3 py-1 rounded-full mb-3">
+            MOST POPULAR
+          </div>
+        )}
         <h3 className="text-xl font-bold text-gray-900 mb-3">{plan.name}</h3>
         <div className="mb-2">
-          <span className="text-5xl font-bold text-gray-900">${plan.price}</span>
-          <span className="text-gray-600 ml-1">{plan.period}</span>
+          {plan.originalPrice && (
+            <div className="mb-1">
+              <span className="text-2xl text-gray-400 line-through">${plan.originalPrice}</span>
+            </div>
+          )}
+          <div>
+            <span className="text-5xl font-bold text-gray-900">${plan.price}</span>
+            <span className="text-gray-600 ml-1">{plan.period}</span>
+          </div>
         </div>
         {isFree && (
           <p className="text-sm text-gray-500">no credit card required</p>
         )}
-        {!isFree && plan.price === 24 && (
-          <p className="text-sm text-gray-500">Billed yearly ($288/year)</p>
+        {plan.saleEndDate && (
+          <div className="mt-2">
+            <p className="text-xs text-red-500 font-bold mb-1.5">🔥 LIMITED TIME OFFER</p>
+            <div className="bg-red-50 rounded-lg p-2 border border-red-200">
+              <p className="text-[10px] text-gray-600 text-center mb-1.5 font-semibold">Sale ends in:</p>
+              <div className="grid grid-cols-4 gap-1">
+                <div className="text-center">
+                  <div className="bg-white rounded py-0.5 px-0.5 shadow-sm border border-red-100">
+                    <div className="text-base font-bold text-red-500">{timeLeft.days}</div>
+                    <div className="text-[8px] text-gray-500 uppercase leading-tight">Days</div>
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="bg-white rounded py-0.5 px-0.5 shadow-sm border border-red-100">
+                    <div className="text-base font-bold text-red-500">{timeLeft.hours}</div>
+                    <div className="text-[8px] text-gray-500 uppercase leading-tight">Hrs</div>
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="bg-white rounded py-0.5 px-0.5 shadow-sm border border-red-100">
+                    <div className="text-base font-bold text-red-500">{timeLeft.minutes}</div>
+                    <div className="text-[8px] text-gray-500 uppercase leading-tight">Min</div>
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="bg-white rounded py-0.5 px-0.5 shadow-sm border border-red-100">
+                    <div className="text-base font-bold text-red-500">{timeLeft.seconds}</div>
+                    <div className="text-[8px] text-gray-500 uppercase leading-tight">Sec</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {plan.comingSoon && (
+          <p className="text-sm text-gray-500">Available Q2 2026</p>
         )}
       </div>
 
       {/* Description */}
-      <p className="text-center text-gray-700 text-sm mb-6">
+      <p className="text-center text-gray-700 text-sm mb-4">
         {plan.description}
       </p>
 
       {/* Features */}
-      <div className="mb-6 flex-grow">
-        <ul className="space-y-2">
+      <div className="mb-4 flex-grow">
+        <ul className="space-y-1.5">
           {plan.features.map((feature, index) => {
-            const isEnabled = !feature.startsWith('❌') && !feature.startsWith('⭕');
-            const icon = feature.startsWith('✅') ? '✅' : 
-                        feature.startsWith('📷') ? '📷' : 
-                        feature.startsWith('💾') ? '💾' : 
-                        feature.startsWith('📄') ? '📄' : 
-                        feature.startsWith('🚀') ? '🚀' :
-                        feature.startsWith('❌') ? '❌' : 
-                        feature.startsWith('⭕') ? '⭕' : '✅';
+            // 이모지 매핑
+            let emoji = '✓';
+            let text = feature;
             
-            // Remove emoji from text
-            let text = feature.replace(/^[✅📷💾📄🚀❌⭕]\s*/, '');
+            if (feature.includes('Reference Link Analyzer')) {
+              emoji = '🔗';
+              text = 'Reference Link Analyzer (limited)';
+            } else if (feature.includes('Basic Shot Recipe Template')) {
+              emoji = '📝';
+              text = 'Basic Shot Recipe Template';
+            } else if (feature.includes('Save up to')) {
+              emoji = '💾';
+              text = 'Save up to 10 recipes';
+            } else if (feature.includes('Export (basic)')) {
+              emoji = '📤';
+              text = 'Export (basic)';
+            } else if (feature.includes('Community Access')) {
+              emoji = '👥';
+              text = 'Community Access';
+            } else if (feature.includes('Unlimited Recipe Generation')) {
+              emoji = '♾️';
+              text = 'Unlimited Recipe Generation';
+            } else if (feature.includes('Shot-by-Shot Breakdown')) {
+              emoji = '🎬';
+              text = 'Shot-by-Shot Breakdown';
+            } else if (feature.includes('Hook Variations')) {
+              emoji = '🎣';
+              text = 'Hook Variations + Script/VO';
+            } else if (feature.includes('Format Library')) {
+              emoji = '📚';
+              text = 'Format Library (trending)';
+            } else if (feature.includes('Recipe Vault')) {
+              emoji = '🗄️';
+              text = 'Recipe Vault (search, tags)';
+            } else if (feature.includes('Export to Notion')) {
+              emoji = '📄';
+              text = 'Export to Notion/Docs';
+            } else if (feature.includes('Priority Speed')) {
+              emoji = '⚡';
+              text = 'Priority Speed + Early Access';
+            } else if (feature.includes('Everything in Pro')) {
+              emoji = '✨';
+              text = 'Everything in Pro';
+            } else if (feature.includes('Up to 10 team')) {
+              emoji = '👥';
+              text = 'Up to 10 team members';
+            } else if (feature.includes('Shared Recipe Library')) {
+              emoji = '🤝';
+              text = 'Shared Recipe Library';
+            } else if (feature.includes('Advanced Analytics')) {
+              emoji = '📊';
+              text = 'Advanced Analytics';
+            } else if (feature.includes('Brand Guidelines')) {
+              emoji = '🎨';
+              text = 'Brand Guidelines';
+            } else if (feature.includes('Priority Support')) {
+              emoji = '🆘';
+              text = 'Priority Support';
+            } else if (feature.includes('Custom Integrations')) {
+              emoji = '🔌';
+              text = 'Custom Integrations';
+            }
+            
+            const isEnabled = emoji !== '👥' || !feature.includes('Community Access');
             
             return (
-              <li key={index} className="flex items-start gap-2 text-sm">
-                <span className="text-lg flex-shrink-0">{icon}</span>
-                <span className={isEnabled ? 'text-gray-700' : 'text-gray-400'}>
+              <li key={index} className="flex items-center gap-2">
+                <span className="text-base flex-shrink-0">
+                  {emoji}
+                </span>
+                <span className={`text-xs leading-snug ${
+                  isEnabled ? 'text-gray-700' : 'text-gray-400'
+                }`}>
                   {text}
                 </span>
               </li>
@@ -115,8 +256,12 @@ export const PricingCard: React.FC<PricingCardProps> = ({ plan }) => {
       {/* CTA Button */}
       <button 
         onClick={handleCTAClick}
-        disabled={loading}
-        className="w-full py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-semibold rounded-xl transition-colors"
+        disabled={loading || plan.comingSoon}
+        className={`w-full py-3 font-semibold rounded-xl transition-colors ${
+          plan.comingSoon 
+            ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+            : 'bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white'
+        }`}
       >
         {loading ? '처리 중...' : plan.buttonText}
       </button>

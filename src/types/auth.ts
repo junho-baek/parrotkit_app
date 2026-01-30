@@ -148,11 +148,14 @@ export type DashboardTab = 'home' | 'recipes' | 'projects' | 'templates' | 'ai-a
 export interface PricingPlan {
   name: string;
   price: number;
+  originalPrice?: number;
+  saleEndDate?: string;
   period: string;
   description: string;
   features: string[];
   buttonText: string;
   popular?: boolean;
+  comingSoon?: boolean;
 }
 
 export const PRICING_PLANS: PricingPlan[] = [
@@ -172,13 +175,15 @@ export const PRICING_PLANS: PricingPlan[] = [
   },
   {
     name: 'Pro Plan',
-    price: 24,
+    price: 9.99,
+    originalPrice: 24,
+    saleEndDate: '2026-02-14',
     period: '/month',
     description: 'Create viral-ready content faster with advanced breakdowns + reusable templates.',
     features: [
       '✅ Unlimited Recipe Generation (fair use)',
       '📷 Shot-by-Shot Breakdown (cuts, captions, B-roll cues)',
-      '❌ Hook Variations + Script/VO Prompts',
+      '✅ Hook Variations + Script/VO Prompts',
       '🚀 Format Library (trending structures & templates)',
       '💾 Recipe Vault (search, tags, version history)',
       '📄 Export to Notion/Docs + Downloadable templates',
@@ -186,5 +191,22 @@ export const PRICING_PLANS: PricingPlan[] = [
     ],
     buttonText: 'Get Access Now',
     popular: true,
+  },
+  {
+    name: 'Team/Agency Plan',
+    price: 99,
+    period: '/month',
+    description: 'Perfect for agencies and teams managing multiple creators and brands.',
+    features: [
+      '✅ Everything in Pro',
+      '👥 Up to 10 team members',
+      '🔄 Shared Recipe Library',
+      '📊 Advanced Analytics Dashboard',
+      '🎯 Brand Guidelines & Templates',
+      '🔐 Priority Support',
+      '🚀 Custom Integrations',
+    ],
+    buttonText: 'Coming Soon',
+    comingSoon: true,
   },
 ];

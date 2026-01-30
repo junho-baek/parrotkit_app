@@ -93,6 +93,9 @@ export const InterestsForm: React.FC = () => {
       // 성공 - 다음 페이지로 이동
       alert('관심사가 저장되었습니다!');
       
+      // 온보딩 완료 플래그 설정 (프로모션 모달 표시용)
+      localStorage.setItem('onboardingCompleted', 'true');
+      
       // GA4: 온보딩 완료
       if (typeof window !== 'undefined' && (window as any).gtag) {
         (window as any).gtag('event', 'onboarding_complete', {
