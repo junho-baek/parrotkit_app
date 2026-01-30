@@ -5,6 +5,7 @@ import { Card } from '@/components/common';
 
 export const Recipes: React.FC = () => {
   const [myRecipes, setMyRecipes] = useState<any[]>([]);
+  const [playingVideo, setPlayingVideo] = useState<string | null>(null);
 
   useEffect(() => {
     // localStorage에서 레시피 불러오기
@@ -36,99 +37,161 @@ export const Recipes: React.FC = () => {
     }
   };
 
+  // Extract YouTube video ID
+  const extractVideoId = (url: string) => {
+    const patterns = [
+      /shorts\/([a-zA-Z0-9_-]+)/,
+      /watch\?v=([a-zA-Z0-9_-]+)/,
+      /youtu\.be\/([a-zA-Z0-9_-]+)/,
+    ];
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match) return match[1];
+    }
+    return null;
+  };
+
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">My Recipes</h1>
-        <p className="text-gray-600">Your created video recipes</p>
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="mb-2">
+        <h2 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
+          My Recipes <span className="text-2xl">📋</span>
+        </h2>
+        <p className="text-sm text-gray-600">Your analyzed video recipes</p>
       </div>
 
       {myRecipes.length === 0 ? (
-        <Card>
+        <Card className="border-2 border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100">
           <div className="text-center py-12">
-            <div className="text-6xl mb-4">🍿</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">No recipes yet</h3>
-            <p className="text-gray-600 mb-6">
-              Create your first video recipe by analyzing a URL!
+            <div className="text-6xl mb-3 animate-pulse">🍿</div>
+            <h3 className="text-base font-bold text-gray-900 mb-1.5">No recipes yet</h3>
+            <p className="text-xs text-gray-600 mb-4">
+              Start by pasting a video URL to create your first recipe!
             </p>
             <button
               onClick={() => window.location.href = '/paste'}
-              className="px-6 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors"
+              className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
             >
-              Create Recipe
+              + Create Recipe
             </button>
           </div>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 gap-3">
           {myRecipes.map((recipe) => {
-            // YouTube URL에서 비디오 ID 추출
-            const extractVideoId = (url: string) => {
-              const patterns = [
-                /shorts\/([a-zA-Z0-9_-]+)/,
-                /watch\?v=([a-zA-Z0-9_-]+)/,
-                /youtu\.be\/([a-zA-Z0-9_-]+)/,
-              ];
-              for (const pattern of patterns) {
-                const match = url.match(pattern);
-                if (match) return match[1];
-              }
-              return null;
-            };
-            
             const videoId = extractVideoId(recipe.videoUrl);
             const thumbnailUrl = videoId 
               ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
               : null;
 
             return (
-              <Card key={recipe.id}>
-                {thumbnailUrl ? (
-                  <div className="aspect-video rounded-lg mb-4 overflow-hidden">
-                    <img 
-                      src={thumbnailUrl} 
-                      alt={`Recipe #${recipe.id}`}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        // 썸네일 로드 실패 시 fallback
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        target.parentElement!.innerHTML = '<div class="w-full h-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center"><div class="text-white text-4xl">🎥</div></div>';
-                      }}
-                    />
+              <div key={recipe.id} className="group">
+                <div 
+                  onClick={() => setPlayingVideo(videoId || '')}
+                  className="block relative cursor-pointer"
+                >
+                  <div className="relative rounded-xl overflow-hidden shadow-lg aspect-[9/16] mb-2.5 ring-2 ring-transparent group-hover:ring-blue-400 transition-all duration-300">
+                    {thumbnailUrl ? (
+                      <img
+                        src={thumbnailUrl}
+                        alt={`Recipe #${recipe.id}`}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.parentElement!.innerHTML = '<div class="w-full h-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center"><div class="text-white text-4xl">🎥</div></div>';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center">
+                        <div className="text-white text-4xl">🎥</div>
+                      </div>
+                    )}
+                    
+                    {/* Play Button Overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-black/60 backdrop-blur-sm rounded-full p-4 group-hover:scale-110 transition-transform">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
+                          <path d="M8 5v14l11-7z"/>
+                        </svg>
+                      </div>
+                    </div>
+                    
+                    {/* Gradient Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30"></div>
+                    
+                    {/* Recipe Badge */}
+                    <div className="absolute top-2 left-2">
+                      <span className="bg-gradient-to-r from-green-600 to-emerald-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1">
+                        <span className="animate-pulse">📋</span> RECIPE
+                      </span>
+                    </div>
+
+                    {/* Bottom Info Overlay */}
+                    <div className="absolute bottom-0 left-0 right-0 p-3">
+                      <p className="text-white font-bold text-sm mb-1.5 drop-shadow-lg">
+                        Recipe #{recipe.id}
+                      </p>
+                      <div className="flex items-center justify-between text-white text-xs">
+                        <span className="flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg">
+                          <span>🎬</span> {recipe.capturedCount || 0}/{recipe.totalScenes} scenes
+                        </span>
+                        <span className="bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg">
+                          {new Date(recipe.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <div className="aspect-video bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg mb-4 flex items-center justify-center">
-                    <div className="text-white text-4xl">🎥</div>
-                  </div>
-                )}
-              
-                <h3 className="font-bold text-lg text-gray-900 mb-2">
-                  Video Recipe #{recipe.id}
-                </h3>
-              
-                <div className="text-sm text-gray-600 space-y-1 mb-4">
-                  <p>📅 {new Date(recipe.createdAt).toLocaleDateString()}</p>
-                  <p>🎬 {recipe.capturedCount} / {recipe.totalScenes} scenes</p>
                 </div>
 
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleView(recipe)}
-                    className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 transition-colors"
-                  >
-                    View
-                  </button>
-                  <button
-                    onClick={() => handleDelete(recipe.id)}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-semibold hover:bg-red-600 transition-colors"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </Card>
+                {/* View Button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleView(recipe);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all shadow-md bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:scale-105"
+                >
+                  <span>👁️</span>
+                  <span>View Recipe</span>
+                </button>
+              </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Video Player Modal */}
+      {playingVideo && (
+        <div 
+          className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center p-4"
+          onClick={() => setPlayingVideo(null)}
+        >
+          <div 
+            className="relative w-full max-w-[320px] aspect-[9/16] bg-black rounded-2xl overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Back Button */}
+            <button
+              onClick={() => setPlayingVideo(null)}
+              className="absolute top-4 left-4 z-10 bg-black/50 backdrop-blur-sm text-white rounded-full p-2.5 hover:bg-black/70 transition-all flex items-center gap-2 pr-3"
+              aria-label="Go back"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+              </svg>
+              <span className="text-sm font-medium">Back</span>
+            </button>
+
+            {/* YouTube iframe */}
+            <iframe
+              src={`https://www.youtube.com/embed/${playingVideo}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1&playsinline=1`}
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
         </div>
       )}
     </div>
