@@ -64,11 +64,18 @@ CREATE TABLE mvp_users (
   password VARCHAR(255) NOT NULL,
   interests TEXT[],
   created_at TIMESTAMP DEFAULT NOW() NOT NULL,
-  updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+  updated_at TIMESTAMP DEFAULT NOW() NOT NULL,
+  
+  -- Subscription fields (added 2026-01-31)
+  subscription_id VARCHAR(255),
+  subscription_status VARCHAR(50) DEFAULT 'free',
+  plan_type VARCHAR(20) DEFAULT 'free',
+  subscription_ends_at TIMESTAMP
 );
 
 CREATE INDEX idx_mvp_users_email ON mvp_users(email);
 CREATE INDEX idx_mvp_users_username ON mvp_users(username);
+CREATE INDEX idx_mvp_users_subscription_id ON mvp_users(subscription_id);
 ```
 
 ### 4. 개발 서버 실행
@@ -166,6 +173,8 @@ parrot-kit-mvp/
 - ✅ 모바일 최적화 UI
 - ✅ Tailwind CSS
 - ✅ **Lemon Squeezy 구독 결제 연동**
+- ✅ **Webhook 기반 구독 관리 시스템**
+- ✅ **대시보드 구독 상태 표시**
 - ✅ **2주 세일 카운트다운 타이머**
 - ✅ **온보딩 후 프로모션 모달**
 - ✅ GA4 퍼널 분석 + Microsoft Clarity
@@ -238,12 +247,22 @@ Clarity 콘솔: https://clarity.microsoft.com
 2. Settings > Store Settings
 3. Test Mode OFF로 전환
 4. Webhook 설정: `https://parrotkit.vercel.app/api/webhooks/lemonsqueezy`
-   - Events: `subscription_created`, `subscription_updated`, `subscription_cancelled`, `subscription_payment_success`
+   - Events: `subscription_created`, `subscription_updated`, `subscription_cancelled`, `subscription_payment_success`, `subscription_expired`
+   - Signing Secret을 `.env.local`의 `LEMONSQUEEZY_WEBHOOK_SECRET`에 저장
+
+### Webhook 처리 (자동화됨)
+Webhook이 다음 이벤트를 자동으로 처리합니다:
+- **subscription_created**: 새 구독 생성 시 DB에 사용자 정보 업데이트
+- **subscription_payment_success**: 결제 성공 시 구독 연장
+- **subscription_updated**: 구독 상태 변경 시 DB 업데이트
+- **subscription_cancelled**: 구독 취소 시 상태 업데이트
+- **subscription_expired**: 구독 만료 시 Free Plan으로 복구
 
 ### 환경 변수
 ```
 LEMONSQUEEZY_API_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...
 LEMONSQUEEZY_STORE_ID=282768
+LEMONSQUEEZY_WEBHOOK_SECRET=your-webhook-secret
 NEXT_PUBLIC_VARIANT_PRO=1263925
 ```
 
@@ -268,6 +287,31 @@ npm run build
 ### JWT 오류
 - `JWT_SECRET` 환경 변수가 설정되었는지 확인
 - Vercel에 환경 변수가 설정되었는지 확인
+
+### 배포 환경에서 결제 화면으로 안 넘어가는 문제
+- Vercel 대시보드 → Settings → Environment Variables 확인
+- `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `NEXT_PUBLIC_VARIANT_PRO` 설정 확인
+- 환경 변수 추가 후 반드시 **Redeploy** 실행
+
+### Webhook 디버깅
+- Lemon Squeezy 대시보드 → Webhooks → View Logs에서 전송 기록 확인
+- Vercel Functions 로그에서 Webhook 수신 확인
+- DB에서 `subscription_id`, `subscription_status` 업데이트 확인
+
+## 🎯 주요 기능
+
+### 구독 관리 시스템
+- **Free Plan**: 기본 기능 제공
+- **Pro Plan**: 무제한 레시피 분석, 우선 지원
+- 대시보드에서 실시간 구독 상태 조회
+- 플랜 업그레이드/다운그레이드 지원
+- Webhook 기반 자동 구독 관리
+
+### 프로모션 기능
+- 2주 한정 세일 (58% 할인: $24 → $9.99)
+- 실시간 카운트다운 타이머 (초 단위 업데이트)
+- 온보딩 완료 후 프로모션 모달 자동 표시
+- GA4 이벤트 트래킹으로 전환율 분석
 
 ## 👨‍💻 개발자
 

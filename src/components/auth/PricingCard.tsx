@@ -23,7 +23,7 @@ export const PricingCard: React.FC<PricingCardProps> = ({ plan }) => {
     if (!plan.saleEndDate) return;
 
     const calculateTimeLeft = () => {
-      const saleEndDate = new Date(plan.saleEndDate);
+      const saleEndDate = new Date(plan.saleEndDate!);
       const now = new Date();
       const difference = saleEndDate.getTime() - now.getTime();
 

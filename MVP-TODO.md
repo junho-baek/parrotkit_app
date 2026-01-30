@@ -2,7 +2,7 @@
 
 ## 📅 프로젝트 정보
 - **목표 런칭일**: 2026-02-14 (세일 종료일)
-- **현재 진행률**: 30% (결제 연동 완료, 핵심 기능 구현 필요)
+- **현재 진행률**: 45% (결제 시스템 완성, 핵심 기능 구현 필요)
 - **배포 환경**: Vercel (https://parrotkit.vercel.app)
 
 ---
@@ -15,85 +15,128 @@
 - [x] Checkout API 구현 (`/api/checkout`)
 - [x] Test Mode 결제 플로우 테스트 완료
 - [x] 환경 변수 최적화 (NEXT_PUBLIC_VARIANT_PRO)
+- [x] Vercel 환경 변수 설정 완료
+- [x] 배포 환경 결제 플로우 정상 작동 확인
 
-### 2. 프로모션 기능
+### 2. 데이터베이스 스키마 확장
+- [x] mvp_users 테이블에 구독 필드 4개 추가
+  - `subscription_id`: Lemon Squeezy 구독 ID
+  - `subscription_status`: 구독 상태 (active, cancelled, expired)
+  - `plan_type`: 플랜 타입 (free, pro)
+  - `subscription_ends_at`: 구독 만료일
+- [x] Migration 스크립트 작성 및 실행
+- [x] NeonDB에 테이블 구조 업데이트 완료
+
+### 3. Webhook 핸들러 구현
+- [x] Webhook signature 검증 로직
+- [x] 5개 이벤트 처리 구현:
+  - `subscription_created` → DB 업데이트
+  - `subscription_updated` → 상태 업데이트
+  - `subscription_cancelled` → 구독 취소
+  - `subscription_payment_success` → 구독 연장
+  - `subscription_expired` → Free Plan 복구
+- [x] 에러 핸들링 및 로깅 추가
+
+### 4. 대시보드 기능 구현
+- [x] Settings 탭에 구독 정보 표시
+- [x] 현재 플랜 및 다음 결제일 표시
+- [x] Pro 업그레이드 버튼 구현
+- [x] `/api/user/profile` 엔드포인트 추가
+- [x] 실시간 구독 상태 조회 기능
+
+### 5. 프로모션 기능
 - [x] 2주 세일 카운트다운 타이머 (실시간 업데이트)
 - [x] 온보딩 후 프로모션 모달 (58% 할인)
 - [x] Pricing Card 컴팩트 레이아웃
 - [x] Team/Agency Plan 추가 (Coming Soon)
 
-### 3. Analytics & Tracking
+### 6. Analytics & Tracking
 - [x] GA4 이벤트 트래킹 (signup, login, checkout)
 - [x] Microsoft Clarity 세션 녹화
 - [x] 결제 퍼널 이벤트 (`promo_modal_cta_click`, `begin_checkout`)
 
-### 4. 문서화
-- [x] README.md 업데이트 (결제 연동 가이드)
+### 7. 코드 최적화 및 문서화
+- [x] TypeScript 타입 에러 수정
+- [x] Production build 테스트 통과
+- [x] README.md 업데이트 (구독 시스템, Webhook 가이드)
 - [x] 환경 변수 문서화
 - [x] Test Mode 사용법 작성
 
 ---
 
-## 🔥 1순위: 결제 시스템 완성 (배포 전 필수)
+## 🔥 1순위: 결제 시스템 완성 (완료 ✅)
 
-### A. Vercel 환경 변수 설정 ⚠️
-**현재 이슈**: 배포 환경에서 결제 화면으로 안 넘어감 → 환경 변수 미설정 추정
+### A. Vercel 환경 변수 설정 ✅
+**상태**: 완료
 
-**필요한 환경 변수** (Vercel 대시보드 → Settings → Environment Variables):
+**설정 완료된 환경 변수**:
 ```bash
 # 결제 관련 (3개)
-LEMONSQUEEZY_API_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9... (전체 JWT)
-LEMONSQUEEZY_STORE_ID=282768
-NEXT_PUBLIC_VARIANT_PRO=1263925
+LEMONSQUEEZY_API_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9... ✅
+LEMONSQUEEZY_STORE_ID=282768 ✅
+NEXT_PUBLIC_VARIANT_PRO=1263925 ✅
 
-# 기존 변수 재확인 (3개)
-DATABASE_URL=postgresql://neondb_owner:npg_...@ep-tiny-shape-ah45fn88-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require
-JWT_SECRET=(32자 이상 보안 키)
-NEXT_PUBLIC_API_URL=https://parrotkit.vercel.app
+# 기존 변수
+DATABASE_URL=postgresql://... ✅
+JWT_SECRET=(32자 이상 보안 키) ✅
+NEXT_PUBLIC_API_URL=https://parrotkit.vercel.app ✅
 ```
 
-**설정 후 작업**:
-- [ ] Vercel 대시보드에서 환경 변수 추가
-- [ ] Redeploy 트리거 (Settings → Deployments → Redeploy)
-- [ ] 배포 후 결제 플로우 재테스트
+**검증 완료**:
+- [x] Vercel 대시보드에서 환경 변수 추가
+- [x] Redeploy 완료
+- [x] 배포 환경에서 결제 플로우 정상 작동 확인
 
-### B. 데이터베이스 스키마 확장
+### B. 데이터베이스 스키마 확장 ✅
 **파일**: `src/lib/schema.ts`
 
-**추가 필드** (mvp_users 테이블):
+**추가된 필드** (mvp_users 테이블):
 ```typescript
-subscription_id: varchar('subscription_id', { length: 255 }),
-subscription_status: varchar('subscription_status', { length: 50 }), // active, cancelled, expired
-plan_type: varchar('plan_type', { length: 20 }).default('free'), // free, pro
-subscription_ends_at: timestamp('subscription_ends_at'),
+subscriptionId: varchar('subscription_id', { length: 255 }),
+subscriptionStatus: varchar('subscription_status', { length: 50 }).default('free'),
+planType: varchar('plan_type', { length: 20 }).default('free'),
+subscriptionEndsAt: timestamp('subscription_ends_at'),
 ```
 
-**작업 순서**:
-- [ ] `src/lib/schema.ts` 수정
-- [ ] Drizzle migration 생성: `npm run db:generate`
-- [ ] Migration 실행: `npm run db:push`
-- [ ] NeonDB에서 테이블 구조 확인
+**완료 작업**:
+- [x] `src/lib/schema.ts` 수정
+- [x] Migration 스크립트 작성 (`scripts/migrate.ts`)
+- [x] Migration 실행 완료
+- [x] NeonDB 테이블 구조 업데이트 확인
 
-### C. Webhook 핸들러 구현
+### C. Webhook 핸들러 구현 ✅
 **파일**: `src/app/api/webhooks/lemonsqueezy/route.ts`
 
-**구현해야 할 이벤트**:
-```typescript
-// 1. subscription_created → DB에 구독 정보 저장
-// 2. subscription_payment_success → 구독 연장
-// 3. subscription_updated → 구독 상태 업데이트
-// 4. subscription_cancelled → 구독 종료 처리
-```
+**구현된 이벤트**:
+- [x] `subscription_created` → DB에 구독 정보 저장 (userId 또는 이메일 매칭)
+- [x] `subscription_payment_success` → 결제 성공 시 구독 연장
+- [x] `subscription_updated` → 구독 상태 업데이트
+- [x] `subscription_cancelled` → 구독 취소 처리
+- [x] `subscription_expired` → 만료 시 Free Plan 복구
 
-**작업 순서**:
-- [ ] Webhook signature 검증 로직 추가
-- [ ] 각 이벤트별 DB 업데이트 로직 구현
-- [ ] 에러 핸들링 및 로깅
-- [ ] Lemon Squeezy 대시보드에서 Webhook URL 설정:
-  - URL: `https://parrotkit.vercel.app/api/webhooks/lemonsqueezy`
-  - Secret: `.env.local`의 `LEMONSQUEEZY_WEBHOOK_SECRET` 사용
+**완료 작업**:
+- [x] Webhook signature 검증 로직 (HMAC SHA256)
+- [x] 각 이벤트별 DB 업데이트 로직 구현
+- [x] 에러 핸들링 및 상세 로깅
+- [x] Checkout API `custom_data` 필드명 수정 (user_id → userId)
 
-### D. Live Mode 전환
+**Lemon Squeezy 대시보드 설정 필요**:
+- [ ] Webhook URL 등록: `https://parrotkit.vercel.app/api/webhooks/lemonsqueezy`
+- [ ] Events 선택: subscription_created, subscription_updated, subscription_cancelled, subscription_payment_success, subscription_expired
+- [ ] Signing Secret을 `LEMONSQUEEZY_WEBHOOK_SECRET` 환경 변수에 추가
+
+### D. 대시보드 기능 구현 ✅
+**파일**: `src/components/auth/DashboardContent.tsx`, `src/app/api/user/profile/route.ts`
+
+**구현 완료**:
+- [x] Settings 탭에 구독 정보 카드 추가
+- [x] 현재 플랜 (Free/Pro) 표시
+- [x] 다음 결제일 표시
+- [x] Pro 업그레이드 버튼 (Free Plan 사용자만)
+- [x] 구독 상태 실시간 조회 API (`/api/user/profile`)
+- [x] JWT 인증 기반 사용자 정보 조회
+
+### E. Live Mode 전환 (보류)
 **현재 상태**: Test Mode 활성화 중
 
 **전환 절차**:
@@ -254,28 +297,35 @@ RESEND_API_KEY=re_...
 
 ---
 
-## 🚨 긴급 해결 필요 (배포 이슈)
+## ✅ 해결 완료: 배포 이슈
 
-### ⚠️ 배포 환경에서 결제 화면으로 안 넘어가는 문제
+### 배포 환경에서 결제 화면으로 안 넘어가는 문제 (해결됨 ✅)
 
 **증상**: 로컬에서는 정상 작동, Vercel 배포 환경에서는 결제 화면 이동 실패
 
-**원인 추정**:
-1. ❌ Vercel 환경 변수 미설정 (가장 유력)
-2. ❌ API 라우트 404 에러
-3. ❌ CORS 문제
-4. ❌ Build 타임 환경 변수 vs 런타임 환경 변수 혼동
-
-**디버깅 체크리스트**:
-- [ ] Vercel 대시보드 → Settings → Environment Variables 확인
-  - `LEMONSQUEEZY_API_KEY` 설정되어 있는지
-  - `LEMONSQUEEZY_STORE_ID` 설정되어 있는지
-  - `NEXT_PUBLIC_VARIANT_PRO` 설정되어 있는지 (**NEXT_PUBLIC** 접두사 필수!)
-- [ ] Vercel Functions 로그 확인 (Deployments → Logs)
-- [ ] 브라우저 개발자 도구 Console 확인 (에러 메시지)
-- [ ] Network 탭에서 `/api/checkout` 요청 확인 (404? 500?)
+**근본 원인**: Vercel 환경 변수 미설정
 
 **해결 방법**:
+1. Vercel 대시보드 → Settings → Environment Variables
+2. 3개 환경 변수 추가:
+   - `LEMONSQUEEZY_API_KEY`
+   - `LEMONSQUEEZY_STORE_ID`
+   - `NEXT_PUBLIC_VARIANT_PRO`
+3. Redeploy 실행
+4. ✅ 배포 환경에서 결제 플로우 정상 작동 확인
+
+---
+
+## 📈 진행 현황
+
+| 카테고리 | 완료 | 전체 | 진행률 |
+|---------|------|------|--------|
+| 결제 시스템 | 4 | 4 | 100% ✅ |
+| 핵심 기능 | 1 | 4 | 25% |
+| 보안 & 안정성 | 0 | 4 | 0% |
+| UX & 최적화 | 1 | 4 | 25% |
+| 운영 준비 | 0 | 3 | 0% |
+| **전체** | **6** | **19** | **32%** |
 1. Vercel 환경 변수 추가 후 **Redeploy** (자동 배포 안 됨!)
 2. `NEXT_PUBLIC_` 접두사가 없는 환경 변수는 서버에서만 접근 가능
 3. 환경 변수 추가 후 반드시 **Redeploy** 클릭
@@ -297,11 +347,13 @@ RESEND_API_KEY=re_...
 
 ## 🎯 이번 주 목표 (2026-02-01 ~ 02-07)
 
-1. **Vercel 환경 변수 설정 및 배포 이슈 해결** ⚠️
-2. **데이터베이스 스키마 확장 (구독 필드 추가)**
-3. **Webhook 핸들러 구현**
-4. **Live Mode 전환**
-5. **대시보드 기본 기능 구현 (구독 상태 표시)**
+1. ✅ **Vercel 환경 변수 설정 및 배포 이슈 해결** (완료)
+2. ✅ **데이터베이스 스키마 확장 (구독 필드 추가)** (완료)
+3. ✅ **Webhook 핸들러 구현** (완료)
+4. ✅ **대시보드 기본 기능 구현 (구독 상태 표시)** (완료)
+5. ✅ **TypeScript 에러 수정 및 Production Build 통과** (완료)
+6. **Lemon Squeezy Webhook URL 등록** (남은 작업)
+7. **레시피 분석 API 구현 시작** (다음 주)
 
 ---
 
