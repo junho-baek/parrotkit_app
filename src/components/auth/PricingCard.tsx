@@ -10,8 +10,9 @@ interface PricingCardProps {
 
 export const PricingCard: React.FC<PricingCardProps> = ({ plan }) => {
   const isFree = plan.price === 0;
+  const [loading, setLoading] = React.useState(false);
   
-  const handleCTAClick = () => {
+  const handleCTAClick = async () => {
     // GA4: 가격 플랜 CTA 클릭
     if (typeof window !== 'undefined' && (window as any).gtag) {
       (window as any).gtag('event', isFree ? 'select_free_plan' : 'begin_checkout', {
@@ -23,8 +24,42 @@ export const PricingCard: React.FC<PricingCardProps> = ({ plan }) => {
       });
     }
     
-    // 실제 CTA 동작 (추후 구현)
-    console.log(`${plan.name} 플랜 선택`);
+    if (isFree) {
+      // Free 플랜: 회원가입 페이지로 이동
+      window.location.href = '/signup';
+      return;
+    }
+
+    // Pro 플랜: Lemon Squeezy Checkout
+    setLoading(true);
+    try {
+      const user = localStorage.getItem('user');
+      const userData = user ? JSON.parse(user) : null;
+
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          variantId: process.env.NEXT_PUBLIC_LEMONSQUEEZY_PRODUCT_PRO,
+          userId: userData?.id,
+          userEmail: userData?.email,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Checkout failed');
+      }
+
+      // Lemon Squeezy Checkout 페이지로 이동
+      window.location.href = data.checkoutUrl;
+    } catch (error) {
+      console.error('Checkout error:', error);
+      alert('결제 페이지를 열 수 없습니다. 다시 시도해주세요.');
+    } finally {
+      setLoading(false);
+    }
   };
   
   return (
@@ -80,9 +115,10 @@ export const PricingCard: React.FC<PricingCardProps> = ({ plan }) => {
       {/* CTA Button */}
       <button 
         onClick={handleCTAClick}
-        className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-colors"
+        disabled={loading}
+        className="w-full py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-semibold rounded-xl transition-colors"
       >
-        {plan.buttonText}
+        {loading ? '처리 중...' : plan.buttonText}
       </button>
     </div>
   );
