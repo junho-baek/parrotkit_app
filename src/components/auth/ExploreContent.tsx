@@ -8,6 +8,7 @@ import Link from 'next/link';
 
 interface TrendingReference {
   id: number;
+  videoId: string;
   thumbnail: string;
   title: string;
   creator: string;
@@ -22,22 +23,21 @@ export const ExploreContent: React.FC = () => {
   const [trendingReferences, setTrendingReferences] = useState<TrendingReference[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [playingVideo, setPlayingVideo] = useState<string | null>(null);
 
   const categories = ['All', '🍳 Cooking', '💄 Beauty', '💪 Fitness', '🏠 DIY', '✈️ Travel', '😂 Comedy'];
 
   React.useEffect(() => {
     const fetchTrendingReferences = async () => {
       try {
-        // TODO: API 연결 시 실제 데이터 가져오기
-        // Endpoint: GET /api/trending/references
-        // Response: { references: TrendingReference[] }
-        
+        // Real YouTube Shorts Data
         const mockData: TrendingReference[] = [
           {
             id: 1,
-            thumbnail: 'https://via.placeholder.com/300x400/ec4899/ffffff?text=Trending+1',
-            title: 'Viral Cooking Recipe - 5M Views',
-            creator: '@chefmaster',
+            videoId: 'JhBOUaCkltg',
+            thumbnail: 'https://img.youtube.com/vi/JhBOUaCkltg/maxresdefault.jpg',
+            title: 'Amazing Cooking Shorts',
+            creator: '@CookingChannel',
             views: '5.4M',
             likes: 450,
             duration: '00:25',
@@ -46,9 +46,10 @@ export const ExploreContent: React.FC = () => {
           },
           {
             id: 2,
-            thumbnail: 'https://via.placeholder.com/300x400/8b5cf6/ffffff?text=Trending+2',
-            title: 'Beauty Makeup Tutorial',
-            creator: '@beautyguru',
+            videoId: 'RiOqgmmcSvc',
+            thumbnail: 'https://img.youtube.com/vi/RiOqgmmcSvc/maxresdefault.jpg',
+            title: 'Viral Food Recipe',
+            creator: '@FoodMaster',
             views: '3.2M',
             likes: 320,
             duration: '00:30',
@@ -57,9 +58,10 @@ export const ExploreContent: React.FC = () => {
           },
           {
             id: 3,
-            thumbnail: 'https://via.placeholder.com/300x400/f97316/ffffff?text=Trending+3',
-            title: 'Fitness Morning Routine',
-            creator: '@fitlife',
+            videoId: 'isQbx375vSo',
+            thumbnail: 'https://img.youtube.com/vi/isQbx375vSo/maxresdefault.jpg',
+            title: 'Trending Recipe Tutorial',
+            creator: '@ChefPro',
             views: '2.8M',
             likes: 280,
             duration: '00:35',
@@ -68,34 +70,13 @@ export const ExploreContent: React.FC = () => {
           },
           {
             id: 4,
-            thumbnail: 'https://via.placeholder.com/300x400/10b981/ffffff?text=Trending+4',
-            title: 'DIY Home Decor Ideas',
-            creator: '@homediy',
+            videoId: 'mzX3DSh-AW4',
+            thumbnail: 'https://img.youtube.com/vi/mzX3DSh-AW4/maxresdefault.jpg',
+            title: 'Popular Cooking Content',
+            creator: '@KitchenMagic',
             views: '2.1M',
             likes: 210,
             duration: '00:28',
-            isLiked: false,
-            isSaved: false,
-          },
-          {
-            id: 5,
-            thumbnail: 'https://via.placeholder.com/300x400/3b82f6/ffffff?text=Trending+5',
-            title: 'Travel Vlog - Hidden Gems',
-            creator: '@wanderlust',
-            views: '1.9M',
-            likes: 190,
-            duration: '00:32',
-            isLiked: false,
-            isSaved: false,
-          },
-          {
-            id: 6,
-            thumbnail: 'https://via.placeholder.com/300x400/ef4444/ffffff?text=Trending+6',
-            title: 'Comedy Skit - Viral Moments',
-            creator: '@laughfactory',
-            views: '1.7M',
-            likes: 170,
-            duration: '00:20',
             isLiked: false,
             isSaved: false,
           },
@@ -257,77 +238,128 @@ export const ExploreContent: React.FC = () => {
           </div>
         </Card>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
-          {trendingReferences.map((ref) => (
-            <div key={ref.id} className="group">
-              <Link href={`/paste?ref=${ref.id}`} className="block relative">
-                <div className="relative rounded-xl overflow-hidden shadow-lg aspect-[9/16] mb-2.5 ring-2 ring-transparent group-hover:ring-blue-400 transition-all duration-300">
-                  <img
-                    src={ref.thumbnail}
-                    alt={ref.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                  
-                  {/* Gradient Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30"></div>
-                  
-                  {/* Trending Badge */}
-                  <div className="absolute top-2 left-2">
-                    <span className="bg-gradient-to-r from-orange-500 to-red-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1">
-                      <span className="animate-pulse">🔥</span> TRENDING
-                    </span>
-                  </div>
-
-                  {/* Duration Badge */}
-                  <div className="absolute top-2 right-2 bg-black/70 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-1 rounded-lg">
-                    {ref.duration}
-                  </div>
-
-                  {/* Bottom Info Overlay */}
-                  <div className="absolute bottom-0 left-0 right-0 p-3">
-                    <p className="text-white font-bold text-sm line-clamp-2 mb-1.5 drop-shadow-lg">
-                      {ref.title}
-                    </p>
-                    <p className="text-gray-200 text-xs mb-2 drop-shadow-md">{ref.creator}</p>
-                    <div className="flex items-center justify-between text-white text-xs">
-                      <span className="flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg">
-                        <span>👁</span> {ref.views}
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            {trendingReferences.map((ref) => (
+              <div key={ref.id} className="group">
+                <div 
+                  onClick={() => setPlayingVideo(ref.videoId)}
+                  className="block relative cursor-pointer"
+                >
+                  <div className="relative rounded-xl overflow-hidden shadow-lg aspect-[9/16] mb-2.5 ring-2 ring-transparent group-hover:ring-blue-400 transition-all duration-300">
+                    <img
+                      src={ref.thumbnail}
+                      alt={ref.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                    
+                    {/* Play Button Overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-black/60 backdrop-blur-sm rounded-full p-4 group-hover:scale-110 transition-transform">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
+                          <path d="M8 5v14l11-7z"/>
+                        </svg>
+                      </div>
+                    </div>
+                    
+                    {/* Gradient Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30"></div>
+                    
+                    {/* Trending Badge */}
+                    <div className="absolute top-2 left-2">
+                      <span className="bg-gradient-to-r from-orange-500 to-red-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1">
+                        <span className="animate-pulse">🔥</span> TRENDING
                       </span>
-                      <span className="flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg">
-                        <span className="text-red-400">❤</span> {ref.likes}
-                      </span>
+                    </div>
+
+                    {/* Duration Badge */}
+                    <div className="absolute top-2 right-2 bg-black/70 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-1 rounded-lg">
+                      {ref.duration}
+                    </div>
+
+                    {/* Bottom Info Overlay */}
+                    <div className="absolute bottom-0 left-0 right-0 p-3">
+                      <p className="text-white font-bold text-sm line-clamp-2 mb-1.5 drop-shadow-lg">
+                        {ref.title}
+                      </p>
+                      <p className="text-gray-200 text-xs mb-2 drop-shadow-md">{ref.creator}</p>
+                      <div className="flex items-center justify-between text-white text-xs">
+                        <span className="flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg">
+                          <span>👁</span> {ref.views}
+                        </span>
+                        <span className="flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg">
+                          <span className="text-red-400">❤</span> {ref.likes}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </Link>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2">
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleLike(ref.id);
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
+                      ref.isLiked
+                        ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white scale-105'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+                    }`}
+                  >
+                    <span className="text-base">{ref.isLiked ? '❤️' : '🤍'}</span>
+                    <span>Like</span>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSave(ref.id);
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
+                      ref.isSaved
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white scale-105'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+                    }`}
+                  >
+                    <span className="text-base">{ref.isSaved ? '⭐' : '☆'}</span>
+                    <span>Save</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Video Player Modal */}
+          {playingVideo && (
+            <div 
+              className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4"
+              onClick={() => setPlayingVideo(null)}
+            >
+              <div 
+                className="relative w-full max-w-md aspect-[9/16] bg-black rounded-xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Close Button */}
                 <button
-                  onClick={() => handleLike(ref.id)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
-                    ref.isLiked
-                      ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white scale-105'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
-                  }`}
+                  onClick={() => setPlayingVideo(null)}
+                  className="absolute top-4 right-4 z-10 bg-black/60 backdrop-blur-sm text-white rounded-full p-2 hover:bg-black/80 transition-colors"
                 >
-                  <span className="text-base">{ref.isLiked ? '❤️' : '🤍'}</span>
-                  <span>Like</span>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                  </svg>
                 </button>
-                <button
-                  onClick={() => handleSave(ref.id)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
-                    ref.isSaved
-                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white scale-105'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
-                  }`}
-                >
-                  <span className="text-base">{ref.isSaved ? '⭐' : '☆'}</span>
-                  <span>Save</span>
-                </button>
+
+                {/* YouTube iframe */}
+                <iframe
+                  src={`https://www.youtube.com/embed/${playingVideo}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1`}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
               </div>
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>
