@@ -11,6 +11,22 @@ interface PricingCardProps {
 export const PricingCard: React.FC<PricingCardProps> = ({ plan }) => {
   const isFree = plan.price === 0;
   
+  const handleCTAClick = () => {
+    // GA4: 가격 플랜 CTA 클릭
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', isFree ? 'select_free_plan' : 'begin_checkout', {
+        event_category: 'ecommerce',
+        plan_name: plan.name,
+        plan_price: plan.price,
+        currency: 'USD',
+        value: plan.price
+      });
+    }
+    
+    // 실제 CTA 동작 (추후 구현)
+    console.log(`${plan.name} 플랜 선택`);
+  };
+  
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-6 flex flex-col h-full shadow-sm hover:shadow-md transition-shadow">
       {/* Header */}
@@ -62,7 +78,10 @@ export const PricingCard: React.FC<PricingCardProps> = ({ plan }) => {
       </div>
 
       {/* CTA Button */}
-      <button className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-colors">
+      <button 
+        onClick={handleCTAClick}
+        className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-colors"
+      >
         {plan.buttonText}
       </button>
     </div>

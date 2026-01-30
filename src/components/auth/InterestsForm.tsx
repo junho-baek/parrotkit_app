@@ -83,6 +83,16 @@ export const InterestsForm: React.FC = () => {
 
       // 성공 - 다음 페이지로 이동
       alert('관심사가 저장되었습니다!');
+      
+      // GA4: 온보딩 완료
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        (window as any).gtag('event', 'onboarding_complete', {
+          event_category: 'engagement',
+          interests_count: selectedInterests.length,
+          interests: selectedInterests.join(',')
+        });
+      }
+      
       router.push('/submit-video');
     } catch (err: any) {
       alert(err.message || '관심사 저장에 실패했습니다. 다시 시도해주세요.');

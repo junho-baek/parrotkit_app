@@ -32,6 +32,14 @@ export const SignUpForm: React.FC = () => {
     setLoading(true);
     setError('');
 
+    // GA4: 회원가입 시작
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'signup_start', {
+        event_category: 'engagement',
+        event_label: 'signup_form_submit'
+      });
+    }
+
     // 기본 유효성 검사
     if (!formData.email || !formData.username || !formData.password || !formData.confirmPassword) {
       setError('모든 필드를 입력해주세요');
@@ -84,6 +92,14 @@ export const SignUpForm: React.FC = () => {
         // 토큰 저장
         localStorage.setItem('token', signinData.token);
         localStorage.setItem('user', JSON.stringify(signinData.user));
+        
+        // GA4: 회원가입 완료
+        if (typeof window !== 'undefined' && (window as any).gtag) {
+          (window as any).gtag('event', 'sign_up', {
+            method: 'email'
+          });
+        }
+        
         router.push('/interests');
       }
     } catch (err: any) {

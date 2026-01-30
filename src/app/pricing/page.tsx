@@ -8,6 +8,16 @@ import { PRICING_PLANS } from '@/types/auth';
 export default function PricingPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // GA4: 프라이싱 페이지 조회
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'view_pricing', {
+        event_category: 'ecommerce',
+        page_title: 'Pricing Page'
+      });
+    }
+  }, []);
+
   return (
     <>
       {/* Mobile Header */}

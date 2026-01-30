@@ -57,6 +57,13 @@ export const SignInForm: React.FC = () => {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
 
+      // GA4: 로그인 성공
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        (window as any).gtag('event', 'login', {
+          method: 'email'
+        });
+      }
+
       // interests가 없으면 interests 페이지로, 있으면 대시보드로
       if (!data.user.interests || data.user.interests.length === 0) {
         router.push('/interests');
