@@ -83,7 +83,7 @@ export const BottomTabBar: React.FC = () => {
               className={`flex-1 flex flex-col items-center py-2.5 transition-all ${
                 isActive
                   ? 'text-blue-600 scale-110'
-                  : 'text-gray-600 hover:text-gray-900'
+                  : 'text-gray-900 hover:text-blue-500'
               }`}
             >
               <div className="mb-1 relative w-7 h-7">

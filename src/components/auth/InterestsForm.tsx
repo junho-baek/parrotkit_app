@@ -119,7 +119,7 @@ export const InterestsForm: React.FC = () => {
     <Card className="w-full max-w-2xl">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Your interests</h1>
-        <p className="text-gray-600 text-sm">
+        <p className="text-gray-900 text-base font-medium">
           Select a few genres to help us tailor reference recommendations
         </p>
       </div>
@@ -133,17 +133,17 @@ export const InterestsForm: React.FC = () => {
               onClick={() => toggleInterest(index)}
               style={{
                 backgroundColor: interest.selected ? '#3B82F6' : '#FFFFFF',
-                color: interest.selected ? '#FFFFFF' : '#374151',
+                color: interest.selected ? '#FFFFFF' : '#111827',
                 borderColor: interest.selected ? '#3B82F6' : '#D1D5DB',
               }}
-              className={`py-2 px-4 rounded-full font-medium text-sm transition-all duration-200 border-2`}
+              className={`py-3 px-5 rounded-full font-bold text-base transition-all duration-200 border-2 active:scale-95`}
             >
               {interest.category}
             </button>
           ))}
         </div>
 
-        <div className="text-sm text-gray-500 mb-6 text-center">
+        <div className="text-base text-gray-900 mb-6 text-center font-semibold">
           {selectedCount} 개 선택됨
         </div>
 

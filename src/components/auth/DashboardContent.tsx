@@ -485,7 +485,7 @@ export const Settings: React.FC = () => {
         <h2 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
           My Page <span className="text-2xl">⚙️</span>
         </h2>
-        <p className="text-sm text-gray-600">Manage your account and settings</p>
+        <p className="text-sm text-gray-900 font-semibold">Manage your account and settings</p>
       </div>
 
       {/* Profile Card with Avatar */}
@@ -498,7 +498,7 @@ export const Settings: React.FC = () => {
             </div>
             <div className="flex-1">
               <h3 className="font-bold text-lg text-gray-900 mb-0.5">{user?.username || 'User'}</h3>
-              <p className="text-sm text-gray-600">{user?.email}</p>
+              <p className="text-sm text-gray-900 font-semibold">{user?.email}</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -588,15 +588,15 @@ export const Settings: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold flex items-center gap-2">
             <span>❤️</span> Liked Videos
-            <span className="text-sm text-gray-500">({likedVideos.length})</span>
+            <span className="text-sm text-gray-900 font-semibold">({likedVideos.length})</span>
           </h3>
         </div>
         
         {likedVideos.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">💔</div>
-            <p className="text-gray-500 mb-2">No liked videos yet</p>
-            <p className="text-sm text-gray-400">Go to Explore and like some videos!</p>
+            <p className="text-gray-900 font-semibold mb-2">No liked videos yet</p>
+            <p className="text-sm text-gray-900 font-medium">Go to Explore and like some videos!</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4">
@@ -619,9 +619,9 @@ export const Settings: React.FC = () => {
                 <div className="mt-2">
                   <p className="text-sm font-semibold text-gray-900 line-clamp-2">{video.title}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-gray-500">{video.creator}</span>
-                    <span className="text-xs text-gray-400">•</span>
-                    <span className="text-xs text-pink-600">❤️ {video.likes}</span>
+                    <span className="text-xs text-gray-900 font-semibold">{video.creator}</span>
+                    <span className="text-xs text-gray-900">•</span>
+                    <span className="text-xs text-pink-600 font-semibold">❤️ {video.likes}</span>
                   </div>
                 </div>
               </div>

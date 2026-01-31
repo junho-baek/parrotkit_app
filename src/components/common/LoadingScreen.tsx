@@ -36,7 +36,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
       <h2 className="text-xl font-bold text-gray-900 mb-2 text-center">
         {message}
       </h2>
-      <p className="text-gray-600 text-center text-sm max-w-md">
+      <p className="text-gray-900 font-semibold text-center text-base max-w-md">
         Analyzing video structure and detecting key moments
       </p>
 
