@@ -382,13 +382,13 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   // 선택된 씨에서 디테일 화면
   if (selectedScene) {
     return (
-      <div className="absolute inset-0 flex flex-col bg-black overflow-hidden z-50">
+      <div className="fixed inset-0 flex flex-col bg-black overflow-hidden z-[9999]">
         {/* Header */}
         <div className="bg-black border-b border-gray-800 flex-shrink-0">
           <div className="flex items-center justify-between px-4 py-3 text-white max-w-md mx-auto">
             <button
               onClick={handleCameraBack}
-              className="flex items-center gap-2 font-semibold text-blue-400"
+              className="flex items-center gap-2 font-bold text-blue-400 text-base"
             >
               ← Back
             </button>

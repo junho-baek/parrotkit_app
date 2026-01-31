@@ -66,14 +66,16 @@ export const Home: React.FC = () => {
   // Show recipe result if available
   if (recipeData) {
     return (
-      <RecipeResult
-        scenes={recipeData.scenes}
-        videoUrl={recipeData.videoUrl}
-        onBack={handleBackFromRecipe}
-        recipeId={recipeData.recipeId}
-        initialCapturedVideos={recipeData.capturedVideos}
-        initialMatchResults={recipeData.matchResults}
-      />
+      <div className="fixed inset-0 z-[9999] bg-white">
+        <RecipeResult
+          scenes={recipeData.scenes}
+          videoUrl={recipeData.videoUrl}
+          onBack={handleBackFromRecipe}
+          recipeId={recipeData.recipeId}
+          initialCapturedVideos={recipeData.capturedVideos}
+          initialMatchResults={recipeData.matchResults}
+        />
+      </div>
     );
   }
 

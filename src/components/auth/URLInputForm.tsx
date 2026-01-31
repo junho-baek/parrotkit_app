@@ -124,13 +124,14 @@ export const URLInputForm: React.FC = () => {
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
               placeholder="What do you want to achieve with this recipe?"
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl text-base focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 bg-white text-gray-900 placeholder-gray-500 font-medium shadow-sm"
               disabled={loading}
+              autoComplete="off"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">
+            <label className="block text-sm font-bold text-gray-900 mb-2">
               Describe (Optional)
             </label>
             <textarea
@@ -138,7 +139,7 @@ export const URLInputForm: React.FC = () => {
               onChange={(e) => setDescribe(e.target.value)}
               placeholder="Additional notes or specific requirements..."
               rows={3}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none"
+              className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl text-base focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 resize-none bg-white text-gray-900 placeholder-gray-500 font-medium shadow-sm"
               disabled={loading}
             />
           </div>
