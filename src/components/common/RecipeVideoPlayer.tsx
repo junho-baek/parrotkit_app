@@ -54,6 +54,18 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [playerError, setPlayerError] = useState(false);
   const [scriptOpen, setScriptOpen] = useState(false);
+  
+  // Validate inputs
+  if (!videoUrl || !scene) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-6xl mb-4">⚠️</div>
+        <h3 className="text-lg font-bold text-gray-900 mb-2">Invalid Video Data</h3>
+        <p className="text-gray-600">Unable to load video player</p>
+      </div>
+    );
+  }
+  
   const videoId = extractVideoId(videoUrl);
   const startSeconds = timeToSeconds(scene.startTime);
   const endSeconds = timeToSeconds(scene.endTime);

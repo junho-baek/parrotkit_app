@@ -6,34 +6,54 @@ import { Card } from '@/components/common';
 export const Recipes: React.FC = () => {
   const [myRecipes, setMyRecipes] = useState<any[]>([]);
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    // localStorage에서 레시피 불러오기
-    const saved = localStorage.getItem('myRecipes');
-    if (saved) {
-      setMyRecipes(JSON.parse(saved));
-    }
+    setIsClient(true);
   }, []);
 
+  useEffect(() => {
+    if (!isClient) return;
+    // localStorage에서 레시피 불러오기
+    try {
+      const saved = localStorage.getItem('myRecipes');
+      if (saved) {
+        setMyRecipes(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.error('Error loading recipes:', error);
+    }
+  }, [isClient]);
+
   const handleView = (recipe: any) => {
-    // RecipeResult로 이동하기 위해 데이터를 sessionStorage에 저장
-    sessionStorage.setItem('recipeData', JSON.stringify({
-      scenes: recipe.scenes,
-      videoUrl: recipe.videoUrl,
-      capturedVideos: recipe.capturedVideos || {}, // 촬영 완료 데이터
-      matchResults: recipe.matchResults || {}, // 매칭 결과
-      recipeId: recipe.id, // 레시피 ID (업데이트용)
-    }));
-    
-    // Home 탭으로 이동 (그곳에서 recipeData를 불러옴)
-    window.location.href = '/home?view=recipe';
+    try {
+      // RecipeResult로 이동하기 위해 데이터를 sessionStorage에 저장
+      sessionStorage.setItem('recipeData', JSON.stringify({
+        scenes: recipe.scenes,
+        videoUrl: recipe.videoUrl,
+        capturedVideos: recipe.capturedVideos || {}, // 촬영 완료 데이터
+        matchResults: recipe.matchResults || {}, // 매칭 결과
+        recipeId: recipe.id, // 레시피 ID (업데이트용)
+      }));
+      
+      // Home 탭으로 이동 (그곳에서 recipeData를 불러옴)
+      window.location.href = '/home?view=recipe';
+    } catch (error) {
+      console.error('Error viewing recipe:', error);
+      alert('Failed to view recipe. Please try again.');
+    }
   };
 
   const handleDelete = (id: number) => {
     if (confirm('이 레시피를 삭제하시겠습니까?')) {
-      const updated = myRecipes.filter(r => r.id !== id);
-      setMyRecipes(updated);
-      localStorage.setItem('myRecipes', JSON.stringify(updated));
+      try {
+        const updated = myRecipes.filter(r => r.id !== id);
+        setMyRecipes(updated);
+        localStorage.setItem('myRecipes', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Error deleting recipe:', error);
+        alert('Failed to delete recipe. Please try again.');
+      }
     }
   };
 

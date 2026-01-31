@@ -48,6 +48,25 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const [sheetHeight, setSheetHeight] = useState(50);
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
 
+  // Validate props
+  if (!scenes || !Array.isArray(scenes) || scenes.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-6xl mb-4">⚠️</div>
+        <h3 className="text-lg font-bold text-gray-900 mb-2">Invalid Recipe Data</h3>
+        <p className="text-gray-600 mb-4">Unable to load recipe scenes</p>
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition"
+          >
+            Go Back
+          </button>
+        )}
+      </div>
+    );
+  }
+
   const defaultScripts: {[key: number]: string[]} = {
     1: [
       'Most people still don\'t know this... you NEED to hear this',

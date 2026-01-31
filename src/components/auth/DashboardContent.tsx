@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 // ============ HOME: 최근 Paste한 레퍼런스들 ============
 export const Home: React.FC = () => {
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams() || null;
   const router = useRouter();
   const [recentReferences, setRecentReferences] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -16,12 +16,16 @@ export const Home: React.FC = () => {
 
   // Check for recipe view
   React.useEffect(() => {
-    const viewMode = searchParams?.get('view');
-    if (viewMode === 'recipe') {
-      const data = sessionStorage.getItem('recipeData');
-      if (data) {
-        setRecipeData(JSON.parse(data));
+    try {
+      const viewMode = searchParams?.get('view');
+      if (viewMode === 'recipe') {
+        const data = sessionStorage.getItem('recipeData');
+        if (data) {
+          setRecipeData(JSON.parse(data));
+        }
       }
+    } catch (error) {
+      console.error('Error loading recipe data:', error);
     }
   }, [searchParams]);
 
