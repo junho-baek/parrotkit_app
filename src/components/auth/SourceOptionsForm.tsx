@@ -98,7 +98,7 @@ export const SourceOptionsForm: React.FC = () => {
         <h1 className="text-3xl font-bold text-gray-900 mb-4">Source URL</h1>
 
         <div className="bg-gray-100 p-4 rounded-lg mb-6">
-          <p className="text-sm text-gray-600 break-all">{sourceUrl}</p>
+          <p className="text-sm text-gray-900 break-all">{sourceUrl}</p>
         </div>
 
         <div className="flex gap-3 mb-6">
@@ -119,7 +119,7 @@ export const SourceOptionsForm: React.FC = () => {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-900 mb-2">
             What's Your niche? *
           </label>
           <select
@@ -137,7 +137,7 @@ export const SourceOptionsForm: React.FC = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-900 mb-2">
             What's Your goal? *
           </label>
           <select
@@ -155,7 +155,7 @@ export const SourceOptionsForm: React.FC = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-900 mb-2">
             What's Your platform? *
           </label>
           <select
@@ -173,7 +173,7 @@ export const SourceOptionsForm: React.FC = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-900 mb-2">
             Video Length (optional)
           </label>
           <select
@@ -191,7 +191,7 @@ export const SourceOptionsForm: React.FC = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-900 mb-2">
             Initial script or idea (optional)
           </label>
           <Input
@@ -204,7 +204,7 @@ export const SourceOptionsForm: React.FC = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-900 mb-2">
             Describe what you want to create (optional)
           </label>
           <textarea
@@ -223,7 +223,7 @@ export const SourceOptionsForm: React.FC = () => {
       </form>
 
       <div className="text-center mt-8">
-        <Link href="/paste" className="text-gray-600 text-sm hover:text-gray-900">
+        <Link href="/paste" className="text-gray-900 text-sm hover:text-blue-600">
           ← Change Video
         </Link>
       </div>

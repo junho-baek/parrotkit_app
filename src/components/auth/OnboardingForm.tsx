@@ -15,7 +15,7 @@ export const OnboardingForm: React.FC = () => {
       </div>
 
       <div className="mt-12">
-        <p className="text-gray-600 text-sm mb-8">
+        <p className="text-gray-900 text-sm mb-8">
           ParrotKit에서 바이럴 콘텐츠를 만들기 위한 여정을 시작하세요!
         </p>
         

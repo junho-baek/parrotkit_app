@@ -81,7 +81,7 @@ export const URLInputForm: React.FC = () => {
         <div className="text-center">
           <div className="text-5xl mb-4">🎬</div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Paste Reference</h2>
-          <p className="text-gray-600">Paste a viral video URL from TikTok, Instagram, or YouTube Shorts</p>
+          <p className="text-gray-900">Paste a viral video URL from TikTok, Instagram, or YouTube Shorts</p>
         </div>
 
         {/* URL Input */}
@@ -153,7 +153,7 @@ export const URLInputForm: React.FC = () => {
         </form>
 
         {/* Info */}
-        <div className="text-center text-sm text-gray-500">
+        <div className="text-center text-sm text-gray-900">
           <p>💡 We'll analyze the video and create a recipe for you</p>
         </div>
       </div>
