@@ -150,7 +150,7 @@ export async function analyzeYouTubeVideo(url: string): Promise<VideoAnalysisRes
       setTimeout(() => {
         videoStream.destroy();
         writeStream.end();
-        resolve(null);
+        resolve();
       }, 30000);
     });
 
