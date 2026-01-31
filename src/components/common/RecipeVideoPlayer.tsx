@@ -248,13 +248,13 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
           </div>
         </div>
 
-        {/* View Script Button */}
-        <div className="absolute bottom-4 left-4 z-10">
+        {/* View Script Button - More Visible */}
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30">
           <button
             onClick={() => setScriptOpen(true)}
-            className="px-4 py-2.5 bg-white/95 backdrop-blur-sm text-gray-900 rounded-xl font-semibold shadow-lg text-sm flex items-center gap-2"
+            className="px-6 py-3.5 bg-white text-gray-900 rounded-2xl font-bold shadow-2xl text-base flex items-center gap-2 hover:scale-105 active:scale-95 transition-transform border-2 border-gray-200"
           >
-            <img src="/parrot-logo.png" alt="" className="w-5 h-5" />
+            <img src="/parrot-logo.png" alt="" className="w-6 h-6" />
             View Script
           </button>
         </div>
@@ -274,9 +274,9 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
               </div>
 
               {/* Header */}
-              <div className="flex items-center justify-between px-5 pb-3 border-b border-gray-100">
+              <div className="flex items-center justify-between px-5 pb-3 border-b-2 border-gray-200">
                 <div className="flex items-center gap-2">
-                  <img src="/parrot-logo.png" alt="Parrot Kit" className="w-6 h-6" />
+                  <img src="/parrot-logo.png" alt="Parrot Kit" className="w-7 h-7" />
                   <span className="font-bold text-gray-900 text-base">Script - #{scene.id}: {scene.title}</span>
                 </div>
                 <button
@@ -288,11 +288,11 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
               </div>
 
               {/* Script Content */}
-              <div className="overflow-y-auto p-5 space-y-3" style={{ maxHeight: 'calc(70vh - 80px)' }}>
+              <div className="overflow-y-auto p-5 space-y-4" style={{ maxHeight: 'calc(70vh - 80px)' }}>
                 {(scriptLines || [scene.description || 'Follow the reference video']).map((line, idx) => (
                   <div key={idx} className="flex items-start gap-3">
-                    <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs flex-shrink-0 mt-0.5 font-bold">{idx + 1}</span>
-                    <p className="text-gray-800 text-sm font-medium leading-relaxed">{line}</p>
+                    <span className="bg-blue-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm flex-shrink-0 mt-0.5 font-bold">{idx + 1}</span>
+                    <p className="text-gray-900 text-base font-semibold leading-relaxed">{line}</p>
                   </div>
                 ))}
               </div>

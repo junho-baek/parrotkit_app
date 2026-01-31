@@ -38,12 +38,12 @@ export function extractVideoId(url: string): string | null {
 /**
  * FFmpeg를 사용하여 비디오에서 장면 전환 감지
  * @param videoPath 비디오 파일 경로
- * @param threshold 장면 전환 감도 (0.0 ~ 1.0, 기본값 0.4)
+ * @param threshold 장면 전환 감도 (0.0 ~ 1.0, 기본값 0.3 - 더 민감하게)
  * @returns 장면 전환 타임스탬프 배열
  */
 export async function detectSceneChanges(
   videoPath: string,
-  threshold: number = 0.4
+  threshold: number = 0.3
 ): Promise<number[]> {
   return new Promise((resolve, reject) => {
     const sceneTimestamps: number[] = [0]; // 시작은 항상 0초
@@ -159,18 +159,25 @@ export async function analyzeYouTubeVideo(url: string): Promise<VideoAnalysisRes
     // 비디오 길이 확인
     const duration = await getVideoDuration(videoPath);
 
-    // 장면 전환 감지
-    let sceneTimestamps = await detectSceneChanges(videoPath, 0.4);
+    // 장면 전환 감지 (threshold 낮추어 더 많은 컬 감지)
+    let sceneTimestamps = await detectSceneChanges(videoPath, 0.3);
+    
+    // 컬이 너무 촉박하면 필터링 (최소 2초 간격)
+    sceneTimestamps = sceneTimestamps.filter((timestamp, idx) => {
+      if (idx === 0) return true;
+      return timestamp - sceneTimestamps[idx - 1] >= 2.0;
+    });
     
     // 장면이 너무 많으면 6~8개로 제한
     if (sceneTimestamps.length > 8) {
-      const interval = Math.floor(sceneTimestamps.length / 6);
-      sceneTimestamps = sceneTimestamps.filter((_, i) => i % interval === 0).slice(0, 8);
+      const step = Math.ceil(sceneTimestamps.length / 6);
+      sceneTimestamps = sceneTimestamps.filter((_, i) => i % step === 0).slice(0, 8);
     }
 
     // 장면이 너무 적으면 균등 분할
     if (sceneTimestamps.length < 4) {
-      sceneTimestamps = Array.from({ length: 6 }, (_, i) => (duration / 6) * i);
+      const sceneCount = Math.min(6, Math.max(4, Math.floor(duration / 3)));
+      sceneTimestamps = Array.from({ length: sceneCount }, (_, i) => (duration / sceneCount) * i);
     }
 
     console.log(`Found ${sceneTimestamps.length} scenes`);

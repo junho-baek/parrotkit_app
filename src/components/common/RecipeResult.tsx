@@ -442,13 +442,13 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
           )}
         </div>
 
-        {/* Floating Chatbot Button */}
+        {/* Floating Chatbot Button - More Visible */}
         {!chatOpen && (
           <button
             onClick={() => setChatOpen(true)}
-            className="absolute bottom-6 right-6 w-14 h-14 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-all transform hover:scale-110 flex items-center justify-center z-40"
+            className="absolute bottom-8 right-6 w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all transform hover:scale-110 active:scale-95 flex items-center justify-center z-50 border-4 border-white"
           >
-            <img src="/parrot-logo.png" alt="Chat" className="w-8 h-8" />
+            <img src="/parrot-logo.png" alt="Chat" className="w-9 h-9" />
           </button>
         )}
 
@@ -494,7 +494,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
             </div>
             <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
               <div className="bg-gray-100 p-3 rounded-2xl rounded-tl-sm max-w-[85%]">
-                <p className="text-sm text-gray-700">
+                <p className="text-sm text-gray-900 font-semibold">
                   Hi! I&apos;m editing the script for <strong>#{selectedScene.id}: {selectedScene.title}</strong>. Ask me to rewrite, shorten, or change the tone!
                 </p>
               </div>
@@ -503,9 +503,9 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                   <div className={`p-3 rounded-2xl max-w-[85%] ${
                     msg.role === 'user'
                       ? 'bg-blue-500 text-white rounded-br-sm'
-                      : 'bg-gray-100 text-gray-700 rounded-tl-sm'
+                      : 'bg-gray-100 text-gray-900 rounded-tl-sm'
                   }`}>
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    <p className="text-sm font-semibold whitespace-pre-wrap">{msg.content}</p>
                   </div>
                   {msg.role === 'assistant' && parseScriptLines(msg.content) && (
                     <button
@@ -537,14 +537,14 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } }}
                 placeholder="Ask about scripts..."
                 disabled={chatLoading}
-                className="flex-1 px-4 py-2.5 bg-gray-100 rounded-full text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all disabled:opacity-50"
+                className="flex-1 px-4 py-3 bg-gray-100 rounded-full text-base text-gray-900 placeholder:text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all disabled:opacity-50"
               />
               <button
                 onClick={sendChatMessage}
                 disabled={chatLoading || !chatMessage.trim()}
-                className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600 transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-11 h-11 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600 active:scale-95 transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </button>
             </div>
           </div>
@@ -556,15 +556,15 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   return (
     <div className="absolute inset-0 bg-gray-50 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="bg-white border-b z-10 shadow-sm flex-shrink-0">
+      <div className="bg-white border-b-2 border-gray-200 z-10 shadow-sm flex-shrink-0">
         <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-blue-500 font-semibold hover:text-blue-600 transition-colors"
+            className="flex items-center gap-2 text-blue-600 font-bold hover:text-blue-700 transition-colors text-base"
           >
             <span className="text-xl">←</span> Back
           </button>
-          <div className="flex items-center gap-2 text-sm text-gray-500">
+          <div className="flex items-center gap-2 text-sm text-gray-900 font-semibold">
             {Object.keys(capturedVideos).length > 0 && (
               <span>{Object.keys(capturedVideos).length}/{scenes.length} captured</span>
             )}
