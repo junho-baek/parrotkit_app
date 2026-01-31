@@ -89,7 +89,7 @@ export const SignInForm: React.FC = () => {
           <h1 className="text-3xl font-bold mb-2">
             <span className="gradient-text">Sign In</span>
           </h1>
-          <p className="text-gray-600">Welcome back to ParrotKit!</p>
+          <p className="text-gray-900 font-medium">Welcome back to ParrotKit!</p>
         </div>
 
         {error && (
@@ -103,7 +103,7 @@ export const SignInForm: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700">
+            <label className="block text-sm font-bold text-gray-900">
               Email or Username
             </label>
             <Input
@@ -113,12 +113,11 @@ export const SignInForm: React.FC = () => {
               value={formData.email}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700">
+            <label className="block text-sm font-bold text-gray-900">
               Password
             </label>
             <Input
@@ -128,7 +127,6 @@ export const SignInForm: React.FC = () => {
               value={formData.password}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
             />
           </div>
 
@@ -162,7 +160,7 @@ export const SignInForm: React.FC = () => {
               <div className="w-full border-t-2 border-gray-200"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-gray-500 font-medium">Don't have an account?</span>
+              <span className="px-4 bg-white text-gray-900 font-bold">Don't have an account?</span>
             </div>
           </div>
           <Link href="/signup" className="block">

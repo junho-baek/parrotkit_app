@@ -81,19 +81,18 @@ export const AppFrame: React.FC<AppFrameProps> = ({ children }) => {
   return (
     <>
       {/* Letterbox Background (남는 공간) */}
-      <div className="fixed inset-0 bg-gray-800" style={{ zIndex: -1 }} />
+      <div className="fixed inset-0 bg-white" style={{ zIndex: -1 }} />
       
       {/* App Frame Container */}
       <div
         ref={frameRef}
-        className="app-frame-container fixed top-1/2 left-1/2 bg-white overflow-hidden"
+        className="app-frame-container fixed top-0 left-1/2 bg-white overflow-hidden"
         style={{
           width: dimensions.width,
           height: dimensions.height,
-          transform: `translate(-50%, -50%) scale(${dimensions.scale})`,
-          transformOrigin: 'center',
+          transform: `translateX(-50%) scale(${dimensions.scale})`,
+          transformOrigin: 'top center',
           maxWidth: '480px',
-          boxShadow: '0 0 40px rgba(0, 0, 0, 0.5)',
         }}
       >
         {/* Internal Scrollable Content */}

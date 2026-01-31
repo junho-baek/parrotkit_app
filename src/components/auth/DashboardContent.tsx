@@ -102,7 +102,7 @@ export const Home: React.FC = () => {
         <h2 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
           Welcome Back! <span className="animate-bounce">👋</span>
         </h2>
-        <p className="text-sm text-gray-600">Your creative workspace</p>
+        <p className="text-sm text-gray-900 font-medium">Your creative workspace</p>
       </div>
 
       {/* Stats Cards */}
@@ -150,7 +150,7 @@ export const Home: React.FC = () => {
             <div className="text-center py-10">
               <div className="text-6xl mb-3 animate-pulse">🎬</div>
               <h3 className="text-base font-bold text-gray-900 mb-1.5">No References Yet</h3>
-              <p className="text-xs text-gray-600 mb-4">Start by pasting your first viral video URL</p>
+              <p className="text-xs text-gray-900 font-medium mb-4">Start by pasting your first viral video URL</p>
               <Link
                 href="/paste"
                 className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"

@@ -8,9 +8,9 @@ export default function TabsLayout({
 }) {
   return (
     <AppFrame>
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full bg-white">
         {/* Mobile App Style Header - Fixed */}
-        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 z-10 relative">
+        <div className="flex-shrink-0 bg-white border-b-2 border-gray-200 px-4 py-3 z-10 relative shadow-sm">
           {/* Logo - Left */}
           <a href="/home" className="absolute left-4 top-1/2 -translate-y-1/2">
             <img src="/parrot-logo.png" alt="Parrot Kit" className="w-7 h-7 hover:scale-110 transition-transform" />

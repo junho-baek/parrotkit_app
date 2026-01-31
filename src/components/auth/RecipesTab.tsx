@@ -78,7 +78,7 @@ export const Recipes: React.FC = () => {
         <h2 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
           My Recipes <span className="text-2xl">📋</span>
         </h2>
-        <p className="text-sm text-gray-600">Your analyzed video recipes</p>
+        <p className="text-sm text-gray-900 font-medium">Your analyzed video recipes</p>
       </div>
 
       {myRecipes.length === 0 ? (
@@ -86,7 +86,7 @@ export const Recipes: React.FC = () => {
           <div className="text-center py-12">
             <div className="text-6xl mb-3 animate-pulse">🍿</div>
             <h3 className="text-base font-bold text-gray-900 mb-1.5">No recipes yet</h3>
-            <p className="text-xs text-gray-600 mb-4">
+            <p className="text-xs text-gray-900 font-medium mb-4">
               Start by pasting a video URL to create your first recipe!
             </p>
             <button

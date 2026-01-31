@@ -108,7 +108,7 @@ export const SignUpForm: React.FC = () => {
           <h1 className="text-3xl font-bold mb-2">
             <span className="gradient-text">Create Account</span>
           </h1>
-          <p className="text-gray-600">Join ParrotKit today!</p>
+          <p className="text-gray-900 font-medium">Join ParrotKit today!</p>
         </div>
 
         {error && (
@@ -122,7 +122,7 @@ export const SignUpForm: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700">
+            <label className="block text-sm font-bold text-gray-900">
               Email Address
             </label>
             <Input
@@ -132,12 +132,11 @@ export const SignUpForm: React.FC = () => {
               value={formData.email}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-pink-500 focus:ring-4 focus:ring-pink-100 transition-all"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700">
+            <label className="block text-sm font-bold text-gray-900">
               Username
             </label>
             <Input
@@ -147,12 +146,11 @@ export const SignUpForm: React.FC = () => {
               value={formData.username}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-pink-500 focus:ring-4 focus:ring-pink-100 transition-all"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700">
+            <label className="block text-sm font-bold text-gray-900">
               Password
             </label>
             <Input
@@ -162,12 +160,11 @@ export const SignUpForm: React.FC = () => {
               value={formData.password}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-pink-500 focus:ring-4 focus:ring-pink-100 transition-all"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700">
+            <label className="block text-sm font-bold text-gray-900">
               Confirm Password
             </label>
             <Input
@@ -177,7 +174,6 @@ export const SignUpForm: React.FC = () => {
               value={formData.confirmPassword}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-pink-500 focus:ring-4 focus:ring-pink-100 transition-all"
             />
           </div>
 
@@ -206,7 +202,7 @@ export const SignUpForm: React.FC = () => {
               <div className="w-full border-t-2 border-gray-200"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-gray-500 font-medium">Already have an account?</span>
+              <span className="px-4 bg-white text-gray-900 font-bold">Already have an account?</span>
             </div>
           </div>
           <Link href="/signin" className="block mt-4">
