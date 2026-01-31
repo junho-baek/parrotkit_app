@@ -7,8 +7,10 @@ ParrotKit is a cutting-edge platform that analyzes viral videos and generates de
 ## ✨ Features
 
 ### 🎬 Video Analysis
+- **FFmpeg Scene Detection**: Real-time cut point detection using FFmpeg for accurate scene transitions
 - **AI-Powered Analysis**: Automatically breaks down videos into scenes using Google Gemini 1.5 Flash
 - **Multi-Platform Support**: Works with YouTube Shorts, TikTok, Instagram Reels
+- **Real Thumbnails**: Extracts actual video frames at each cut point (not generic thumbnails)
 - **Scene Breakdown**: Detailed shot types, camera angles, lighting, and audio notes
 - **Custom Context**: Add niche, goals, and descriptions for tailored analysis
 
@@ -26,9 +28,12 @@ ParrotKit is a cutting-edge platform that analyzes viral videos and generates de
 
 ### 📋 Recipe Management
 - **Create Recipes**: Paste video URLs and generate instant recipes
-- **View & Edit**: Access detailed scene-by-scene breakdowns
+- **Smart Scene Detection**: FFmpeg analyzes actual cut transitions (not time-based splits)
+- **AI Script Assistant**: Modify scene scripts with chatbot prompting
+- **View & Edit**: Access detailed scene-by-scene breakdowns with real thumbnails
 - **Track Progress**: Monitor captured scenes and completion status
-- **Export Options**: Share your recipes with collaborators
+- **Camera Shooting**: Record scenes with reference video side-by-side
+- **Export Options**: Download captured videos individually or bulk
 
 ### 👤 Account Features
 - **Secure Authentication**: JWT-based login with bcrypt password hashing
@@ -42,6 +47,7 @@ ParrotKit is a cutting-edge platform that analyzes viral videos and generates de
 - Node.js 18+ and npm
 - PostgreSQL database (NeonDB recommended)
 - Google AI API key (Gemini)
+- **FFmpeg** (required for scene detection) - [Installation Guide](FFMPEG_SETUP.md)
 
 ### Installation
 
@@ -76,12 +82,21 @@ LEMONSQUEEZY_STORE_ID="your-store-id"
 LEMONSQUEEZY_WEBHOOK_SECRET="your-webhook-secret"
 ```
 
-4. **Set up the database**
+4. **Install FFmpeg** (Required)
+
+Follow the platform-specific instructions in [FFMPEG_SETUP.md](FFMPEG_SETUP.md)
+
+```bash
+# Verify FFmpeg installation
+ffmpeg -version
+```
+
+5. **Set up the database**
 ```bash
 npm run db:push
 ```
 
-5. **Run the development server**
+6. **Run the development server**
 ```bash
 npm run dev
 ```
@@ -116,7 +131,8 @@ parrotkit/
 │   ├── lib/
 │   │   ├── db.ts              # Drizzle ORM setup
 │   │   ├── schema.ts          # Database schema
-│   │   └── lemonsqueezy.ts    # Payment integration
+│   │   ├── lemonsqueezy.ts    # Payment integration
+│   │   └── video-analyzer.ts  # FFmpeg scene detection
 │   └── types/
 │       └── auth.ts            # TypeScript types
 ├── public/                     # Static assets
@@ -133,8 +149,11 @@ parrotkit/
 - **Styling**: Tailwind CSS with custom animations
 - **Database**: PostgreSQL (NeonDB) with Drizzle ORM
 - **AI**: Google Gemini 1.5 Flash
+- **Video Processing**: FFmpeg with fluent-ffmpeg
+- **Video Download**: ytdl-core
 - **Authentication**: JWT + bcryptjs
-- **Payments**: Lemon Squeezy (optional)
+- **Payments**: Lemon Squeezy
+- **Analytics**: Google Analytics 4 + Microsoft Clarity
 - **Deployment**: Vercel
 
 ## 🎨 Design System
@@ -176,11 +195,19 @@ Analyzes a video URL and generates a recipe.
       "id": 1,
       "title": "Hook",
       "startTime": "00:00",
-      "endTime": "00:05",
+      "endTime": "00:04",
+      "thumbnail": "data:image/jpeg;base64,...",
       "description": "Opening shot description",
-      "script": ["Line 1", "Line 2"]
+      "script": ["Line 1", "Line 2"],
+      "progress": 0
     }
-  ]
+  ],
+  "metadata": {
+    "title": "YouTube Shorts Video",
+    "duration": "00:30",
+    "platform": "YouTube Shorts",
+    "analyzedWithFFmpeg": true
+  }
 }
 ```
 
