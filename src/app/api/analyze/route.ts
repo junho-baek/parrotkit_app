@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { analyzeYouTubeVideo } from '@/lib/video-analyzer';
 
 if (!process.env.GOOGLE_AI_API_KEY) {
   throw new Error('GOOGLE_AI_API_KEY is not set');
@@ -212,7 +213,18 @@ export async function POST(request: NextRequest) {
 
     const platform = detectPlatform(url);
     const videoId = extractVideoId(url);
-    const ogImage = await fetchOgImage(url);
+
+    // YouTube 비디오인 경우 FFmpeg로 실제 컷 감지
+    let analysisResult = null;
+    if (platform === 'youtube' || platform === 'youtube-shorts') {
+      console.log('Using FFmpeg for scene detection...');
+      analysisResult = await analyzeYouTubeVideo(url);
+      
+      if (analysisResult.error) {
+        console.warn('FFmpeg analysis failed, falling back to default:', analysisResult.error);
+        analysisResult = null;
+      }
+    }
 
     // Generate AI scripts if prompts are provided
     const hasPrompts = niche?.trim() || goal?.trim() || description?.trim();
@@ -220,43 +232,69 @@ export async function POST(request: NextRequest) {
       ? await generateScriptsWithAI(niche || '', goal || '', description || '')
       : null;
 
-    const totalDuration = 30;
-    const sceneDuration = 5;
-    const sceneCount = Math.ceil(totalDuration / sceneDuration);
-
     const sceneNames = ['Hook', 'Introduction', 'Build Up', 'Peak', 'Resolution', 'Outro'];
-
     const sceneDescriptions = aiResult?.descriptions || defaultSceneDescriptions;
 
-    const scenes = [];
+    let scenes = [];
 
-    for (let i = 0; i < sceneCount; i++) {
-      const startTime = i * sceneDuration;
-      const endTime = Math.min((i + 1) * sceneDuration, totalDuration);
-      const title = sceneNames[i] || `Scene ${i + 1}`;
+    if (analysisResult && analysisResult.scenes.length > 0) {
+      // FFmpeg 분석 결과 사용
+      const detectedScenes = analysisResult.scenes;
+      const totalDuration = analysisResult.duration;
 
-      let thumbnail: string;
+      for (let i = 0; i < detectedScenes.length; i++) {
+        const scene = detectedScenes[i];
+        const nextScene = detectedScenes[i + 1];
+        const startTime = scene.timestamp;
+        const endTime = nextScene ? nextScene.timestamp : totalDuration;
+        const title = sceneNames[i] || `Scene ${i + 1}`;
 
-      if (platform === 'youtube' || platform === 'youtube-shorts') {
-        const thumbIndexes = [0, 1, 2, 3, 1, 2];
-        const thumbIdx = thumbIndexes[i % thumbIndexes.length];
-        thumbnail = `https://img.youtube.com/vi/${videoId || 'dQw4w9WgXcQ'}/${thumbIdx}.jpg`;
-      } else if (ogImage) {
-        thumbnail = ogImage;
-      } else {
-        thumbnail = generatePlaceholderThumbnail(i, title);
+        scenes.push({
+          id: i + 1,
+          title,
+          startTime: formatTime(Math.floor(startTime)),
+          endTime: formatTime(Math.floor(endTime)),
+          thumbnail: scene.thumbnailBase64, // FFmpeg에서 추출한 실제 썸네일
+          description: sceneDescriptions[i] || `Scene ${i + 1}`,
+          script: aiResult?.scripts?.[i + 1] || defaultSceneScripts[i + 1] || [],
+          progress: 0,
+        });
       }
+    } else {
+      // 기본 분할 방식 (fallback)
+      const totalDuration = 30;
+      const sceneDuration = 5;
+      const sceneCount = Math.ceil(totalDuration / sceneDuration);
+      const ogImage = await fetchOgImage(url);
 
-      scenes.push({
-        id: i + 1,
-        title,
-        startTime: formatTime(startTime),
-        endTime: formatTime(endTime),
-        thumbnail,
-        description: sceneDescriptions[i] || `Scene ${i + 1}`,
-        script: aiResult?.scripts?.[i + 1] || defaultSceneScripts[i + 1] || [],
-        progress: 0,
-      });
+      for (let i = 0; i < sceneCount; i++) {
+        const startTime = i * sceneDuration;
+        const endTime = Math.min((i + 1) * sceneDuration, totalDuration);
+        const title = sceneNames[i] || `Scene ${i + 1}`;
+
+        let thumbnail: string;
+
+        if (platform === 'youtube' || platform === 'youtube-shorts') {
+          const thumbIndexes = [0, 1, 2, 3, 1, 2];
+          const thumbIdx = thumbIndexes[i % thumbIndexes.length];
+          thumbnail = `https://img.youtube.com/vi/${videoId || 'dQw4w9WgXcQ'}/${thumbIdx}.jpg`;
+        } else if (ogImage) {
+          thumbnail = ogImage;
+        } else {
+          thumbnail = generatePlaceholderThumbnail(i, title);
+        }
+
+        scenes.push({
+          id: i + 1,
+          title,
+          startTime: formatTime(startTime),
+          endTime: formatTime(endTime),
+          thumbnail,
+          description: sceneDescriptions[i] || `Scene ${i + 1}`,
+          script: aiResult?.scripts?.[i + 1] || defaultSceneScripts[i + 1] || [],
+          progress: 0,
+        });
+      }
     }
 
     const platformLabels: Record<Platform, string> = {
@@ -274,8 +312,9 @@ export async function POST(request: NextRequest) {
       scenes,
       metadata: {
         title: `${platformLabels[platform]} Video`,
-        duration: formatTime(totalDuration),
+        duration: formatTime(analysisResult?.duration || 30),
         platform: platformLabels[platform],
+        analyzedWithFFmpeg: !!analysisResult,
       },
     });
   } catch (error: any) {

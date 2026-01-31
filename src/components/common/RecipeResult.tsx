@@ -581,6 +581,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
           <div className="grid grid-cols-2 gap-3 pb-20">
             {scenes.map((scene) => {
               const isCaptured = capturedScenes[scene.id];
+              const scriptLines = getScriptForScene(scene);
 
               return (
                 <div
@@ -593,11 +594,16 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                   }`}
                 >
                   {/* Thumbnail */}
-                  <div className="relative aspect-video overflow-hidden">
+                  <div className="relative aspect-video overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100">
                     <img
                       src={scene.thumbnail}
                       alt={scene.title}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback to gradient background with scene number
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
                     />
                     {isCaptured && (
                       <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
@@ -606,20 +612,32 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                         </div>
                       </div>
                     )}
+                    {/* Scene Number Badge */}
+                    <div className="absolute top-1 left-1 bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                      #{scene.id}
+                    </div>
+                    {/* Time Badge */}
                     <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[10px] px-1 py-0.5 rounded">
                       {scene.startTime}
                     </div>
                   </div>
 
-                  {/* Scene Info - minimal */}
-                  <div className="px-3 py-2 flex items-center justify-between gap-2 flex-shrink-0">
-                    <h3 className="font-semibold text-xs text-gray-900 truncate">
-                      #{scene.id} {scene.title}
+                  {/* Scene Info */}
+                  <div className="px-3 py-2.5 flex flex-col gap-1.5 flex-shrink-0">
+                    <h3 className="font-bold text-xs text-gray-900 truncate">
+                      {scene.title}
                     </h3>
+                    <p className="text-[10px] text-gray-600 line-clamp-2 leading-tight">
+                      {scriptLines[0] || scene.description}
+                    </p>
                     {isCaptured ? (
-                      <span className="text-xs text-green-600 font-medium flex-shrink-0">Done</span>
+                      <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                        <span>✓</span> Done
+                      </span>
                     ) : (
-                      <span className="text-xs text-blue-500 font-medium flex-shrink-0">Shoot</span>
+                      <span className="text-xs text-blue-500 font-medium flex items-center gap-1">
+                        <span>📹</span> Shoot
+                      </span>
                     )}
                   </div>
                 </div>
