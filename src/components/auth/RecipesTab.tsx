@@ -7,6 +7,7 @@ export const Recipes: React.FC = () => {
   const [myRecipes, setMyRecipes] = useState<any[]>([]);
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     setIsClient(true);
@@ -14,6 +15,8 @@ export const Recipes: React.FC = () => {
 
   useEffect(() => {
     if (!isClient) return;
+    
+    setIsLoading(true);
     // localStorage에서 레시피 불러오기
     try {
       const saved = localStorage.getItem('myRecipes');
@@ -22,6 +25,8 @@ export const Recipes: React.FC = () => {
       }
     } catch (error) {
       console.error('Error loading recipes:', error);
+    } finally {
+      setIsLoading(false);
     }
   }, [isClient]);
 
@@ -81,7 +86,19 @@ export const Recipes: React.FC = () => {
         <p className="text-sm text-gray-900 font-medium">Your analyzed video recipes</p>
       </div>
 
-      {myRecipes.length === 0 ? (
+      {isLoading ? (
+        <Card className="border-2 border-gray-200 bg-white">
+          <div className="text-center py-12">
+            <div className="mb-4 inline-block">
+              <img src="/parrot-logo.png" alt="Loading" className="w-16 h-16 animate-bounce-logo" />
+            </div>
+            <h3 className="text-base font-bold text-gray-900 mb-1.5">Loading recipes...</h3>
+            <p className="text-xs text-gray-600 font-medium">
+              Please wait while we fetch your recipes
+            </p>
+          </div>
+        </Card>
+      ) : myRecipes.length === 0 ? (
         <Card className="border-2 border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100">
           <div className="text-center py-12">
             <div className="text-6xl mb-3 animate-pulse">🍿</div>

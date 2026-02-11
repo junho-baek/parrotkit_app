@@ -12,15 +12,15 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
 }) => {
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50 z-[9999] flex flex-col items-center justify-center p-6">
-      {/* Floating Logo Animation */}
+      {/* Bouncing Logo Animation */}
       <div className="relative w-40 h-40 mb-8">
-        <div className="absolute inset-0 animate-float">
+        <div className="absolute inset-0">
           <Image
             src="/parrot-logo.png"
             alt="Parrot Kit"
             width={160}
             height={160}
-            className="w-full h-full drop-shadow-2xl"
+            className="w-full h-full drop-shadow-2xl animate-bounce-logo"
             priority
           />
         </div>
@@ -39,26 +39,6 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
       <p className="text-gray-900 font-semibold text-center text-base max-w-md">
         Analyzing video structure and detecting key moments
       </p>
-
-      <style jsx>{`
-        @keyframes float {
-          0%, 100% {
-            transform: translateY(0px) rotate(0deg);
-          }
-          25% {
-            transform: translateY(-20px) rotate(5deg);
-          }
-          50% {
-            transform: translateY(-10px) rotate(-5deg);
-          }
-          75% {
-            transform: translateY(-25px) rotate(3deg);
-          }
-        }
-        .animate-float {
-          animation: float 3s ease-in-out infinite;
-        }
-      `}</style>
     </div>
   );
 };

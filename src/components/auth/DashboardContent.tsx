@@ -81,18 +81,14 @@ export const Home: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="space-y-4 animate-pulse">
-        <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-        <div className="h-24 bg-gray-200 rounded"></div>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="h-20 bg-gray-200 rounded"></div>
-          <div className="h-20 bg-gray-200 rounded"></div>
-          <div className="h-20 bg-gray-200 rounded"></div>
+      <div className="py-12 text-center">
+        <div className="mb-4 inline-block">
+          <img src="/parrot-logo.png" alt="Loading" className="w-16 h-16 animate-bounce-logo" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="aspect-[9/16] bg-gray-200 rounded-xl"></div>
-          <div className="aspect-[9/16] bg-gray-200 rounded-xl"></div>
-        </div>
+        <h3 className="text-base font-bold text-gray-900 mb-1.5">Loading your workspace...</h3>
+        <p className="text-xs text-gray-600 font-medium">
+          Preparing your creative space
+        </p>
       </div>
     );
   }
@@ -340,7 +336,10 @@ export const Recipes: React.FC = () => {
   if (loading) {
     return (
       <div className="py-12 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+        <div className="mb-4 inline-block">
+          <img src="/parrot-logo.png" alt="Loading" className="w-16 h-16 animate-bounce-logo" />
+        </div>
+        <p className="text-gray-600 font-semibold">Loading recipes...</p>
       </div>
     );
   }
@@ -471,11 +470,14 @@ export const Settings: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="space-y-4 animate-pulse">
-        <div className="h-10 bg-gray-200 rounded w-1/2"></div>
-        <div className="h-32 bg-gray-200 rounded-xl"></div>
-        <div className="h-40 bg-gray-200 rounded-xl"></div>
-        <div className="h-48 bg-gray-200 rounded-xl"></div>
+      <div className="py-12 text-center">
+        <div className="mb-4 inline-block">
+          <img src="/parrot-logo.png" alt="Loading" className="w-16 h-16 animate-bounce-logo" />
+        </div>
+        <h3 className="text-base font-bold text-gray-900 mb-1.5">Loading your profile...</h3>
+        <p className="text-xs text-gray-600 font-medium">
+          Please wait a moment
+        </p>
       </div>
     );
   }

@@ -156,19 +156,14 @@ export const ExploreContent: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="space-y-4 animate-pulse">
-        <div className="h-10 bg-gray-200 rounded w-1/2"></div>
-        <div className="flex gap-2">
-          {[1,2,3,4].map(i => (
-            <div key={i} className="h-8 w-20 bg-gray-200 rounded-full"></div>
-          ))}
+      <div className="py-12 text-center">
+        <div className="mb-4 inline-block">
+          <img src="/parrot-logo.png" alt="Loading" className="w-16 h-16 animate-bounce-logo" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="aspect-[9/16] bg-gray-200 rounded-xl"></div>
-          <div className="aspect-[9/16] bg-gray-200 rounded-xl"></div>
-          <div className="aspect-[9/16] bg-gray-200 rounded-xl"></div>
-          <div className="aspect-[9/16] bg-gray-200 rounded-xl"></div>
-        </div>
+        <h3 className="text-base font-bold text-gray-900 mb-1.5">Loading trending videos...</h3>
+        <p className="text-xs text-gray-600 font-medium">
+          Discovering the hottest content for you
+        </p>
       </div>
     );
   }

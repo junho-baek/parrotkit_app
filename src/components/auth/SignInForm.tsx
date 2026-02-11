@@ -78,30 +78,29 @@ export const SignInForm: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-4">
-      <Card className="w-full max-w-md card-luxury">
-        <div className="text-center mb-8">
-          <div className="mb-4">
-            <div className="w-16 h-16 mx-auto bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg animate-pulse-glow">
-              <span className="text-3xl">🦜</span>
-            </div>
+    <Card className="w-full max-w-md card-luxury">
+      <div className="text-center mb-8">
+        <div className="mb-4">
+          <div className="w-16 h-16 mx-auto bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg animate-pulse-glow">
+            <span className="text-3xl">🦜</span>
           </div>
-          <h1 className="text-3xl font-bold mb-2">
-            <span className="gradient-text">Sign In</span>
-          </h1>
-          <p className="text-gray-900 font-medium">Welcome back to ParrotKit!</p>
         </div>
+        <h1 className="text-3xl font-bold mb-2">
+          <span className="gradient-text">Sign In</span>
+        </h1>
+        <p className="text-gray-900 font-medium">Welcome back to ParrotKit!</p>
+      </div>
 
-        {error && (
-          <div className="mb-4 p-4 bg-red-50 border-2 border-red-200 rounded-xl text-red-700 text-sm animate-fade-in">
-            <div className="flex items-center gap-2">
-              <span>⚠️</span>
-              <span>{error}</span>
-            </div>
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border-2 border-red-200 rounded-xl text-red-700 text-sm animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{error}</span>
           </div>
-        )}
+        </div>
+      )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <label className="block text-sm font-bold text-gray-900">
               Email or Username
@@ -170,6 +169,5 @@ export const SignInForm: React.FC = () => {
           </Link>
         </div>
       </Card>
-    </div>
   );
 };

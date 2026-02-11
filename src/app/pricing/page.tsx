@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { PricingCard } from '@/components/auth';
 import { PRICING_PLANS } from '@/types/auth';
-import { AppFrame } from '@/components/common';
 
 export default function PricingPage() {
   // GA4: 프라이싱 페이지 조회
@@ -18,18 +17,17 @@ export default function PricingPage() {
   }, []);
 
   return (
-    <AppFrame>
-      <div className="flex flex-col h-full">
-        {/* Mobile App Style Header */}
-        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-center">
-          <div className="flex items-center gap-2">
-            <img src="/parrot-logo.png" alt="Parrot Kit" className="w-6 h-6" />
-            <h1 className="text-xl font-bold text-gray-900">Pricing</h1>
-          </div>
+    <div className="flex flex-col h-full">
+      {/* Mobile App Style Header */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-center">
+        <div className="flex items-center gap-2">
+          <img src="/parrot-logo.png" alt="Parrot Kit" className="w-6 h-6" />
+          <h1 className="text-xl font-bold text-gray-900">Pricing</h1>
         </div>
+      </div>
 
-        {/* Main Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto px-4 py-6">
+      {/* Main Content - Scrollable */}
+      <div className="flex-1 overflow-y-auto px-4 py-6">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="text-center mb-12">
@@ -83,6 +81,5 @@ export default function PricingPage() {
         </div>
         </div>
       </div>
-    </AppFrame>
   );
 }
