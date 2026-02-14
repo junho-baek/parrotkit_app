@@ -1,5 +1,5 @@
 import ffmpeg from 'fluent-ffmpeg';
-import ytdl from 'ytdl-core';
+import ytdl from '@distube/ytdl-core';
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
@@ -132,26 +132,54 @@ export async function analyzeYouTubeVideo(url: string): Promise<VideoAnalysisRes
     await mkdir(tempDir, { recursive: true });
     await mkdir(thumbDir, { recursive: true });
 
-    // YouTube 비디오 다운로드 (30초만)
+    // YouTube 비디오 다운로드
     console.log('Downloading video...');
+    
+    // 비디오 정보 먼저 가져오기
+    const info = await ytdl.getInfo(url);
+    console.log('Video info retrieved:', info.videoDetails.title);
+    
     const videoStream = ytdl(url, {
-      quality: 'lowest',
-      filter: 'videoandaudio',
+      quality: 'lowestvideo',
+      filter: format => format.container === 'mp4' && format.hasVideo && format.hasAudio,
+      requestOptions: {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        }
+      }
     });
 
     const writeStream = fs.createWriteStream(videoPath);
+    let downloadComplete = false;
     
     await new Promise<void>((resolve, reject) => {
       videoStream.pipe(writeStream);
-      writeStream.on('finish', () => resolve());
-      writeStream.on('error', reject);
       
-      // 30초 후 타임아웃
-      setTimeout(() => {
-        videoStream.destroy();
-        writeStream.end();
+      writeStream.on('finish', () => {
+        downloadComplete = true;
+        console.log('Download finished');
         resolve();
-      }, 30000);
+      });
+      
+      writeStream.on('error', (err) => {
+        console.error('Write stream error:', err);
+        reject(err);
+      });
+      
+      videoStream.on('error', (err) => {
+        console.error('Video stream error:', err);
+        reject(err);
+      });
+      
+      // 60초 후 타임아웃 (shorts는 보통 짧으므로 충분함)
+      setTimeout(() => {
+        if (!downloadComplete) {
+          console.log('Download timeout, using partial file');
+          videoStream.destroy();
+          writeStream.end();
+          resolve();
+        }
+      }, 60000);
     });
 
     console.log('Video downloaded, analyzing scenes...');
