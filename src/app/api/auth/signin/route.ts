@@ -1,84 +1,117 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { mvpUsers } from '@/lib/schema';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { eq, or } from 'drizzle-orm';
+import { createSupabaseAnonServerClient, createSupabaseAdminClient } from '@/lib/supabase/server';
+import {
+  findLegacyUserByIdentifier,
+  migrateLegacyUserToSupabase,
+  verifyLegacyPassword,
+} from '@/lib/auth/legacy-migration';
+
+async function resolveEmailFromIdentifier(identifier: string): Promise<string> {
+  const normalized = identifier.trim().toLowerCase();
+
+  if (normalized.includes('@')) {
+    return normalized;
+  }
+
+  const supabaseAdmin = createSupabaseAdminClient();
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .select('email')
+    .eq('username', normalized)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data?.email || normalized).toLowerCase();
+}
+
+async function fetchProfileByAuthUserId(authUserId: string) {
+  const supabaseAdmin = createSupabaseAdminClient();
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .select('id, email, username, interests')
+    .eq('id', authUserId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { username, password } = body;
+    const identifier = String(body.username || '').trim();
+    const password = String(body.password || '');
 
-    if (!username || !password) {
-      return NextResponse.json(
-        { error: 'Username and password are required' },
-        { status: 400 }
-      );
+    if (!identifier || !password) {
+      return NextResponse.json({ error: 'Username and password are required' }, { status: 400 });
     }
 
-    // Find user by username or email
-    const user = await db
-      .select()
-      .from(mvpUsers)
-      .where(
-        or(
-          eq(mvpUsers.username, username),
-          eq(mvpUsers.email, username)
-        )
-      )
-      .limit(1);
+    const supabaseAnon = createSupabaseAnonServerClient();
 
-    if (user.length === 0) {
+    const resolvedEmail = await resolveEmailFromIdentifier(identifier);
+
+    let { data: signInData, error: signInError } = await supabaseAnon.auth.signInWithPassword({
+      email: resolvedEmail,
+      password,
+    });
+
+    if (signInError || !signInData.user || !signInData.session) {
+      const legacyUser = await findLegacyUserByIdentifier(identifier);
+
+      if (!legacyUser) {
+        return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+      }
+
+      const isValidLegacyPassword = await verifyLegacyPassword(password, legacyUser.password);
+      if (!isValidLegacyPassword) {
+        return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+      }
+
+      await migrateLegacyUserToSupabase(legacyUser);
+
+      const retried = await supabaseAnon.auth.signInWithPassword({
+        email: legacyUser.email.toLowerCase(),
+        password,
+      });
+
+      signInData = retried.data;
+      signInError = retried.error;
+    }
+
+    if (signInError || !signInData.user || !signInData.session) {
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        { error: signInError?.message || 'Invalid credentials' },
         { status: 401 }
       );
     }
 
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user[0].password);
-
-    if (!isPasswordValid) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      );
-    }
-
-    // Generate JWT token
-    if (!process.env.JWT_SECRET) {
-      throw new Error('JWT_SECRET is not configured');
-    }
-
-    const token = jwt.sign(
-      {
-        userId: user[0].id,
-        email: user[0].email,
-        username: user[0].username,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    const profile = await fetchProfileByAuthUserId(signInData.user.id);
 
     return NextResponse.json(
       {
         message: 'Login successful',
-        token,
+        token: signInData.session.access_token,
+        refreshToken: signInData.session.refresh_token,
+        expiresAt: signInData.session.expires_at,
         user: {
-          id: user[0].id,
-          email: user[0].email,
-          username: user[0].username,
-          interests: user[0].interests,
+          id: signInData.user.id,
+          email: profile?.email || signInData.user.email,
+          username: profile?.username || signInData.user.email || '',
+          interests: profile?.interests || [],
         },
       },
       { status: 200 }
     );
   } catch (error) {
     console.error('Signin error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

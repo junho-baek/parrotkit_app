@@ -1,58 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { mvpUsers } from '@/lib/schema';
-import jwt from 'jsonwebtoken';
-import { eq } from 'drizzle-orm';
+import { requireAuthenticatedUser } from '@/lib/auth/server-auth';
+import { createSupabaseAdminClient } from '@/lib/supabase/server';
 
 export async function PUT(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.split(' ')[1];
-    
-    if (!process.env.JWT_SECRET) {
-      throw new Error('JWT_SECRET is not configured');
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET) as {
-      userId: number;
-    };
-
+    const authUser = await requireAuthenticatedUser(request);
     const body = await request.json();
-    const { interests } = body;
+    const interests = body.interests;
 
     if (!Array.isArray(interests)) {
-      return NextResponse.json(
-        { error: 'Interests must be an array' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Interests must be an array' }, { status: 400 });
     }
 
-    // Update user interests
-    await db
-      .update(mvpUsers)
-      .set({ 
+    const supabase = createSupabaseAdminClient();
+    const { error } = await supabase
+      .from('profiles')
+      .update({
         interests,
-        updatedAt: new Date(),
+        onboarding_completed: true,
+        updated_at: new Date().toISOString(),
       })
-      .where(eq(mvpUsers.id, decoded.userId));
+      .eq('id', authUser.id);
 
-    return NextResponse.json(
-      { message: 'Interests updated successfully' },
-      { status: 200 }
-    );
-  } catch (error) {
+    if (error) {
+      throw error;
+    }
+
+    return NextResponse.json({ message: 'Interests updated successfully' }, { status: 200 });
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'UNAUTHORIZED') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     console.error('Update interests error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

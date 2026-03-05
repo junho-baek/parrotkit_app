@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Card } from '@/components/common';
 import { InterestCategory, INTEREST_CATEGORIES } from '@/types/auth';
+import { logClientEvent } from '@/lib/client-events';
 
 interface InterestTag {
   category: InterestCategory;
@@ -41,13 +42,10 @@ export const InterestsForm: React.FC = () => {
       selected: willBeSelected
     };
     
-    // GA4: 관심사 선택/해제
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', willBeSelected ? 'select_interest' : 'deselect_interest', {
-        event_category: 'engagement',
-        interest_name: updated[index].category
-      });
-    }
+    void logClientEvent(willBeSelected ? 'select_interest' : 'deselect_interest', {
+      event_category: 'engagement',
+      interest_name: updated[index].category,
+    });
     
     console.log('After update:', updated[index]);
     setInterests(updated);
@@ -96,18 +94,17 @@ export const InterestsForm: React.FC = () => {
       // 온보딩 완료 플래그 설정 (프로모션 모달 표시용)
       localStorage.setItem('onboardingCompleted', 'true');
       
-      // GA4: 온보딩 완료
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'onboarding_complete', {
-          event_category: 'engagement',
-          interests_count: selectedInterests.length,
-          interests: selectedInterests.join(',')
-        });
-      }
+      await logClientEvent('onboarding_complete', {
+        event_category: 'engagement',
+        interests_count: selectedInterests.length,
+        interests: selectedInterests.join(','),
+      });
       
       router.push('/paste');
-    } catch (err: any) {
-      alert(err.message || '관심사 저장에 실패했습니다. 다시 시도해주세요.');
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : '관심사 저장에 실패했습니다. 다시 시도해주세요.';
+      alert(message);
     } finally {
       setLoading(false);
     }

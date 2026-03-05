@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { CameraShooting } from './CameraShooting';
 import { RecipeVideoPlayer } from './RecipeVideoPlayer';
+import { logClientEvent } from '@/lib/client-events';
 
 interface RecipeScene {
   id: number;
@@ -12,14 +14,14 @@ interface RecipeScene {
   thumbnail: string;
   description: string;
   script?: string[];
-  progress: number;
+  progress?: number;
 }
 
 interface RecipeResultProps {
   scenes: RecipeScene[];
   videoUrl: string;
   onBack?: () => void;
-  recipeId?: number; // 레시피 ID 추가
+  recipeId?: string; // 레시피 ID 추가
   initialCapturedVideos?: {[key: number]: boolean}; // 초기 촬영 데이터
   initialMatchResults?: {[key: number]: boolean}; // 초기 매칭 결과
 }
@@ -32,6 +34,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   initialCapturedVideos = {},
   initialMatchResults = {}
 }) => {
+  const router = useRouter();
   const [selectedScene, setSelectedScene] = useState<RecipeScene | null>(null);
   const [activeTab, setActiveTab] = useState<'recipe' | 'shooting'>('recipe');
   const [capturedVideos, setCapturedVideos] = useState<{[key: number]: Blob}>({});
@@ -47,25 +50,6 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const [sheetHeight, setSheetHeight] = useState(50);
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
-
-  // Validate props
-  if (!scenes || !Array.isArray(scenes) || scenes.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <div className="text-6xl mb-4">⚠️</div>
-        <h3 className="text-lg font-bold text-gray-900 mb-2">Invalid Recipe Data</h3>
-        <p className="text-gray-600 mb-4">Unable to load recipe scenes</p>
-        {onBack && (
-          <button
-            onClick={onBack}
-            className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition"
-          >
-            Go Back
-          </button>
-        )}
-      </div>
-    );
-  }
 
   const defaultScripts: {[key: number]: string[]} = {
     1: [
@@ -197,6 +181,57 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     setActiveTab('recipe'); // 기본으로 Recipe 탭 표시
   };
 
+  const persistProgress = async (sceneId: number, isMatch?: boolean) => {
+    if (!recipeId) {
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return;
+    }
+
+    await fetch(`/api/recipes/${recipeId}/progress`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        sceneId,
+        captured: true,
+        ...(typeof isMatch === 'boolean' ? { isMatch } : {}),
+      }),
+    });
+  };
+
+  const uploadCapture = async (sceneId: number, videoBlob: Blob) => {
+    if (!recipeId) {
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('sceneId', String(sceneId));
+    formData.append('video', videoBlob, `scene-${sceneId}.webm`);
+
+    const response = await fetch(`/api/recipes/${recipeId}/captures`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to upload capture');
+    }
+  };
+
   const handleVideoCapture = async (videoBlob: Blob) => {
     if (!selectedScene) return;
     
@@ -213,42 +248,29 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
       ...prev,
       [selectedScene.id]: true
     }));
-
-    // localStorage에 업데이트 (레시피 ID가 있을 때)
-    if (recipeId) {
-      const savedRecipes = JSON.parse(localStorage.getItem('myRecipes') || '[]');
-      const recipeIndex = savedRecipes.findIndex((r: any) => r.id === recipeId);
-      
-      if (recipeIndex !== -1) {
-        savedRecipes[recipeIndex].capturedVideos = {
-          ...savedRecipes[recipeIndex].capturedVideos,
-          [selectedScene.id]: true
-        };
-        savedRecipes[recipeIndex].capturedCount = Object.keys(savedRecipes[recipeIndex].capturedVideos).length;
-        localStorage.setItem('myRecipes', JSON.stringify(savedRecipes));
-      }
+    try {
+      await uploadCapture(selectedScene.id, videoBlob);
+      await persistProgress(selectedScene.id);
+      await logClientEvent('capture_uploaded', {
+        recipe_id: recipeId || 'local',
+        scene_id: selectedScene.id,
+      });
+    } catch (uploadError) {
+      console.error('Capture upload warning:', uploadError);
     }
 
     // AI 비교 시뮬레이션 (1초 후 결과)
-    setTimeout(() => {
+    setTimeout(async () => {
       const isMatch = Math.random() > 0.3; // 70% 확률로 성공
       setMatchResults(prev => ({
         ...prev,
         [selectedScene.id]: isMatch,
       }));
-      
-      // localStorage에 매칭 결과 저장
-      if (recipeId) {
-        const savedRecipes = JSON.parse(localStorage.getItem('myRecipes') || '[]');
-        const recipeIndex = savedRecipes.findIndex((r: any) => r.id === recipeId);
-        
-        if (recipeIndex !== -1) {
-          savedRecipes[recipeIndex].matchResults = {
-            ...savedRecipes[recipeIndex].matchResults,
-            [selectedScene.id]: isMatch
-          };
-          localStorage.setItem('myRecipes', JSON.stringify(savedRecipes));
-        }
+
+      try {
+        await persistProgress(selectedScene.id, isMatch);
+      } catch (progressError) {
+        console.error('Progress update warning:', progressError);
       }
       
       if (isMatch) {
@@ -267,7 +289,9 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
   // 모든 촬영한 비디오를 ZIP으로 다운로드
   const handleExportVideos = async () => {
-    const capturedCount = Object.keys(capturedVideos).length;
+    const capturedCount = recipeId
+      ? Object.keys(capturedScenes).length
+      : Object.keys(capturedVideos).length;
     
     if (capturedCount === 0) {
       alert('아직 촬영된 비디오가 없습니다.');
@@ -277,6 +301,38 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     setIsExporting(true);
 
     try {
+      if (recipeId) {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('로그인이 필요합니다.');
+        }
+
+        const response = await fetch(`/api/recipes/${recipeId}/export-zip`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('ZIP 다운로드에 실패했습니다.');
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `recipe-${recipeId}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        await logClientEvent('export_zip_success', { recipe_id: recipeId });
+        setIsExported(true);
+        return;
+      }
+
       // 1. 각 비디오를 개별 다운로드
       for (const [sceneId, videoBlob] of Object.entries(capturedVideos)) {
         const scene = scenes.find(s => s.id === parseInt(sceneId));
@@ -344,40 +400,44 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
       alert(`${email}로 비디오가 전송되었습니다!`);
       setIsExported(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Email error:', error);
-      alert(error.message || '이메일 전송 중 오류가 발생했습니다.');
+      const message =
+        error instanceof Error ? error.message : '이메일 전송 중 오류가 발생했습니다.';
+      alert(message);
     } finally {
       setIsExporting(false);
     }
   };
 
   // 레시피 저장하고 Recipes 탭으로 이동
-  const handleSaveAndGoToDashboard = () => {
-    // localStorage에 레시피 저장
-    const savedRecipes = JSON.parse(localStorage.getItem('myRecipes') || '[]');
-    
-    const newRecipe = {
-      id: Date.now(),
-      videoUrl,
-      createdAt: new Date().toISOString(),
-      scenes,
-      capturedCount: Object.keys(capturedVideos).length,
-      totalScenes: scenes.length,
-      capturedVideos: Object.keys(capturedVideos).reduce((acc, key) => {
-        const sceneId = parseInt(key); // string을 number로 변환
-        acc[sceneId] = true;
-        return acc;
-      }, {} as {[key: number]: boolean}),
-      matchResults,
-    };
-    
-    savedRecipes.push(newRecipe);
-    localStorage.setItem('myRecipes', JSON.stringify(savedRecipes));
-    
-    // Recipes 탭으로 이동
-    window.location.href = '/recipes';
+  const handleSaveAndGoToDashboard = async () => {
+    await logClientEvent('recipe_saved', {
+      recipe_id: recipeId || 'local',
+      captured_count: Object.keys(capturedScenes).length,
+    });
+
+    router.push('/recipes');
   };
+
+  // Validate props after hooks are initialized to keep hook order stable.
+  if (!scenes || !Array.isArray(scenes) || scenes.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-6xl mb-4">⚠️</div>
+        <h3 className="text-lg font-bold text-gray-900 mb-2">Invalid Recipe Data</h3>
+        <p className="text-gray-600 mb-4">Unable to load recipe scenes</p>
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition"
+          >
+            Go Back
+          </button>
+        )}
+      </div>
+    );
+  }
 
   // 선택된 씨에서 디테일 화면
   if (selectedScene) {

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, LoadingScreen } from '@/components/common';
+import { logClientEvent } from '@/lib/client-events';
 
 export const URLInputForm: React.FC = () => {
   const router = useRouter();
@@ -28,22 +29,26 @@ export const URLInputForm: React.FC = () => {
       return;
     }
 
-    // GA4: 비디오 URL 제출
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'submit_video_url', {
-        event_category: 'engagement',
-        event_label: 'video_url_submission'
-      });
-    }
+    await logClientEvent('reference_submitted', {
+      event_category: 'engagement',
+      event_label: 'video_url_submission',
+      source_url: url,
+    });
 
     setLoading(true);
     
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/signin');
+        return;
+      }
+
       // API 호출 - 비디오 분석
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, niche, goal, describe }),
+        body: JSON.stringify({ url, niche, goal, description: describe }),
       });
 
       if (!response.ok) {
@@ -51,6 +56,40 @@ export const URLInputForm: React.FC = () => {
       }
 
       const data = await response.json();
+      await logClientEvent('recipe_generated', {
+        source_url: url,
+        scenes_count: Array.isArray(data.scenes) ? data.scenes.length : 0,
+      });
+
+      let recipeId: string | null = null;
+      try {
+        const saveResponse = await fetch('/api/recipes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            videoUrl: url,
+            scenes: data.scenes,
+            niche,
+            goal,
+            description: describe,
+            platform: data?.metadata?.platform || null,
+            videoId: data.videoId || null,
+          }),
+        });
+
+        if (saveResponse.ok) {
+          const saveData = await saveResponse.json();
+          recipeId = saveData?.recipe?.id || null;
+          await logClientEvent('recipe_saved', {
+            recipe_id: recipeId || 'unknown',
+          });
+        }
+      } catch (saveError) {
+        console.error('Recipe save warning:', saveError);
+      }
       
       // 레시피 데이터를 sessionStorage에 저장
       sessionStorage.setItem('recipeData', JSON.stringify({
@@ -58,10 +97,11 @@ export const URLInputForm: React.FC = () => {
         videoUrl: url,
         capturedVideos: {},
         matchResults: {},
+        recipeId,
       }));
 
       // Home 탭으로 이동하여 레시피 표시
-      router.push('/home?view=recipe');
+      router.push(recipeId ? `/home?view=recipe&recipeId=${recipeId}` : '/home?view=recipe');
     } catch (error) {
       console.error('URL submit error:', error);
       alert('비디오 분석에 실패했습니다. 다시 시도해주세요.');
@@ -155,7 +195,7 @@ export const URLInputForm: React.FC = () => {
 
         {/* Info */}
         <div className="text-center text-sm text-gray-900">
-          <p>💡 We'll analyze the video and create a recipe for you</p>
+          <p>💡 We&apos;ll analyze the video and create a recipe for you</p>
         </div>
       </div>
     </Card>

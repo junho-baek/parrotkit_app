@@ -2,7 +2,9 @@
 
 import React from 'react';
 import { PricingPlan } from '@/types/auth';
-import { Button } from '@/components/common';
+
+type GtagPayload = Record<string, string | number | boolean | undefined>;
+type GtagFn = (command: string, eventName: string, payload?: GtagPayload) => void;
 
 interface PricingCardProps {
   plan: PricingPlan;
@@ -52,14 +54,17 @@ export const PricingCard: React.FC<PricingCardProps> = ({ plan }) => {
     }
 
     // GA4: 가격 플랜 CTA 클릭
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', isFree ? 'select_free_plan' : 'begin_checkout', {
-        event_category: 'ecommerce',
-        plan_name: plan.name,
-        plan_price: plan.price,
-        currency: 'USD',
-        value: plan.price
-      });
+    if (typeof window !== 'undefined') {
+      const gtag = (window as Window & { gtag?: GtagFn }).gtag;
+      if (gtag) {
+        gtag('event', isFree ? 'select_free_plan' : 'begin_checkout', {
+          event_category: 'ecommerce',
+          plan_name: plan.name,
+          plan_price: plan.price,
+          currency: 'USD',
+          value: plan.price
+        });
+      }
     }
     
     if (isFree) {
@@ -79,7 +84,7 @@ export const PricingCard: React.FC<PricingCardProps> = ({ plan }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           variantId: process.env.NEXT_PUBLIC_VARIANT_PRO,
-          userId: userData?.id,
+          authUserId: userData?.id,
           userEmail: userData?.email,
         }),
       });

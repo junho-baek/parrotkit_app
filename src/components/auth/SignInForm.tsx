@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button, Input, Card } from '@/components/common';
 import { SignInFormData } from '@/types/auth';
+import { logClientEvent } from '@/lib/client-events';
 
 export const SignInForm: React.FC = () => {
   const router = useRouter();
@@ -54,15 +55,18 @@ export const SignInForm: React.FC = () => {
       }
 
       // 토큰과 사용자 정보 저장
-      localStorage.setItem('token', data.token);
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+      if (data.refreshToken) {
+        localStorage.setItem('refreshToken', data.refreshToken);
+      }
+      if (data.expiresAt) {
+        localStorage.setItem('tokenExpiresAt', String(data.expiresAt));
+      }
       localStorage.setItem('user', JSON.stringify(data.user));
 
-      // GA4: 로그인 성공
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'login', {
-          method: 'email'
-        });
-      }
+      await logClientEvent('login', { method: 'email' });
 
       // interests가 없으면 interests 페이지로, 있으면 홈으로
       if (!data.user.interests || data.user.interests.length === 0) {
@@ -70,8 +74,9 @@ export const SignInForm: React.FC = () => {
       } else {
         router.push('/home');
       }
-    } catch (err: any) {
-      setError(err.message || '로그인에 실패했습니다. 다시 시도해주세요.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '로그인에 실패했습니다. 다시 시도해주세요.';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -106,7 +111,7 @@ export const SignInForm: React.FC = () => {
               Email or Username
             </label>
             <Input
-              type="email"
+              type="text"
               placeholder="Enter your email or username"
               name="email"
               value={formData.email}
@@ -159,7 +164,7 @@ export const SignInForm: React.FC = () => {
               <div className="w-full border-t-2 border-gray-200"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-gray-900 font-bold">Don't have an account?</span>
+              <span className="px-4 bg-white text-gray-900 font-bold">Don&apos;t have an account?</span>
             </div>
           </div>
           <Link href="/signup" className="block">

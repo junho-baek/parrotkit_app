@@ -1,48 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
-import { db } from '@/lib/db';
-import { mvpUsers } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
+import { requireAuthenticatedUser } from '@/lib/auth/server-auth';
+import { createSupabaseAdminClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
+    const authUser = await requireAuthenticatedUser(request);
+    const supabase = createSupabaseAdminClient();
 
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(
+        'id, email, username, interests, subscription_id, subscription_status, plan_type, subscription_ends_at'
+      )
+      .eq('id', authUser.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
     }
 
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      throw new Error('JWT_SECRET is not configured');
-    }
-
-    const decoded = jwt.verify(token, secret) as { userId: number };
-    
-    const users = await db
-      .select({
-        id: mvpUsers.id,
-        email: mvpUsers.email,
-        username: mvpUsers.username,
-        subscriptionId: mvpUsers.subscriptionId,
-        subscriptionStatus: mvpUsers.subscriptionStatus,
-        planType: mvpUsers.planType,
-        subscriptionEndsAt: mvpUsers.subscriptionEndsAt,
-      })
-      .from(mvpUsers)
-      .where(eq(mvpUsers.id, decoded.userId));
-
-    if (users.length === 0) {
+    if (!data) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ user: users[0] });
-  } catch (error) {
+    return NextResponse.json({
+      user: {
+        id: data.id,
+        email: data.email,
+        username: data.username,
+        interests: data.interests || [],
+        subscriptionId: data.subscription_id,
+        subscriptionStatus: data.subscription_status,
+        planType: data.plan_type,
+        subscriptionEndsAt: data.subscription_ends_at,
+      },
+    });
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'UNAUTHORIZED') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     console.error('Profile fetch error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch profile' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch profile' }, { status: 500 });
   }
 }

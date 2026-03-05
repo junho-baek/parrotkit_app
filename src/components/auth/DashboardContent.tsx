@@ -1,39 +1,188 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, RecipeResult } from '@/components/common';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { logClientEvent } from '@/lib/client-events';
+
+type RecipeScene = {
+  id: number;
+  title: string;
+  startTime: string;
+  endTime: string;
+  thumbnail: string;
+  description: string;
+  script?: string[];
+  progress?: number;
+};
+
+type RecipeApiItem = {
+  id: string;
+  video_url: string;
+  scenes: RecipeScene[];
+  captured_scene_ids?: number[] | null;
+  match_results?: Record<string, boolean> | null;
+  total_scenes?: number | null;
+  captured_count?: number | null;
+  created_at?: string | null;
+};
+
+type RecipeViewData = {
+  scenes: RecipeScene[];
+  videoUrl: string;
+  capturedVideos: Record<number, boolean>;
+  matchResults: Record<string, boolean>;
+  recipeId: string;
+};
+
+type RecentReference = {
+  id: number;
+  videoId: string;
+  thumbnail: string;
+  title: string;
+  creator: string;
+  duration: string;
+  views: string;
+  createdAt: string;
+};
+
+type LikedVideo = {
+  id: string;
+  videoId: string;
+  thumbnail: string;
+  title: string;
+  creator: string;
+  likes: string;
+};
+
+function buildCapturedMap(sceneIds: number[] | null | undefined): Record<number, boolean> {
+  return Array.isArray(sceneIds)
+    ? sceneIds.reduce((acc: Record<number, boolean>, sceneId) => {
+        acc[sceneId] = true;
+        return acc;
+      }, {})
+    : {};
+}
+
+function parseRecipeDataFromSession(raw: string): RecipeViewData | null {
+  try {
+    const parsed = JSON.parse(raw) as Partial<RecipeViewData>;
+    if (!parsed || !Array.isArray(parsed.scenes) || typeof parsed.videoUrl !== 'string') {
+      return null;
+    }
+
+    return {
+      scenes: parsed.scenes,
+      videoUrl: parsed.videoUrl,
+      capturedVideos: parsed.capturedVideos || {},
+      matchResults: parsed.matchResults || {},
+      recipeId: parsed.recipeId || '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+function parseLikedVideos(raw: string | null): LikedVideo[] {
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+      .map((item, index) => ({
+        id: String(item.id ?? index),
+        videoId: String(item.videoId ?? ''),
+        thumbnail: String(item.thumbnail ?? ''),
+        title: String(item.title ?? ''),
+        creator: String(item.creator ?? ''),
+        likes: String(item.likes ?? '0'),
+      }))
+      .filter((item) => item.videoId.length > 0);
+  } catch {
+    return [];
+  }
+}
 
 // ============ HOME: 최근 Paste한 레퍼런스들 ============
 export const Home: React.FC = () => {
   const searchParams = useSearchParams() || null;
   const router = useRouter();
-  const [recentReferences, setRecentReferences] = React.useState<any[]>([]);
+  const [recentReferences, setRecentReferences] = React.useState<RecentReference[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [recipeData, setRecipeData] = React.useState<any>(null);
+  const [recipeData, setRecipeData] = React.useState<RecipeViewData | null>(null);
   const [playingVideo, setPlayingVideo] = React.useState<string | null>(null);
 
   // Check for recipe view
   React.useEffect(() => {
-    try {
-      const viewMode = searchParams?.get('view');
-      if (viewMode === 'recipe') {
+    const loadRecipeData = async () => {
+      try {
+        const viewMode = searchParams?.get('view');
+        if (viewMode !== 'recipe') {
+          return;
+        }
+
         const data = sessionStorage.getItem('recipeData');
         if (data) {
-          setRecipeData(JSON.parse(data));
+          const parsed = parseRecipeDataFromSession(data);
+          if (parsed) {
+            setRecipeData(parsed);
+            return;
+          }
         }
+
+        const recipeId = searchParams?.get('recipeId');
+        const token = localStorage.getItem('token');
+        if (!recipeId || !token) {
+          return;
+        }
+
+        const response = await fetch(`/api/recipes/${recipeId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as { recipe?: RecipeApiItem };
+        const recipe = payload.recipe;
+        if (!recipe || !Array.isArray(recipe.scenes) || !recipe.video_url || !recipe.id) {
+          return;
+        }
+
+        const hydrated: RecipeViewData = {
+          scenes: recipe.scenes,
+          videoUrl: recipe.video_url,
+          capturedVideos: buildCapturedMap(recipe.captured_scene_ids),
+          matchResults: recipe.match_results || {},
+          recipeId: recipe.id,
+        };
+
+        setRecipeData(hydrated);
+        sessionStorage.setItem('recipeData', JSON.stringify(hydrated));
+      } catch (error) {
+        console.error('Error loading recipe data:', error);
       }
-    } catch (error) {
-      console.error('Error loading recipe data:', error);
-    }
+    };
+
+    void loadRecipeData();
   }, [searchParams]);
 
   React.useEffect(() => {
     const fetchRecentReferences = async () => {
       try {
         // YouTube Shorts Reference - Pasted videos
-        const mockData = [
+        const mockData: RecentReference[] = [
           {
             id: 1,
             videoId: '8qUUuVkhtYQ',
@@ -257,80 +406,68 @@ export const Home: React.FC = () => {
 
 // ============ RECIPES: 내가 만든 레시피들 ============
 export const Recipes: React.FC = () => {
-  const [recipes, setRecipes] = React.useState<any[]>([]);
+  const [recipes, setRecipes] = React.useState<RecipeApiItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const router = useRouter();
 
   React.useEffect(() => {
     const fetchRecipes = async () => {
       try {
-        // Fetch real analyzed recipe from API
-        const videoUrl = 'https://www.youtube.com/shorts/8qUUuVkhtYQ';
-        
-        const response = await fetch('/api/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            url: videoUrl,
-            niche: 'Cooking',
-            goal: 'Create engaging cooking content',
-            describe: 'Viral cooking shorts recipe'
-          }),
+        const token = localStorage.getItem('token');
+        if (!token) {
+          router.push('/signin');
+          return;
+        }
+
+        const response = await fetch('/api/recipes', {
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!response.ok) {
-          throw new Error('Failed to analyze video');
+          throw new Error('Failed to fetch recipes');
         }
 
-        const data = await response.json();
-        
-        const recipeData = {
-          id: 1,
-          videoId: data.videoId,
-          videoUrl: videoUrl,
-          title: 'Amazing Cooking Shorts Recipe',
-          thumbnail: 'https://img.youtube.com/vi/8qUUuVkhtYQ/maxresdefault.jpg',
-          totalScenes: data.scenes.length,
-          capturedCount: data.scenes.length,
-          createdAt: new Date().toISOString(),
-          scenes: data.scenes.map((scene: any, index: number) => ({
-            id: scene.id,
-            timestamp: `${scene.startTime}-${scene.endTime}`,
-            description: scene.description,
-            shotType: index % 3 === 0 ? 'Wide Shot' : index % 3 === 1 ? 'Close-up' : 'Medium Shot',
-            cameraAngle: index % 2 === 0 ? 'Eye Level' : 'Top Down',
-            lighting: 'Natural light',
-            audioNotes: scene.script ? scene.script[0] : 'Background music',
-          })),
-          capturedVideos: {},
-          matchResults: {},
-        };
-        
-        setRecipes([recipeData]);
+        const data = (await response.json()) as { recipes?: RecipeApiItem[] };
+        setRecipes(Array.isArray(data.recipes) ? data.recipes : []);
       } catch (error) {
         console.error('Failed to fetch recipes:', error);
-        // Fallback to mock data if API fails
         setRecipes([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchRecipes();
-  }, []);
+    void fetchRecipes();
+  }, [router]);
 
-  const handleView = (recipe: any) => {
+  const extractVideoId = (url: string) => {
+    const patterns = [
+      /shorts\/([a-zA-Z0-9_-]+)/,
+      /watch\?v=([a-zA-Z0-9_-]+)/,
+      /youtu\.be\/([a-zA-Z0-9_-]+)/,
+    ];
+
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match) return match[1];
+    }
+    return null;
+  };
+
+  const handleView = (recipe: RecipeApiItem) => {
     // Save recipe data to sessionStorage for viewing
     sessionStorage.setItem('recipeData', JSON.stringify({
       scenes: recipe.scenes,
-      videoUrl: recipe.videoUrl,
-      capturedVideos: recipe.capturedVideos || {},
-      matchResults: recipe.matchResults || {},
+      videoUrl: recipe.video_url,
+      capturedVideos: buildCapturedMap(recipe.captured_scene_ids),
+      matchResults: recipe.match_results || {},
       recipeId: recipe.id,
     }));
+
+    void logClientEvent('recipe_reopened', { recipe_id: recipe.id });
     
     // Navigate to Home with recipe view
-    router.push('/home?view=recipe');
+    router.push(`/home?view=recipe&recipeId=${recipe.id}`);
   };
 
   if (loading) {
@@ -372,18 +509,23 @@ export const Recipes: React.FC = () => {
               {/* Thumbnail */}
               <div className="relative rounded-t-xl overflow-hidden aspect-[9/16]">
                 <img
-                  src={recipe.thumbnail}
-                  alt={recipe.title}
+                  src={
+                    recipe.scenes?.[0]?.thumbnail ||
+                    (extractVideoId(recipe.video_url || '')
+                      ? `https://img.youtube.com/vi/${extractVideoId(recipe.video_url || '')}/maxresdefault.jpg`
+                      : '/parrot-logo.png')
+                  }
+                  alt={`Recipe ${recipe.id}`}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
                 <div className="absolute bottom-0 left-0 right-0 p-3">
                   <div className="flex items-center gap-2 text-white text-xs">
                     <span className="bg-blue-600 px-2 py-1 rounded-lg font-bold">
-                      🎬 {recipe.totalScenes} scenes
+                      🎬 {recipe.total_scenes || 0} scenes
                     </span>
                     <span className="bg-green-600 px-2 py-1 rounded-lg font-bold">
-                      ✓ {recipe.capturedCount}
+                      ✓ {recipe.captured_count || 0}
                     </span>
                   </div>
                 </div>
@@ -392,12 +534,12 @@ export const Recipes: React.FC = () => {
               <div className="p-3">
                 {/* Title */}
                 <h3 className="font-bold text-sm text-gray-900 mb-2 line-clamp-2">
-                  {recipe.title}
+                  {recipe.video_url}
                 </h3>
 
                 {/* Date */}
                 <p className="text-xs text-gray-500 mb-3">
-                  📅 {new Date(recipe.createdAt).toLocaleDateString()}
+                  📅 {recipe.created_at ? new Date(recipe.created_at).toLocaleDateString() : '-'}
                 </p>
 
                 {/* View Button */}
@@ -426,7 +568,7 @@ export const Settings: React.FC = () => {
     planType: string;
   } | null>(null);
   const [loading, setLoading] = React.useState(true);
-  const [likedVideos, setLikedVideos] = React.useState<any[]>([]);
+  const [likedVideos, setLikedVideos] = React.useState<LikedVideo[]>([]);
   const [playingVideo, setPlayingVideo] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -458,12 +600,29 @@ export const Settings: React.FC = () => {
 
   // Load liked videos from localStorage
   React.useEffect(() => {
-    const liked = JSON.parse(localStorage.getItem('likedVideos') || '[]');
-    setLikedVideos(liked);
+    setLikedVideos(parseLikedVideos(localStorage.getItem('likedVideos')));
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const accessToken = localStorage.getItem('token');
+    const refreshToken = localStorage.getItem('refreshToken');
+
+    try {
+      await fetch('/api/auth/signout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accessToken,
+          refreshToken,
+        }),
+      });
+    } catch {
+      // Ignore signout API failures and continue local cleanup.
+    }
+
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('tokenExpiresAt');
     localStorage.removeItem('user');
     router.push('/signin');
   };
@@ -604,7 +763,7 @@ export const Settings: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4">
-            {likedVideos.map((video: any) => (
+            {likedVideos.map((video) => (
               <div
                 key={video.id}
                 className="relative cursor-pointer group"

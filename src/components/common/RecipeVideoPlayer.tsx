@@ -2,9 +2,45 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 
+type YouTubePlayerEvent = {
+  target: {
+    mute: () => void;
+    seekTo: (seconds: number) => void;
+    playVideo: () => void;
+  };
+  data: number;
+};
+
+type YouTubePlayerInstance = {
+  getCurrentTime: () => number;
+  pauseVideo: () => void;
+  seekTo: (seconds: number) => void;
+  destroy: () => void;
+};
+
+type YouTubePlayerConstructor = new (
+  elementId: string,
+  config: {
+    videoId: string;
+    playerVars: Record<string, string | number>;
+    events: {
+      onReady: (event: YouTubePlayerEvent) => void;
+      onStateChange: (event: YouTubePlayerEvent) => void;
+      onError: () => void;
+    };
+  }
+) => YouTubePlayerInstance;
+
+type YouTubeGlobal = {
+  Player?: YouTubePlayerConstructor;
+  PlayerState: {
+    PLAYING: number;
+  };
+};
+
 declare global {
   interface Window {
-    YT: any;
+    YT?: YouTubeGlobal;
     onYouTubeIframeAPIReady: () => void;
   }
 }
@@ -48,36 +84,30 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
   scriptLines,
   onSwitchToShooting,
 }) => {
-  const playerRef = useRef<any>(null);
+  void onSwitchToShooting;
+  const playerRef = useRef<YouTubePlayerInstance | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
-  const [playerError, setPlayerError] = useState(false);
+  const [failedVideoId, setFailedVideoId] = useState<string | null>(null);
   const [scriptOpen, setScriptOpen] = useState(false);
   
-  // Validate inputs
-  if (!videoUrl || !scene) {
-    return (
-      <div className="text-center py-12">
-        <div className="text-6xl mb-4">⚠️</div>
-        <h3 className="text-lg font-bold text-gray-900 mb-2">Invalid Video Data</h3>
-        <p className="text-gray-600">Unable to load video player</p>
-      </div>
-    );
-  }
-  
   const videoId = extractVideoId(videoUrl);
+  const isYouTube = Boolean(videoId);
+  const playerError = !isYouTube || failedVideoId === videoId;
   const startSeconds = timeToSeconds(scene.startTime);
   const endSeconds = timeToSeconds(scene.endTime);
   const duration = endSeconds - startSeconds;
 
   useEffect(() => {
-    let player: any = null;
-    let checkInterval: NodeJS.Timeout | null = null;
-    let progressInterval: NodeJS.Timeout | null = null;
-    let mounted = true;
+    if (!isYouTube) {
+      return;
+    }
 
-    setPlayerError(false);
+    let player: YouTubePlayerInstance | null = null;
+    let checkInterval: ReturnType<typeof setInterval> | null = null;
+    let progressInterval: ReturnType<typeof setInterval> | null = null;
+    let mounted = true;
 
     const initPlayer = () => {
       if (!mounted) return;
@@ -105,7 +135,7 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
             origin: window.location.origin,
           },
           events: {
-            onReady: (event: any) => {
+            onReady: (event: YouTubePlayerEvent) => {
               if (!mounted) return;
               event.target.mute();
               event.target.seekTo(startSeconds);
@@ -121,23 +151,27 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
                     setCurrentTime(elapsed);
                     setProgress((elapsed / duration) * 100);
                   }
-                } catch (e) {
+                } catch {
                   // ignore
                 }
               }, 100);
             },
-            onStateChange: (event: any) => {
+            onStateChange: (event: YouTubePlayerEvent) => {
               if (!mounted) return;
-              if (event.data === window.YT.PlayerState.PLAYING) {
+              if (event.data === window.YT?.PlayerState.PLAYING) {
                 if (checkInterval) clearInterval(checkInterval);
                 checkInterval = setInterval(() => {
                   if (!mounted || !player || !player.getCurrentTime) return;
                   try {
                     const current = player.getCurrentTime();
                     if (current >= endSeconds) {
+                      player.pauseVideo();
                       player.seekTo(startSeconds);
+                      if (checkInterval) {
+                        clearInterval(checkInterval);
+                      }
                     }
-                  } catch (e) {
+                  } catch {
                     // ignore
                   }
                 }, 100);
@@ -145,14 +179,14 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
             },
             onError: () => {
               if (!mounted) return;
-              setPlayerError(true);
+              setFailedVideoId(videoId);
             },
           },
         });
         playerRef.current = player;
       } catch (error) {
         console.error('Error initializing YouTube player:', error);
-        setPlayerError(true);
+        setFailedVideoId(videoId);
       }
     };
 
@@ -179,12 +213,12 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
       if (player && player.destroy) {
         try {
           player.destroy();
-        } catch (e) {
+        } catch {
           // ignore
         }
       }
     };
-  }, [videoId, scene.id, startSeconds, endSeconds, duration]);
+  }, [isYouTube, videoId, startSeconds, endSeconds, duration]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -209,7 +243,9 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
               <div className="w-16 h-16 mx-auto mb-4 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
                 <div className="w-0 h-0 border-l-[24px] border-l-white border-t-[14px] border-t-transparent border-b-[14px] border-b-transparent ml-1" />
               </div>
-              <p className="text-white text-sm mb-2">This video cannot be embedded.</p>
+              <p className="text-white text-sm mb-2">
+                {isYouTube ? 'This video cannot be embedded.' : 'Segment preview is not available for this platform.'}
+              </p>
               <a
                 href={videoUrl}
                 target="_blank"
@@ -228,7 +264,7 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
         <div className="absolute top-4 right-4 z-10">
           <div className="bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-2">
             <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
-            <span className="text-white text-sm font-medium">Loop</span>
+            <span className="text-white text-sm font-medium">Segment</span>
           </div>
         </div>
 

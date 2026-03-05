@@ -1,8 +1,74 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { db } from '@/lib/db';
-import { mvpUsers } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
+import { createSupabaseAdminClient } from '@/lib/supabase/server';
+
+type SubscriptionUpdatePayload = {
+  subscription_id: string;
+  subscription_status: string;
+  plan_type?: string;
+  subscription_ends_at?: string | null;
+};
+
+async function updateProfileByAuthUserIdOrEmail(params: {
+  authUserId?: string;
+  email?: string;
+  payload: SubscriptionUpdatePayload;
+}) {
+  const supabase = createSupabaseAdminClient();
+
+  if (params.authUserId) {
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        subscription_id: params.payload.subscription_id,
+        subscription_status: params.payload.subscription_status,
+        plan_type: params.payload.plan_type || 'free',
+        subscription_ends_at: params.payload.subscription_ends_at || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', params.authUserId);
+
+    if (!error) {
+      return;
+    }
+
+    console.warn('Failed to update by authUserId, fallback to email:', error.message);
+  }
+
+  if (params.email) {
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        subscription_id: params.payload.subscription_id,
+        subscription_status: params.payload.subscription_status,
+        plan_type: params.payload.plan_type || 'free',
+        subscription_ends_at: params.payload.subscription_ends_at || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('email', params.email.toLowerCase());
+
+    if (error) {
+      throw error;
+    }
+  }
+}
+
+async function updateProfileBySubscriptionId(payload: SubscriptionUpdatePayload) {
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      subscription_status: payload.subscription_status,
+      plan_type: payload.plan_type || 'free',
+      subscription_ends_at: payload.subscription_ends_at || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('subscription_id', payload.subscription_id);
+
+  if (error) {
+    throw error;
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,8 +79,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No signature' }, { status: 401 });
     }
 
-    // Webhook 서명 검증
-    const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET!;
+    const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
+    if (!secret) {
+      return NextResponse.json({ error: 'Webhook secret not configured' }, { status: 500 });
+    }
+
     const hmac = crypto.createHmac('sha256', secret);
     const digest = hmac.update(rawBody).digest('hex');
 
@@ -25,121 +94,95 @@ export async function POST(request: NextRequest) {
     const payload = JSON.parse(rawBody);
     const { meta, data } = payload;
 
-    // 이벤트 타입별 처리
     switch (meta.event_name) {
-      case 'order_created':
-        console.log('Order created:', data.attributes.first_order_item);
+      case 'subscription_created': {
+        const customData = data.attributes.custom_data || {};
+        const authUserId = customData.authUserId || customData.userId;
+        const email = customData.email || data.attributes.user_email;
+
+        await updateProfileByAuthUserIdOrEmail({
+          authUserId,
+          email,
+          payload: {
+            subscription_id: data.id,
+            subscription_status: 'active',
+            plan_type: 'pro',
+            subscription_ends_at: data.attributes.renews_at || null,
+          },
+        });
         break;
+      }
 
-      case 'subscription_created':
-        {
-          const customData = data.attributes.custom_data;
-          const userId = customData?.userId;
-          const userEmail = data.attributes.user_email;
+      case 'subscription_updated': {
+        const authUserId = data.attributes.custom_data?.authUserId || null;
+        const email = data.attributes.user_email || null;
+        const payload = {
+          subscription_id: data.id,
+          subscription_status: data.attributes.status || 'active',
+          plan_type: data.attributes.status === 'active' ? 'pro' : 'free',
+          subscription_ends_at: data.attributes.renews_at || null,
+        };
 
-          console.log('Subscription created:', { userId, userEmail, subscriptionId: data.id });
-
-          if (userId) {
-            await db.update(mvpUsers)
-              .set({
-                subscriptionId: data.id,
-                subscriptionStatus: 'active',
-                planType: 'pro',
-                subscriptionEndsAt: new Date(data.attributes.renews_at),
-                updatedAt: new Date(),
-              })
-              .where(eq(mvpUsers.id, parseInt(userId)));
-            
-            console.log(`✅ User ${userId} subscription activated`);
-          } else if (userEmail) {
-            // userId가 없으면 이메일로 찾기
-            await db.update(mvpUsers)
-              .set({
-                subscriptionId: data.id,
-                subscriptionStatus: 'active',
-                planType: 'pro',
-                subscriptionEndsAt: new Date(data.attributes.renews_at),
-                updatedAt: new Date(),
-              })
-              .where(eq(mvpUsers.email, userEmail));
-            
-            console.log(`✅ User (${userEmail}) subscription activated`);
-          }
+        if (authUserId || email) {
+          await updateProfileByAuthUserIdOrEmail({ authUserId, email, payload });
+        } else {
+          await updateProfileBySubscriptionId(payload);
         }
         break;
+      }
 
-      case 'subscription_updated':
-        {
-          const subscriptionId = data.id;
-          const status = data.attributes.status;
-          
-          console.log('Subscription updated:', { subscriptionId, status });
+      case 'subscription_cancelled': {
+        const authUserId = data.attributes.custom_data?.authUserId || null;
+        const email = data.attributes.user_email || null;
+        const payload = {
+          subscription_id: data.id,
+          subscription_status: 'cancelled',
+          plan_type: 'pro',
+          subscription_ends_at: data.attributes.ends_at || null,
+        };
 
-          await db.update(mvpUsers)
-            .set({
-              subscriptionStatus: status,
-              subscriptionEndsAt: data.attributes.renews_at ? new Date(data.attributes.renews_at) : null,
-              updatedAt: new Date(),
-            })
-            .where(eq(mvpUsers.subscriptionId, subscriptionId));
-          
-          console.log(`✅ Subscription ${subscriptionId} updated to ${status}`);
+        if (authUserId || email) {
+          await updateProfileByAuthUserIdOrEmail({ authUserId, email, payload });
+        } else {
+          await updateProfileBySubscriptionId(payload);
         }
         break;
+      }
 
-      case 'subscription_cancelled':
-        {
-          const subscriptionId = data.id;
-          
-          console.log('Subscription cancelled:', subscriptionId);
-
-          await db.update(mvpUsers)
-            .set({
-              subscriptionStatus: 'cancelled',
-              updatedAt: new Date(),
-            })
-            .where(eq(mvpUsers.subscriptionId, subscriptionId));
-          
-          console.log(`✅ Subscription ${subscriptionId} cancelled`);
+      case 'subscription_payment_success': {
+        const email = data.attributes.user_email || null;
+        const authUserId = data.attributes.custom_data?.authUserId || null;
+        const payload = {
+          subscription_id: data.attributes.subscription_id,
+          subscription_status: 'active',
+          plan_type: 'pro',
+          subscription_ends_at: data.attributes.renews_at || null,
+        };
+        if (authUserId || email) {
+          await updateProfileByAuthUserIdOrEmail({ authUserId, email, payload });
+        } else {
+          await updateProfileBySubscriptionId(payload);
         }
         break;
+      }
 
-      case 'subscription_payment_success':
-        {
-          const subscriptionId = data.attributes.subscription_id;
-          
-          console.log('Payment success:', subscriptionId);
+      case 'subscription_expired': {
+        const authUserId = data.attributes.custom_data?.authUserId || null;
+        const email = data.attributes.user_email || null;
+        const payload = {
+          subscription_id: data.id,
+          subscription_status: 'expired',
+          plan_type: 'free',
+          subscription_ends_at: data.attributes.ends_at || null,
+        };
 
-          // 결제 성공 시 구독 연장
-          await db.update(mvpUsers)
-            .set({
-              subscriptionStatus: 'active',
-              subscriptionEndsAt: data.attributes.renews_at ? new Date(data.attributes.renews_at) : null,
-              updatedAt: new Date(),
-            })
-            .where(eq(mvpUsers.subscriptionId, subscriptionId));
-          
-          console.log(`✅ Subscription ${subscriptionId} payment successful, renewed`);
+        if (authUserId || email) {
+          await updateProfileByAuthUserIdOrEmail({ authUserId, email, payload });
+        } else {
+          await updateProfileBySubscriptionId(payload);
         }
         break;
-
-      case 'subscription_expired':
-        {
-          const subscriptionId = data.id;
-          
-          console.log('Subscription expired:', subscriptionId);
-
-          await db.update(mvpUsers)
-            .set({
-              subscriptionStatus: 'expired',
-              planType: 'free',
-              updatedAt: new Date(),
-            })
-            .where(eq(mvpUsers.subscriptionId, subscriptionId));
-          
-          console.log(`✅ Subscription ${subscriptionId} expired, reverted to free plan`);
-        }
-        break;
+      }
 
       default:
         console.log('Unhandled event:', meta.event_name);
@@ -148,9 +191,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error('Webhook error:', error);
-    return NextResponse.json(
-      { error: 'Webhook processing failed' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 });
   }
 }

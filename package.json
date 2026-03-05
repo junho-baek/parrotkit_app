@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:schema": "node scripts/db-schema.cjs",
+    "migrate:legacy-users": "node scripts/migrate-legacy-users-to-supabase.cjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
@@ -14,11 +16,14 @@
     "@google/generative-ai": "^0.24.1",
     "@lemonsqueezy/lemonsqueezy.js": "^4.0.0",
     "@neondatabase/serverless": "^0.9.0",
+    "@supabase/supabase-js": "^2.98.0",
     "bcryptjs": "^2.4.3",
     "drizzle-orm": "^0.29.3",
     "fluent-ffmpeg": "^2.1.3",
     "jsonwebtoken": "^9.0.2",
+    "jszip": "^3.10.1",
     "next": "16.1.4",
+    "pg": "^8.20.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "zod": "^3.22.4"

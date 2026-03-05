@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button, Input, Card } from '@/components/common';
 import { SignUpFormData } from '@/types/auth';
+import { logClientEvent } from '@/lib/client-events';
 
 export const SignUpForm: React.FC = () => {
   const router = useRouter();
@@ -32,13 +33,10 @@ export const SignUpForm: React.FC = () => {
     setLoading(true);
     setError('');
 
-    // GA4: 회원가입 시작
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'signup_start', {
-        event_category: 'engagement',
-        event_label: 'signup_form_submit'
-      });
-    }
+    await logClientEvent('signup_start', {
+      event_category: 'engagement',
+      event_label: 'signup_form_submit',
+    });
 
     // 기본 유효성 검사
     if (!formData.email || !formData.username || !formData.password || !formData.confirmPassword) {
@@ -77,20 +75,24 @@ export const SignUpForm: React.FC = () => {
       }
 
       // 회원가입 성공 - 토큰과 사용자 정보를 즉시 저장
-      localStorage.setItem('token', data.token);
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+      if (data.refreshToken) {
+        localStorage.setItem('refreshToken', data.refreshToken);
+      }
+      if (data.expiresAt) {
+        localStorage.setItem('tokenExpiresAt', String(data.expiresAt));
+      }
       localStorage.setItem('user', JSON.stringify(data.user));
       
-      // GA4: 회원가입 완료
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'sign_up', {
-          method: 'email'
-        });
-      }
+      await logClientEvent('signup_success', { method: 'email' });
       
       // Interests 페이지로 이동
       router.push('/interests');
-    } catch (err: any) {
-      setError(err.message || '회원가입에 실패했습니다. 다시 시도해주세요.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '회원가입에 실패했습니다. 다시 시도해주세요.';
+      setError(message);
     } finally {
       setLoading(false);
     }
