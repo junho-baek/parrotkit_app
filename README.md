@@ -101,9 +101,9 @@ Follow the platform-specific instructions in [FFMPEG_SETUP.md](FFMPEG_SETUP.md)
 ffmpeg -version
 ```
 
-5. **Set up the database**
+5. **Capture current DB schema snapshot**
 ```bash
-npm run db:push
+npm run db:schema
 ```
 
 6. **Run the development server**
@@ -112,6 +112,27 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## 🗂️ Stable DB Workflow (Drizzle + Supabase)
+
+ParrotKit uses a hybrid model:
+- **Drizzle** for `public` table DDL change tracking (columns/indexes/defaults).
+- **Supabase SQL migrations** for platform-specific concerns (RLS, Auth/Storage policies).
+
+Recommended workflow for schema changes:
+
+1. Edit table definitions in `src/lib/schema.ts`.
+2. Generate Drizzle SQL draft:
+```bash
+npm run db:generate
+```
+3. Promote required DDL into `supabase/migrations/*.sql` (keep policy SQL in the same migration as needed).
+4. Apply migration to Supabase environment.
+5. Refresh snapshot/contracts:
+```bash
+npm run db:schema
+```
+6. Sync `app/types/supabase.generated.ts` if table contract changed.
 
 ## 📁 Project Structure
 

@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "db:generate": "node scripts/db-generate.cjs",
     "db:schema": "node scripts/db-schema.cjs",
     "migrate:legacy-users": "node scripts/migrate-legacy-users-to-supabase.cjs"
   },
