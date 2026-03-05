@@ -70,59 +70,119 @@ alter table public.recipes enable row level security;
 alter table public.recipe_captures enable row level security;
 alter table public.event_logs enable row level security;
 
-create policy if not exists "profiles_select_own"
-  on public.profiles for select
-  using (auth.uid() = id);
+do $$
+begin
+  create policy "profiles_select_own"
+    on public.profiles for select
+    using (auth.uid() = id);
+exception
+  when duplicate_object then null;
+end
+$$;
 
-create policy if not exists "profiles_update_own"
-  on public.profiles for update
-  using (auth.uid() = id)
-  with check (auth.uid() = id);
+do $$
+begin
+  create policy "profiles_update_own"
+    on public.profiles for update
+    using (auth.uid() = id)
+    with check (auth.uid() = id);
+exception
+  when duplicate_object then null;
+end
+$$;
 
-create policy if not exists "references_crud_own"
-  on public.references for all
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+do $$
+begin
+  create policy "references_crud_own"
+    on public.references for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+exception
+  when duplicate_object then null;
+end
+$$;
 
-create policy if not exists "recipes_crud_own"
-  on public.recipes for all
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+do $$
+begin
+  create policy "recipes_crud_own"
+    on public.recipes for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+exception
+  when duplicate_object then null;
+end
+$$;
 
-create policy if not exists "recipe_captures_crud_own"
-  on public.recipe_captures for all
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+do $$
+begin
+  create policy "recipe_captures_crud_own"
+    on public.recipe_captures for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+exception
+  when duplicate_object then null;
+end
+$$;
 
-create policy if not exists "event_logs_insert_own"
-  on public.event_logs for insert
-  with check (auth.uid() = user_id or user_id is null);
+do $$
+begin
+  create policy "event_logs_insert_own"
+    on public.event_logs for insert
+    with check (auth.uid() = user_id or user_id is null);
+exception
+  when duplicate_object then null;
+end
+$$;
 
-create policy if not exists "event_logs_select_own"
-  on public.event_logs for select
-  using (auth.uid() = user_id);
+do $$
+begin
+  create policy "event_logs_select_own"
+    on public.event_logs for select
+    using (auth.uid() = user_id);
+exception
+  when duplicate_object then null;
+end
+$$;
 
 insert into storage.buckets (id, name, public)
 values ('scene-captures', 'scene-captures', false)
 on conflict (id) do nothing;
 
-create policy if not exists "scene_captures_select_own"
-  on storage.objects for select
-  using (
-    bucket_id = 'scene-captures'
-    and auth.uid()::text = (storage.foldername(name))[1]
-  );
+do $$
+begin
+  create policy "scene_captures_select_own"
+    on storage.objects for select
+    using (
+      bucket_id = 'scene-captures'
+      and auth.uid()::text = (storage.foldername(name))[1]
+    );
+exception
+  when duplicate_object then null;
+end
+$$;
 
-create policy if not exists "scene_captures_insert_own"
-  on storage.objects for insert
-  with check (
-    bucket_id = 'scene-captures'
-    and auth.uid()::text = (storage.foldername(name))[1]
-  );
+do $$
+begin
+  create policy "scene_captures_insert_own"
+    on storage.objects for insert
+    with check (
+      bucket_id = 'scene-captures'
+      and auth.uid()::text = (storage.foldername(name))[1]
+    );
+exception
+  when duplicate_object then null;
+end
+$$;
 
-create policy if not exists "scene_captures_delete_own"
-  on storage.objects for delete
-  using (
-    bucket_id = 'scene-captures'
-    and auth.uid()::text = (storage.foldername(name))[1]
-  );
+do $$
+begin
+  create policy "scene_captures_delete_own"
+    on storage.objects for delete
+    using (
+      bucket_id = 'scene-captures'
+      and auth.uid()::text = (storage.foldername(name))[1]
+    );
+exception
+  when duplicate_object then null;
+end
+$$;
