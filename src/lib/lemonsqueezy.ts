@@ -1,13 +1,21 @@
 import { lemonSqueezySetup } from '@lemonsqueezy/lemonsqueezy.js';
 
-// Lemon Squeezy 초기화
-if (!process.env.LEMONSQUEEZY_API_KEY) {
-  throw new Error('LEMONSQUEEZY_API_KEY is required');
+let isConfigured = false;
+
+export function ensureLemonSqueezyConfigured() {
+  const apiKey = process.env.LEMONSQUEEZY_API_KEY;
+  if (!apiKey) {
+    throw new Error('LEMONSQUEEZY_API_KEY is required');
+  }
+
+  if (isConfigured) {
+    return;
+  }
+
+  lemonSqueezySetup({
+    apiKey,
+    onError: (error) => console.error('Lemon Squeezy Error:', error),
+  });
+
+  isConfigured = true;
 }
-
-lemonSqueezySetup({
-  apiKey: process.env.LEMONSQUEEZY_API_KEY,
-  onError: (error) => console.error('Lemon Squeezy Error:', error),
-});
-
-export { lemonSqueezySetup };

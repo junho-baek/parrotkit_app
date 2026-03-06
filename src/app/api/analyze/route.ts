@@ -2,20 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { analyzeYouTubeVideo } from '@/lib/video-analyzer';
 
-if (!process.env.GOOGLE_AI_API_KEY) {
-  throw new Error('GOOGLE_AI_API_KEY is not set');
-}
+function getModel() {
+  const apiKey = process.env.GOOGLE_AI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GOOGLE_AI_API_KEY is not set');
+  }
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
-const model = genAI.getGenerativeModel({ 
-  model: 'gemini-pro',  // Changed from gemini-1.5-flash for better compatibility
-  generationConfig: {
-    temperature: 0.9,
-    topK: 40,
-    topP: 0.95,
-    maxOutputTokens: 2048,
-  },
-});
+  const genAI = new GoogleGenerativeAI(apiKey);
+  return genAI.getGenerativeModel({
+    model: 'gemini-pro',
+    generationConfig: {
+      temperature: 0.9,
+      topK: 40,
+      topP: 0.95,
+      maxOutputTokens: 2048,
+    },
+  });
+}
 
 type Platform = 'youtube' | 'youtube-shorts' | 'instagram' | 'tiktok' | 'other';
 
@@ -155,6 +158,7 @@ const defaultSceneScripts: {[key: number]: string[]} = {
 
 async function generateScriptsWithAI(niche: string, goal: string, description: string): Promise<{descriptions: string[], scripts: {[key: number]: string[]}} | null> {
   try {
+    const model = getModel();
     const prompt = `You are a short-form video script writer. Based on the user's info, write scripts for 6 scenes.
 
 User Info:

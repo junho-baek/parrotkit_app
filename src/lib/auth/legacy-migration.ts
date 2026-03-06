@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { eq, ilike, or } from 'drizzle-orm';
-import { db } from '@/lib/db';
+import { getDb } from '@/lib/db';
 import { mvpUsers } from '@/lib/schema';
 import { createSupabaseAdminClient } from '@/lib/supabase/server';
 
@@ -22,6 +22,7 @@ function normalizeIdentifier(identifier: string) {
 
 export async function findLegacyUserByIdentifier(identifier: string): Promise<LegacyUser | null> {
   const normalized = normalizeIdentifier(identifier);
+  const db = getDb();
 
   const rows = await db
     .select({
@@ -145,6 +146,8 @@ export async function ensureProfileForSupabaseUser(params: {
 }
 
 export async function findLegacyUserByEmail(email: string): Promise<LegacyUser | null> {
+  const db = getDb();
+
   const rows = await db
     .select({
       id: mvpUsers.id,
@@ -165,6 +168,8 @@ export async function findLegacyUserByEmail(email: string): Promise<LegacyUser |
 }
 
 export async function legacyUserExistsByEmailOrUsername(email: string, username: string) {
+  const db = getDb();
+
   const rows = await db
     .select({ id: mvpUsers.id })
     .from(mvpUsers)

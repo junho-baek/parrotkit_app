@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createCheckout } from '@lemonsqueezy/lemonsqueezy.js';
-import '@/lib/lemonsqueezy';
+import { ensureLemonSqueezyConfigured } from '@/lib/lemonsqueezy';
 
 export async function POST(request: NextRequest) {
   try {
+    ensureLemonSqueezyConfigured();
+
     const body = await request.json();
     const variantId = String(body.variantId || '').trim();
     const authUserId = String(body.authUserId || body.userId || '').trim();
