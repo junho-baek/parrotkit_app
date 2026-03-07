@@ -9,7 +9,9 @@
     "lint": "eslint",
     "db:generate": "node scripts/db-generate.cjs",
     "db:schema": "node scripts/db-schema.cjs",
-    "migrate:legacy-users": "node scripts/migrate-legacy-users-to-supabase.cjs"
+    "migrate:legacy-users": "node scripts/migrate-legacy-users-to-supabase.cjs",
+    "notion:setup": "node scripts/setup-notion-reports.cjs --write-env .env.local",
+    "notion:upload": "node scripts/upload-report-to-notion.cjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",

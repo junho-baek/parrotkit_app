@@ -1,4 +1,4 @@
-.PHONY: clean-appledouble supabase-link db-push db-generate db-schema dev
+.PHONY: clean-appledouble supabase-link db-push db-generate db-schema notion-setup notion-upload notion-upload-dry-run report-and-upload dev
 
 ENV_FILE := .env.local
 
@@ -21,6 +21,54 @@ db-generate:
 
 db-schema:
 	@npm run db:schema
+
+notion-setup:
+	@test -f $(ENV_FILE) || (echo "$(ENV_FILE) is required" && exit 1)
+	@node scripts/setup-notion-reports.cjs --write-env $(ENV_FILE)
+
+notion-upload:
+	@test -f $(ENV_FILE) || (echo "$(ENV_FILE) is required" && exit 1)
+	@test -n "$(REPORT)" || (echo "REPORT=<artifact path> is required" && exit 1)
+	@node scripts/upload-report-to-notion.cjs \
+		--file "$(REPORT)" \
+		$(if $(FILES),--extra-files "$(FILES)",) \
+		$(if $(SUMMARY_MD),--summary-md "$(SUMMARY_MD)",) \
+		$(if $(TITLE),--title "$(TITLE)",) \
+		$(if $(PROJECT),--project "$(PROJECT)",) \
+		$(if $(REPORT_TYPE),--report-type "$(REPORT_TYPE)",) \
+		$(if $(STATUS),--status "$(STATUS)",) \
+		$(if $(SOURCE_URL),--source-url "$(SOURCE_URL)",) \
+		$(if $(RECIPE_ID),--recipe-id "$(RECIPE_ID)",) \
+		$(if $(NOTES),--notes "$(NOTES)",) \
+		$(if $(CREATED_AT),--created-at "$(CREATED_AT)",) \
+		$(if $(BRANCH),--branch "$(BRANCH)",) \
+		$(if $(COMMIT),--commit "$(COMMIT)",)
+
+notion-upload-dry-run:
+	@REPORT_PATH="$(REPORT)"; \
+	if [ -z "$$REPORT_PATH" ]; then \
+		REPORT_PATH=$$(node scripts/find-latest-report.cjs); \
+	fi; \
+	test -n "$$REPORT_PATH" || { echo "REPORT=<artifact path> is required and no report was found in output/"; exit 1; }; \
+	SUMMARY_PATH="$(SUMMARY_MD)"; \
+	if [ -z "$$SUMMARY_PATH" ]; then \
+		STEM=$$(basename "$$REPORT_PATH"); STEM=$${STEM%.*}; \
+		if [ -f "output/reports/$$STEM.md" ]; then SUMMARY_PATH="output/reports/$$STEM.md"; fi; \
+	fi; \
+	node scripts/upload-report-to-notion.cjs --dry-run --file "$$REPORT_PATH" $${SUMMARY_PATH:+--summary-md "$$SUMMARY_PATH"}
+
+report-and-upload:
+	@REPORT_PATH="$(REPORT)"; \
+	if [ -z "$$REPORT_PATH" ]; then \
+		REPORT_PATH=$$(node scripts/find-latest-report.cjs); \
+	fi; \
+	test -n "$$REPORT_PATH" || { echo "REPORT=<artifact path> is required and no report was found in output/"; exit 1; }; \
+	SUMMARY_PATH="$(SUMMARY_MD)"; \
+	if [ -z "$$SUMMARY_PATH" ]; then \
+		STEM=$$(basename "$$REPORT_PATH"); STEM=$${STEM%.*}; \
+		if [ -f "output/reports/$$STEM.md" ]; then SUMMARY_PATH="output/reports/$$STEM.md"; fi; \
+	fi; \
+	$(MAKE) notion-upload REPORT="$$REPORT_PATH" SUMMARY_MD="$$SUMMARY_PATH" FILES="$(FILES)" TITLE="$(TITLE)" PROJECT="$(PROJECT)" REPORT_TYPE="$(REPORT_TYPE)" STATUS="$(STATUS)" SOURCE_URL="$(SOURCE_URL)" RECIPE_ID="$(RECIPE_ID)" NOTES="$(NOTES)" CREATED_AT="$(CREATED_AT)" BRANCH="$(BRANCH)" COMMIT="$(COMMIT)"
 
 dev:
 	@npm run dev

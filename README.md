@@ -55,7 +55,7 @@ ParrotKit is a cutting-edge mobile-first platform that analyzes viral short-form
 
 ### Prerequisites
 - Node.js 18+ and npm
-- PostgreSQL database (NeonDB recommended)
+- Supabase project with Postgres
 - Google AI API key (Gemini)
 - **FFmpeg** (required for scene detection) - [Installation Guide](FFMPEG_SETUP.md)
 
@@ -93,6 +93,12 @@ GOOGLE_AI_API_KEY="your-gemini-api-key"
 LEMONSQUEEZY_API_KEY="your-lemonsqueezy-api-key"
 LEMONSQUEEZY_STORE_ID="your-store-id"
 LEMONSQUEEZY_WEBHOOK_SECRET="your-webhook-secret"
+
+# Notion report automation (Optional)
+NOTION_API_KEY="secret_your_notion_internal_integration_token"
+NOTION_REPORTS_PARENT_PAGE_ID="your-notion-parent-page-id"
+NOTION_REPORTS_DATABASE_ID="your-notion-database-id"
+NOTION_REPORTS_DATA_SOURCE_ID="your-notion-data-source-id"
 ```
 
 4. **Install FFmpeg** (Required)
@@ -136,6 +142,64 @@ npm run db:generate
 npm run db:schema
 ```
 6. Sync `src/types/supabase.generated.ts` if table contract changed.
+
+## 📝 Notion Report Automation
+
+ParrotKit can push generated PDF/PPT artifacts and their Markdown summary into a dedicated Notion database.
+
+Important distinction:
+- **Notion MCP** is for interactive agent browsing/writing.
+- **Notion API integration token** is for repeatable headless uploads from scripts and CI.
+
+### One-time setup
+
+1. Create a Notion internal integration and copy its token into `NOTION_API_KEY`.
+2. Create a parent page in Notion and share it with the integration.
+3. Copy that page ID into `NOTION_REPORTS_PARENT_PAGE_ID`.
+4. Create or reuse the reports database:
+
+```bash
+make notion-setup
+```
+
+This writes `NOTION_REPORTS_DATABASE_ID` and `NOTION_REPORTS_DATA_SOURCE_ID` back into `.env.local`.
+
+### Dry-run metadata check
+
+Before a real upload, inspect what title, branch, summary blocks, and artifact paths will be sent:
+
+```bash
+make notion-upload-dry-run
+```
+
+### Upload the latest generated report
+
+If `REPORT` is omitted, `report-and-upload` picks the newest PDF/PPT/PPTX inside `output/` and tries to find a matching Markdown summary in `output/reports/`.
+
+```bash
+make report-and-upload
+```
+
+### Upload a specific artifact
+
+```bash
+make notion-upload \
+  REPORT=output/pdf/20260307_parrotkit_e2e_validation_report.pdf \
+  SUMMARY_MD=output/reports/20260307_parrotkit_e2e_validation_report.md \
+  REPORT_TYPE=e2e \
+  STATUS=Uploaded \
+  NOTES="Local validation run"
+```
+
+### MCP login for interactive Notion access
+
+The Codex MCP server can be connected globally for interactive Notion access:
+
+```bash
+codex mcp login notion
+```
+
+That login is separate from `NOTION_API_KEY`. Keep both because automation and interactive agent access use different auth models.
 
 ## 📁 Project Structure
 
