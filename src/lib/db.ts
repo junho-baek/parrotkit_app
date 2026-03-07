@@ -41,17 +41,22 @@ function getPoolConfig(databaseUrl: string) {
   const parsedUrl = new URL(normalizedUrl);
   const isSupabaseManagedHost =
     parsedUrl.hostname.endsWith('.supabase.co') || parsedUrl.hostname.endsWith('.supabase.com');
+  const requiresSsl =
+    parsedUrl.searchParams.get('sslmode') === 'require' ||
+    parsedUrl.searchParams.get('ssl') === 'true' ||
+    isSupabaseManagedHost;
 
   const config: PoolConfig = {
-    host: parsedUrl.hostname,
-    port: parsedUrl.port ? Number(parsedUrl.port) : 5432,
-    user: decodeURIComponent(parsedUrl.username),
-    password: decodeURIComponent(parsedUrl.password),
-    database: parsedUrl.pathname.replace(/^\//, '') || 'postgres',
-    // Supabase pooler/direct hosts require TLS, and local Node/pg setups often do not
-    // trust the managed chain automatically. Make the TLS requirement explicit so the
-    // same env works across local dev and server runtimes without opaque SSL failures.
-    ...(isSupabaseManagedHost ? { ssl: { rejectUnauthorized: false } } : {}),
+    // Preserve the full connection string so pg keeps query params such as
+    // `sslmode=require`. Reconstructing host/user/password manually drops these
+    // parameters and can make Supabase pooler connections look "insecure" in
+    // server runtimes even though the original URL requested TLS.
+    connectionString: normalizedUrl,
+    // Supabase pooler/direct hosts require TLS, and some runtimes do not trust the
+    // managed chain automatically. Make the TLS requirement explicit in addition to
+    // preserving the original query string so both local and deployed runtimes behave
+    // consistently.
+    ...(requiresSsl ? { ssl: { rejectUnauthorized: false } } : {}),
   };
 
   return config;

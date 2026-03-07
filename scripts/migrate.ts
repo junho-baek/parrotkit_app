@@ -24,14 +24,14 @@ function getPoolConfig(databaseUrl: string) {
   const parsedUrl = new URL(normalizedUrl);
   const isSupabaseManagedHost =
     parsedUrl.hostname.endsWith('.supabase.co') || parsedUrl.hostname.endsWith('.supabase.com');
+  const requiresSsl =
+    parsedUrl.searchParams.get('sslmode') === 'require' ||
+    parsedUrl.searchParams.get('ssl') === 'true' ||
+    isSupabaseManagedHost;
 
   const config: PoolConfig = {
-    host: parsedUrl.hostname,
-    port: parsedUrl.port ? Number(parsedUrl.port) : 5432,
-    user: decodeURIComponent(parsedUrl.username),
-    password: decodeURIComponent(parsedUrl.password),
-    database: parsedUrl.pathname.replace(/^\//, '') || 'postgres',
-    ...(isSupabaseManagedHost ? { ssl: { rejectUnauthorized: false } } : {}),
+    connectionString: normalizedUrl,
+    ...(requiresSsl ? { ssl: { rejectUnauthorized: false } } : {}),
   };
 
   return config;
