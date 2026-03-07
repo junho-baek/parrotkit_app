@@ -1,4 +1,4 @@
-.PHONY: clean-appledouble supabase-link db-push db-generate db-schema notion-setup notion-upload notion-upload-dry-run report-and-upload dev
+.PHONY: clean-appledouble supabase-link db-push db-generate db-schema notion-setup notion-upload notion-upload-dry-run report-and-upload report-template deck-template deck-and-upload deployment-report deployment-report-dry-run dev
 
 ENV_FILE := .env.local
 
@@ -69,6 +69,56 @@ report-and-upload:
 		if [ -f "output/reports/$$STEM.md" ]; then SUMMARY_PATH="output/reports/$$STEM.md"; fi; \
 	fi; \
 	$(MAKE) notion-upload REPORT="$$REPORT_PATH" SUMMARY_MD="$$SUMMARY_PATH" FILES="$(FILES)" TITLE="$(TITLE)" PROJECT="$(PROJECT)" REPORT_TYPE="$(REPORT_TYPE)" STATUS="$(STATUS)" SOURCE_URL="$(SOURCE_URL)" RECIPE_ID="$(RECIPE_ID)" NOTES="$(NOTES)" CREATED_AT="$(CREATED_AT)" BRANCH="$(BRANCH)" COMMIT="$(COMMIT)"
+
+report-template:
+	@test -n "$(REPORT)" || (echo "REPORT=<artifact path> is required" && exit 1)
+	@node scripts/init-report-summary.cjs \
+		--file "$(REPORT)" \
+		$(if $(REPORT_TYPE),--report-type "$(REPORT_TYPE)",) \
+		$(if $(TITLE),--title "$(TITLE)",) \
+		$(if $(PROJECT),--project "$(PROJECT)",) \
+		$(if $(OUTPUT),--output "$(OUTPUT)",) \
+		$(if $(FORCE),--force,)
+
+deck-template:
+	@$(MAKE) report-template REPORT="$(REPORT)" REPORT_TYPE=deck TITLE="$(TITLE)" PROJECT="$(PROJECT)" OUTPUT="$(OUTPUT)" FORCE="$(FORCE)"
+
+deck-and-upload:
+	@test -n "$(REPORT)" || (echo "REPORT=<ppt/pptx path> is required" && exit 1)
+	@SUMMARY_PATH="$(SUMMARY_MD)"; \
+	if [ -z "$$SUMMARY_PATH" ]; then \
+		STEM=$$(basename "$(REPORT)"); STEM=$${STEM%.*}; \
+		if [ -f "output/reports/$$STEM.md" ]; then SUMMARY_PATH="output/reports/$$STEM.md"; fi; \
+	fi; \
+	$(MAKE) notion-upload REPORT="$(REPORT)" SUMMARY_MD="$$SUMMARY_PATH" REPORT_TYPE=deck TITLE="$(TITLE)" PROJECT="$(PROJECT)" STATUS="$(STATUS)" NOTES="$(NOTES)" CREATED_AT="$(CREATED_AT)" BRANCH="$(BRANCH)" COMMIT="$(COMMIT)"
+
+deployment-report:
+	@node scripts/generate-deployment-report.cjs \
+		$(if $(PAYLOAD),--payload-file "$(PAYLOAD)",) \
+		$(if $(PROJECT),--project "$(PROJECT)",) \
+		$(if $(ENVIRONMENT),--environment "$(ENVIRONMENT)",) \
+		$(if $(EVENT_TYPE),--event-type "$(EVENT_TYPE)",) \
+		$(if $(DEPLOYMENT_ID),--deployment-id "$(DEPLOYMENT_ID)",) \
+		$(if $(DEPLOYMENT_URL),--deployment-url "$(DEPLOYMENT_URL)",) \
+		$(if $(BRANCH),--branch "$(BRANCH)",) \
+		$(if $(COMMIT),--commit "$(COMMIT)",) \
+		$(if $(CREATOR),--creator "$(CREATOR)",) \
+		$(if $(STATE),--state "$(STATE)",) \
+		$(if $(NOTES),--notes "$(NOTES)",)
+
+deployment-report-dry-run:
+	@node scripts/generate-deployment-report.cjs --dry-run \
+		$(if $(PAYLOAD),--payload-file "$(PAYLOAD)",) \
+		$(if $(PROJECT),--project "$(PROJECT)",) \
+		$(if $(ENVIRONMENT),--environment "$(ENVIRONMENT)",) \
+		$(if $(EVENT_TYPE),--event-type "$(EVENT_TYPE)",) \
+		$(if $(DEPLOYMENT_ID),--deployment-id "$(DEPLOYMENT_ID)",) \
+		$(if $(DEPLOYMENT_URL),--deployment-url "$(DEPLOYMENT_URL)",) \
+		$(if $(BRANCH),--branch "$(BRANCH)",) \
+		$(if $(COMMIT),--commit "$(COMMIT)",) \
+		$(if $(CREATOR),--creator "$(CREATOR)",) \
+		$(if $(STATE),--state "$(STATE)",) \
+		$(if $(NOTES),--notes "$(NOTES)",)
 
 dev:
 	@npm run dev

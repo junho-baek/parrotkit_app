@@ -51,6 +51,10 @@
 - 새 automation을 추가할 때는 먼저 `make notion-upload-dry-run`으로 메타데이터/summary 파싱 결과를 확인한 뒤 실제 업로드를 수행한다.
 - 업로드 대상 파일은 기본적으로 20MB 이하 single-part를 가정한다. 더 큰 파일이 필요해지면 multipart 업로드를 별도 구현하고 문서화한다.
 - 반복 산출물 업로드 시 `report-and-upload`를 우선 사용하고, `SUMMARY_MD`가 없으면 동일 stem의 `output/reports/*.md`를 자동 탐색한다.
+- PPT/PPTX 산출물은 `make deck-template`으로 summary template을 만든 뒤 `make deck-and-upload` 또는 `make notion-upload REPORT=<pptx> REPORT_TYPE=deck` 경로를 사용한다.
+- Vercel 배포 후 자동 보고서는 `.github/workflows/vercel-notion-auto-report.yml`이 기준이다. 배포 커밋을 checkout하고 deployment report PDF/MD를 생성한 뒤 Notion에 업로드한다.
+- GitHub Actions 자동 업로드는 repository secrets `NOTION_API_KEY`, `NOTION_REPORTS_DATA_SOURCE_ID`를 요구한다.
+- `repository_dispatch` 기반 Vercel 자동화는 workflow 파일이 repository default branch에 있어야만 실제로 동작한다. default branch가 `main`이면 관련 workflow 변경도 반드시 `main`에 반영한다.
 
 ## 재사용 테스트 계정
 

@@ -46,6 +46,9 @@
 make notion-setup
 make notion-upload-dry-run
 make report-and-upload
+make report-template REPORT=output/pdf/example.pdf
+make deck-template REPORT=output/ppt/example.pptx
+make deck-and-upload REPORT=output/ppt/example.pptx
 ```
 
 특정 파일 업로드:
@@ -57,6 +60,31 @@ make notion-upload \
   REPORT_TYPE=e2e \
   STATUS=Uploaded
 ```
+
+## Vercel 자동 업로드
+
+워크플로 파일:
+
+```bash
+.github/workflows/vercel-notion-auto-report.yml
+```
+
+이 workflow는 `vercel.deployment.ready` GitHub `repository_dispatch` 이벤트를 받으면:
+
+1. 배포 커밋을 checkout
+2. `scripts/generate-deployment-report.cjs`로 Markdown/PDF 배포 리포트 생성
+3. `scripts/upload-report-to-notion.cjs`로 Notion 업로드
+4. 생성된 PDF/Markdown을 GitHub Actions artifact로 보관
+
+필수 GitHub Secrets:
+
+- `NOTION_API_KEY`
+- `NOTION_REPORTS_DATA_SOURCE_ID`
+
+주의:
+
+- `repository_dispatch` workflow는 repository default branch에 workflow 파일이 있어야만 실제로 트리거된다.
+- 현재 원격 default branch가 `main`이면, 이 자동화도 `main`에 머지되어야 Vercel 이벤트가 들어온다.
 
 ## 제약
 

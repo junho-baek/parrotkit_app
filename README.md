@@ -180,6 +180,19 @@ If `REPORT` is omitted, `report-and-upload` picks the newest PDF/PPT/PPTX inside
 make report-and-upload
 ```
 
+### Create a summary template for PDF/PPT artifacts
+
+```bash
+make report-template REPORT=output/pdf/example.pdf
+make deck-template REPORT=output/ppt/example.pptx
+```
+
+### Upload a deck artifact to the same Notion flow
+
+```bash
+make deck-and-upload REPORT=output/ppt/example.pptx
+```
+
 ### Upload a specific artifact
 
 ```bash
@@ -190,6 +203,29 @@ make notion-upload \
   STATUS=Uploaded \
   NOTES="Local validation run"
 ```
+
+## 🤖 Vercel Deployment Auto Report
+
+The repository includes [`.github/workflows/vercel-notion-auto-report.yml`](/Volumes/T7/플젝/deundeunApp/Parrotkit/.github/workflows/vercel-notion-auto-report.yml) to create a deployment report after Vercel emits a GitHub `repository_dispatch` event.
+
+What it does:
+- listens for `vercel.deployment.ready`
+- checks out the deployment commit
+- generates a Markdown + PDF deployment report
+- uploads the report to Notion
+- stores the generated artifacts in the GitHub Actions run
+
+Required GitHub repository secrets:
+- `NOTION_API_KEY`
+- `NOTION_REPORTS_DATA_SOURCE_ID`
+
+Important constraint:
+- GitHub only runs `repository_dispatch` workflows when the workflow file exists on the repository default branch.
+- In this repository `origin` default branch is currently `main`, so this workflow must be merged to `main` before Vercel-triggered runs will fire automatically.
+
+### Manual workflow test
+
+The workflow also supports `workflow_dispatch`, so you can trigger a dry manual deployment report run from the GitHub Actions UI after the workflow reaches the default branch.
 
 ### MCP login for interactive Notion access
 

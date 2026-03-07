@@ -1,0 +1,157 @@
+name: Vercel Notion Auto Report
+
+on:
+  repository_dispatch:
+    types:
+      - vercel.deployment.ready
+  workflow_dispatch:
+    inputs:
+      deployment_url:
+        description: Optional deployment URL for manual test runs
+        required: false
+        type: string
+      environment:
+        description: Deployment environment label
+        required: false
+        default: preview
+        type: string
+      project:
+        description: Project name override
+        required: false
+        default: Parrotkit
+        type: string
+      branch:
+        description: Branch override
+        required: false
+        type: string
+      commit:
+        description: Commit SHA override
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: notion-report-${{ github.event.client_payload.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  upload-deployment-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve checkout ref
+        id: resolve-ref
+        env:
+          DISPATCH_SHA: ${{ github.event_name == 'repository_dispatch' && github.event.client_payload.git.sha || '' }}
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ] && [ -n "$DISPATCH_SHA" ]; then
+            echo "ref=$DISPATCH_SHA" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.resolve-ref.outputs.ref }}
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Notion secrets
+        shell: bash
+        run: |
+          test -n "${{ secrets.NOTION_API_KEY }}" || { echo "Missing secret: NOTION_API_KEY"; exit 1; }
+          test -n "${{ secrets.NOTION_REPORTS_DATA_SOURCE_ID }}" || { echo "Missing secret: NOTION_REPORTS_DATA_SOURCE_ID"; exit 1; }
+
+      - name: Persist Vercel payload
+        if: github.event_name == 'repository_dispatch'
+        shell: bash
+        run: |
+          mkdir -p tmp
+          cat > tmp/vercel-dispatch-payload.json <<'JSON'
+          ${{ toJson(github.event.client_payload) }}
+          JSON
+
+      - name: Generate deployment report artifacts
+        id: report
+        env:
+          MANUAL_PROJECT: ${{ github.event_name == 'workflow_dispatch' && inputs.project || '' }}
+          MANUAL_DEPLOYMENT_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_url || '' }}
+          MANUAL_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || '' }}
+          MANUAL_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || '' }}
+          MANUAL_COMMIT: ${{ github.event_name == 'workflow_dispatch' && inputs.commit || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=()
+
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            args+=(--payload-file tmp/vercel-dispatch-payload.json --event-type "${{ github.event.action }}")
+          else
+            [ -n "$MANUAL_PROJECT" ] && args+=(--project "$MANUAL_PROJECT")
+            args+=(--event-type workflow_dispatch)
+            [ -n "$MANUAL_DEPLOYMENT_URL" ] && args+=(--deployment-url "$MANUAL_DEPLOYMENT_URL")
+            [ -n "$MANUAL_ENVIRONMENT" ] && args+=(--environment "$MANUAL_ENVIRONMENT")
+            [ -n "$MANUAL_BRANCH" ] && args+=(--branch "$MANUAL_BRANCH")
+            [ -n "$MANUAL_COMMIT" ] && args+=(--commit "$MANUAL_COMMIT")
+          fi
+
+          report_json=$(node scripts/generate-deployment-report.cjs "${args[@]}")
+          echo "$report_json"
+          echo "$report_json" > tmp/generated-deployment-report.json
+
+          node - <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('tmp/generated-deployment-report.json', 'utf8'));
+          const output = fs.createWriteStream(process.env.GITHUB_OUTPUT, { flags: 'a' });
+          const values = {
+            markdown_path: data.markdownPath,
+            pdf_path: data.pdfPath,
+            title: data.title,
+            project: data.project,
+            environment: data.environment,
+            branch: data.branch,
+            commit: data.commit,
+            deployment_url: data.deploymentUrl || '',
+            notes: data.notes || '',
+          };
+          for (const [key, value] of Object.entries(values)) {
+            output.write(`${key}=${String(value)}\n`);
+          }
+          output.end();
+          NODE
+
+      - name: Upload deployment report to Notion
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_REPORTS_DATA_SOURCE_ID: ${{ secrets.NOTION_REPORTS_DATA_SOURCE_ID }}
+        run: |
+          node scripts/upload-report-to-notion.cjs \
+            --file "${{ steps.report.outputs.pdf_path }}" \
+            --summary-md "${{ steps.report.outputs.markdown_path }}" \
+            --title "${{ steps.report.outputs.title }}" \
+            --project "${{ steps.report.outputs.project }}" \
+            --report-type deployment \
+            --status Uploaded \
+            --source-url "${{ steps.report.outputs.deployment_url }}" \
+            --branch "${{ steps.report.outputs.branch }}" \
+            --commit "${{ steps.report.outputs.commit }}" \
+            --notes "${{ steps.report.outputs.notes }}"
+
+      - name: Upload generated artifacts to GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-report-${{ github.run_id }}
+          path: |
+            ${{ steps.report.outputs.markdown_path }}
+            ${{ steps.report.outputs.pdf_path }}
