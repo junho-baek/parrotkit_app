@@ -25,7 +25,6 @@ function buildSchema() {
     'Report Type': {
       select: {
         options: [
-          { name: 'deployment', color: 'red' },
           { name: 'qa', color: 'green' },
           { name: 'e2e', color: 'purple' },
           { name: 'release', color: 'orange' },

@@ -148,7 +148,6 @@ function guessMimeType(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   const types = {
     '.pdf': 'application/pdf',
-    '.md': 'text/markdown',
     '.ppt': 'application/vnd.ms-powerpoint',
     '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     '.doc': 'application/msword',
@@ -181,7 +180,6 @@ function titleFromFilename(filePath) {
 
 function inferReportType(filePath) {
   const lower = filePath.toLowerCase();
-  if (lower.includes('deployment')) return 'deployment';
   if (lower.includes('e2e')) return 'e2e';
   if (lower.includes('release')) return 'release';
   if (lower.includes('mobile')) return 'mobile';
