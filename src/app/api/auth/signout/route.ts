@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseAnonServerClient } from '@/lib/supabase/server';
+import { createSupabasePublishableServerClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    const supabase = createSupabaseAnonServerClient();
+    const supabase = createSupabasePublishableServerClient();
 
     await supabase.auth.setSession({
       access_token: accessToken,

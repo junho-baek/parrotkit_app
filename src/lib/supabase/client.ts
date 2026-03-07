@@ -10,12 +10,16 @@ export function getSupabaseBrowserClient() {
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // Supabase now recommends publishable keys for app clients because they rotate independently
+  // from the project's JWT signing secret. Keep the DEFAULT fallback for dashboard-generated env names.
+  const supabasePublishableKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
 
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!supabaseUrl || !supabasePublishableKey) {
     throw new Error('Supabase environment variables are not configured');
   }
 
-  browserClient = createClient(supabaseUrl, supabaseAnonKey);
+  browserClient = createClient(supabaseUrl, supabasePublishableKey);
   return browserClient;
 }

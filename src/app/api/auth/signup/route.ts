@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseAnonServerClient, createSupabaseAdminClient } from '@/lib/supabase/server';
+import { createSupabasePublishableServerClient, createSupabaseAdminClient } from '@/lib/supabase/server';
 import {
   ensureProfileForSupabaseUser,
   legacyUserExistsByEmailOrUsername,
@@ -52,8 +52,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabaseAnon = createSupabaseAnonServerClient();
-    const { data: signUpData, error: signUpError } = await supabaseAnon.auth.signUp({
+    const supabaseAuth = createSupabasePublishableServerClient();
+    const { data: signUpData, error: signUpError } = await supabaseAuth.auth.signUp({
       email,
       password,
       options: {
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     let session = signUpData.session;
 
     if (!session) {
-      const { data: signInData, error: signInError } = await supabaseAnon.auth.signInWithPassword({
+      const { data: signInData, error: signInError } = await supabaseAuth.auth.signInWithPassword({
         email,
         password,
       });

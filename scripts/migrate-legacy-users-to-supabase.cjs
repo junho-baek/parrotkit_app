@@ -70,19 +70,21 @@ async function main() {
     process.env.LEGACY_DATABASE_URL || process.env.DATABASE_URL
   );
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // This script needs admin auth APIs, so it intentionally uses the modern server-side secret key.
+  // New Supabase projects should not add legacy service_role JWT keys unless interoperability requires it.
+  const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
   const dryRun = process.argv.includes('--dry-run');
 
   if (!legacyDbUrl) {
     throw new Error('LEGACY_DATABASE_URL or DATABASE_URL is required');
   }
 
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+  if (!supabaseUrl || !supabaseSecretKey) {
+    throw new Error('NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY are required');
   }
 
   const client = new Client({ connectionString: legacyDbUrl });
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+  const supabaseAdmin = createClient(supabaseUrl, supabaseSecretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 

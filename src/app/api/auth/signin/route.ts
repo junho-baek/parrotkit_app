@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseAnonServerClient, createSupabaseAdminClient } from '@/lib/supabase/server';
+import { createSupabasePublishableServerClient, createSupabaseAdminClient } from '@/lib/supabase/server';
 import {
   findLegacyUserByIdentifier,
   migrateLegacyUserToSupabase,
@@ -54,11 +54,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Username and password are required' }, { status: 400 });
     }
 
-    const supabaseAnon = createSupabaseAnonServerClient();
+    const supabaseAuth = createSupabasePublishableServerClient();
 
     const resolvedEmail = await resolveEmailFromIdentifier(identifier);
 
-    let { data: signInData, error: signInError } = await supabaseAnon.auth.signInWithPassword({
+    let { data: signInData, error: signInError } = await supabaseAuth.auth.signInWithPassword({
       email: resolvedEmail,
       password,
     });
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
 
       await migrateLegacyUserToSupabase(legacyUser);
 
-      const retried = await supabaseAnon.auth.signInWithPassword({
+      const retried = await supabaseAuth.auth.signInWithPassword({
         email: legacyUser.email.toLowerCase(),
         password,
       });

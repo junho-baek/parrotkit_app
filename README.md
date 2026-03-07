@@ -77,11 +77,14 @@ npm install
 Create a `.env.local` file in the root directory:
 
 ```env
-# Database
-DATABASE_URL="postgresql://user:password@host/database?sslmode=require"
-
-# Authentication
-JWT_SECRET="your-super-secret-jwt-key-change-this"
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL="https://your-project-ref.supabase.co"
+# Use Supabase's modern publishable key for browsers and normal auth flows.
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="your-publishable-key"
+# Keep the secret key server-only for admin APIs and migrations.
+SUPABASE_SECRET_KEY="your-secret-key"
+# Use the pooled connection string for Next.js/serverless traffic.
+DATABASE_URL="postgresql://postgres.<project-ref>:<db-password>@aws-0-<region>.pooler.supabase.com:6543/postgres?sslmode=require"
 
 # Google AI
 GOOGLE_AI_API_KEY="your-gemini-api-key"
@@ -132,7 +135,7 @@ npm run db:generate
 ```bash
 npm run db:schema
 ```
-6. Sync `app/types/supabase.generated.ts` if table contract changed.
+6. Sync `src/types/supabase.generated.ts` if table contract changed.
 
 ## 📁 Project Structure
 
