@@ -1,4 +1,5 @@
 const {
+  getConfiguredEnvValue,
   getArgValue,
   hasFlag,
   loadDotEnvLocal,
@@ -76,10 +77,10 @@ async function main() {
 
   const writeEnvPath = getArgValue(argv, '--write-env');
   const dryRun = hasFlag(argv, '--dry-run');
-  const existingDatabaseId = process.env.NOTION_REPORTS_DATABASE_ID;
+  const existingDatabaseId = getConfiguredEnvValue('NOTION_REPORTS_DATABASE_ID');
   const title =
     getArgValue(argv, '--title') ||
-    process.env.NOTION_REPORTS_DATABASE_TITLE ||
+    getConfiguredEnvValue('NOTION_REPORTS_DATABASE_TITLE') ||
     'Parrotkit Reports';
 
   if (dryRun) {
@@ -88,7 +89,7 @@ async function main() {
         {
           mode: existingDatabaseId ? 'inspect-existing' : 'create-new',
           title,
-          parentPageId: process.env.NOTION_REPORTS_PARENT_PAGE_ID || null,
+          parentPageId: getConfiguredEnvValue('NOTION_REPORTS_PARENT_PAGE_ID') || null,
           writeEnvPath: writeEnvPath || null,
           schemaProperties: Object.keys(buildSchema()),
         },
@@ -102,7 +103,7 @@ async function main() {
   const token = requireEnv('NOTION_API_KEY');
 
   let databaseId = existingDatabaseId;
-  let dataSourceId = process.env.NOTION_REPORTS_DATA_SOURCE_ID || null;
+  let dataSourceId = getConfiguredEnvValue('NOTION_REPORTS_DATA_SOURCE_ID') || null;
 
   if (databaseId) {
     const existing = await retrieveDatabaseAndDataSource(token, databaseId);

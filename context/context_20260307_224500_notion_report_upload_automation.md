@@ -28,3 +28,15 @@
 - `NOTION_API_KEY`: 내부 Integration token
 - `NOTION_REPORTS_PARENT_PAGE_ID`: reports database를 만들 parent page id
 - 위 두 값을 `.env.local`에 추가한 뒤 `make notion-setup` 실행
+
+
+## Live Setup Result
+- `make notion-setup` 실행으로 Notion reports database를 실제 생성했다.
+- Database URL: `https://www.notion.so/050cff84a7e84d04876414ec626ab97e`
+- `.env.local`에 `NOTION_REPORTS_DATABASE_ID`, `NOTION_REPORTS_DATA_SOURCE_ID`를 기록했다.
+
+## First Upload Result
+- `make report-and-upload`로 첫 PDF 보고서를 업로드했다.
+- Uploaded page URL: `https://www.notion.so/20260307-Parrotkit-E2e-Validation-Report-31cfdc54bb728174b349fbeb49cac9a3`
+- Uploaded artifact: `output/pdf/20260307_parrotkit_e2e_validation_report.pdf`
+- Summary markdown source: `output/reports/20260307_parrotkit_e2e_validation_report.md`

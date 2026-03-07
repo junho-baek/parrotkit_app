@@ -56,6 +56,32 @@ function normalizeNotionId(value) {
   return trimmed;
 }
 
+function isPlaceholderValue(value) {
+  if (!value) {
+    return true;
+  }
+
+  const normalized = String(value).trim().replace(/^['"]|['"]$/g, '');
+  if (!normalized) {
+    return true;
+  }
+
+  return (
+    normalized.includes('your-notion-') ||
+    normalized.includes('your_notion_') ||
+    normalized.includes('<') ||
+    normalized.toLowerCase() === 'changeme'
+  );
+}
+
+function getConfiguredEnvValue(name) {
+  const rawValue = process.env[name];
+  if (isPlaceholderValue(rawValue)) {
+    return null;
+  }
+  return String(rawValue).trim().replace(/^['"]|['"]$/g, '');
+}
+
 function upsertEnvFile(envPath, pairs) {
   const absolutePath = path.isAbsolute(envPath) ? envPath : path.join(process.cwd(), envPath);
   const existing = fs.existsSync(absolutePath) ? fs.readFileSync(absolutePath, 'utf8') : '';
@@ -449,11 +475,13 @@ module.exports = {
   getArgValue,
   getArgValues,
   getArtifactBlock,
+  getConfiguredEnvValue,
   getGitValue,
   guessMimeType,
   hasFlag,
   inferReportType,
   inferSummaryPath,
+  isPlaceholderValue,
   loadDotEnvLocal,
   markdownToBlocks,
   normalizeNotionId,

@@ -51,3 +51,6 @@
 
 ## 연결 Context
 - `context/context_20260307_224500_notion_report_upload_automation.md`
+
+- 실제 Notion database 생성까지 완료했고 `.env.local`에 database/data source id를 기록했다.
+- `make report-and-upload`로 첫 PDF 보고서를 Notion에 업로드해 end-to-end 경로를 검증했다.

@@ -4,6 +4,7 @@ const {
   appendBlocksInChunks,
   createSinglePartFileUpload,
   formatIsoDate,
+  getConfiguredEnvValue,
   getArgValue,
   getArgValues,
   getArtifactBlock,
@@ -224,7 +225,10 @@ async function main() {
   }
 
   const token = requireEnv('NOTION_API_KEY');
-  const dataSourceId = requireEnv('NOTION_REPORTS_DATA_SOURCE_ID');
+  const dataSourceId = getConfiguredEnvValue('NOTION_REPORTS_DATA_SOURCE_ID');
+  if (!dataSourceId) {
+    throw new Error('NOTION_REPORTS_DATA_SOURCE_ID is required. Run make notion-setup first.');
+  }
 
   const uploadedFiles = [];
   for (const filePath of files) {
