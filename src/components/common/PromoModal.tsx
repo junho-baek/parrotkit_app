@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { logClientEvent } from '@/lib/client-events';
 
 interface PromoModalProps {
   onClose: () => void;
@@ -39,24 +40,18 @@ export const PromoModal: React.FC<PromoModalProps> = ({ onClose }) => {
   }, []);
 
   const handleGetProClick = () => {
-    // GA4: 프로모션 모달 CTA 클릭
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'promo_modal_cta_click', {
-        event_category: 'conversion',
-        discount_percentage: '58%',
-      });
-    }
+    void logClientEvent('promo_modal_cta_click', {
+      event_category: 'conversion',
+      discount_percentage: '58%',
+    });
 
     window.location.href = '/pricing';
   };
 
   const handleCloseClick = () => {
-    // GA4: 프로모션 모달 닫기
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'promo_modal_close', {
-        event_category: 'engagement',
-      });
-    }
+    void logClientEvent('promo_modal_close', {
+      event_category: 'engagement',
+    });
 
     onClose();
   };

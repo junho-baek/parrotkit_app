@@ -2,24 +2,21 @@
 
 import Link from 'next/link';
 import { Button, Card } from '@/components/common';
+import { logClientEvent } from '@/lib/client-events';
 
 export default function Home() {
   const handleSignInClick = () => {
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'click_signin_home', {
-        event_category: 'engagement',
-        event_label: 'home_page_signin'
-      });
-    }
+    void logClientEvent('click_signin_home', {
+      event_category: 'engagement',
+      event_label: 'home_page_signin',
+    });
   };
 
   const handleSignUpClick = () => {
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'click_signup_home', {
-        event_category: 'engagement',
-        event_label: 'home_page_signup'
-      });
-    }
+    void logClientEvent('click_signup_home', {
+      event_category: 'engagement',
+      event_label: 'home_page_signup',
+    });
   };
 
   return (

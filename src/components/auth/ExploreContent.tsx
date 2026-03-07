@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Card } from '@/components/common';
 import Link from 'next/link';
+import { logClientEvent } from '@/lib/client-events';
 
 // ============ EXPLORE: 트렌딩 레퍼런스 ============
 
@@ -129,13 +130,10 @@ export const ExploreContent: React.FC = () => {
     }
 
     try {
-      // GA4 이벤트
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'like_trending_reference', {
-          event_category: 'engagement',
-          reference_id: id,
-        });
-      }
+      await logClientEvent('like_trending_reference', {
+        event_category: 'engagement',
+        reference_id: id,
+      });
     } catch (error) {
       console.error('Failed to like:', error);
       

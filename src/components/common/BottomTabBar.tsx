@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { logClientEvent } from '@/lib/client-events';
 
 interface Tab {
   id: string;
@@ -55,13 +56,10 @@ export const BottomTabBar: React.FC = () => {
   const pathname = usePathname();
 
   const handleTabClick = (gaEvent: string) => {
-    // GA4 이벤트 전송
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', gaEvent, {
-        event_category: 'navigation',
-        event_label: gaEvent,
-      });
-    }
+    void logClientEvent(gaEvent, {
+      event_category: 'navigation',
+      event_label: gaEvent,
+    });
   };
 
   return (

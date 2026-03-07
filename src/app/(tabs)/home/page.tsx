@@ -4,18 +4,16 @@ import React, { Suspense, useState } from 'react';
 import { Home } from '@/components/auth';
 import { PromoModal } from '@/components/common';
 import { useEffect } from 'react';
+import { logClientEvent } from '@/lib/client-events';
 
 function HomeContent() {
   const [showPromoModal, setShowPromoModal] = useState(false);
 
   useEffect(() => {
-    // GA4: Home 탭 조회
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'view_home_tab', {
-        event_category: 'engagement',
-        page_title: 'Home Tab'
-      });
-    }
+    void logClientEvent('view_home_tab', {
+      event_category: 'engagement',
+      page_title: 'Home Tab',
+    });
 
     // 프로모션 모달 표시 체크 (온보딩 완료 후 첫 접속)
     const hasSeenPromo = localStorage.getItem('hasSeenPromoModal');

@@ -1,19 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { PricingCard } from '@/components/auth';
 import { PRICING_PLANS } from '@/types/auth';
+import { logClientEvent } from '@/lib/client-events';
 
 export default function PricingPage() {
-  // GA4: 프라이싱 페이지 조회
   React.useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'view_pricing', {
-        event_category: 'ecommerce',
-        page_title: 'Pricing Page'
-      });
-    }
+    void logClientEvent('view_pricing', {
+      event_category: 'ecommerce',
+      page_title: 'Pricing Page',
+      plan_count: PRICING_PLANS.length,
+    });
   }, []);
 
   return (

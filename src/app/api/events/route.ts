@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractBearerToken } from '@/lib/auth/server-auth';
 import { createSupabaseAdminClient } from '@/lib/supabase/server';
+import { insertEventLog } from '@/lib/event-logs';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,16 +23,12 @@ export async function POST(request: NextRequest) {
       userId = data.user?.id || null;
     }
 
-    const { error } = await supabase.from('event_logs').insert({
-      user_id: userId,
-      event_name: eventName,
+    await insertEventLog({
+      userId,
+      eventName,
       page,
       payload,
     });
-
-    if (error) {
-      throw error;
-    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

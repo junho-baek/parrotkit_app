@@ -3,16 +3,14 @@
 import React from 'react';
 import { Recipes } from '@/components/auth';
 import { useEffect } from 'react';
+import { logClientEvent } from '@/lib/client-events';
 
 export default function RecipesPage() {
   useEffect(() => {
-    // GA4: Recipes 탭 조회
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'view_recipes_tab', {
-        event_category: 'engagement',
-        page_title: 'Recipes Tab'
-      });
-    }
+    void logClientEvent('view_recipes_tab', {
+      event_category: 'engagement',
+      page_title: 'Recipes Tab',
+    });
   }, []);
 
   return <Recipes />;

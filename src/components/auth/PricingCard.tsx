@@ -2,9 +2,7 @@
 
 import React from 'react';
 import { PricingPlan } from '@/types/auth';
-
-type GtagPayload = Record<string, string | number | boolean | undefined>;
-type GtagFn = (command: string, eventName: string, payload?: GtagPayload) => void;
+import { logClientEvent } from '@/lib/client-events';
 
 interface PricingCardProps {
   plan: PricingPlan;
@@ -52,22 +50,16 @@ export const PricingCard: React.FC<PricingCardProps> = ({ plan }) => {
     if (plan.comingSoon) {
       return;
     }
-
-    // GA4: 가격 플랜 CTA 클릭
-    if (typeof window !== 'undefined') {
-      const gtag = (window as Window & { gtag?: GtagFn }).gtag;
-      if (gtag) {
-        gtag('event', isFree ? 'select_free_plan' : 'begin_checkout', {
-          event_category: 'ecommerce',
-          plan_name: plan.name,
-          plan_price: plan.price,
-          currency: 'USD',
-          value: plan.price
-        });
-      }
-    }
     
     if (isFree) {
+      await logClientEvent('select_free_plan', {
+        event_category: 'ecommerce',
+        plan_name: plan.name,
+        plan_price: plan.price,
+        currency: 'USD',
+        value: plan.price,
+      });
+
       // Free 플랜: 회원가입 페이지로 이동
       window.location.href = '/signup';
       return;
@@ -76,16 +68,34 @@ export const PricingCard: React.FC<PricingCardProps> = ({ plan }) => {
     // Pro 플랜: Lemon Squeezy Checkout
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const user = localStorage.getItem('user');
       const userData = user ? JSON.parse(user) : null;
+      const authUserId = typeof userData?.id === 'string' ? userData.id : '';
+      const userEmail = typeof userData?.email === 'string' ? userData.email : '';
+
+      if (!token || !authUserId || !userEmail) {
+        alert('결제를 진행하려면 먼저 로그인해주세요.');
+        window.location.href = '/signin';
+        return;
+      }
+
+      await logClientEvent('begin_checkout', {
+        event_category: 'ecommerce',
+        plan_name: plan.name,
+        plan_price: plan.price,
+        currency: 'USD',
+        value: plan.price,
+      });
 
       const response = await fetch('/api/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           variantId: process.env.NEXT_PUBLIC_VARIANT_PRO,
-          authUserId: userData?.id,
-          userEmail: userData?.email,
         }),
       });
 
@@ -95,6 +105,8 @@ export const PricingCard: React.FC<PricingCardProps> = ({ plan }) => {
         throw new Error(data.error || 'Checkout failed');
       }
 
+      sessionStorage.setItem('parrotkit_pending_checkout', 'pro');
+      sessionStorage.removeItem('parrotkit_purchase_success_logged');
       // Lemon Squeezy Checkout 페이지로 이동
       window.location.href = data.checkoutUrl;
     } catch (error) {

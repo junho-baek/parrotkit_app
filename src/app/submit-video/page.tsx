@@ -2,16 +2,14 @@
 
 import { URLInputForm } from '@/components/auth';
 import { useEffect } from 'react';
+import { logClientEvent } from '@/lib/client-events';
 
 export default function SubmitVideoPage() {
   useEffect(() => {
-    // GA4: 비디오 제출 페이지 조회
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'view_submit_video_page', {
-        event_category: 'engagement',
-        page_title: 'Submit Video'
-      });
-    }
+    void logClientEvent('view_submit_video_page', {
+      event_category: 'engagement',
+      page_title: 'Submit Video',
+    });
   }, []);
 
   return (

@@ -48,7 +48,7 @@ ParrotKit is a cutting-edge mobile-first platform that analyzes viral short-form
 - **Interest Onboarding**: Personalize your experience with 15+ interest categories
 - **Profile Management**: Track your references, recipes, and statistics
 - **Subscription System**: Free and Pro plans with Lemon Squeezy integration
-- **Analytics Integration**: Google Analytics 4 and Microsoft Clarity support
+- **Analytics Integration**: GTM-based GA4/Meta events plus Microsoft Clarity
 - **Persistent Sessions**: Stay logged in across visits
 
 ## 🚀 Getting Started
@@ -89,10 +89,16 @@ DATABASE_URL="postgresql://postgres.<project-ref>:<db-password>@aws-0-<region>.p
 # Google AI
 GOOGLE_AI_API_KEY="your-gemini-api-key"
 
+# GTM entrypoint
+# GA4 Measurement ID and Meta Pixel ID should stay in GTM, not in app env.
+NEXT_PUBLIC_GTM_ID="GTM-XXXXXXX"
+
 # Lemon Squeezy (Optional)
+NEXT_PUBLIC_APP_URL="https://parrotkit-deploy.vercel.app"
 LEMONSQUEEZY_API_KEY="your-lemonsqueezy-api-key"
 LEMONSQUEEZY_STORE_ID="your-store-id"
 LEMONSQUEEZY_WEBHOOK_SECRET="your-webhook-secret"
+NEXT_PUBLIC_VARIANT_PRO="your-pro-variant-id"
 
 # Notion report automation (Optional)
 NOTION_API_KEY="secret_your_notion_internal_integration_token"
@@ -100,6 +106,11 @@ NOTION_REPORTS_PARENT_PAGE_ID="your-notion-parent-page-id"
 NOTION_REPORTS_DATABASE_ID="your-notion-database-id"
 NOTION_REPORTS_DATA_SOURCE_ID="your-notion-data-source-id"
 ```
+
+Important analytics rule:
+- The app pushes events into `window.dataLayer`.
+- GTM fans those events out to GA4 and Meta Pixel.
+- Do not add GA4 Measurement IDs or Meta Pixel IDs directly to the app env.
 
 4. **Install FFmpeg** (Required)
 
@@ -214,6 +225,59 @@ codex mcp login notion
 
 That login is separate from `NOTION_API_KEY`. Keep both because automation and interactive agent access use different auth models.
 
+## 📈 GTM + Lemon Squeezy Go-Live
+
+ParrotKit now treats GTM as the only client analytics entrypoint, and Lemon Squeezy webhooks as the only billing source of truth.
+
+### Tracking architecture
+
+1. App code pushes events into `window.dataLayer`.
+2. GTM receives those events and forwards them to:
+   - GA4
+   - Meta Pixel
+3. Supabase `event_logs` still records server-side and client-side app events for product QA.
+
+Core events already emitted by the app:
+- `signup_start`
+- `signup_success`
+- `onboarding_complete`
+- `reference_submitted`
+- `recipe_generated`
+- `recipe_saved`
+- `capture_uploaded`
+- `export_zip_success`
+- `view_pricing`
+- `begin_checkout`
+- `purchase_success`
+
+### Billing architecture
+
+1. `/api/checkout` creates a hosted Lemon Squeezy checkout for the authenticated user.
+2. Hosted checkout redirects to `/billing/success` after a successful payment.
+3. `/billing/success` polls the authenticated profile briefly.
+4. Entitlement is granted only after `/api/webhooks/lemonsqueezy` updates `profiles`.
+5. The webhook also writes billing events into Supabase `event_logs`.
+
+### External console setup order
+
+1. Create a GTM Web container and put only `NEXT_PUBLIC_GTM_ID` into the app.
+2. In GTM, add:
+   - GA4 Configuration tag
+   - Meta Pixel base tag
+   - Event triggers for `view_pricing`, `begin_checkout`, `purchase_success`
+3. Create or confirm the GA4 property and test with DebugView.
+4. Create the Meta Pixel and validate with Test Events / Pixel Helper.
+5. Create the Lemon Squeezy store, variant, and webhook secret.
+6. Set Vercel env:
+   - `NEXT_PUBLIC_GTM_ID`
+   - `NEXT_PUBLIC_APP_URL`
+   - `LEMONSQUEEZY_API_KEY`
+   - `LEMONSQUEEZY_STORE_ID`
+   - `LEMONSQUEEZY_WEBHOOK_SECRET`
+   - `NEXT_PUBLIC_VARIANT_PRO`
+7. Point the Lemon webhook URL to `/api/webhooks/lemonsqueezy`.
+8. Run test-mode checkout QA before enabling live mode.
+
 ## 📁 Project Structure
 
 ```
@@ -234,6 +298,7 @@ parrotkit/
 │   │   ├── signup/                   # Registration page
 │   │   ├── onboarding/               # Welcome flow
 │   │   ├── interests/                # Interest selection
+│   │   ├── billing/                  # Billing success / cancel pages
 │   │   ├── pricing/                  # Subscription plans
 │   │   └── api/                      # API routes
 │   │       ├── analyze/              # Video analysis endpoint
@@ -311,7 +376,7 @@ parrotkit/
 - **Responsive Design**: Mobile-first with adaptive layouts
 
 ### Backend & Data
-- **PostgreSQL**: Serverless database via NeonDB
+- **Supabase Postgres**: Hosted Postgres, Auth, and Storage
 - **Drizzle ORM**: Type-safe database queries
 - **JWT Authentication**: Secure token-based auth
 - **bcryptjs**: Password hashing
@@ -324,7 +389,9 @@ parrotkit/
 
 ### Integrations
 - **Lemon Squeezy**: Payment and subscription management
-- **Google Analytics 4**: User behavior tracking
+- **Google Tag Manager**: Client analytics entrypoint
+- **Google Analytics 4**: Funnel and behavior tracking via GTM
+- **Meta Pixel**: Paid acquisition events via GTM
 - **Microsoft Clarity**: Session recordings and heatmaps
 
 ### Development Tools
@@ -587,7 +654,7 @@ This project is proprietary software. All rights reserved.
 - Google Gemini AI for powerful video analysis
 - Next.js team for an amazing framework
 - Tailwind CSS for beautiful styling utilities
-- NeonDB for serverless PostgreSQL
+- Supabase for hosted Postgres and Auth
 - Lemon Squeezy for payment processing
 
 ## 📧 Contact

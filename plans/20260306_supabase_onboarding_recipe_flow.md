@@ -10,8 +10,8 @@
 - Supabase Auth + Postgres + Storage로 핵심 사용자 여정을 서버 영속화한다.
 - YouTube 세그먼트는 start/end 기반 구간 재생(종료 자동 정지), 비YouTube는 썸네일+원본 열기로 유지한다.
 - 촬영본은 Storage에 저장하고 재접속 시 복구/ZIP 다운로드를 제공한다.
-- 최소 이벤트 로깅을 GA4 + Supabase(`event_logs`)에 동시 기록한다.
-- LemonSqueezy 연동 키를 `auth_user_id + email` 병행 매칭으로 전환한다.
+- 최소 이벤트 로깅을 `dataLayer -> GTM -> GA4/Meta Pixel` + Supabase(`event_logs`) 구조로 기록 가능하게 만든다.
+- LemonSqueezy 연동 키를 `auth_user_id + email` 병행 매칭으로 전환하고, checkout/webhook 기준 서버 진실(source of truth)을 유지한다.
 - 기존 `mvp_users` 사용자는 Supabase Auth로 이관 후 기존 비밀번호로 로그인 가능하게 유지한다.
 
 ## 범위
@@ -23,6 +23,7 @@
   - profile/interests API Supabase 전환
   - recipes/events API 추가
   - 레시피/촬영 업로드/재접속 복구/ZIP export 프론트 연동
+  - GTM 기반 클라이언트 이벤트 구조 정리(GA4/Meta Pixel 공통 이벤트명)
   - 결제 API/웹훅 매칭 키 전환
   - 모바일 안정성 관련 치명 구간 보정
 - 제외
@@ -89,14 +90,17 @@
 - Supabase Auth/API 전환 완료: `signup/signin/refresh/signout`, `profile/interests` 경로를 Supabase 기반으로 교체했다.
 - 기존 사용자 로그인 유지 전략 반영: 배치 이관 스크립트(`password_hash`)와 로그인 시 지연 이관 fallback을 모두 구현했다.
 - 레시피 영속화 완료: `recipes/progress/captures/export-zip` API와 프론트 연동으로 저장/재접속/복구 흐름을 연결했다.
-- 최소 이벤트 로깅 완료: GA4 + `/api/events`(`event_logs`) 이중 기록으로 연결했다.
-- 결제 연동 보정 완료: checkout/webhook 매칭 키를 `authUserId + email` 기준으로 전환했다.
+- 최소 이벤트 로깅 완료: `window.dataLayer` + `/api/events`(`event_logs`) 구조로 연결했고, GTM을 앱의 유일한 클라이언트 추적 진입점으로 정리했다.
+- 결제 연동 보정 완료: checkout/webhook 매칭 키를 `authUserId + email` 기준으로 전환했고, webhook 이후에만 entitlement를 확정하도록 success 페이지를 추가했다.
 - 검증 결과
   - `npm run db:schema`: 성공
   - `npx eslint <변경 핵심 파일>`: 오류 0 (경고만 존재)
   - `npm run build`: 성공
   - `npx tsc --noEmit`: `.next/dev/types/validator.ts` Typed Routes 오류로 실패(프로젝트 변경분 외 이슈)
   - `npm run lint`: 저장소 기존 대량 lint debt(특히 대형 player script 파일)로 실패
+- 후속 남은 항목
+  - GTM container publish, GA4 DebugView, Meta Test Events 기준 실제 외부 콘솔 검증이 남아 있다.
+  - LemonSqueezy는 코드상 success/cancel/webhook 경로를 갖췄고, 실제 live/test mode 운영 체크리스트는 별도 go-live 플랜으로 닫아야 한다.
 
 ## 연결 Context
 - `context/context_20260306_035745_supabase_schema_snapshot.md`

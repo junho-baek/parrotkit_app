@@ -7,7 +7,7 @@
 - 릴리즈 전 체크리스트를 닫고, 알려진 이슈/우회 방안을 명확히 문서화한다.
 
 ## 범위
-- 포함: 이벤트 로깅 확인, known issue 정리, 최종 smoke, 배포 체크
+- 포함: 이벤트 로깅 확인, GTM/GA4/Meta publish 체크, LemonSqueezy checkout/webhook 최종 smoke, known issue 정리, 배포 체크
 - 제외: 대규모 리팩터링
 
 ## 변경 파일
@@ -17,6 +17,8 @@
 ## 테스트
 - 핵심 플로우 최종 smoke
 - 이벤트 로그 수집 확인
+- GTM Preview/GA4 DebugView/Meta Test Events 최종 확인
+- LemonSqueezy success/cancel/webhook 반영 확인
 
 ## 롤백
 - 배포 실패 시 직전 태그 롤백
@@ -24,6 +26,9 @@
 ## 리스크
 - 마지막 순간 환경설정 누락
 - 비기능 이슈(성능/관측) 미해결
+- GTM container publish 누락
+- Meta Pixel ID/도메인 검증 누락
+- LemonSqueezy webhook secret 또는 redirect URL 누락
 
 ## 결과
 - (작업 완료 후 기입)
