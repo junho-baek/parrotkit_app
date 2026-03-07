@@ -44,8 +44,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# local agent workspace
-context/
-plan/
-AGENTS.md
