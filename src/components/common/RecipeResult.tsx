@@ -50,6 +50,9 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const [sheetHeight, setSheetHeight] = useState(50);
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
+  const exportableCaptureCount = recipeId
+    ? Object.keys(capturedScenes).length
+    : Object.keys(capturedVideos).length;
 
   const defaultScripts: {[key: number]: string[]} = {
     1: [
@@ -289,9 +292,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
   // 모든 촬영한 비디오를 ZIP으로 다운로드
   const handleExportVideos = async () => {
-    const capturedCount = recipeId
-      ? Object.keys(capturedScenes).length
-      : Object.keys(capturedVideos).length;
+    const capturedCount = exportableCaptureCount;
     
     if (capturedCount === 0) {
       alert('아직 촬영된 비디오가 없습니다.');
@@ -625,8 +626,8 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
             <span className="text-xl">←</span> Back
           </button>
           <div className="flex items-center gap-2 text-sm text-gray-900 font-semibold">
-            {Object.keys(capturedVideos).length > 0 && (
-              <span>{Object.keys(capturedVideos).length}/{scenes.length} captured</span>
+            {exportableCaptureCount > 0 && (
+              <span>{exportableCaptureCount}/{scenes.length} captured</span>
             )}
           </div>
         </div>
@@ -640,10 +641,10 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
             <div className="flex gap-2">
               <button
                 onClick={handleExportVideos}
-                disabled={isExporting || Object.keys(capturedVideos).length === 0}
+                disabled={isExporting || exportableCaptureCount === 0}
                 className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-semibold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                {isExporting ? 'Exporting...' : `Download (${Object.keys(capturedVideos).length})`}
+                {isExporting ? 'Exporting...' : `Download (${exportableCaptureCount})`}
               </button>
               {isExported && (
                 <button
