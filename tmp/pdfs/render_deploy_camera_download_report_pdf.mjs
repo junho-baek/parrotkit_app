@@ -1,0 +1,272 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { chromium } from 'playwright';
+
+const base = '/Volumes/T7/플젝/deundeunApp/Parrotkit';
+const outPdf = path.join(base, 'output/pdf/20260307_parrotkit_deploy_camera_download_e2e_report_ko.pdf');
+const htmlPath = path.join(base, 'tmp/pdfs/20260307_parrotkit_deploy_camera_download_e2e_report_ko.html');
+
+const img = (p) => `file://${path.join(base, p)}`;
+
+const html = `<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Parrotkit 배포환경 E2E 검증 보고서</title>
+<style>
+  :root {
+    --bg: #f5f7fb;
+    --ink: #111827;
+    --muted: #5b6475;
+    --line: #d9e0ea;
+    --blue: #2563eb;
+    --green: #16a34a;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    padding: 18mm 16mm 16mm;
+    background: var(--card);
+  }
+  .hero {
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 18px 20px;
+    background: linear-gradient(135deg, #eef4ff 0%, #ffffff 100%);
+  }
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--blue);
+    letter-spacing: 0.04em;
+  }
+  h1 {
+    margin: 8px 0 10px;
+    font-size: 28px;
+    line-height: 1.2;
+  }
+  .subtitle {
+    margin: 0;
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .metric {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px 14px;
+    background: #fff;
+  }
+  .metric .label {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .metric .value {
+    font-size: 18px;
+    font-weight: 800;
+  }
+  .section {
+    margin-top: 24px;
+  }
+  h2 {
+    margin: 0 0 10px;
+    font-size: 18px;
+    border-bottom: 2px solid #eef2f7;
+    padding-bottom: 8px;
+  }
+  .summary-box {
+    border-left: 4px solid var(--green);
+    background: #f0fdf4;
+    border-radius: 10px;
+    padding: 14px 16px;
+    line-height: 1.7;
+    font-size: 14px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 12px;
+  }
+  th, td {
+    border: 1px solid var(--line);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #f8fafc;
+    font-weight: 700;
+  }
+  ul {
+    margin: 8px 0 0 18px;
+    padding: 0;
+    line-height: 1.7;
+    font-size: 13px;
+  }
+  .shots {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 12px;
+  }
+  .shot {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .shot img {
+    width: 100%;
+    display: block;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    background: #e5e7eb;
+  }
+  .shot .cap {
+    padding: 10px 12px 12px;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .pill {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #dbeafe;
+    color: #1d4ed8;
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .footer-note {
+    margin-top: 18px;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .break { page-break-before: always; }
+</style>
+</head>
+<body>
+  <section class="page">
+    <div class="hero">
+      <div class="eyebrow">PARROTKIT / DEPLOYMENT QA</div>
+      <h1>배포환경 E2E 검증 보고서</h1>
+      <p class="subtitle">배포 URL에서 신규 가입부터 관심사 저장, 레시피 생성, 카메라 녹화, 캡처 업로드, ZIP 다운로드까지 한 세션으로 검증했다. 이번 런은 성공으로 판정한다.</p>
+      <div class="grid">
+        <div class="metric"><div class="label">테스트 윈도우</div><div class="value">21:54:47 - 21:55:39 KST</div></div>
+        <div class="metric"><div class="label">배포 URL</div><div class="value" style="font-size:13px; line-height:1.5;">parrotkit-deploy.vercel.app</div></div>
+        <div class="metric"><div class="label">최종 판정</div><div class="value" style="color:#16a34a;">E2E PASS</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>1. 핵심 결론</h2>
+      <div class="summary-box">
+        신규 계정 회원가입이 배포환경에서 정상적으로 완료되었고, 관심사 저장 후 레퍼런스 분석과 레시피 저장까지 이어졌다. 첫 번째 scene 기준으로 카메라 녹화와 캡처 업로드가 성공했으며, 이어서 ZIP 다운로드도 정상 완료되었다. 다운로드된 ZIP 안에는 <strong>scene-1.webm</strong> 파일이 실제로 포함되어 있었다.
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>2. 검증 범위와 결과</h2>
+      <table>
+        <thead>
+          <tr><th>단계</th><th>검증 내용</th><th>결과</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>회원가입</td><td><code>POST /api/auth/signup</code></td><td>201 / 성공</td></tr>
+          <tr><td>온보딩</td><td><code>PUT /api/interests</code></td><td>200 / 성공</td></tr>
+          <tr><td>레퍼런스 분석</td><td><code>POST /api/analyze</code></td><td>200 / 성공</td></tr>
+          <tr><td>레시피 저장</td><td><code>POST /api/recipes</code></td><td>201 / 성공</td></tr>
+          <tr><td>카메라 녹화</td><td>Shooting 탭 진입, preview 확인</td><td>성공</td></tr>
+          <tr><td>캡처 업로드</td><td><code>POST /api/recipes/{id}/captures</code></td><td>200 / 성공</td></tr>
+          <tr><td>진행도 반영</td><td><code>PATCH /api/recipes/{id}/progress</code></td><td>200 / 성공</td></tr>
+          <tr><td>다운로드</td><td><code>GET /api/recipes/{id}/export-zip</code></td><td>200 / 성공</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>3. 관찰 메모</h2>
+      <ul>
+        <li>레시피 ID는 <code>9669676b-fe77-403f-87b0-528ee25ac4e9</code>였다.</li>
+        <li>촬영 완료 후 레시피 화면에서 <code>Download (1)</code> 상태를 확인했다.</li>
+        <li>다운로드된 ZIP 파일 크기는 <strong>166,981 bytes</strong>였다.</li>
+        <li>ZIP 내부에는 <code>scene-1.webm</code> 파일 1개가 포함되어 있었다.</li>
+        <li>이번 카메라 입력은 headed Chromium의 fake media stream을 사용했다. 즉 브라우저 플로우와 서버 연결은 검증됐지만, 실제 물리 카메라 하드웨어 검증을 완전히 대체하지는 않는다.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="page break">
+    <div class="section" style="margin-top:0;">
+      <h2>4. 주요 화면 캡처</h2>
+      <div class="shots">
+        <div class="shot">
+          <img src="${img('output/playwright/20260307_deploy_full_camera_download_v2/03-after-signup.png')}" />
+          <div class="cap"><div class="pill">회원가입 성공</div>신규 계정 가입 직후 <code>/interests</code> 화면으로 이동한 상태.</div>
+        </div>
+        <div class="shot">
+          <img src="${img('output/playwright/20260307_deploy_full_camera_download_v2/09-shooting-tab.png')}" />
+          <div class="cap"><div class="pill">카메라 녹화</div>Shooting 탭 진입 후 fake media stream preview가 표시된 상태.</div>
+        </div>
+        <div class="shot">
+          <img src="${img('output/playwright/20260307_deploy_full_camera_download_v2/11-download-ready.png')}" />
+          <div class="cap"><div class="pill">다운로드 준비</div>첫 번째 scene이 완료 처리되었고, <code>Download (1)</code> 버튼이 활성화된 상태.</div>
+        </div>
+        <div class="shot">
+          <img src="${img('output/playwright/20260307_deploy_full_camera_download_v2/12-after-download.png')}" />
+          <div class="cap"><div class="pill">다운로드 완료</div>ZIP 다운로드가 끝난 뒤 <code>Save & Dashboard</code> 버튼까지 노출된 상태.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>5. 다음 액션</h2>
+      <ul>
+        <li>실제 모바일 기기에서 동일 플로우를 1회 수동 검증</li>
+        <li>scene 2개 이상 촬영 후 ZIP에 복수 파일이 포함되는지 추가 검증</li>
+        <li>재로그인 후 저장된 recipe 재접속 및 재다운로드 검증</li>
+      </ul>
+      <p class="footer-note">
+        산출물 위치: <br/>
+        - Markdown: output/reports/20260307_parrotkit_deploy_camera_download_e2e_report_ko.md<br/>
+        - PDF: output/pdf/20260307_parrotkit_deploy_camera_download_e2e_report_ko.pdf<br/>
+        - JSON: output/playwright/20260307_deploy_full_camera_download_v2/deploy-full-camera-download-e2e.json<br/>
+        - ZIP: output/playwright/20260307_deploy_full_camera_download_v2/downloads/recipe-9669676b-fe77-403f-87b0-528ee25ac4e9.zip
+      </p>
+    </div>
+  </section>
+</body>
+</html>`;
+
+fs.writeFileSync(htmlPath, html, 'utf8');
+
+const browser = await chromium.launch({ headless: true });
+const page = await browser.newPage();
+await page.goto(`file://${htmlPath}`, { waitUntil: 'networkidle' });
+await page.pdf({
+  path: outPdf,
+  format: 'A4',
+  printBackground: true,
+  margin: { top: '0', right: '0', bottom: '0', left: '0' },
+});
+await browser.close();
+console.log(outPdf);
