@@ -41,3 +41,11 @@
 - RPC 함수는 기본적으로 `SECURITY INVOKER`를 우선하고, `SECURITY DEFINER`가 필요하면 고정 `search_path`, schema-qualified 이름, 명시적 auth 체크를 같이 남긴다.
 - PGMQ를 사용할 때는 enqueue/dequeue/ack를 idempotent하게 설계하고, 긴 소비 작업을 request handler 안에서 돌리지 않는다.
 - 새 RPC/queue 소비 경로가 추가되면 filter/order/join 컬럼에 필요한 인덱스를 같이 검토하고 hot path는 `EXPLAIN`으로 확인한다.
+
+## 재사용 테스트 계정
+
+- Email: `parrotkitcodextest@mailinator.com`
+- Username: `parrotkitcodextest`
+- Password: `ParrotkitE2E2026!`
+- 용도: 로컬/Vercel smoke test 시 기본 로그인 계정으로 재사용
+- 메모: 2026-03-07 기준 Supabase Auth signup은 email send rate limit에 막혀 있어, 이 계정은 admin provision 후 브라우저 로그인 검증까지 마친 상태다.

@@ -16,36 +16,53 @@ export type LegacyUser = {
   subscriptionEndsAt: Date | null;
 };
 
+type PgErrorLike = {
+  code?: string;
+  message?: string;
+};
+
 function normalizeIdentifier(identifier: string) {
   return identifier.trim().toLowerCase();
+}
+
+function isMissingLegacyUsersTable(error: unknown) {
+  const pgError = error as PgErrorLike | undefined;
+  return pgError?.code === '42P01' || pgError?.message?.includes('relation "mvp_users" does not exist');
 }
 
 export async function findLegacyUserByIdentifier(identifier: string): Promise<LegacyUser | null> {
   const normalized = normalizeIdentifier(identifier);
   const db = getDb();
 
-  const rows = await db
-    .select({
-      id: mvpUsers.id,
-      email: mvpUsers.email,
-      username: mvpUsers.username,
-      password: mvpUsers.password,
-      interests: mvpUsers.interests,
-      subscriptionId: mvpUsers.subscriptionId,
-      subscriptionStatus: mvpUsers.subscriptionStatus,
-      planType: mvpUsers.planType,
-      subscriptionEndsAt: mvpUsers.subscriptionEndsAt,
-    })
-    .from(mvpUsers)
-    .where(
-      or(
-        ilike(mvpUsers.email, normalized),
-        ilike(mvpUsers.username, normalized)
+  try {
+    const rows = await db
+      .select({
+        id: mvpUsers.id,
+        email: mvpUsers.email,
+        username: mvpUsers.username,
+        password: mvpUsers.password,
+        interests: mvpUsers.interests,
+        subscriptionId: mvpUsers.subscriptionId,
+        subscriptionStatus: mvpUsers.subscriptionStatus,
+        planType: mvpUsers.planType,
+        subscriptionEndsAt: mvpUsers.subscriptionEndsAt,
+      })
+      .from(mvpUsers)
+      .where(
+        or(
+          ilike(mvpUsers.email, normalized),
+          ilike(mvpUsers.username, normalized)
+        )
       )
-    )
-    .limit(1);
+      .limit(1);
 
-  return rows[0] || null;
+    return rows[0] || null;
+  } catch (error) {
+    if (isMissingLegacyUsersTable(error)) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function verifyLegacyPassword(plainPassword: string, hash: string) {
@@ -148,38 +165,52 @@ export async function ensureProfileForSupabaseUser(params: {
 export async function findLegacyUserByEmail(email: string): Promise<LegacyUser | null> {
   const db = getDb();
 
-  const rows = await db
-    .select({
-      id: mvpUsers.id,
-      email: mvpUsers.email,
-      username: mvpUsers.username,
-      password: mvpUsers.password,
-      interests: mvpUsers.interests,
-      subscriptionId: mvpUsers.subscriptionId,
-      subscriptionStatus: mvpUsers.subscriptionStatus,
-      planType: mvpUsers.planType,
-      subscriptionEndsAt: mvpUsers.subscriptionEndsAt,
-    })
-    .from(mvpUsers)
-    .where(eq(mvpUsers.email, email))
-    .limit(1);
+  try {
+    const rows = await db
+      .select({
+        id: mvpUsers.id,
+        email: mvpUsers.email,
+        username: mvpUsers.username,
+        password: mvpUsers.password,
+        interests: mvpUsers.interests,
+        subscriptionId: mvpUsers.subscriptionId,
+        subscriptionStatus: mvpUsers.subscriptionStatus,
+        planType: mvpUsers.planType,
+        subscriptionEndsAt: mvpUsers.subscriptionEndsAt,
+      })
+      .from(mvpUsers)
+      .where(eq(mvpUsers.email, email))
+      .limit(1);
 
-  return rows[0] || null;
+    return rows[0] || null;
+  } catch (error) {
+    if (isMissingLegacyUsersTable(error)) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function legacyUserExistsByEmailOrUsername(email: string, username: string) {
   const db = getDb();
 
-  const rows = await db
-    .select({ id: mvpUsers.id })
-    .from(mvpUsers)
-    .where(
-      or(
-        eq(mvpUsers.email, email),
-        eq(mvpUsers.username, username)
+  try {
+    const rows = await db
+      .select({ id: mvpUsers.id })
+      .from(mvpUsers)
+      .where(
+        or(
+          eq(mvpUsers.email, email),
+          eq(mvpUsers.username, username)
+        )
       )
-    )
-    .limit(1);
+      .limit(1);
 
-  return rows.length > 0;
+    return rows.length > 0;
+  } catch (error) {
+    if (isMissingLegacyUsersTable(error)) {
+      return false;
+    }
+    throw error;
+  }
 }

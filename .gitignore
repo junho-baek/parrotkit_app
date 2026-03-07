@@ -16,6 +16,7 @@
 # next.js
 /.next/
 /out/
+/output/playwright/
 
 # production
 /build
@@ -40,6 +41,9 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# supabase local cli temp
+/supabase/.temp/
 
 # typescript
 *.tsbuildinfo
