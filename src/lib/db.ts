@@ -36,9 +36,26 @@ function normalizeDatabaseUrl(databaseUrl: string) {
   return `${beforeHash}${encodeURIComponent(`#${passwordSuffix}`)}@${hostAndPath}`;
 }
 
+function normalizeSslModeForNodePg(databaseUrl: string) {
+  const parsedUrl = new URL(databaseUrl);
+
+  if (
+    parsedUrl.searchParams.get('sslmode') === 'require' &&
+    !parsedUrl.searchParams.has('uselibpqcompat')
+  ) {
+    // `pg-connection-string` currently treats `sslmode=require` like `verify-full`,
+    // which rejects Supabase's managed chain in some Node/Vercel runtimes. Force
+    // libpq-compatible semantics so `require` means "use TLS without strict CA validation".
+    parsedUrl.searchParams.set('uselibpqcompat', 'true');
+  }
+
+  return parsedUrl.toString();
+}
+
 function getPoolConfig(databaseUrl: string) {
   const normalizedUrl = normalizeDatabaseUrl(databaseUrl);
-  const parsedUrl = new URL(normalizedUrl);
+  const nodePgSafeUrl = normalizeSslModeForNodePg(normalizedUrl);
+  const parsedUrl = new URL(nodePgSafeUrl);
   const isSupabaseManagedHost =
     parsedUrl.hostname.endsWith('.supabase.co') || parsedUrl.hostname.endsWith('.supabase.com');
   const requiresSsl =
@@ -51,7 +68,7 @@ function getPoolConfig(databaseUrl: string) {
     // `sslmode=require`. Reconstructing host/user/password manually drops these
     // parameters and can make Supabase pooler connections look "insecure" in
     // server runtimes even though the original URL requested TLS.
-    connectionString: normalizedUrl,
+    connectionString: nodePgSafeUrl,
     // Supabase pooler/direct hosts require TLS, and some runtimes do not trust the
     // managed chain automatically. Make the TLS requirement explicit in addition to
     // preserving the original query string so both local and deployed runtimes behave

@@ -5,6 +5,18 @@ import {
   legacyUserExistsByEmailOrUsername,
 } from '@/lib/auth/legacy-migration';
 
+async function checkLegacyConflict(email: string, username: string) {
+  try {
+    return await legacyUserExistsByEmailOrUsername(email, username);
+  } catch (error) {
+    // Legacy duplicate detection is a migration aid, not the source of truth for
+    // new signups. If that optional DB check is temporarily unavailable, keep the
+    // Supabase signup path alive instead of failing the entire request with a 500.
+    console.warn('Signup legacy conflict check skipped:', error);
+    return false;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -44,7 +56,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Username already exists' }, { status: 409 });
     }
 
-    const legacyExists = await legacyUserExistsByEmailOrUsername(email, username);
+    const legacyExists = await checkLegacyConflict(email, username);
     if (legacyExists) {
       return NextResponse.json(
         { error: 'Legacy account exists. Please sign in with your existing credentials.' },

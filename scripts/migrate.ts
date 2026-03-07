@@ -19,9 +19,23 @@ function normalizeDatabaseUrl(databaseUrl: string) {
   return `${beforeHash}${encodeURIComponent(`#${passwordSuffix}`)}@${hostAndPath}`;
 }
 
+function normalizeSslModeForNodePg(databaseUrl: string) {
+  const parsedUrl = new URL(databaseUrl);
+
+  if (
+    parsedUrl.searchParams.get('sslmode') === 'require' &&
+    !parsedUrl.searchParams.has('uselibpqcompat')
+  ) {
+    parsedUrl.searchParams.set('uselibpqcompat', 'true');
+  }
+
+  return parsedUrl.toString();
+}
+
 function getPoolConfig(databaseUrl: string) {
   const normalizedUrl = normalizeDatabaseUrl(databaseUrl);
-  const parsedUrl = new URL(normalizedUrl);
+  const nodePgSafeUrl = normalizeSslModeForNodePg(normalizedUrl);
+  const parsedUrl = new URL(nodePgSafeUrl);
   const isSupabaseManagedHost =
     parsedUrl.hostname.endsWith('.supabase.co') || parsedUrl.hostname.endsWith('.supabase.com');
   const requiresSsl =
@@ -30,7 +44,7 @@ function getPoolConfig(databaseUrl: string) {
     isSupabaseManagedHost;
 
   const config: PoolConfig = {
-    connectionString: normalizedUrl,
+    connectionString: nodePgSafeUrl,
     ...(requiresSsl ? { ssl: { rejectUnauthorized: false } } : {}),
   };
 
