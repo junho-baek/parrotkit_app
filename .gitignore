@@ -17,6 +17,8 @@
 /.next/
 /out/
 /output/playwright/
+/output/slides/
+/tmp/slides/
 
 # production
 /build
