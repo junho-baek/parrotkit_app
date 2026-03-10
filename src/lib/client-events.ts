@@ -1,6 +1,11 @@
 'use client';
 
-type EventPayload = Record<string, string | number | boolean | null | undefined>;
+import { getTrackingAutoContext } from '@/lib/tracking/attribution';
+import type {
+  ClientEventName,
+  ClientEventPayload,
+  ClientEventPayloadWithContext,
+} from '@/lib/tracking/events';
 
 declare global {
   interface Window {
@@ -30,18 +35,25 @@ function readStoredUserId() {
   }
 }
 
-function buildEventPayload(payload: EventPayload) {
+function buildEventPayload<TEventName extends ClientEventName>(
+  payload: ClientEventPayload<TEventName>
+): ClientEventPayloadWithContext<TEventName> {
   const authUserId = readStoredUserId();
   const pagePath = typeof window !== 'undefined' ? window.location.pathname : undefined;
+  const trackingContext = getTrackingAutoContext();
 
   return {
     ...payload,
+    ...trackingContext,
     ...(pagePath ? { page_path: pagePath } : {}),
     ...(authUserId ? { auth_user_id: authUserId } : {}),
-  };
+  } as ClientEventPayloadWithContext<TEventName>;
 }
 
-export async function logClientEvent(eventName: string, payload: EventPayload = {}) {
+export async function logClientEvent<TEventName extends ClientEventName>(
+  eventName: TEventName,
+  payload: ClientEventPayload<TEventName>
+) {
   const normalizedPayload =
     typeof window !== 'undefined' ? buildEventPayload(payload) : payload;
 

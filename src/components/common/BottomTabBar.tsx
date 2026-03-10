@@ -5,12 +5,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { logClientEvent } from '@/lib/client-events';
+import type { ClientEventName } from '@/lib/tracking/events';
 
 interface Tab {
   id: string;
   label: string;
   href: string;
-  gaEvent: string;
+  gaEvent: ClientEventName;
   icon: string;
 }
 
@@ -55,7 +56,7 @@ const tabs: Tab[] = [
 export const BottomTabBar: React.FC = () => {
   const pathname = usePathname();
 
-  const handleTabClick = (gaEvent: string) => {
+  const handleTabClick = (gaEvent: ClientEventName) => {
     void logClientEvent(gaEvent, {
       event_category: 'navigation',
       event_label: gaEvent,
