@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
@@ -75,7 +76,9 @@ export default function RootLayout({
             />
           </noscript>
         ) : null}
-        <TrackingInitializer />
+        <Suspense fallback={null}>
+          <TrackingInitializer />
+        </Suspense>
         <AppFrame>
           {children}
         </AppFrame>
