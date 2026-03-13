@@ -150,7 +150,7 @@ export const PWARegistration = () => {
               홈 화면에 추가하면 더 빠르게 열 수 있어요.
             </p>
             <p className="mt-1 text-xs font-medium text-amber-700">
-              PWA로 설치하지 않으면 촬영/레이아웃 UI가 일부 기기에서 깨질 수 있어요.
+              Without PWA installation, shooting and layout UI may break on some devices.
             </p>
           </div>
           <button
