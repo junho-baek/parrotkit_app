@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Card, RecipeResult } from '@/components/common';
+import { Card, RecipeResult, ShortVideoCard } from '@/components/common';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { logClientEvent } from '@/lib/client-events';
@@ -544,54 +544,53 @@ export const Recipes: React.FC = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-2 gap-4">
-          {recipes.map((recipe) => (
-            <Card key={recipe.id} className="group hover:shadow-xl transition-all p-0 overflow-hidden">
-              {/* Thumbnail */}
-              <div className="relative rounded-t-xl overflow-hidden aspect-[9/16]">
-                <img
-                  src={
-                    recipe.scenes?.[0]?.thumbnail ||
-                    (extractVideoId(recipe.video_url || '')
-                      ? `https://img.youtube.com/vi/${extractVideoId(recipe.video_url || '')}/maxresdefault.jpg`
-                      : '/parrot-logo.png')
-                  }
-                  alt={`Recipe ${recipe.id}`}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
-                <div className="absolute bottom-0 left-0 right-0 p-3">
-                  <div className="flex items-center gap-2 text-white text-xs">
-                    <span className="bg-blue-600 px-2 py-1 rounded-lg font-bold">
-                      🎬 {recipe.total_scenes || 0} scenes
-                    </span>
-                    <span className="bg-green-600 px-2 py-1 rounded-lg font-bold">
-                      ✓ {recipe.captured_count || 0}
-                    </span>
+          {recipes.map((recipe) => {
+            const videoId = extractVideoId(recipe.video_url || '');
+            const thumbnailUrl =
+              recipe.scenes?.[0]?.thumbnail ||
+              (videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : '/parrot-logo.png');
+            const formattedDate = recipe.created_at
+              ? new Date(recipe.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+              : '-';
+
+            return (
+              <ShortVideoCard
+                key={recipe.id}
+                thumbnail={thumbnailUrl}
+                thumbnailAlt={`Recipe ${recipe.id}`}
+                title={recipe.video_url || `Recipe #${recipe.id}`}
+                subtitle={`Recipe #${recipe.id}`}
+                onPreview={() => handleView(recipe)}
+                onAction={() => handleView(recipe)}
+                actionLabel="View Recipe"
+                actionIcon={<span>👁️</span>}
+                actionClassName="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:scale-105"
+                topLeftBadge={(
+                  <span className="bg-gradient-to-r from-green-600 to-emerald-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1">
+                    <span className="animate-pulse">📋</span> RECIPE
+                  </span>
+                )}
+                topRightBadge={(
+                  <div className="bg-black/70 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-1 rounded-lg">
+                    {formattedDate}
                   </div>
-                </div>
-              </div>
-
-              <div className="p-3">
-                {/* Title */}
-                <h3 className="font-bold text-sm text-gray-900 mb-2 line-clamp-2">
-                  {recipe.video_url}
-                </h3>
-
-                {/* Date */}
-                <p className="text-xs text-gray-500 mb-3">
-                  📅 {recipe.created_at ? new Date(recipe.created_at).toLocaleDateString() : '-'}
-                </p>
-
-                {/* View Button */}
-                <button
-                  onClick={() => handleView(recipe)}
-                  className="w-full px-4 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl text-sm font-bold hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg"
-                >
-                  View Recipe →
-                </button>
-              </div>
-            </Card>
-          ))}
+                )}
+                leftMetric={{
+                  icon: <span>🎬</span>,
+                  value: `${recipe.total_scenes || 0} scenes`,
+                }}
+                rightMetric={{
+                  icon: <span className="text-green-400">✓</span>,
+                  value: recipe.captured_count || 0,
+                }}
+                fallbackContent={(
+                  <div className="w-full h-full bg-gradient-to-br from-cyan-600 to-blue-700 flex items-center justify-center">
+                    <div className="text-white text-4xl">🎥</div>
+                  </div>
+                )}
+              />
+            );
+          })}
         </div>
       )}
     </div>

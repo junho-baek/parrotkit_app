@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card } from '@/components/common';
+import { Card, ShortVideoCard } from '@/components/common';
 import Link from 'next/link';
 import { logClientEvent } from '@/lib/client-events';
 
@@ -205,77 +205,41 @@ export const ExploreContent: React.FC = () => {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             {trendingReferences.map((ref) => (
-              <div key={ref.id} className="group">
-                <div 
-                  onClick={() => setPlayingVideo(ref.videoId)}
-                  className="block relative cursor-pointer"
-                >
-                  <div className="relative rounded-xl overflow-hidden shadow-lg aspect-[9/16] mb-2.5 ring-2 ring-transparent group-hover:ring-blue-400 transition-all duration-300">
-                    <img
-                      src={ref.thumbnail}
-                      alt={ref.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                    
-                    {/* Play Button Overlay */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="bg-black/60 backdrop-blur-sm rounded-full p-4 group-hover:scale-110 transition-transform">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
-                          <path d="M8 5v14l11-7z"/>
-                        </svg>
-                      </div>
-                    </div>
-                    
-                    {/* Gradient Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30"></div>
-                    
-                    {/* Trending Badge */}
-                    <div className="absolute top-2 left-2">
-                      <span className="bg-gradient-to-r from-orange-500 to-red-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1">
-                        <span className="animate-pulse">🔥</span> TRENDING
-                      </span>
-                    </div>
-
-                    {/* Duration Badge */}
-                    <div className="absolute top-2 right-2 bg-black/70 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-1 rounded-lg">
-                      {ref.duration}
-                    </div>
-
-                    {/* Bottom Info Overlay */}
-                    <div className="absolute bottom-0 left-0 right-0 p-3">
-                      <p className="text-white font-bold text-sm line-clamp-2 mb-1.5 drop-shadow-lg">
-                        {ref.title}
-                      </p>
-                      <p className="text-gray-200 text-xs mb-2 drop-shadow-md">{ref.creator}</p>
-                      <div className="flex items-center justify-between text-white text-xs">
-                        <span className="flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg">
-                          <span>👁</span> {ref.views}
-                        </span>
-                        <span className="flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg">
-                          <span className="text-red-400">❤</span> {ref.likes}
-                        </span>
-                      </div>
-                    </div>
+              <ShortVideoCard
+                key={ref.id}
+                thumbnail={ref.thumbnail}
+                thumbnailAlt={ref.title}
+                title={ref.title}
+                subtitle={ref.creator}
+                onPreview={() => setPlayingVideo(ref.videoId)}
+                onAction={() => handleLike(ref.id)}
+                actionLabel={ref.isLiked ? 'Liked' : 'Like'}
+                actionIcon={<span className="text-lg">{ref.isLiked ? '❤️' : '🤍'}</span>}
+                actionMeta={`(${ref.likes})`}
+                actionClassName={
+                  ref.isLiked
+                    ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white scale-105'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 hover:scale-105 border-2 border-gray-200'
+                }
+                topLeftBadge={(
+                  <span className="bg-gradient-to-r from-orange-500 to-red-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1">
+                    <span className="animate-pulse">🔥</span> TRENDING
+                  </span>
+                )}
+                topRightBadge={(
+                  <div className="bg-black/70 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-1 rounded-lg">
+                    {ref.duration}
                   </div>
-                </div>
-
-                {/* Like Button Only */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleLike(ref.id);
-                  }}
-                  className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all shadow-md ${
-                    ref.isLiked
-                      ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white scale-105'
-                      : 'bg-white text-gray-700 hover:bg-gray-50 hover:scale-105 border-2 border-gray-200'
-                  }`}
-                >
-                  <span className="text-lg">{ref.isLiked ? '❤️' : '🤍'}</span>
-                  <span>{ref.isLiked ? 'Liked' : 'Like'}</span>
-                  <span className="text-xs opacity-75">({ref.likes})</span>
-                </button>
-              </div>
+                )}
+                leftMetric={{
+                  icon: <span>👁</span>,
+                  value: ref.views,
+                }}
+                rightMetric={{
+                  icon: <span className="text-red-400">❤</span>,
+                  value: ref.likes,
+                }}
+              />
             ))}
           </div>
 
