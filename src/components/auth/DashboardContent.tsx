@@ -587,6 +587,12 @@ export const Settings: React.FC = () => {
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
+        } else if (response.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('tokenExpiresAt');
+          localStorage.removeItem('user');
+          router.replace('/signin');
         }
       } catch (error) {
         console.error('Failed to fetch user data:', error);

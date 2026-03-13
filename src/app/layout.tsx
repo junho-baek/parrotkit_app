@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
-import { AppFrame, TrackingInitializer } from "@/components/common";
+import { AppFrame, PWARegistration, TrackingInitializer } from "@/components/common";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,6 +18,21 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "ParrotKit - Viral Recipe for UGC Creators",
   description: "Create viral content with AI-powered recipe generation for UGC creators",
+  manifest: '/manifest.webmanifest',
+  icons: {
+    icon: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#6366f1",
+  viewportFit: "cover",
 };
 
 const gtmId = process.env.NEXT_PUBLIC_GTM_ID?.trim() || null;
@@ -30,6 +45,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="ParrotKit" />
         {gtmId ? (
           <>
             <Script
@@ -79,6 +98,7 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <TrackingInitializer />
         </Suspense>
+        <PWARegistration />
         <AppFrame>
           {children}
         </AppFrame>

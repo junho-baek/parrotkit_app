@@ -55,6 +55,78 @@ const tabs: Tab[] = [
 
 export const BottomTabBar: React.FC = () => {
   const pathname = usePathname();
+  const [isInputFocused, setIsInputFocused] = React.useState(false);
+  const [isViewportCompressed, setIsViewportCompressed] = React.useState(false);
+  const baselineHeightRef = React.useRef<number>(0);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const getViewportHeight = () => window.visualViewport?.height || window.innerHeight;
+
+    baselineHeightRef.current = getViewportHeight();
+
+    const isTextInput = (node: EventTarget | null): boolean => {
+      if (!(node instanceof HTMLElement)) {
+        return false;
+      }
+
+      const tagName = node.tagName;
+      if (tagName === 'TEXTAREA' || tagName === 'SELECT') {
+        return true;
+      }
+
+      if (tagName === 'INPUT') {
+        const inputType = (node as HTMLInputElement).type;
+        const nonTextTypes = new Set(['button', 'checkbox', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit']);
+        return !nonTextTypes.has(inputType);
+      }
+
+      return node.isContentEditable;
+    };
+
+    const updateViewportState = () => {
+      const currentHeight = getViewportHeight();
+      const baselineHeight = baselineHeightRef.current || currentHeight;
+
+      // 키보드가 올라오면 visual viewport가 유의미하게 줄어든다.
+      const compressed = currentHeight < baselineHeight * 0.8;
+      setIsViewportCompressed(compressed);
+
+      if (!compressed && currentHeight > baselineHeightRef.current) {
+        baselineHeightRef.current = currentHeight;
+      }
+    };
+
+    const handleFocusIn = (event: FocusEvent) => {
+      if (isTextInput(event.target)) {
+        setIsInputFocused(true);
+      }
+    };
+
+    const handleFocusOut = () => {
+      window.setTimeout(() => {
+        const activeElement = document.activeElement;
+        setIsInputFocused(isTextInput(activeElement));
+      }, 0);
+    };
+
+    updateViewportState();
+
+    window.addEventListener('focusin', handleFocusIn);
+    window.addEventListener('focusout', handleFocusOut);
+    window.addEventListener('resize', updateViewportState);
+    window.visualViewport?.addEventListener('resize', updateViewportState);
+
+    return () => {
+      window.removeEventListener('focusin', handleFocusIn);
+      window.removeEventListener('focusout', handleFocusOut);
+      window.removeEventListener('resize', updateViewportState);
+      window.visualViewport?.removeEventListener('resize', updateViewportState);
+    };
+  }, []);
 
   const handleTabClick = (gaEvent: ClientEventName) => {
     void logClientEvent(gaEvent, {
@@ -62,6 +134,12 @@ export const BottomTabBar: React.FC = () => {
       event_label: gaEvent,
     });
   };
+
+  const shouldHideForKeyboard = isInputFocused || isViewportCompressed;
+
+  if (shouldHideForKeyboard) {
+    return null;
+  }
 
   return (
     <nav 

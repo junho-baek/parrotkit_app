@@ -10,3 +10,4 @@ export { PromoModal } from './PromoModal';
 export { BottomTabBar } from './BottomTabBar';
 export { AppFrame } from './AppFrame';
 export { TrackingInitializer } from './TrackingInitializer';
+export { PWARegistration } from './PWARegistration';
