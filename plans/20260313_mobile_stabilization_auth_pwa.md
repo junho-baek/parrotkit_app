@@ -56,3 +56,14 @@
   - 정적 페이지 및 API 라우트 빌드 성공
 - 연결 context:
   - `context/context_20260313_220500_mobile_stabilization_auth_pwa.md`
+
+- 추가 구현(설치 안내 시트):
+  - Android: `beforeinstallprompt` 수신 시 안내 시트에 `설치하기` 버튼 노출 및 브라우저 설치 프롬프트 호출
+  - iOS: Safari 환경에서 `공유 버튼 -> 홈 화면에 추가` 안내 시트 노출
+  - iOS 비-Safari: Safari로 열어 설치하라는 안내 문구 노출
+  - 공통: standalone(PWA 실행)일 때 안내 시트 미노출
+  - 공통: 사용자가 닫은 경우 7일 쿨다운(localStorage) 적용
+- 검증 추가:
+  - `npm run build` 재검증 통과
+- 연결 context(추가):
+  - `context/context_20260313_223200_pwa_install_sheet_flow.md`
