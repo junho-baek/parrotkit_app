@@ -449,6 +449,8 @@ export const Home: React.FC = () => {
 export const Recipes: React.FC = () => {
   const [recipes, setRecipes] = React.useState<RecipeApiItem[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [openMenuRecipeId, setOpenMenuRecipeId] = React.useState<string | null>(null);
+  const [processingRecipeId, setProcessingRecipeId] = React.useState<string | null>(null);
   const router = useRouter();
 
   React.useEffect(() => {
@@ -496,6 +498,8 @@ export const Recipes: React.FC = () => {
   };
 
   const handleView = (recipe: RecipeApiItem) => {
+    setOpenMenuRecipeId(null);
+
     // Save recipe data to sessionStorage for viewing
     sessionStorage.setItem('recipeData', JSON.stringify({
       scenes: recipe.scenes,
@@ -511,6 +515,106 @@ export const Recipes: React.FC = () => {
     router.push(`/home?view=recipe&recipeId=${recipe.id}`);
   };
 
+  const getRecipeDisplayTitle = (recipe: RecipeApiItem) => {
+    const sceneFallbackTitle = recipe.scenes?.[0]?.title?.trim() || 'Untitled Recipe';
+    return recipe.title?.trim() || sceneFallbackTitle;
+  };
+
+  const handleEditRecipeTitle = async (recipe: RecipeApiItem) => {
+    const currentTitle = getRecipeDisplayTitle(recipe);
+    const nextTitleInput = window.prompt('Edit recipe title', currentTitle);
+
+    if (nextTitleInput === null) {
+      return;
+    }
+
+    const nextTitle = nextTitleInput.trim();
+    if (!nextTitle) {
+      alert('Title cannot be empty.');
+      return;
+    }
+
+    if (nextTitle.length > 80) {
+      alert('Title must be 80 characters or fewer.');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/signin');
+        return;
+      }
+
+      setProcessingRecipeId(recipe.id);
+
+      const response = await fetch(`/api/recipes/${recipe.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ title: nextTitle }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update title');
+      }
+
+      setRecipes((prev) =>
+        prev.map((item) =>
+          item.id === recipe.id
+            ? {
+                ...item,
+                title: nextTitle,
+              }
+            : item
+        )
+      );
+      setOpenMenuRecipeId(null);
+    } catch (error) {
+      console.error('Failed to update recipe title:', error);
+      alert('Failed to update title. Please try again.');
+    } finally {
+      setProcessingRecipeId(null);
+    }
+  };
+
+  const handleDeleteRecipe = async (recipe: RecipeApiItem) => {
+    if (!window.confirm('Delete this recipe? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/signin');
+        return;
+      }
+
+      setProcessingRecipeId(recipe.id);
+
+      const response = await fetch(`/api/recipes/${recipe.id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete recipe');
+      }
+
+      setRecipes((prev) => prev.filter((item) => item.id !== recipe.id));
+      setOpenMenuRecipeId(null);
+    } catch (error) {
+      console.error('Failed to delete recipe:', error);
+      alert('Failed to delete recipe. Please try again.');
+    } finally {
+      setProcessingRecipeId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="py-12 text-center">
@@ -523,7 +627,10 @@ export const Recipes: React.FC = () => {
   }
 
   return (
-    <div className="space-y-5">
+    <div
+      className="space-y-5"
+      onClick={() => setOpenMenuRecipeId(null)}
+    >
       <div className="mb-2">
         <h2 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
           My Recipes <span className="text-2xl">📋</span>
@@ -554,9 +661,10 @@ export const Recipes: React.FC = () => {
               ? new Date(recipe.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
               : '-';
             const shortRecipeId = recipe.id.split('-')[0];
-            const sceneFallbackTitle = recipe.scenes?.[0]?.title?.trim() || 'Untitled Recipe';
-            const displayTitle = recipe.title?.trim() || sceneFallbackTitle;
+            const displayTitle = getRecipeDisplayTitle(recipe);
             const displaySubtitle = formattedDate === '-' ? `Recipe #${shortRecipeId}` : `Saved ${formattedDate}`;
+            const isMenuOpen = openMenuRecipeId === recipe.id;
+            const isProcessing = processingRecipeId === recipe.id;
 
             return (
               <ShortVideoCard
@@ -576,8 +684,90 @@ export const Recipes: React.FC = () => {
                   </span>
                 )}
                 topRightBadge={(
-                  <div className="bg-black/70 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-1 rounded-lg">
-                    {formattedDate}
+                  <div
+                    className="relative"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (isProcessing) {
+                          return;
+                        }
+                        setOpenMenuRecipeId((prev) => (prev === recipe.id ? null : recipe.id));
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          if (isProcessing) {
+                            return;
+                          }
+                          setOpenMenuRecipeId((prev) => (prev === recipe.id ? null : recipe.id));
+                        }
+                      }}
+                      className={`w-8 h-8 rounded-full bg-black/70 backdrop-blur-sm text-white text-lg leading-none flex items-center justify-center ${
+                        isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-black/85'
+                      }`}
+                      aria-label="Open recipe menu"
+                    >
+                      ⋯
+                    </div>
+
+                    {isMenuOpen ? (
+                      <div className="absolute right-0 mt-1 min-w-[128px] rounded-xl border border-white/20 bg-black/90 backdrop-blur-md p-1 z-20 shadow-2xl">
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (isProcessing) {
+                              return;
+                            }
+                            void handleEditRecipeTitle(recipe);
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              if (isProcessing) {
+                                return;
+                              }
+                              void handleEditRecipeTitle(recipe);
+                            }
+                          }}
+                          className="px-3 py-2 text-xs font-semibold text-white rounded-lg hover:bg-white/15"
+                        >
+                          ✏️ Edit title
+                        </div>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (isProcessing) {
+                              return;
+                            }
+                            void handleDeleteRecipe(recipe);
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              if (isProcessing) {
+                                return;
+                              }
+                              void handleDeleteRecipe(recipe);
+                            }
+                          }}
+                          className="px-3 py-2 text-xs font-semibold text-red-300 rounded-lg hover:bg-red-500/20"
+                        >
+                          🗑 Delete
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 )}
                 leftMetric={{

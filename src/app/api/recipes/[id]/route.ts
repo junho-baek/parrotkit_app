@@ -65,3 +65,79 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Failed to delete recipe' }, { status: 500 });
   }
 }
+
+export async function PATCH(request: NextRequest, { params }: Params) {
+  try {
+    const authUser = await requireAuthenticatedUser(request);
+    const { id } = await params;
+    const body = await request.json();
+    const title = String(body.title || '').trim();
+
+    if (!title) {
+      return NextResponse.json({ error: 'title is required' }, { status: 400 });
+    }
+
+    const supabase = createSupabaseAdminClient();
+
+    const { data: recipe, error: recipeError } = await supabase
+      .from('recipes')
+      .select('id, reference_id, video_url')
+      .eq('id', id)
+      .eq('user_id', authUser.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (recipeError) {
+      throw recipeError;
+    }
+
+    if (!recipe) {
+      return NextResponse.json({ error: 'Recipe not found' }, { status: 404 });
+    }
+
+    if (recipe.reference_id) {
+      const { error: updateReferenceError } = await supabase
+        .from('references')
+        .update({ description: title })
+        .eq('id', recipe.reference_id)
+        .eq('user_id', authUser.id);
+
+      if (updateReferenceError) {
+        throw updateReferenceError;
+      }
+    } else {
+      const { data: createdReference, error: createReferenceError } = await supabase
+        .from('references')
+        .insert({
+          user_id: authUser.id,
+          source_url: recipe.video_url,
+          description: title,
+        })
+        .select('id')
+        .single();
+
+      if (createReferenceError) {
+        throw createReferenceError;
+      }
+
+      const { error: updateRecipeError } = await supabase
+        .from('recipes')
+        .update({ reference_id: createdReference.id })
+        .eq('id', recipe.id)
+        .eq('user_id', authUser.id);
+
+      if (updateRecipeError) {
+        throw updateRecipeError;
+      }
+    }
+
+    return NextResponse.json({ success: true, title });
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'UNAUTHORIZED') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    console.error('Patch recipe error:', error);
+    return NextResponse.json({ error: 'Failed to update recipe' }, { status: 500 });
+  }
+}
