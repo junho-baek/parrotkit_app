@@ -57,6 +57,7 @@ interface RecipeVideoPlayerProps {
   };
   scriptLines?: string[];
   onSwitchToShooting: () => void;
+  onBack?: () => void;
 }
 
 function timeToSeconds(time: string): number {
@@ -83,6 +84,7 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
   scene,
   scriptLines,
   onSwitchToShooting,
+  onBack,
 }) => {
   void onSwitchToShooting;
   const playerRef = useRef<YouTubePlayerInstance | null>(null);
@@ -231,6 +233,17 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
   return (
     <div className="relative w-full h-full bg-black flex items-center justify-center">
       <div className="relative w-full h-full max-w-md mx-auto" ref={containerRef}>
+        {onBack ? (
+          <div className="absolute top-4 left-4 z-20">
+            <button
+              onClick={onBack}
+              className="px-3.5 py-2 bg-black/65 backdrop-blur-sm text-white rounded-xl font-semibold text-sm border border-white/20 active:scale-95 transition-transform"
+            >
+              ← Back
+            </button>
+          </div>
+        ) : null}
+
         {/* YouTube Player or Fallback */}
         {playerError ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black">
@@ -269,7 +282,7 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
         </div>
 
         {/* Progress Bar */}
-        <div className="absolute top-4 left-4 right-20 z-10">
+        <div className="absolute top-4 left-28 right-20 z-10">
           <div className="bg-black/70 backdrop-blur-sm rounded-xl px-3 py-2">
             <div className="flex items-center justify-between text-white text-xs mb-1">
               <span>{formatTime(startSeconds + currentTime)}</span>

@@ -490,6 +490,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
               scene={selectedScene}
               scriptLines={getScriptForScene(selectedScene)}
               onSwitchToShooting={() => setActiveTab('shooting')}
+              onBack={handleCameraBack}
             />
           ) : (
             <CameraShooting

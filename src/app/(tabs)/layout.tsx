@@ -9,7 +9,7 @@ export default function TabsLayout({
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Mobile App Style Header - Fixed */}
-      <div className="flex-shrink-0 bg-white border-b-2 border-gray-200 px-4 py-3 z-10 relative shadow-sm">
+      <div className="app-shell-header flex-shrink-0 bg-white border-b-2 border-gray-200 px-4 py-3 z-10 relative shadow-sm">
         {/* Logo - Left */}
         <a href="/home" className="absolute left-4 top-1/2 -translate-y-1/2">
           <img src="/parrot-logo.png" alt="Parrot Kit" className="w-7 h-7 hover:scale-110 transition-transform" />
@@ -22,14 +22,16 @@ export default function TabsLayout({
       </div>
 
       {/* Main Content - Scrollable */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        <div className="max-w-md mx-auto px-4 py-4">
+      <div className="app-shell-main flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="app-shell-content max-w-md mx-auto px-4 py-4">
           {children}
         </div>
       </div>
 
       {/* Bottom Tab Navigation - Fixed */}
-      <BottomTabBar />
+      <div className="app-shell-bottom-nav">
+        <BottomTabBar />
+      </div>
     </div>
   );
 }

@@ -112,6 +112,16 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
         className="absolute inset-0 w-full h-full object-cover"
       />
 
+      {/* Back Button */}
+      <div className="absolute top-4 left-4 z-20">
+        <button
+          onClick={onBack}
+          className="px-3.5 py-2 bg-black/65 backdrop-blur-sm text-white rounded-xl font-semibold text-sm border border-white/20 active:scale-95 transition-transform"
+        >
+          ← Back
+        </button>
+      </div>
+
       {/* Guidelines Overlay */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-0">

@@ -119,6 +119,7 @@ export const Home: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [recipeData, setRecipeData] = React.useState<RecipeViewData | null>(null);
   const [playingVideo, setPlayingVideo] = React.useState<string | null>(null);
+  const shouldUseRecipeFullscreen = Boolean(recipeData) || searchParams?.get('view') === 'recipe';
 
   // Check for recipe view
   React.useEffect(() => {
@@ -204,6 +205,24 @@ export const Home: React.FC = () => {
 
     fetchRecentReferences();
   }, []);
+
+  React.useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const fullscreenClassName = 'recipe-fullscreen-mode';
+
+    if (shouldUseRecipeFullscreen) {
+      document.body.classList.add(fullscreenClassName);
+    } else {
+      document.body.classList.remove(fullscreenClassName);
+    }
+
+    return () => {
+      document.body.classList.remove(fullscreenClassName);
+    };
+  }, [shouldUseRecipeFullscreen]);
 
   // Handle back from recipe view
   const handleBackFromRecipe = () => {

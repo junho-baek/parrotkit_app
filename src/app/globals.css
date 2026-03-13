@@ -45,6 +45,21 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Recipe fullscreen mode: hide app shell (top header + bottom tab bar) */
+body.recipe-fullscreen-mode .app-shell-header,
+body.recipe-fullscreen-mode .app-shell-bottom-nav {
+  display: none !important;
+}
+
+body.recipe-fullscreen-mode .app-shell-main {
+  overflow: hidden !important;
+}
+
+body.recipe-fullscreen-mode .app-shell-content {
+  max-width: none !important;
+  padding: 0 !important;
+}
+
 /* Animations */
 @keyframes slide-up {
   from {
