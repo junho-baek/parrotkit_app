@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from('recipes')
       .select(
-        'id, user_id, reference_id, video_url, scenes, total_scenes, captured_scene_ids, match_results, captured_count, created_at, updated_at'
+        'id, user_id, reference_id, video_url, scenes, total_scenes, captured_scene_ids, match_results, captured_count, created_at, updated_at, reference:references(description)'
       )
       .eq('user_id', authUser.id)
       .order('created_at', { ascending: false });
@@ -42,7 +42,15 @@ export async function GET(request: NextRequest) {
       throw error;
     }
 
-    return NextResponse.json({ recipes: data || [] });
+    const recipes = (data || []).map((item: any) => {
+      const { reference, ...recipe } = item;
+      return {
+        ...recipe,
+        title: reference?.description || null,
+      };
+    });
+
+    return NextResponse.json({ recipes });
   } catch (error: unknown) {
     if (error instanceof Error && error.message === 'UNAUTHORIZED') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -57,9 +65,14 @@ export async function POST(request: NextRequest) {
   try {
     const authUser = await requireAuthenticatedUser(request);
     const body = await request.json();
+    const title = String(body.title || '').trim();
 
     const videoUrl = String(body.videoUrl || body.url || '').trim();
     const scenes = parseScenes(body.scenes);
+
+    if (!title) {
+      return NextResponse.json({ error: 'title is required' }, { status: 400 });
+    }
 
     if (!videoUrl) {
       return NextResponse.json({ error: 'videoUrl is required' }, { status: 400 });
@@ -80,7 +93,7 @@ export async function POST(request: NextRequest) {
         video_id: body.videoId || null,
         niche: body.niche || null,
         goal: body.goal || null,
-        description: body.description || null,
+        description: title,
       })
       .select('id')
       .single();

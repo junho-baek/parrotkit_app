@@ -19,6 +19,7 @@ type RecipeScene = {
 
 type RecipeApiItem = {
   id: string;
+  title?: string | null;
   video_url: string;
   scenes: RecipeScene[];
   captured_scene_ids?: number[] | null;
@@ -552,14 +553,18 @@ export const Recipes: React.FC = () => {
             const formattedDate = recipe.created_at
               ? new Date(recipe.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
               : '-';
+            const shortRecipeId = recipe.id.split('-')[0];
+            const sceneFallbackTitle = recipe.scenes?.[0]?.title?.trim() || 'Untitled Recipe';
+            const displayTitle = recipe.title?.trim() || sceneFallbackTitle;
+            const displaySubtitle = formattedDate === '-' ? `Recipe #${shortRecipeId}` : `Saved ${formattedDate}`;
 
             return (
               <ShortVideoCard
                 key={recipe.id}
                 thumbnail={thumbnailUrl}
                 thumbnailAlt={`Recipe ${recipe.id}`}
-                title={recipe.video_url || `Recipe #${recipe.id}`}
-                subtitle={`Recipe #${recipe.id}`}
+                title={displayTitle}
+                subtitle={displaySubtitle}
                 onPreview={() => handleView(recipe)}
                 onAction={() => handleView(recipe)}
                 actionLabel="View Recipe"

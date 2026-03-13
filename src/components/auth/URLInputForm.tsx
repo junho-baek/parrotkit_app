@@ -7,6 +7,7 @@ import { logClientEvent } from '@/lib/client-events';
 
 export const URLInputForm: React.FC = () => {
   const router = useRouter();
+  const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [niche, setNiche] = useState('');
   const [goal, setGoal] = useState('');
@@ -23,6 +24,11 @@ export const URLInputForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!title.trim()) {
+      alert('레시피 제목을 입력해주세요.');
+      return;
+    }
     
     if (!url.trim()) {
       alert('URL을 입력해주세요.');
@@ -48,7 +54,7 @@ export const URLInputForm: React.FC = () => {
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, niche, goal, description: describe }),
+        body: JSON.stringify({ title: title.trim(), url, niche, goal, description: describe }),
       });
 
       if (!response.ok) {
@@ -70,6 +76,7 @@ export const URLInputForm: React.FC = () => {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
+            title: title.trim(),
             videoUrl: url,
             scenes: data.scenes,
             niche,
@@ -126,6 +133,22 @@ export const URLInputForm: React.FC = () => {
 
         {/* URL Input */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
+              Recipe Title *
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g., Korean Diet Viral Hook"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              disabled={loading}
+              required
+              maxLength={80}
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-semibold text-gray-900 mb-2">
               Video URL *
@@ -186,7 +209,7 @@ export const URLInputForm: React.FC = () => {
 
           <button
             type="submit"
-            disabled={loading || !url.trim()}
+            disabled={loading || !title.trim() || !url.trim()}
             className="w-full px-8 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
           >
             {loading ? 'Analyzing...' : 'Analyze Video'}
