@@ -114,10 +114,10 @@ export const PWARegistration = () => {
 
   const iosMessage = useMemo(() => {
     if (isSafari) {
-      return 'Safari 하단 공유 버튼을 누른 뒤 홈 화면에 추가를 선택하세요.';
+      return 'Tap the Share button in Safari, then choose Add to Home Screen.';
     }
 
-    return 'iPhone에서는 Safari에서 열어야 설치할 수 있어요. Safari로 열고 홈 화면에 추가를 눌러주세요.';
+    return 'On iPhone, installation is available only in Safari. Open this page in Safari and tap Add to Home Screen.';
   }, [isSafari]);
 
   const handleInstallClick = async () => {
@@ -145,9 +145,9 @@ export const PWARegistration = () => {
       <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-200 p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-lg font-bold text-gray-900">앱으로 설치하기</h3>
+            <h3 className="text-lg font-bold text-gray-900">Install as an App</h3>
             <p className="mt-1 text-sm text-gray-700">
-              홈 화면에 추가하면 더 빠르게 열 수 있어요.
+              Add ParrotKit to your home screen for faster access.
             </p>
             <p className="mt-1 text-xs font-medium text-amber-700">
               Without PWA installation, shooting and layout UI may break on some devices.
@@ -157,7 +157,7 @@ export const PWARegistration = () => {
             type="button"
             onClick={dismissSheet}
             className="text-gray-400 hover:text-gray-600 text-xl leading-none"
-            aria-label="닫기"
+            aria-label="Close"
           >
             ×
           </button>
@@ -171,7 +171,7 @@ export const PWARegistration = () => {
             }}
             className="mt-4 w-full rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 hover:from-blue-700 hover:to-purple-700 transition-colors"
           >
-            설치하기
+            Install
           </button>
         ) : null}
 
@@ -188,7 +188,7 @@ export const PWARegistration = () => {
           onClick={dismissSheet}
           className="mt-3 w-full rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
         >
-          나중에
+          Maybe Later
         </button>
       </div>
     </div>
