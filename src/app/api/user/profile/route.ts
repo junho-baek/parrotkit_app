@@ -24,6 +24,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    const [
+      { count: referencesCount, error: referencesCountError },
+      { count: recipesCount, error: recipesCountError },
+      { count: viewsCount, error: viewsCountError },
+    ] = await Promise.all([
+      supabase
+        .from('references')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', authUser.id),
+      supabase
+        .from('recipes')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', authUser.id),
+      supabase
+        .from('event_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', authUser.id)
+        .like('event_name', 'view_%'),
+    ]);
+
+    if (referencesCountError || recipesCountError || viewsCountError) {
+      throw referencesCountError || recipesCountError || viewsCountError;
+    }
+
     return NextResponse.json({
       user: {
         id: data.id,
@@ -34,6 +58,11 @@ export async function GET(request: NextRequest) {
         subscriptionStatus: data.subscription_status,
         planType: data.plan_type,
         subscriptionEndsAt: data.subscription_ends_at,
+      },
+      stats: {
+        references: referencesCount ?? 0,
+        recipes: recipesCount ?? 0,
+        views: viewsCount ?? 0,
       },
     });
   } catch (error: unknown) {

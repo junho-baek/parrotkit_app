@@ -56,6 +56,12 @@ type LikedVideo = {
   likes: string;
 };
 
+type SettingsStats = {
+  references: number;
+  recipes: number;
+  views: number;
+};
+
 function buildCapturedMap(sceneIds: number[] | null | undefined): Record<number, boolean> {
   return Array.isArray(sceneIds)
     ? sceneIds.reduce((acc: Record<number, boolean>, sceneId) => {
@@ -109,6 +115,21 @@ function parseLikedVideos(raw: string | null): LikedVideo[] {
   } catch {
     return [];
   }
+}
+
+const compactNumberFormatter = new Intl.NumberFormat('en-US', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
+
+function formatCompactCount(value: number): string {
+  const safeValue = Number.isFinite(value) ? Math.max(0, value) : 0;
+  return compactNumberFormatter.format(safeValue);
+}
+
+function parseStatCount(value: unknown): number {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? Math.max(0, numericValue) : 0;
 }
 
 // ============ HOME: 최근 Paste한 레퍼런스들 ============
@@ -586,6 +607,11 @@ export const Settings: React.FC = () => {
     subscriptionStatus: string;
     planType: string;
   } | null>(null);
+  const [stats, setStats] = React.useState<SettingsStats>({
+    references: 0,
+    recipes: 0,
+    views: 0,
+  });
   const [loading, setLoading] = React.useState(true);
   const [likedVideos, setLikedVideos] = React.useState<LikedVideo[]>([]);
   const [playingVideo, setPlayingVideo] = React.useState<string | null>(null);
@@ -604,8 +630,25 @@ export const Settings: React.FC = () => {
         });
 
         if (response.ok) {
-          const data = await response.json();
-          setUser(data.user);
+          const data = (await response.json()) as {
+            user?: {
+              email: string;
+              username: string;
+              subscriptionStatus: string;
+              planType: string;
+            };
+            stats?: Partial<SettingsStats>;
+          };
+
+          if (data.user) {
+            setUser(data.user);
+          }
+
+          setStats({
+            references: parseStatCount(data.stats?.references),
+            recipes: parseStatCount(data.stats?.recipes),
+            views: parseStatCount(data.stats?.views),
+          });
         } else if (response.status === 401) {
           localStorage.removeItem('token');
           localStorage.removeItem('refreshToken');
@@ -691,15 +734,15 @@ export const Settings: React.FC = () => {
           </div>
           <div className="flex gap-2">
             <div className="flex-1 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2.5 text-center border border-blue-200">
-              <div className="text-lg font-bold text-blue-600">12</div>
+              <div className="text-lg font-bold text-blue-600">{formatCompactCount(stats.references)}</div>
               <div className="text-[10px] text-blue-700 font-medium">References</div>
             </div>
             <div className="flex-1 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-2.5 text-center border border-purple-200">
-              <div className="text-lg font-bold text-purple-600">8</div>
+              <div className="text-lg font-bold text-purple-600">{formatCompactCount(stats.recipes)}</div>
               <div className="text-[10px] text-purple-700 font-medium">Recipes</div>
             </div>
             <div className="flex-1 bg-gradient-to-br from-pink-50 to-pink-100 rounded-lg p-2.5 text-center border border-pink-200">
-              <div className="text-lg font-bold text-pink-600">2.5K</div>
+              <div className="text-lg font-bold text-pink-600">{formatCompactCount(stats.views)}</div>
               <div className="text-[10px] text-pink-700 font-medium">Views</div>
             </div>
           </div>
