@@ -84,13 +84,12 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
   scene,
   scriptLines,
   onSwitchToShooting,
-  onBack,
+  onBack: _onBack,
 }) => {
   void onSwitchToShooting;
+  void _onBack;
   const playerRef = useRef<YouTubePlayerInstance | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [progress, setProgress] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
   const [failedVideoId, setFailedVideoId] = useState<string | null>(null);
   const [scriptOpen, setScriptOpen] = useState(false);
   
@@ -99,7 +98,6 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
   const playerError = !isYouTube || failedVideoId === videoId;
   const startSeconds = timeToSeconds(scene.startTime);
   const endSeconds = timeToSeconds(scene.endTime);
-  const duration = endSeconds - startSeconds;
 
   useEffect(() => {
     if (!isYouTube) {
@@ -108,7 +106,6 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
 
     let player: YouTubePlayerInstance | null = null;
     let checkInterval: ReturnType<typeof setInterval> | null = null;
-    let progressInterval: ReturnType<typeof setInterval> | null = null;
     let mounted = true;
 
     const initPlayer = () => {
@@ -142,21 +139,6 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
               event.target.mute();
               event.target.seekTo(startSeconds);
               event.target.playVideo();
-
-              progressInterval = setInterval(() => {
-                if (!mounted || !player || !player.getCurrentTime) return;
-                try {
-                  const current = player.getCurrentTime();
-                  const elapsed = current - startSeconds;
-
-                  if (elapsed >= 0 && elapsed <= duration) {
-                    setCurrentTime(elapsed);
-                    setProgress((elapsed / duration) * 100);
-                  }
-                } catch {
-                  // ignore
-                }
-              }, 100);
             },
             onStateChange: (event: YouTubePlayerEvent) => {
               if (!mounted) return;
@@ -211,7 +193,6 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
     return () => {
       mounted = false;
       if (checkInterval) clearInterval(checkInterval);
-      if (progressInterval) clearInterval(progressInterval);
       if (player && player.destroy) {
         try {
           player.destroy();
@@ -220,30 +201,13 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
         }
       }
     };
-  }, [isYouTube, videoId, startSeconds, endSeconds, duration]);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  }, [isYouTube, videoId, startSeconds, endSeconds]);
 
   const thumbnailUrl = scene.thumbnail || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 
   return (
     <div className="relative w-full h-full bg-black flex items-center justify-center">
       <div className="relative w-full h-full max-w-md mx-auto" ref={containerRef}>
-        {onBack ? (
-          <div className="absolute top-4 left-4 z-20">
-            <button
-              onClick={onBack}
-              className="px-3.5 py-2 bg-black/65 backdrop-blur-sm text-white rounded-xl font-semibold text-sm border border-white/20 active:scale-95 transition-transform"
-            >
-              ← Back
-            </button>
-          </div>
-        ) : null}
-
         {/* YouTube Player or Fallback */}
         {playerError ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black">
@@ -281,32 +245,18 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
           </div>
         </div>
 
-        {/* Progress Bar */}
-        <div className="absolute top-4 left-28 right-20 z-10">
-          <div className="bg-black/70 backdrop-blur-sm rounded-xl px-3 py-2">
-            <div className="flex items-center justify-between text-white text-xs mb-1">
-              <span>{formatTime(startSeconds + currentTime)}</span>
-              <span>{scene.startTime} ~ {scene.endTime}</span>
-            </div>
-            <div className="w-full bg-gray-600/50 rounded-full h-1.5 overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-100 ease-linear"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
         {/* View Script Button - More Visible */}
-        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30">
-          <button
-            onClick={() => setScriptOpen(true)}
-            className="px-6 py-3.5 bg-white text-gray-900 rounded-2xl font-bold shadow-2xl text-base flex items-center gap-2 hover:scale-105 active:scale-95 transition-transform border-2 border-gray-200"
-          >
-            <img src="/parrot-logo.png" alt="" className="w-6 h-6" />
-            View Script
-          </button>
-        </div>
+        {!scriptOpen ? (
+          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30">
+            <button
+              onClick={() => setScriptOpen(true)}
+              className="px-6 py-3.5 bg-white text-gray-900 rounded-2xl font-bold shadow-2xl text-base flex items-center gap-2 hover:scale-105 active:scale-95 transition-transform border-2 border-gray-200"
+            >
+              <img src="/parrot-logo.png" alt="" className="w-6 h-6" />
+              View Script
+            </button>
+          </div>
+        ) : null}
 
         {/* Script Bottom Sheet */}
         {scriptOpen && (
