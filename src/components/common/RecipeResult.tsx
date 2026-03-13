@@ -31,14 +31,12 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   videoUrl, 
   onBack,
   recipeId,
-  initialCapturedVideos = {},
-  initialMatchResults = {}
+  initialCapturedVideos = {}
 }) => {
   const router = useRouter();
   const [selectedScene, setSelectedScene] = useState<RecipeScene | null>(null);
   const [activeTab, setActiveTab] = useState<'recipe' | 'shooting'>('recipe');
   const [capturedVideos, setCapturedVideos] = useState<{[key: number]: Blob}>({});
-  const [matchResults, setMatchResults] = useState<{[key: number]: boolean}>(initialMatchResults);
   const [isExporting, setIsExporting] = useState(false);
   const [isExported, setIsExported] = useState(false);
   const [capturedScenes, setCapturedScenes] = useState<{[key: number]: boolean}>(initialCapturedVideos);
@@ -53,7 +51,6 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const [sheetHeight, setSheetHeight] = useState(50);
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const capturedScenesRef = useRef<{[key: number]: boolean}>(initialCapturedVideos);
-  const matchResultsRef = useRef<{[key: number]: boolean}>(initialMatchResults);
   const exportableCaptureCount = recipeId
     ? Object.keys(capturedScenes).length
     : Object.keys(capturedVideos).length;
@@ -237,18 +234,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     });
   }, []);
 
-  const setSceneMatchResult = useCallback((sceneId: number, isMatch: boolean) => {
-    setMatchResults((prev) => {
-      const next = {
-        ...prev,
-        [sceneId]: isMatch,
-      };
-      matchResultsRef.current = next;
-      return next;
-    });
-  }, []);
-
-  const persistProgress = async (sceneId: number, isMatch?: boolean) => {
+  const persistProgress = async (sceneId: number) => {
     if (!recipeId) {
       return;
     }
@@ -267,7 +253,6 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
       body: JSON.stringify({
         sceneId,
         captured: true,
-        ...(typeof isMatch === 'boolean' ? { isMatch } : {}),
       }),
     });
   };
@@ -325,11 +310,6 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
           markSceneCaptured(capturedSceneId);
           await persistProgress(capturedSceneId);
 
-          const knownMatchResult = matchResultsRef.current[capturedSceneId];
-          if (typeof knownMatchResult === 'boolean') {
-            await persistProgress(capturedSceneId, knownMatchResult);
-          }
-
           await logClientEvent('capture_uploaded', {
             recipe_id: recipeId,
             scene_id: capturedSceneId,
@@ -351,27 +331,9 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
       });
     }
 
-    // AI 비교 시뮬레이션 (1초 후 결과)
-    setTimeout(async () => {
-      const isMatch = Math.random() > 0.3; // 70% 확률로 성공
-      setSceneMatchResult(capturedSceneId, isMatch);
-
-      try {
-        // 업로드 성공 후에만 서버 매칭 결과를 반영
-        if (!recipeId || capturedScenesRef.current[capturedSceneId]) {
-          await persistProgress(capturedSceneId, isMatch);
-        }
-      } catch (progressError) {
-        console.error('Progress update warning:', progressError);
-      }
-      
-      if (isMatch) {
-        alert('✅ Perfect match! Scene completed.');
-        setSelectedScene(null);
-      } else {
-        alert('⚠️ Try again! Position doesn\'t match.');
-      }
-    }, 1000);
+    // 랜덤 매칭 게이트 제거: 촬영 후 즉시 리스트로 복귀하고 업로드 결과로만 상태를 확정한다.
+    setSelectedScene(null);
+    setActiveTab('recipe');
   };
 
   const handleCameraBack = () => {
