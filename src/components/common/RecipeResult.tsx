@@ -42,6 +42,8 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [isExported, setIsExported] = useState(false);
   const [capturedScenes, setCapturedScenes] = useState<{[key: number]: boolean}>(initialCapturedVideos);
+  const [uploadingScenes, setUploadingScenes] = useState<{[key: number]: boolean}>({});
+  const [uploadErrors, setUploadErrors] = useState<{[key: number]: string}>({});
   const [sceneScripts, setSceneScripts] = useState<{[key: number]: string[]}>({});
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessage, setChatMessage] = useState('');
@@ -50,9 +52,12 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const [sheetHeight, setSheetHeight] = useState(50);
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
+  const capturedScenesRef = useRef<{[key: number]: boolean}>(initialCapturedVideos);
+  const matchResultsRef = useRef<{[key: number]: boolean}>(initialMatchResults);
   const exportableCaptureCount = recipeId
     ? Object.keys(capturedScenes).length
     : Object.keys(capturedVideos).length;
+  const uploadingCount = Object.keys(uploadingScenes).length;
 
   const defaultScripts: {[key: number]: string[]} = {
     1: [
@@ -184,6 +189,65 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     setActiveTab('recipe'); // 기본으로 Recipe 탭 표시
   };
 
+  const markSceneCaptured = useCallback((sceneId: number) => {
+    setCapturedScenes((prev) => {
+      const next = {
+        ...prev,
+        [sceneId]: true,
+      };
+      capturedScenesRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const clearSceneCaptured = useCallback((sceneId: number) => {
+    setCapturedScenes((prev) => {
+      if (!prev[sceneId]) {
+        return prev;
+      }
+
+      const next = { ...prev };
+      delete next[sceneId];
+      capturedScenesRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const setSceneUploadingState = useCallback((sceneId: number, isUploading: boolean) => {
+    setUploadingScenes((prev) => {
+      const next = { ...prev };
+      if (isUploading) {
+        next[sceneId] = true;
+      } else {
+        delete next[sceneId];
+      }
+      return next;
+    });
+  }, []);
+
+  const setSceneUploadError = useCallback((sceneId: number, message?: string) => {
+    setUploadErrors((prev) => {
+      const next = { ...prev };
+      if (message) {
+        next[sceneId] = message;
+      } else {
+        delete next[sceneId];
+      }
+      return next;
+    });
+  }, []);
+
+  const setSceneMatchResult = useCallback((sceneId: number, isMatch: boolean) => {
+    setMatchResults((prev) => {
+      const next = {
+        ...prev,
+        [sceneId]: isMatch,
+      };
+      matchResultsRef.current = next;
+      return next;
+    });
+  }, []);
+
   const persistProgress = async (sceneId: number, isMatch?: boolean) => {
     if (!recipeId) {
       return;
@@ -237,41 +301,66 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
   const handleVideoCapture = async (videoBlob: Blob) => {
     if (!selectedScene) return;
-    
+
+    const capturedSceneId = selectedScene.id;
+
     console.log('Video captured:', videoBlob);
-    
+
     // 촬영한 비디오 저장
     setCapturedVideos(prev => ({
       ...prev,
-      [selectedScene.id]: videoBlob,
+      [capturedSceneId]: videoBlob,
     }));
 
-    // 촬영 완료 표시
-    setCapturedScenes(prev => ({
-      ...prev,
-      [selectedScene.id]: true
-    }));
-    try {
-      await uploadCapture(selectedScene.id, videoBlob);
-      await persistProgress(selectedScene.id);
-      await logClientEvent('capture_uploaded', {
-        recipe_id: recipeId || 'local',
-        scene_id: selectedScene.id,
+    // 이전 업로드 오류는 새 촬영 시 초기화
+    setSceneUploadError(capturedSceneId);
+
+    if (recipeId) {
+      // 업로드 중 상태를 씬 단위로 표시하고, 업로드 성공 시에만 captured로 확정
+      setSceneUploadingState(capturedSceneId, true);
+
+      void (async () => {
+        try {
+          await uploadCapture(capturedSceneId, videoBlob);
+          markSceneCaptured(capturedSceneId);
+          await persistProgress(capturedSceneId);
+
+          const knownMatchResult = matchResultsRef.current[capturedSceneId];
+          if (typeof knownMatchResult === 'boolean') {
+            await persistProgress(capturedSceneId, knownMatchResult);
+          }
+
+          await logClientEvent('capture_uploaded', {
+            recipe_id: recipeId,
+            scene_id: capturedSceneId,
+          });
+        } catch (uploadError) {
+          console.error('Capture upload warning:', uploadError);
+          clearSceneCaptured(capturedSceneId);
+          setSceneUploadError(capturedSceneId, 'Upload failed. Tap and reshoot this scene.');
+        } finally {
+          setSceneUploadingState(capturedSceneId, false);
+        }
+      })();
+    } else {
+      // 로컬 모드에서는 즉시 캡처 완료 처리
+      markSceneCaptured(capturedSceneId);
+      void logClientEvent('capture_uploaded', {
+        recipe_id: 'local',
+        scene_id: capturedSceneId,
       });
-    } catch (uploadError) {
-      console.error('Capture upload warning:', uploadError);
     }
 
     // AI 비교 시뮬레이션 (1초 후 결과)
     setTimeout(async () => {
       const isMatch = Math.random() > 0.3; // 70% 확률로 성공
-      setMatchResults(prev => ({
-        ...prev,
-        [selectedScene.id]: isMatch,
-      }));
+      setSceneMatchResult(capturedSceneId, isMatch);
 
       try {
-        await persistProgress(selectedScene.id, isMatch);
+        // 업로드 성공 후에만 서버 매칭 결과를 반영
+        if (!recipeId || capturedScenesRef.current[capturedSceneId]) {
+          await persistProgress(capturedSceneId, isMatch);
+        }
       } catch (progressError) {
         console.error('Progress update warning:', progressError);
       }
@@ -297,6 +386,15 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     if (capturedCount === 0) {
       alert('아직 촬영된 비디오가 없습니다.');
       return;
+    }
+
+    if (recipeId && uploadingCount > 0) {
+      const proceed = window.confirm(
+        `${uploadingCount} scene(s) are still uploading. Download now with completed scenes only?`
+      );
+      if (!proceed) {
+        return;
+      }
     }
 
     setIsExporting(true);
@@ -630,6 +728,9 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
             {exportableCaptureCount > 0 && (
               <span>{exportableCaptureCount}/{scenes.length} captured</span>
             )}
+            {uploadingCount > 0 && (
+              <span className="text-amber-600">• {uploadingCount} uploading</span>
+            )}
           </div>
         </div>
       </div>
@@ -662,6 +763,9 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
           <div className="grid grid-cols-2 gap-3 pb-20">
             {scenes.map((scene) => {
               const isCaptured = capturedScenes[scene.id];
+              const isUploading = Boolean(uploadingScenes[scene.id]);
+              const uploadError = uploadErrors[scene.id];
+              const hasUploadError = Boolean(uploadError);
               const scriptLines = getScriptForScene(scene);
 
               return (
@@ -669,7 +773,11 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                   key={scene.id}
                   onClick={() => handleSceneClick(scene)}
                   className={`bg-white rounded-xl overflow-hidden hover:shadow-md transition-all cursor-pointer flex flex-col ${
-                    isCaptured
+                    isUploading
+                      ? 'ring-2 ring-amber-400'
+                      : hasUploadError
+                        ? 'ring-2 ring-red-400'
+                        : isCaptured
                       ? 'ring-2 ring-green-500'
                       : 'border border-gray-200 hover:border-blue-300'
                   }`}
@@ -686,13 +794,25 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                         target.style.display = 'none';
                       }}
                     />
-                    {isCaptured && (
+                    {isUploading ? (
+                      <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center">
+                        <div className="bg-white text-amber-600 rounded-full w-6 h-6 flex items-center justify-center shadow-sm">
+                          <div className="w-3.5 h-3.5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      </div>
+                    ) : isCaptured ? (
                       <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
                         <div className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
                           ✓
                         </div>
                       </div>
-                    )}
+                    ) : hasUploadError ? (
+                      <div className="absolute inset-0 bg-red-500/15 flex items-center justify-center">
+                        <div className="bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                          !
+                        </div>
+                      </div>
+                    ) : null}
                     {/* Scene Number Badge */}
                     <div className="absolute top-1 left-1 bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
                       #{scene.id}
@@ -711,7 +831,16 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                     <p className="text-[10px] text-gray-600 line-clamp-2 leading-tight">
                       {scriptLines[0] || scene.description}
                     </p>
-                    {isCaptured ? (
+                    {isUploading ? (
+                      <span className="text-xs text-amber-600 font-medium flex items-center gap-1">
+                        <span className="inline-block w-2 h-2 border border-amber-600 border-t-transparent rounded-full animate-spin" />
+                        Uploading...
+                      </span>
+                    ) : hasUploadError ? (
+                      <span className="text-xs text-red-600 font-medium flex items-center gap-1">
+                        <span>⚠️</span> Retry Shoot
+                      </span>
+                    ) : isCaptured ? (
                       <span className="text-xs text-green-600 font-medium flex items-center gap-1">
                         <span>✓</span> Done
                       </span>
