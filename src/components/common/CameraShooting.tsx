@@ -24,13 +24,16 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   const previewStreamRef = useRef<MediaStream | null>(null);
   const recordingStreamRef = useRef<MediaStream | null>(null);
   const skipCaptureRef = useRef(false);
+  const isActiveRef = useRef(false);
   const [isRecording, setIsRecording] = useState(false);
   const [scriptOpen, setScriptOpen] = useState(false);
 
   useEffect(() => {
+    isActiveRef.current = true;
     skipCaptureRef.current = false;
     startCamera();
     return () => {
+      isActiveRef.current = false;
       skipCaptureRef.current = true;
       stopCamera();
     };
@@ -44,11 +47,13 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
         audio: false,
       });
 
-      previewStreamRef.current = stream;
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+      if (!isActiveRef.current || !videoRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
       }
+
+      previewStreamRef.current = stream;
+      videoRef.current.srcObject = stream;
     } catch (error) {
       console.error('Camera access error:', error);
       alert('카메라 접근 권한이 필요합니다.');
@@ -86,6 +91,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
     const previewStream = previewStreamRef.current;
     if (!previewStream) return;
     if (isRecording) return;
+    if (!isActiveRef.current) return;
 
     const previewVideoTrack = previewStream.getVideoTracks()[0];
     if (!previewVideoTrack) return;
@@ -100,6 +106,11 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
       }
     } catch (error) {
       console.warn('Audio access denied, recording video without microphone:', error);
+    }
+
+    if (!isActiveRef.current) {
+      recordingTracks.forEach((track) => track.stop());
+      return;
     }
 
     const recordingStream = new MediaStream(recordingTracks);
