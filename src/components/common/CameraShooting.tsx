@@ -21,14 +21,17 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const previewStreamRef = useRef<MediaStream | null>(null);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const skipCaptureRef = useRef(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
   const [scriptOpen, setScriptOpen] = useState(false);
 
   useEffect(() => {
+    skipCaptureRef.current = false;
     startCamera();
     return () => {
+      skipCaptureRef.current = true;
       stopCamera();
     };
   }, []);
@@ -37,8 +40,11 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user' },
-        audio: true,
+        // Keep mic off on entry. We request audio only when user taps Shoot.
+        audio: false,
       });
+
+      previewStreamRef.current = stream;
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -49,18 +55,56 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
     }
   };
 
-  const stopCamera = () => {
-    if (videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
+  const stopRecordingStream = () => {
+    if (recordingStreamRef.current) {
+      recordingStreamRef.current.getTracks().forEach((track) => track.stop());
+      recordingStreamRef.current = null;
     }
   };
 
-  const startRecording = () => {
-    if (!videoRef.current?.srcObject) return;
+  const stopPreviewStream = () => {
+    if (previewStreamRef.current) {
+      previewStreamRef.current.getTracks().forEach((track) => track.stop());
+      previewStreamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  };
 
-    const stream = videoRef.current.srcObject as MediaStream;
-    const mediaRecorder = new MediaRecorder(stream, {
+  const stopCamera = () => {
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop();
+    }
+    setIsRecording(false);
+    stopRecordingStream();
+    stopPreviewStream();
+  };
+
+  const startRecording = async () => {
+    const previewStream = previewStreamRef.current;
+    if (!previewStream) return;
+    if (isRecording) return;
+
+    const previewVideoTrack = previewStream.getVideoTracks()[0];
+    if (!previewVideoTrack) return;
+
+    const recordingTracks: MediaStreamTrack[] = [previewVideoTrack.clone()];
+
+    try {
+      const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioTrack = audioStream.getAudioTracks()[0];
+      if (audioTrack) {
+        recordingTracks.push(audioTrack);
+      }
+    } catch (error) {
+      console.warn('Audio access denied, recording video without microphone:', error);
+    }
+
+    const recordingStream = new MediaStream(recordingTracks);
+    recordingStreamRef.current = recordingStream;
+    const mediaRecorder = new MediaRecorder(recordingStream, {
       mimeType: 'video/webm',
     });
 
@@ -74,18 +118,30 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
     };
 
     mediaRecorder.onstop = () => {
+      stopRecordingStream();
+      mediaRecorderRef.current = null;
+      setIsRecording(false);
+
+      if (skipCaptureRef.current) {
+        return;
+      }
+
       const blob = new Blob(chunks, { type: 'video/webm' });
-      onCapture(blob);
+      if (blob.size > 0) {
+        onCapture(blob);
+      }
     };
 
+    skipCaptureRef.current = false;
     mediaRecorder.start();
     setIsRecording(true);
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive' && isRecording) {
+      skipCaptureRef.current = false;
+      recorder.stop();
     }
   };
 
@@ -93,7 +149,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
     if (isRecording) {
       stopRecording();
     } else {
-      startRecording();
+      void startRecording();
     }
   };
 
