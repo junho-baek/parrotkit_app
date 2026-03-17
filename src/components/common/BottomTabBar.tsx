@@ -65,6 +65,8 @@ export const BottomTabBar: React.FC = () => {
   const [isInputFocused, setIsInputFocused] = React.useState(false);
   const [isViewportCompressed, setIsViewportCompressed] = React.useState(false);
   const baselineHeightRef = React.useRef<number>(0);
+  const activeGlassGradient =
+    'linear-gradient(118deg, rgba(255, 149, 104, 0.34) 0%, rgba(222, 129, 193, 0.18) 48%, rgba(140, 103, 255, 0.34) 100%)';
 
   React.useEffect(() => {
     if (typeof window === 'undefined') {
@@ -150,7 +152,7 @@ export const BottomTabBar: React.FC = () => {
 
   return (
     <nav
-      className="z-20 flex-shrink-0 border-t border-slate-200/80 bg-white/95 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur"
+      className="z-20 flex-shrink-0 border-t border-white/60 bg-white/78 shadow-[0_-16px_34px_rgba(15,23,42,0.08)] backdrop-blur-2xl"
       style={{
         paddingBottom: 'max(env(safe-area-inset-bottom), 0.6rem)',
       }}
@@ -166,31 +168,61 @@ export const BottomTabBar: React.FC = () => {
               href={tab.href}
               onClick={() => handleTabClick(tab.gaEvent)}
               aria-current={isActive ? 'page' : undefined}
-              className={`group flex flex-1 flex-col items-center gap-1 rounded-[1.25rem] px-2 py-2 text-center transition-all duration-200 ${
-                isActive ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'
+              className={`group relative flex flex-1 overflow-hidden rounded-[1.35rem] px-2 py-2 text-center transition-all duration-300 ${
+                isActive
+                  ? 'border border-white/40 bg-white/[0.08] text-slate-900 shadow-[0_16px_30px_rgba(138,103,255,0.16)] backdrop-blur-[18px]'
+                  : 'border border-transparent text-slate-500 hover:bg-white/70 hover:text-slate-700'
               }`}
+              style={
+                isActive
+                  ? {
+                      backgroundImage: activeGlassGradient,
+                      boxShadow:
+                        '0 16px 30px rgba(138, 103, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.58), inset 0 -1px 0 rgba(255, 255, 255, 0.12)',
+                    }
+                  : undefined
+              }
             >
-              <div
-                className={`flex h-10 w-10 items-center justify-center rounded-2xl border transition-all duration-200 ${
-                  isActive
-                    ? 'border-indigo-200 bg-[linear-gradient(135deg,#eef2ff_0%,#fdf2f8_100%)] text-indigo-600 shadow-[0_10px_24px_rgba(99,102,241,0.18)]'
-                    : 'border-transparent bg-slate-100/80 text-slate-500 group-hover:border-slate-200 group-hover:bg-white group-hover:text-slate-700'
-                }`}
-              >
-                <Icon
-                  className={`h-5 w-5 transition-transform duration-200 ${
-                    isActive ? 'scale-110' : 'group-hover:scale-105'
+              {isActive ? (
+                <>
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-[1px] rounded-[1.28rem] bg-white/[0.10]"
+                  />
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute left-2 right-2 top-1 h-4 rounded-full bg-white/70 blur-md"
+                  />
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute bottom-0 left-1/2 h-8 w-12 -translate-x-1/2 rounded-full bg-violet-400/25 blur-xl"
+                  />
+                </>
+              ) : null}
+
+              <div className="relative z-10 flex w-full flex-col items-center gap-1">
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-2xl transition-all duration-300 ${
+                    isActive
+                      ? 'bg-transparent text-slate-950 shadow-none'
+                      : 'border border-transparent bg-slate-100/80 text-slate-500 group-hover:border-slate-200 group-hover:bg-white group-hover:text-slate-700'
                   }`}
-                  strokeWidth={isActive ? 2.35 : 2}
-                />
+                >
+                  <Icon
+                    className={`h-5 w-5 transition-transform duration-300 ${
+                      isActive ? 'scale-105' : 'group-hover:scale-105'
+                    }`}
+                    strokeWidth={isActive ? 2.2 : 2}
+                  />
+                </div>
+                <span
+                  className={`text-[11px] leading-none tracking-[0.01em] ${
+                    isActive ? 'font-semibold text-slate-950' : 'font-medium'
+                  }`}
+                >
+                  {tab.label}
+                </span>
               </div>
-              <span
-                className={`text-[11px] leading-none tracking-[0.01em] ${
-                  isActive ? 'font-semibold text-slate-900' : 'font-medium'
-                }`}
-              >
-                {tab.label}
-              </span>
             </NextLink>
           );
         })}
