@@ -1,9 +1,16 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
+import NextLink from 'next/link';
 import { usePathname } from 'next/navigation';
+import {
+  FileText,
+  House,
+  Link as LinkIcon,
+  Search,
+  User,
+  type LucideIcon,
+} from 'lucide-react';
 import { logClientEvent } from '@/lib/client-events';
 import type { ClientEventName } from '@/lib/tracking/events';
 
@@ -12,44 +19,44 @@ interface Tab {
   label: string;
   href: string;
   gaEvent: ClientEventName;
-  icon: string;
+  icon: LucideIcon;
 }
 
 const tabs: Tab[] = [
-  { 
-    id: 'home', 
-    label: 'Home', 
-    href: '/home', 
+  {
+    id: 'home',
+    label: 'Home',
+    href: '/home',
     gaEvent: 'tab_home_click',
-    icon: '/Home.png'
+    icon: House,
   },
-  { 
-    id: 'explore', 
-    label: 'Explore', 
-    href: '/explore', 
+  {
+    id: 'explore',
+    label: 'Explore',
+    href: '/explore',
     gaEvent: 'tab_explore_click',
-    icon: '/Explore.png'
+    icon: Search,
   },
-  { 
-    id: 'paste', 
-    label: 'Paste', 
-    href: '/paste', 
+  {
+    id: 'paste',
+    label: 'Paste',
+    href: '/paste',
     gaEvent: 'tab_paste_click',
-    icon: '/Paste.png'
+    icon: LinkIcon,
   },
-  { 
-    id: 'recipes', 
-    label: 'Recipes', 
-    href: '/recipes', 
+  {
+    id: 'recipes',
+    label: 'Recipes',
+    href: '/recipes',
     gaEvent: 'tab_recipes_click',
-    icon: '/Recipes.png'
+    icon: FileText,
   },
-  { 
-    id: 'my', 
-    label: 'My Page', 
-    href: '/my', 
+  {
+    id: 'my',
+    label: 'My',
+    href: '/my',
     gaEvent: 'tab_my_click',
-    icon: '/My.png'
+    icon: User,
   },
 ];
 
@@ -142,43 +149,49 @@ export const BottomTabBar: React.FC = () => {
   }
 
   return (
-    <nav 
-      className="flex-shrink-0 bg-white border-t border-gray-200 z-20"
+    <nav
+      className="z-20 flex-shrink-0 border-t border-slate-200/80 bg-white/95 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur"
       style={{
-        paddingBottom: 'max(env(safe-area-inset-bottom), 0.5rem)',
+        paddingBottom: 'max(env(safe-area-inset-bottom), 0.6rem)',
       }}
     >
-      <div className="max-w-md mx-auto flex items-center justify-around">
+      <div className="mx-auto flex max-w-md items-center justify-around gap-1 px-3 pt-2">
         {tabs.map((tab) => {
           const isActive = pathname === tab.href;
-          
+          const Icon = tab.icon;
+
           return (
-            <Link
+            <NextLink
               key={tab.id}
               href={tab.href}
               onClick={() => handleTabClick(tab.gaEvent)}
-              className={`flex-1 flex flex-col items-center py-2.5 transition-all ${
-                isActive
-                  ? 'text-blue-600 scale-110'
-                  : 'text-gray-900 hover:text-blue-500'
+              aria-current={isActive ? 'page' : undefined}
+              className={`group flex flex-1 flex-col items-center gap-1 rounded-[1.25rem] px-2 py-2 text-center transition-all duration-200 ${
+                isActive ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              <div className="mb-1 relative w-7 h-7">
-                <Image
-                  src={tab.icon}
-                  alt={tab.label}
-                  width={28}
-                  height={28}
-                  className={`object-contain transition-all ${
-                    isActive ? 'brightness-110 drop-shadow-md' : 'opacity-70'
+              <div
+                className={`flex h-10 w-10 items-center justify-center rounded-2xl border transition-all duration-200 ${
+                  isActive
+                    ? 'border-indigo-200 bg-[linear-gradient(135deg,#eef2ff_0%,#fdf2f8_100%)] text-indigo-600 shadow-[0_10px_24px_rgba(99,102,241,0.18)]'
+                    : 'border-transparent bg-slate-100/80 text-slate-500 group-hover:border-slate-200 group-hover:bg-white group-hover:text-slate-700'
+                }`}
+              >
+                <Icon
+                  className={`h-5 w-5 transition-transform duration-200 ${
+                    isActive ? 'scale-110' : 'group-hover:scale-105'
                   }`}
-                  priority
+                  strokeWidth={isActive ? 2.35 : 2}
                 />
               </div>
-              <span className={`text-[10px] font-medium ${isActive ? 'font-semibold' : ''}`}>
+              <span
+                className={`text-[11px] leading-none tracking-[0.01em] ${
+                  isActive ? 'font-semibold text-slate-900' : 'font-medium'
+                }`}
+              >
                 {tab.label}
               </span>
-            </Link>
+            </NextLink>
           );
         })}
       </div>
