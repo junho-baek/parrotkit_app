@@ -8,6 +8,7 @@
 - 활성 탭 전체를 반투명 glass pill로 보이게 만들기.
 - soft blur, 내부 하이라이트, 옅은 bloom을 더해 liquid 느낌을 강화하되 라벨 가독성은 유지하기.
 - 내부 아이콘 박스 느낌은 제거해 더 가볍고 자연스러운 active pill로 정리하기.
+- 탭 press 시 보이는 tap highlight / 내부 박스 잔상도 제거하기.
 
 ## 변경 내용
 - 파일: `src/components/common/BottomTabBar.tsx`
@@ -17,6 +18,8 @@
   - 이후 피드백 반영:
     - active pill 내부의 별도 glass chip 제거
     - 아이콘이 바깥 liquid pill 위에 직접 떠 있는 구조로 정리
+    - `WebkitTapHighlightColor: transparent`, `touchAction: manipulation` 적용
+    - inactive 아이콘 컨테이너에 `group-active` 투명 상태를 추가해 눌렀을 때 내부 박스가 다시 보이지 않도록 보정
   - 기존 Lucide 아이콘, 라우팅, GA 이벤트 로깅, 키보드 숨김 로직은 유지
 - 파일: `plans/20260318_bottom_tab_liquid_glass_active.md`
   - 작업 계획 문서 작성
@@ -27,6 +30,7 @@
 - `npm run dev -- --webpack --hostname 127.0.0.1 --port 3000`로 dev 서버 실행 후 시각 검증
 - `npx playwright screenshot -b chromium --device="iPhone 13" --load-storage output/playwright/20260318_bottom_tab_lucide_nav_storage.json --wait-for-timeout 2000 --wait-for-selector "nav" http://127.0.0.1:3000/explore output/playwright/20260318_bottom_tab_liquid_glass_active_explore_clean.png`
   - Explore active 탭의 liquid glass 표현, 내부 박스 제거 상태, 라벨 가독성 확인
+- same dev session에서 눌림 상태 보정을 코드 반영 후 static QA 재확인
 
 ## 기대 동작
 - active 탭이 거의 투명한 gradient glass pill로 강조된다.

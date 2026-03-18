@@ -7,6 +7,7 @@
 ## 목표
 - 활성 탭에 반투명 gradient, blur, 내부 하이라이트를 적용해 liquid glass 느낌을 만든다.
 - active pill 안쪽의 별도 박스 느낌은 제거해 더 자연스럽고 가벼운 glass 표현으로 정리한다.
+- 탭을 눌렀을 때 잠깐 보이던 내부 박스 / tap highlight도 제거한다.
 - 기존 탭 동작, 접근성, 이벤트 로깅, 키보드 대응 로직은 유지한다.
 
 ## 범위
@@ -35,6 +36,7 @@
 - 완료
 - `BottomTabBar` active 탭에 반투명 liquid glass gradient, blur, highlight 레이어 적용
 - active 상태 내부 박스 느낌 제거
+- 탭 press 시 내부 박스가 다시 보이지 않도록 tap highlight 및 pressed 스타일 보정
 - `npm run dev -- --webpack --hostname 127.0.0.1 --port 3000` 기준 Explore 탭 QA 확인
 - Playwright 모바일 QA 스크린샷 생성: `output/playwright/20260318_bottom_tab_liquid_glass_active_explore_clean.png`
 - 연결 context: `context/context_20260318_033900_bottom_tab_liquid_glass_active.md`

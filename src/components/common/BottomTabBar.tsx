@@ -168,19 +168,23 @@ export const BottomTabBar: React.FC = () => {
               href={tab.href}
               onClick={() => handleTabClick(tab.gaEvent)}
               aria-current={isActive ? 'page' : undefined}
-              className={`group relative flex flex-1 overflow-hidden rounded-[1.35rem] px-2 py-2 text-center transition-all duration-300 ${
+              className={`group relative flex flex-1 select-none overflow-hidden rounded-[1.35rem] px-2 py-2 text-center outline-none transition-all duration-300 ${
                 isActive
                   ? 'border border-white/40 bg-white/[0.08] text-slate-900 shadow-[0_16px_30px_rgba(138,103,255,0.16)] backdrop-blur-[18px]'
-                  : 'border border-transparent text-slate-500 hover:bg-white/70 hover:text-slate-700'
+                  : 'border border-transparent text-slate-500 hover:bg-white/70 hover:text-slate-700 active:bg-white/40'
               }`}
               style={
-                isActive
-                  ? {
-                      backgroundImage: activeGlassGradient,
-                      boxShadow:
-                        '0 16px 30px rgba(138, 103, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.58), inset 0 -1px 0 rgba(255, 255, 255, 0.12)',
-                    }
-                  : undefined
+                {
+                  WebkitTapHighlightColor: 'transparent',
+                  touchAction: 'manipulation',
+                  ...(isActive
+                    ? {
+                        backgroundImage: activeGlassGradient,
+                        boxShadow:
+                          '0 16px 30px rgba(138, 103, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.58), inset 0 -1px 0 rgba(255, 255, 255, 0.12)',
+                      }
+                    : {}),
+                }
               }
             >
               {isActive ? (
@@ -205,7 +209,7 @@ export const BottomTabBar: React.FC = () => {
                   className={`flex h-10 w-10 items-center justify-center rounded-2xl transition-all duration-300 ${
                     isActive
                       ? 'bg-transparent text-slate-950 shadow-none'
-                      : 'border border-transparent bg-slate-100/80 text-slate-500 group-hover:border-slate-200 group-hover:bg-white group-hover:text-slate-700'
+                      : 'border border-transparent bg-slate-100/80 text-slate-500 group-hover:border-slate-200 group-hover:bg-white group-hover:text-slate-700 group-active:border-transparent group-active:bg-transparent group-active:shadow-none'
                   }`}
                 >
                   <Icon
