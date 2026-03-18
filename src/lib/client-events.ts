@@ -1,6 +1,7 @@
 'use client';
 
 import { getTrackingAutoContext } from '@/lib/tracking/attribution';
+import { ensureValidAccessToken } from '@/lib/auth/client-session';
 import type {
   ClientEventName,
   ClientEventPayload,
@@ -66,7 +67,7 @@ export async function logClientEvent<TEventName extends ClientEventName>(
   }
 
   try {
-    const token = localStorage.getItem('token');
+    const token = await ensureValidAccessToken();
     await fetch('/api/events', {
       method: 'POST',
       keepalive: true,

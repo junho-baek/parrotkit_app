@@ -21,7 +21,7 @@ export const Input: React.FC<InputProps> = ({
   disabled = false,
   required = false,
 }) => {
-  const baseStyles = 'w-full px-4 py-3.5 bg-white border-2 border-gray-300 rounded-xl text-gray-900 text-base focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 placeholder-gray-500 disabled:bg-gray-100 disabled:cursor-not-allowed shadow-sm';
+  const baseStyles = 'w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3.5 text-base text-gray-900 shadow-sm transition-all duration-200 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-gray-100';
 
   return (
     <input

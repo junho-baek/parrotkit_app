@@ -4,6 +4,7 @@ import React from 'react';
 import { Settings } from '@/components/auth';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ensureValidAccessToken } from '@/lib/auth/client-session';
 import { logClientEvent } from '@/lib/client-events';
 
 export default function MyPage() {
@@ -12,16 +13,18 @@ export default function MyPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    void (async () => {
+      const token = await ensureValidAccessToken();
 
-    if (!token) {
-      router.replace('/signin');
+      if (!token) {
+        router.replace('/signin');
+        setAuthChecked(true);
+        return;
+      }
+
+      setIsAuthenticated(true);
       setAuthChecked(true);
-      return;
-    }
-
-    setIsAuthenticated(true);
-    setAuthChecked(true);
+    })();
   }, [router]);
 
   useEffect(() => {

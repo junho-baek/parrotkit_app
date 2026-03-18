@@ -17,6 +17,7 @@ interface ShortVideoCardProps {
   actionIcon?: React.ReactNode;
   actionMeta?: React.ReactNode;
   actionClassName?: string;
+  actionStyle?: React.CSSProperties;
   containerClassName?: string;
   imageClassName?: string;
   topLeftBadge?: React.ReactNode;
@@ -38,6 +39,7 @@ export const ShortVideoCard: React.FC<ShortVideoCardProps> = ({
   actionIcon,
   actionMeta,
   actionClassName = 'bg-white text-gray-700 hover:bg-gray-50 hover:scale-105 border-2 border-gray-200',
+  actionStyle,
   containerClassName = '',
   imageClassName = '',
   topLeftBadge,
@@ -117,6 +119,7 @@ export const ShortVideoCard: React.FC<ShortVideoCardProps> = ({
           onAction();
         }}
         className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all shadow-md ${actionClassName}`}
+        style={actionStyle}
       >
         {actionIcon}
         <span>{actionLabel}</span>

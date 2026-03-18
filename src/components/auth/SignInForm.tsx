@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button, Input, Card } from '@/components/common';
 import { SignInFormData } from '@/types/auth';
 import { logClientEvent } from '@/lib/client-events';
+import { persistClientSession } from '@/lib/auth/client-session';
 
 export const SignInForm: React.FC = () => {
   const router = useRouter();
@@ -54,17 +55,12 @@ export const SignInForm: React.FC = () => {
         throw new Error(data.error || '로그인에 실패했습니다.');
       }
 
-      // 토큰과 사용자 정보 저장
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-      }
-      if (data.refreshToken) {
-        localStorage.setItem('refreshToken', data.refreshToken);
-      }
-      if (data.expiresAt) {
-        localStorage.setItem('tokenExpiresAt', String(data.expiresAt));
-      }
-      localStorage.setItem('user', JSON.stringify(data.user));
+      persistClientSession({
+        token: data.token,
+        refreshToken: data.refreshToken,
+        expiresAt: data.expiresAt,
+        user: data.user,
+      });
 
       await logClientEvent('login', { method: 'email' });
 

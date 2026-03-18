@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { PricingPlan } from '@/types/auth';
+import { ensureValidAccessToken } from '@/lib/auth/client-session';
 import { logClientEvent } from '@/lib/client-events';
 
 interface PricingCardProps {
@@ -68,7 +69,7 @@ export const PricingCard: React.FC<PricingCardProps> = ({ plan }) => {
     // Pro 플랜: Lemon Squeezy Checkout
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = await ensureValidAccessToken();
       const user = localStorage.getItem('user');
       const userData = user ? JSON.parse(user) : null;
       const authUserId = typeof userData?.id === 'string' ? userData.id : '';

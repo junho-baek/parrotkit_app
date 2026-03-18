@@ -3,8 +3,23 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/common';
 
+type StoredRecipe = {
+  id: number | string;
+  videoUrl: string;
+  scenes: unknown[];
+  capturedVideos?: Record<string, boolean>;
+  matchResults?: Record<string, boolean>;
+  capturedCount?: number;
+  totalScenes?: number;
+  createdAt: string;
+};
+
 export const Recipes: React.FC = () => {
-  const [myRecipes, setMyRecipes] = useState<any[]>([]);
+  const brandActionStyle: React.CSSProperties = {
+    backgroundImage: 'linear-gradient(135deg, #ff9568 0%, #de81c1 52%, #8c67ff 100%)',
+    boxShadow: '0 14px 28px rgba(140, 103, 255, 0.24)',
+  };
+  const [myRecipes, setMyRecipes] = useState<StoredRecipe[]>([]);
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,7 +36,7 @@ export const Recipes: React.FC = () => {
     try {
       const saved = localStorage.getItem('myRecipes');
       if (saved) {
-        setMyRecipes(JSON.parse(saved));
+        setMyRecipes(JSON.parse(saved) as StoredRecipe[]);
       }
     } catch (error) {
       console.error('Error loading recipes:', error);
@@ -30,7 +45,7 @@ export const Recipes: React.FC = () => {
     }
   }, [isClient]);
 
-  const handleView = (recipe: any) => {
+  const handleView = (recipe: StoredRecipe) => {
     try {
       // RecipeResult로 이동하기 위해 데이터를 sessionStorage에 저장
       sessionStorage.setItem('recipeData', JSON.stringify({
@@ -46,19 +61,6 @@ export const Recipes: React.FC = () => {
     } catch (error) {
       console.error('Error viewing recipe:', error);
       alert('Failed to view recipe. Please try again.');
-    }
-  };
-
-  const handleDelete = (id: number) => {
-    if (confirm('이 레시피를 삭제하시겠습니까?')) {
-      try {
-        const updated = myRecipes.filter(r => r.id !== id);
-        setMyRecipes(updated);
-        localStorage.setItem('myRecipes', JSON.stringify(updated));
-      } catch (error) {
-        console.error('Error deleting recipe:', error);
-        alert('Failed to delete recipe. Please try again.');
-      }
     }
   };
 
@@ -188,7 +190,8 @@ export const Recipes: React.FC = () => {
                     e.stopPropagation();
                     handleView(recipe);
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all shadow-md bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:scale-105"
+                  className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition-all hover:scale-105 hover:brightness-105"
+                  style={brandActionStyle}
                 >
                   <span>👁️</span>
                   <span>View Recipe</span>

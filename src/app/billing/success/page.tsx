@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Button, Card } from '@/components/common';
+import { authenticatedFetch, ensureValidAccessToken } from '@/lib/auth/client-session';
 import { logClientEvent } from '@/lib/client-events';
 
 const CHECKOUT_PENDING_KEY = 'parrotkit_pending_checkout';
@@ -27,12 +28,6 @@ export default function BillingSuccessPage() {
   const [subscriptionEndsAt, setSubscriptionEndsAt] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setStatus('unauthorized');
-      return;
-    }
-
     let cancelled = false;
     let attempts = 0;
 
@@ -40,11 +35,13 @@ export default function BillingSuccessPage() {
       attempts += 1;
 
       try {
-        const response = await fetch('/api/user/profile', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const token = await ensureValidAccessToken();
+        if (!token) {
+          setStatus('unauthorized');
+          return;
+        }
+
+        const response = await authenticatedFetch('/api/user/profile');
 
         if (cancelled) {
           return;

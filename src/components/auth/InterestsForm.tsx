@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Card } from '@/components/common';
+import { authenticatedFetch, ensureValidAccessToken } from '@/lib/auth/client-session';
 import { InterestCategory, INTEREST_CATEGORIES } from '@/types/auth';
 import { logClientEvent } from '@/lib/client-events';
 
@@ -24,11 +25,13 @@ export const InterestsForm: React.FC = () => {
 
   // 로그인 체크
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      alert('로그인이 필요합니다.');
-      router.push('/signin');
-    }
+    void (async () => {
+      const token = await ensureValidAccessToken();
+      if (!token) {
+        alert('로그인이 필요합니다.');
+        router.push('/signin');
+      }
+    })();
   }, [router]);
 
   const toggleInterest = (index: number) => {
@@ -66,7 +69,7 @@ export const InterestsForm: React.FC = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const token = await ensureValidAccessToken();
       
       if (!token) {
         alert('로그인이 필요합니다.');
@@ -74,11 +77,10 @@ export const InterestsForm: React.FC = () => {
         return;
       }
 
-      const response = await fetch('/api/interests', {
+      const response = await authenticatedFetch('/api/interests', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ interests: selectedInterests }),
       });

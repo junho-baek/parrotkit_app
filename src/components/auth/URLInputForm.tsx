@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, LoadingScreen } from '@/components/common';
+import { authenticatedFetch, ensureValidAccessToken } from '@/lib/auth/client-session';
 import { logClientEvent } from '@/lib/client-events';
 
 export const URLInputForm: React.FC = () => {
@@ -13,13 +14,21 @@ export const URLInputForm: React.FC = () => {
   const [goal, setGoal] = useState('');
   const [describe, setDescribe] = useState('');
   const [loading, setLoading] = useState(false);
+  const brandActionClass =
+    'w-full rounded-xl px-8 py-4 font-semibold text-white transition-all hover:translate-y-[-1px] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50';
+  const brandActionStyle: React.CSSProperties = {
+    backgroundImage: 'linear-gradient(135deg, #ff9568 0%, #de81c1 52%, #8c67ff 100%)',
+    boxShadow: '0 14px 30px rgba(140, 103, 255, 0.22)',
+  };
 
   // 로그인 체크
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/signin');
-    }
+    void (async () => {
+      const token = await ensureValidAccessToken();
+      if (!token) {
+        router.push('/signin');
+      }
+    })();
   }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,7 +53,7 @@ export const URLInputForm: React.FC = () => {
     setLoading(true);
     
     try {
-      const token = localStorage.getItem('token');
+      const token = await ensureValidAccessToken();
       if (!token) {
         router.push('/signin');
         return;
@@ -69,11 +78,10 @@ export const URLInputForm: React.FC = () => {
 
       let recipeId: string | null = null;
       try {
-        const saveResponse = await fetch('/api/recipes', {
+        const saveResponse = await authenticatedFetch('/api/recipes', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             title: title.trim(),
@@ -142,7 +150,7 @@ export const URLInputForm: React.FC = () => {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g., Korean Diet Viral Hook"
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-base font-medium text-gray-900 placeholder:text-slate-400 focus:border-fuchsia-300 focus:outline-none focus:ring-4 focus:ring-fuchsia-100"
               disabled={loading}
               required
               maxLength={80}
@@ -158,7 +166,7 @@ export const URLInputForm: React.FC = () => {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://www.tiktok.com/@username/video/..."
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-base font-medium text-gray-900 placeholder:text-slate-400 focus:border-fuchsia-300 focus:outline-none focus:ring-4 focus:ring-fuchsia-100"
               disabled={loading}
               required
             />
@@ -173,7 +181,7 @@ export const URLInputForm: React.FC = () => {
               value={niche}
               onChange={(e) => setNiche(e.target.value)}
               placeholder="e.g., Cooking, Fitness, Beauty..."
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-base font-medium text-gray-900 placeholder:text-slate-400 focus:border-fuchsia-300 focus:outline-none focus:ring-4 focus:ring-fuchsia-100"
               disabled={loading}
             />
           </div>
@@ -187,7 +195,7 @@ export const URLInputForm: React.FC = () => {
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
               placeholder="What do you want to achieve with this recipe?"
-              className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl text-base focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 bg-white text-gray-900 placeholder-gray-500 font-medium shadow-sm"
+              className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-4 text-base font-medium text-gray-900 shadow-sm placeholder:text-slate-400 focus:border-fuchsia-300 focus:outline-none focus:ring-4 focus:ring-fuchsia-100"
               disabled={loading}
               autoComplete="off"
             />
@@ -202,7 +210,7 @@ export const URLInputForm: React.FC = () => {
               onChange={(e) => setDescribe(e.target.value)}
               placeholder="Additional notes or specific requirements..."
               rows={3}
-              className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl text-base focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 resize-none bg-white text-gray-900 placeholder-gray-500 font-medium shadow-sm"
+              className="w-full resize-none rounded-xl border-2 border-gray-300 bg-white px-4 py-4 text-base font-medium text-gray-900 shadow-sm placeholder:text-slate-400 focus:border-fuchsia-300 focus:outline-none focus:ring-4 focus:ring-fuchsia-100"
               disabled={loading}
             />
           </div>
@@ -210,7 +218,8 @@ export const URLInputForm: React.FC = () => {
           <button
             type="submit"
             disabled={loading || !title.trim() || !url.trim()}
-            className="w-full px-8 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            className={brandActionClass}
+            style={brandActionStyle}
           >
             {loading ? 'Analyzing...' : 'Analyze Video'}
           </button>

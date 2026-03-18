@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useRef, useCallback } from 'react';
+import JSZip from 'jszip';
 import { useRouter } from 'next/navigation';
 import { CameraShooting } from './CameraShooting';
 import { RecipeVideoPlayer } from './RecipeVideoPlayer';
+import { authenticatedFetch, ensureValidAccessToken } from '@/lib/auth/client-session';
 import { logClientEvent } from '@/lib/client-events';
 
 interface RecipeScene {
@@ -34,6 +36,10 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   initialCapturedVideos = {}
 }) => {
   const router = useRouter();
+  const brandActionStyle: React.CSSProperties = {
+    backgroundImage: 'linear-gradient(135deg, #ff9568 0%, #de81c1 52%, #8c67ff 100%)',
+    boxShadow: '0 10px 20px rgba(140, 103, 255, 0.2)',
+  };
   const [selectedScene, setSelectedScene] = useState<RecipeScene | null>(null);
   const [activeTab, setActiveTab] = useState<'recipe' | 'shooting'>('recipe');
   const [capturedVideos, setCapturedVideos] = useState<{[key: number]: Blob}>({});
@@ -51,10 +57,28 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const [sheetHeight, setSheetHeight] = useState(50);
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const capturedScenesRef = useRef<{[key: number]: boolean}>(initialCapturedVideos);
-  const exportableCaptureCount = recipeId
-    ? Object.keys(capturedScenes).length
-    : Object.keys(capturedVideos).length;
+  const localCapturedSceneIds = React.useMemo(
+    () =>
+      Object.keys(capturedVideos)
+        .map((sceneId) => Number(sceneId))
+        .filter((sceneId) => Number.isFinite(sceneId)),
+    [capturedVideos]
+  );
+  const exportableSceneIds = React.useMemo(() => {
+    const uniqueSceneIds = new Set<number>(localCapturedSceneIds);
+    Object.keys(capturedScenes).forEach((sceneId) => {
+      uniqueSceneIds.add(Number(sceneId));
+    });
+
+    return Array.from(uniqueSceneIds).filter(Number.isFinite).sort((left, right) => left - right);
+  }, [capturedScenes, localCapturedSceneIds]);
+  const exportableCaptureCount = exportableSceneIds.length;
+  const localOnlyCaptureCount = React.useMemo(
+    () => localCapturedSceneIds.filter((sceneId) => !capturedScenes[sceneId]).length,
+    [capturedScenes, localCapturedSceneIds]
+  );
   const uploadingCount = Object.keys(uploadingScenes).length;
+  const hasLocalOnlyCaptures = localOnlyCaptureCount > 0;
 
   const defaultScripts: {[key: number]: string[]} = {
     1: [
@@ -239,16 +263,15 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
       return;
     }
 
-    const token = localStorage.getItem('token');
+    const token = await ensureValidAccessToken();
     if (!token) {
       return;
     }
 
-    await fetch(`/api/recipes/${recipeId}/progress`, {
+    await authenticatedFetch(`/api/recipes/${recipeId}/progress`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         sceneId,
@@ -262,20 +285,17 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
       return;
     }
 
-    const token = localStorage.getItem('token');
+    const token = await ensureValidAccessToken();
     if (!token) {
-      return;
+      throw new Error('LOGIN_REQUIRED');
     }
 
     const formData = new FormData();
     formData.append('sceneId', String(sceneId));
     formData.append('video', videoBlob, `scene-${sceneId}.webm`);
 
-    const response = await fetch(`/api/recipes/${recipeId}/captures`, {
+    const response = await authenticatedFetch(`/api/recipes/${recipeId}/captures`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
       body: formData,
     });
 
@@ -301,6 +321,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     setSceneUploadError(capturedSceneId);
 
     if (recipeId) {
+      const hadUploadedCapture = Boolean(capturedScenesRef.current[capturedSceneId]);
       // 업로드 중 상태를 씬 단위로 표시하고, 업로드 성공 시에만 captured로 확정
       setSceneUploadingState(capturedSceneId, true);
 
@@ -316,8 +337,15 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
           });
         } catch (uploadError) {
           console.error('Capture upload warning:', uploadError);
-          clearSceneCaptured(capturedSceneId);
-          setSceneUploadError(capturedSceneId, 'Upload failed. Tap and reshoot this scene.');
+          if (!hadUploadedCapture) {
+            clearSceneCaptured(capturedSceneId);
+          }
+          setSceneUploadError(
+            capturedSceneId,
+            hadUploadedCapture
+              ? 'Previous take is still safe. This new take is saved locally for download.'
+              : 'Saved locally. You can still download this take even if sync failed.'
+          );
         } finally {
           setSceneUploadingState(capturedSceneId, false);
         }
@@ -350,69 +378,72 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
       return;
     }
 
-    if (recipeId && uploadingCount > 0) {
-      const proceed = window.confirm(
-        `${uploadingCount} scene(s) are still uploading. Download now with completed scenes only?`
-      );
-      if (!proceed) {
-        return;
-      }
-    }
-
     setIsExporting(true);
 
     try {
-      if (recipeId) {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          throw new Error('로그인이 필요합니다.');
+      const downloadBlob = (blob: Blob, fileName: string) => {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(url);
+      };
+
+      const appendLocalCapturesToZip = (zip: JSZip) => {
+        let addedCount = 0;
+
+        for (const [sceneId, videoBlob] of Object.entries(capturedVideos)) {
+          const numericSceneId = Number(sceneId);
+          const extension = videoBlob.type === 'video/mp4' ? 'mp4' : 'webm';
+          zip.file(`scene-${numericSceneId}.${extension}`, videoBlob);
+          addedCount += 1;
         }
 
-        const response = await fetch(`/api/recipes/${recipeId}/export-zip`, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        return addedCount;
+      };
 
-        if (!response.ok) {
+      if (recipeId) {
+        const zip = new JSZip();
+        let addedCount = 0;
+
+        const token = await ensureValidAccessToken();
+        if (token && Object.keys(capturedScenes).length > 0) {
+          const response = await authenticatedFetch(`/api/recipes/${recipeId}/export-zip`, {
+            method: 'GET',
+          });
+
+          if (response.ok) {
+            const remoteZipBlob = await response.blob();
+            const remoteZip = await JSZip.loadAsync(remoteZipBlob);
+            const remoteFiles = Object.values(remoteZip.files).filter((file) => !file.dir);
+
+            for (const file of remoteFiles) {
+              zip.file(file.name, await file.async('uint8array'));
+              addedCount += 1;
+            }
+          }
+        }
+
+        addedCount += appendLocalCapturesToZip(zip);
+        if (addedCount === 0) {
           throw new Error('ZIP 다운로드에 실패했습니다.');
         }
 
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `recipe-${recipeId}.zip`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        const archiveBlob = await zip.generateAsync({ type: 'blob' });
+        downloadBlob(archiveBlob, `recipe-${recipeId}.zip`);
 
         await logClientEvent('export_zip_success', { recipe_id: recipeId });
         setIsExported(true);
         return;
       }
 
-      // 1. 각 비디오를 개별 다운로드
-      for (const [sceneId, videoBlob] of Object.entries(capturedVideos)) {
-        const scene = scenes.find(s => s.id === parseInt(sceneId));
-        const fileName = `${scene?.title || 'scene'}_${sceneId}.webm`;
-        
-        const url = URL.createObjectURL(videoBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        // 다음 다운로드까지 약간 대기
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
-
-      alert(`${capturedCount}개의 비디오가 다운로드 되었습니다!`);
+      const zip = new JSZip();
+      appendLocalCapturesToZip(zip);
+      const archiveBlob = await zip.generateAsync({ type: 'blob' });
+      downloadBlob(archiveBlob, 'parrotkit-captures.zip');
       setIsExported(true);
     } catch (error) {
       console.error('Export error:', error);
@@ -422,60 +453,11 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     }
   };
 
-  // 이메일로 전송 (서버 API 필요)
-  const handleEmailVideos = async () => {
-    const capturedCount = Object.keys(capturedVideos).length;
-    
-    if (capturedCount === 0) {
-      alert('아직 촬영된 비디오가 없습니다.');
-      return;
-    }
-
-    const email = prompt('비디오를 받을 이메일 주소를 입력하세요:');
-    
-    if (!email) return;
-
-    setIsExporting(true);
-
-    try {
-      const formData = new FormData();
-      formData.append('email', email);
-      
-      // 모든 비디오를 FormData에 추가
-      for (const [sceneId, videoBlob] of Object.entries(capturedVideos)) {
-        const scene = scenes.find(s => s.id === parseInt(sceneId));
-        const fileName = `${scene?.title || 'scene'}_${sceneId}.webm`;
-        formData.append('videos', videoBlob, fileName);
-      }
-
-      const response = await fetch('/api/export', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || '이메일 전송에 실패했습니다.');
-      }
-
-      alert(`${email}로 비디오가 전송되었습니다!`);
-      setIsExported(true);
-    } catch (error: unknown) {
-      console.error('Email error:', error);
-      const message =
-        error instanceof Error ? error.message : '이메일 전송 중 오류가 발생했습니다.';
-      alert(message);
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
   // 레시피 저장하고 Recipes 탭으로 이동
   const handleSaveAndGoToDashboard = async () => {
     await logClientEvent('recipe_saved', {
       recipe_id: recipeId || 'local',
-      captured_count: Object.keys(capturedScenes).length,
+      captured_count: exportableCaptureCount,
     });
 
     router.push('/recipes');
@@ -706,7 +688,8 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
               <button
                 onClick={handleExportVideos}
                 disabled={isExporting || exportableCaptureCount === 0}
-                className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-semibold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                style={brandActionStyle}
               >
                 {isExporting ? 'Exporting...' : `Download (${exportableCaptureCount})`}
               </button>
@@ -720,11 +703,17 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
               )}
             </div>
           </div>
+          {hasLocalOnlyCaptures ? (
+            <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+              {localOnlyCaptureCount} take(s) are saved locally right now. Download still works even before sync finishes.
+            </div>
+          ) : null}
 
           {/* Scenes Grid - compact, fits in one screen */}
           <div className="grid grid-cols-2 gap-3 pb-20">
             {scenes.map((scene) => {
               const isCaptured = capturedScenes[scene.id];
+              const hasLocalCapture = Boolean(capturedVideos[scene.id]) || isCaptured;
               const isUploading = Boolean(uploadingScenes[scene.id]);
               const uploadError = uploadErrors[scene.id];
               const hasUploadError = Boolean(uploadError);
@@ -737,9 +726,11 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                   className={`bg-white rounded-xl overflow-hidden hover:shadow-md transition-all cursor-pointer flex flex-col ${
                     isUploading
                       ? 'ring-2 ring-amber-400'
+                      : hasUploadError && hasLocalCapture
+                        ? 'ring-2 ring-fuchsia-300'
                       : hasUploadError
                         ? 'ring-2 ring-red-400'
-                        : isCaptured
+                        : hasLocalCapture
                       ? 'ring-2 ring-green-500'
                       : 'border border-gray-200 hover:border-blue-300'
                   }`}
@@ -762,7 +753,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                           <div className="w-3.5 h-3.5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
                         </div>
                       </div>
-                    ) : isCaptured ? (
+                    ) : hasLocalCapture ? (
                       <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
                         <div className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
                           ✓
@@ -798,6 +789,10 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                         <span className="inline-block w-2 h-2 border border-amber-600 border-t-transparent rounded-full animate-spin" />
                         Uploading...
                       </span>
+                    ) : hasUploadError && hasLocalCapture ? (
+                      <span className="text-xs text-fuchsia-600 font-medium flex items-center gap-1">
+                        <span>⬇️</span> Saved locally
+                      </span>
                     ) : hasUploadError ? (
                       <span className="text-xs text-red-600 font-medium flex items-center gap-1">
                         <span>⚠️</span> Retry Shoot
@@ -807,7 +802,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                         <span>✓</span> Done
                       </span>
                     ) : (
-                      <span className="text-xs text-blue-500 font-medium flex items-center gap-1">
+                      <span className="text-xs font-medium flex items-center gap-1 text-[#8c67ff]">
                         <span>📹</span> Shoot
                       </span>
                     )}

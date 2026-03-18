@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button, Input, Card } from '@/components/common';
 import { SignUpFormData } from '@/types/auth';
 import { logClientEvent } from '@/lib/client-events';
+import { persistClientSession } from '@/lib/auth/client-session';
 
 export const SignUpForm: React.FC = () => {
   const router = useRouter();
@@ -74,17 +75,12 @@ export const SignUpForm: React.FC = () => {
         throw new Error(data.error || '회원가입에 실패했습니다.');
       }
 
-      // 회원가입 성공 - 토큰과 사용자 정보를 즉시 저장
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-      }
-      if (data.refreshToken) {
-        localStorage.setItem('refreshToken', data.refreshToken);
-      }
-      if (data.expiresAt) {
-        localStorage.setItem('tokenExpiresAt', String(data.expiresAt));
-      }
-      localStorage.setItem('user', JSON.stringify(data.user));
+      persistClientSession({
+        token: data.token,
+        refreshToken: data.refreshToken,
+        expiresAt: data.expiresAt,
+        user: data.user,
+      });
       
       await logClientEvent('signup_success', { method: 'email' });
       

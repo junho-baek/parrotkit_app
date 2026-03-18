@@ -4,6 +4,13 @@ import React from 'react';
 import { Card, RecipeResult, ShortVideoCard } from '@/components/common';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import {
+  authenticatedFetch,
+  clearClientSession,
+  ensureValidAccessToken,
+  readAccessToken,
+  readRefreshToken,
+} from '@/lib/auth/client-session';
 import { logClientEvent } from '@/lib/client-events';
 
 type RecipeScene = {
@@ -133,6 +140,13 @@ function parseStatCount(value: unknown): number {
   return Number.isFinite(numericValue) ? Math.max(0, numericValue) : 0;
 }
 
+const brandActionGradientClass =
+  'text-white hover:scale-[1.02]';
+const brandActionGradientStyle: React.CSSProperties = {
+  backgroundImage: 'linear-gradient(135deg, #ff9568 0%, #de81c1 52%, #8c67ff 100%)',
+  boxShadow: '0 14px 28px rgba(140, 103, 255, 0.24)',
+};
+
 // ============ HOME: 최근 Paste한 레퍼런스들 ============
 export const Home: React.FC = () => {
   const searchParams = useSearchParams() || null;
@@ -162,16 +176,12 @@ export const Home: React.FC = () => {
         }
 
         const recipeId = searchParams?.get('recipeId');
-        const token = localStorage.getItem('token');
+        const token = await ensureValidAccessToken();
         if (!recipeId || !token) {
           return;
         }
 
-        const response = await fetch(`/api/recipes/${recipeId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await authenticatedFetch(`/api/recipes/${recipeId}`);
 
         if (!response.ok) {
           return;
@@ -456,15 +466,13 @@ export const Recipes: React.FC = () => {
   React.useEffect(() => {
     const fetchRecipes = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = await ensureValidAccessToken();
         if (!token) {
           router.push('/signin');
           return;
         }
 
-        const response = await fetch('/api/recipes', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await authenticatedFetch('/api/recipes');
 
         if (!response.ok) {
           throw new Error('Failed to fetch recipes');
@@ -540,7 +548,7 @@ export const Recipes: React.FC = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const token = await ensureValidAccessToken();
       if (!token) {
         router.push('/signin');
         return;
@@ -548,11 +556,10 @@ export const Recipes: React.FC = () => {
 
       setProcessingRecipeId(recipe.id);
 
-      const response = await fetch(`/api/recipes/${recipe.id}`, {
+      const response = await authenticatedFetch(`/api/recipes/${recipe.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ title: nextTitle }),
       });
@@ -586,7 +593,7 @@ export const Recipes: React.FC = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const token = await ensureValidAccessToken();
       if (!token) {
         router.push('/signin');
         return;
@@ -594,11 +601,8 @@ export const Recipes: React.FC = () => {
 
       setProcessingRecipeId(recipe.id);
 
-      const response = await fetch(`/api/recipes/${recipe.id}`, {
+      const response = await authenticatedFetch(`/api/recipes/${recipe.id}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
 
       if (!response.ok) {
@@ -677,7 +681,8 @@ export const Recipes: React.FC = () => {
                 onAction={() => handleView(recipe)}
                 actionLabel="View Recipe"
                 actionIcon={<span>👁️</span>}
-                actionClassName="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:scale-105"
+                actionClassName={`${brandActionGradientClass} hover:scale-105`}
+                actionStyle={brandActionGradientStyle}
                 topLeftBadge={(
                   <span className="bg-gradient-to-r from-green-600 to-emerald-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1">
                     <span className="animate-pulse">📋</span> RECIPE
@@ -813,15 +818,13 @@ export const Settings: React.FC = () => {
   React.useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = await ensureValidAccessToken();
         if (!token) {
           router.push('/signin');
           return;
         }
 
-        const response = await fetch('/api/user/profile', {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
+        const response = await authenticatedFetch('/api/user/profile');
 
         if (response.ok) {
           const data = (await response.json()) as {
@@ -844,10 +847,7 @@ export const Settings: React.FC = () => {
             views: parseStatCount(data.stats?.views),
           });
         } else if (response.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('tokenExpiresAt');
-          localStorage.removeItem('user');
+          clearClientSession();
           router.replace('/signin');
         }
       } catch (error) {
@@ -866,8 +866,8 @@ export const Settings: React.FC = () => {
   }, []);
 
   const handleLogout = async () => {
-    const accessToken = localStorage.getItem('token');
-    const refreshToken = localStorage.getItem('refreshToken');
+    const accessToken = readAccessToken();
+    const refreshToken = readRefreshToken();
 
     try {
       await fetch('/api/auth/signout', {
@@ -882,10 +882,7 @@ export const Settings: React.FC = () => {
       // Ignore signout API failures and continue local cleanup.
     }
 
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('tokenExpiresAt');
-    localStorage.removeItem('user');
+    clearClientSession();
     router.push('/signin');
   };
 
@@ -972,42 +969,6 @@ export const Settings: React.FC = () => {
         </div>
       </Card>
 
-      {/* Quick Actions */}
-      <Card>
-        <h3 className="font-bold text-base text-gray-900 mb-3 flex items-center gap-2">
-          <span className="text-lg">⚡</span> Quick Actions
-        </h3>
-        <div className="space-y-2">
-          <Link
-            href="/pricing"
-            className="flex items-center justify-between w-full px-4 py-3.5 rounded-xl bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 transition-all border border-blue-100 hover:border-blue-200 group"
-          >
-            <span className="flex items-center gap-2.5 text-sm font-bold text-gray-900">
-              <span className="text-xl">💳</span> View Pricing
-            </span>
-            <span className="text-gray-400 group-hover:text-blue-600 transition-colors">→</span>
-          </Link>
-          <Link
-            href="/interests"
-            className="flex items-center justify-between w-full px-4 py-3.5 rounded-xl bg-gradient-to-r from-pink-50 to-purple-50 hover:from-pink-100 hover:to-purple-100 transition-all border border-pink-100 hover:border-pink-200 group"
-          >
-            <span className="flex items-center gap-2.5 text-sm font-bold text-gray-900">
-              <span className="text-xl">🎨</span> Manage Interests
-            </span>
-            <span className="text-gray-400 group-hover:text-pink-600 transition-colors">→</span>
-          </Link>
-          <button
-            onClick={handleLogout}
-            className="flex items-center justify-between w-full px-4 py-3.5 rounded-xl bg-gradient-to-r from-red-50 to-orange-50 hover:from-red-100 hover:to-orange-100 transition-all border border-red-100 hover:border-red-200 group"
-          >
-            <span className="flex items-center gap-2.5 text-sm font-bold text-red-600">
-              <span className="text-xl">🚪</span> Log Out
-            </span>
-            <span className="text-red-300 group-hover:text-red-600 transition-colors">→</span>
-          </button>
-        </div>
-      </Card>
-
       {/* Liked Videos */}
       <Card>
         <div className="flex items-center justify-between mb-4">
@@ -1053,6 +1014,42 @@ export const Settings: React.FC = () => {
             ))}
           </div>
         )}
+      </Card>
+
+      {/* Quick Actions */}
+      <Card>
+        <h3 className="font-bold text-base text-gray-900 mb-3 flex items-center gap-2">
+          <span className="text-lg">⚡</span> Quick Actions
+        </h3>
+        <div className="space-y-2">
+          <Link
+            href="/pricing"
+            className="flex items-center justify-between w-full px-4 py-3.5 rounded-xl bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 transition-all border border-blue-100 hover:border-blue-200 group"
+          >
+            <span className="flex items-center gap-2.5 text-sm font-bold text-gray-900">
+              <span className="text-xl">💳</span> View Pricing
+            </span>
+            <span className="text-gray-400 group-hover:text-fuchsia-500 transition-colors">→</span>
+          </Link>
+          <Link
+            href="/interests"
+            className="flex items-center justify-between w-full px-4 py-3.5 rounded-xl bg-gradient-to-r from-pink-50 to-purple-50 hover:from-pink-100 hover:to-purple-100 transition-all border border-pink-100 hover:border-pink-200 group"
+          >
+            <span className="flex items-center gap-2.5 text-sm font-bold text-gray-900">
+              <span className="text-xl">🎨</span> Manage Interests
+            </span>
+            <span className="text-gray-400 group-hover:text-pink-600 transition-colors">→</span>
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="flex items-center justify-between w-full px-4 py-3.5 rounded-xl bg-gradient-to-r from-red-50 to-orange-50 hover:from-red-100 hover:to-orange-100 transition-all border border-red-100 hover:border-red-200 group"
+          >
+            <span className="flex items-center gap-2.5 text-sm font-bold text-red-600">
+              <span className="text-xl">🚪</span> Log Out
+            </span>
+            <span className="text-red-300 group-hover:text-red-600 transition-colors">→</span>
+          </button>
+        </div>
       </Card>
 
       {/* Video Player Modal */}

@@ -18,7 +18,13 @@ export default function PricingPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Mobile App Style Header */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-center">
+      <div className="relative flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-center">
+        <Link
+          href="/my"
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-700 hover:text-fuchsia-500 transition-colors"
+        >
+          ← Back
+        </Link>
         <div className="flex items-center gap-2">
           <img src="/parrot-logo.png" alt="Parrot Kit" className="w-6 h-6" />
           <h1 className="text-xl font-bold text-gray-900">Pricing</h1>
@@ -62,23 +68,23 @@ export default function PricingPage() {
               <div className="bg-white rounded-xl p-6 border border-gray-200">
                 <h3 className="font-semibold text-gray-900 mb-2">Do you offer refunds?</h3>
                 <p className="text-gray-600 text-sm">
-                  We offer a 14-day money-back guarantee if you're not satisfied with Pro Plan.
+                  We offer a 14-day money-back guarantee if you&apos;re not satisfied with Pro Plan.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Back to Home */}
+          {/* Back to My Page */}
           <div className="mt-12 text-center mb-8">
             <Link
-              href="/home"
-              className="text-blue-600 hover:text-blue-700 font-semibold"
+              href="/my"
+              className="font-semibold text-fuchsia-500 hover:text-violet-600 transition-colors"
             >
-              ← Back to Home
+              ← Back to My Page
             </Link>
           </div>
         </div>
-        </div>
       </div>
+    </div>
   );
 }

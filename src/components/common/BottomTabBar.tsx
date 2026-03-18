@@ -206,10 +206,8 @@ export const BottomTabBar: React.FC = () => {
 
               <div className="relative z-10 flex w-full flex-col items-center gap-1">
                 <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-2xl transition-all duration-300 ${
-                    isActive
-                      ? 'bg-transparent text-slate-950 shadow-none'
-                      : 'border border-transparent bg-slate-100/80 text-slate-500 group-hover:border-slate-200 group-hover:bg-white group-hover:text-slate-700 group-active:border-transparent group-active:bg-transparent group-active:shadow-none'
+                  className={`flex h-10 w-10 items-center justify-center text-slate-500 transition-all duration-300 ${
+                    isActive ? 'text-slate-950' : 'group-hover:text-slate-700 group-active:text-slate-700'
                   }`}
                 >
                   <Icon
