@@ -44,4 +44,8 @@
   - `Liked Videos`를 `Quick Actions` 위로 이동하고, Pricing 상/하단 뒤로가기를 `/my` 기준으로 변경했다.
   - 클라이언트 세션 refresh helper와 sync 컴포넌트를 추가해 만료 토큰 자동 갱신 경로를 공통화했다.
   - recipe capture 업로드 실패 시 로컬 저장분을 유지하고 `Retry Shoot` 대신 로컬 저장 안내가 우선 보이도록 조정했다.
-- 연결 context: `context/context_20260318_155057_ui_qa_followups_batch.md`
+- 추가 후속:
+  - 2026-03-18 사용자 요청으로 QA 배치 리포트를 Notion에 업로드했다.
+- 연결 context:
+  - `context/context_20260318_155057_ui_qa_followups_batch.md`
+  - `context/context_20260318_174329_ui_qa_followups_batch_notion_upload.md`

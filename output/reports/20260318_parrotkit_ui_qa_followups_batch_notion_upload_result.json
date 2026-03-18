@@ -1,0 +1,37 @@
+{
+  "pageId": "327fdc54-bb72-81d3-b177-fc5265104e28",
+  "pageUrl": "https://www.notion.so/ParrotKit-UI-QA-Follow-ups-Batch-327fdc54bb7281d3b177fc5265104e28",
+  "dataSourceId": "5ffa971d-cbf9-4729-a904-ca5845dc7b91",
+  "uploadedFiles": [
+    {
+      "id": "327fdc54-bb72-817b-8224-00b2318710cd",
+      "name": "20260318_ui_qa_my_order_and_session.png",
+      "size": 92250,
+      "path": "/Volumes/T7/플젝/deundeunApp/Parrotkit/output/playwright/20260318_ui_qa_my_order_and_session.png"
+    },
+    {
+      "id": "327fdc54-bb72-8146-82d9-00b2f893f8e5",
+      "name": "20260318_ui_qa_paste_gradient_button.png",
+      "size": 64879,
+      "path": "/Volumes/T7/플젝/deundeunApp/Parrotkit/output/playwright/20260318_ui_qa_paste_gradient_button.png"
+    },
+    {
+      "id": "327fdc54-bb72-8159-9643-00b2a6ed4224",
+      "name": "20260318_ui_qa_pricing_back_to_my.png",
+      "size": 54067,
+      "path": "/Volumes/T7/플젝/deundeunApp/Parrotkit/output/playwright/20260318_ui_qa_pricing_back_to_my.png"
+    },
+    {
+      "id": "327fdc54-bb72-810e-a49e-00b25d8c96c4",
+      "name": "20260318_ui_qa_recipes_view_recipe_gradient.png",
+      "size": 250894,
+      "path": "/Volumes/T7/플젝/deundeunApp/Parrotkit/output/playwright/20260318_ui_qa_recipes_view_recipe_gradient.png"
+    },
+    {
+      "id": "327fdc54-bb72-8127-bbca-00b2e1ebcd19",
+      "name": "20260318_ui_qa_recipe_result_download_and_shoot.png",
+      "size": 212057,
+      "path": "/Volumes/T7/플젝/deundeunApp/Parrotkit/output/playwright/20260318_ui_qa_recipe_result_download_and_shoot.png"
+    }
+  ]
+}
