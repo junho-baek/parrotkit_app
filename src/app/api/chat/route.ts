@@ -1,23 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-function getModel() {
-  const apiKey = process.env.GOOGLE_AI_API_KEY;
-  if (!apiKey) {
-    throw new Error('GOOGLE_AI_API_KEY is not set');
-  }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  return genAI.getGenerativeModel({
-    model: 'gemini-1.5-flash',
-    generationConfig: {
-      temperature: 0.9,
-      topK: 40,
-      topP: 0.95,
-      maxOutputTokens: 2048,
-    },
-  });
-}
+import { generateReplicateGeminiFlashText } from '@/lib/replicate';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -41,7 +23,6 @@ interface CurrentScene {
 
 export async function POST(request: NextRequest) {
   try {
-    const model = getModel();
     const { messages, scenes, currentScene } = (await request.json()) as {
       messages: ChatMessage[];
       scenes?: Scene[];
@@ -88,31 +69,31 @@ Your capabilities:
 When the user asks to change or modify the script, always output the FULL revised script as a numbered list (1. xxx, 2. xxx, etc.) so they can directly apply it. The user has an "Apply to Script" button that will parse these numbered lines and update the on-screen script.
 Keep responses concise and actionable. Use Korean if the user writes in Korean, English if they write in English.`;
 
-    // Gemini doesn't have system parameter, so prepend system prompt to first user message
-    const formattedMessages = messages.map((m, i) => {
-      if (i === 0 && m.role === 'user') {
-        return { role: m.role, content: `${systemPrompt}\n\n${m.content}` };
-      }
-      return m;
+    const conversationTranscript = messages
+      .map((message) => `${message.role === 'assistant' ? 'Assistant' : 'User'}:\n${message.content}`)
+      .join('\n\n');
+
+    const assistantMessage = await generateReplicateGeminiFlashText({
+      systemInstruction: systemPrompt,
+      prompt: `Conversation so far:
+
+${conversationTranscript}
+
+Respond as the assistant to the latest user message only.`,
+      maxOutputTokens: 2048,
+      temperature: 0.9,
+      topP: 0.95,
+      thinkingBudget: 0,
     });
-
-    // Convert chat history to Gemini format
-    const chatHistory = formattedMessages.slice(0, -1).map(m => ({
-      role: m.role === 'user' ? 'user' : 'model',
-      parts: [{ text: m.content }],
-    }));
-
-    const chat = model.startChat({ history: chatHistory });
-    const result = await chat.sendMessage(formattedMessages[formattedMessages.length - 1].content);
-    const assistantMessage = result.response.text();
 
     return NextResponse.json({
       message: assistantMessage,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to get response';
     console.error('Chat API error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to get response' },
+      { error: message },
       { status: 500 }
     );
   }

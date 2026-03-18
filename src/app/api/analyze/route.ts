@@ -1,24 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { analyzeYouTubeVideo } from '@/lib/video-analyzer';
-
-function getModel() {
-  const apiKey = process.env.GOOGLE_AI_API_KEY;
-  if (!apiKey) {
-    throw new Error('GOOGLE_AI_API_KEY is not set');
-  }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  return genAI.getGenerativeModel({
-    model: 'gemini-pro',
-    generationConfig: {
-      temperature: 0.9,
-      topK: 40,
-      topP: 0.95,
-      maxOutputTokens: 2048,
-    },
-  });
-}
+import { generateReplicateGeminiFlashText } from '@/lib/replicate';
 
 type Platform = 'youtube' | 'youtube-shorts' | 'instagram' | 'tiktok' | 'other';
 
@@ -158,8 +140,7 @@ const defaultSceneScripts: {[key: number]: string[]} = {
 
 async function generateScriptsWithAI(niche: string, goal: string, description: string): Promise<{descriptions: string[], scripts: {[key: number]: string[]}} | null> {
   try {
-    const model = getModel();
-    const prompt = `You are a short-form video script writer. Based on the user's info, write scripts for 6 scenes.
+    const prompt = `Based on the user's info, write scripts for 6 scenes.
 
 User Info:
 - Niche: ${niche}
@@ -186,8 +167,15 @@ Each scene script has 3 lines:
 2. Acting direction (in parentheses)
 3. Expression or gesture guide`;
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const text = await generateReplicateGeminiFlashText({
+      systemInstruction:
+        'You are a short-form video script writer for UGC creators. Return valid JSON only with no markdown fences or extra commentary.',
+      prompt,
+      maxOutputTokens: 2048,
+      temperature: 0.9,
+      topP: 0.95,
+      thinkingBudget: 0,
+    });
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
 
@@ -239,7 +227,7 @@ export async function POST(request: NextRequest) {
     const sceneNames = ['Hook', 'Introduction', 'Build Up', 'Peak', 'Resolution', 'Outro'];
     const sceneDescriptions = aiResult?.descriptions || defaultSceneDescriptions;
 
-    let scenes = [];
+    const scenes = [];
 
     if (analysisResult && analysisResult.scenes.length > 0) {
       // FFmpeg 분석 결과 사용
@@ -321,10 +309,11 @@ export async function POST(request: NextRequest) {
         analyzedWithFFmpeg: !!analysisResult,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to analyze video';
     console.error('Analyze error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to analyze video' },
+      { error: message },
       { status: 500 }
     );
   }
