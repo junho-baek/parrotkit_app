@@ -138,6 +138,44 @@ const defaultSceneScripts: {[key: number]: string[]} = {
   ],
 };
 
+function extractJsonObject(text: string) {
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  return jsonMatch?.[0] || null;
+}
+
+async function parseGeneratedScripts(text: string) {
+  const rawJson = extractJsonObject(text);
+  if (!rawJson) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawJson);
+  } catch (error) {
+    console.warn('Primary AI JSON parse failed, attempting repair:', error);
+  }
+
+  try {
+    const repairedText = await generateReplicateGeminiFlashText({
+      systemInstruction: 'You repair malformed JSON. Return valid JSON only with no markdown fences or commentary.',
+      prompt: `Convert the following malformed JSON-like text into valid JSON without changing the meaning.\n\n${rawJson}`,
+      maxOutputTokens: 2048,
+      temperature: 0,
+      topP: 1,
+      thinkingBudget: 0,
+    });
+    const repairedJson = extractJsonObject(repairedText);
+    if (!repairedJson) {
+      return null;
+    }
+
+    return JSON.parse(repairedJson);
+  } catch (error) {
+    console.error('AI JSON repair failed:', error);
+    return null;
+  }
+}
+
 async function generateScriptsWithAI(niche: string, goal: string, description: string): Promise<{descriptions: string[], scripts: {[key: number]: string[]}} | null> {
   try {
     const prompt = `Based on the user's info, write scripts for 6 scenes.
@@ -172,14 +210,13 @@ Each scene script has 3 lines:
         'You are a short-form video script writer for UGC creators. Return valid JSON only with no markdown fences or extra commentary.',
       prompt,
       maxOutputTokens: 2048,
-      temperature: 0.9,
+      temperature: 0.4,
       topP: 0.95,
       thinkingBudget: 0,
     });
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
+    const parsed = await parseGeneratedScripts(text);
+    if (!parsed) return null;
 
-    const parsed = JSON.parse(jsonMatch[0]);
     return {
       descriptions: parsed.descriptions,
       scripts: Object.fromEntries(
@@ -206,14 +243,16 @@ export async function POST(request: NextRequest) {
     const platform = detectPlatform(url);
     const videoId = extractVideoId(url);
 
-    // YouTube 비디오인 경우 FFmpeg로 실제 컷 감지
+    // YouTube 비디오는 storyboard diff 또는 FFmpeg로 실제 컷 감지 시도
     let analysisResult = null;
+    let sceneDetectionFallbackReason: string | null = null;
     if (platform === 'youtube' || platform === 'youtube-shorts') {
-      console.log('Using FFmpeg for scene detection...');
+      console.log('Using YouTube scene detection pipeline...');
       analysisResult = await analyzeYouTubeVideo(url);
       
       if (analysisResult.error) {
-        console.warn('FFmpeg analysis failed, falling back to default:', analysisResult.error);
+        console.warn('YouTube scene detection failed, falling back to default:', analysisResult.error);
+        sceneDetectionFallbackReason = analysisResult.fallbackReason || analysisResult.error;
         analysisResult = null;
       }
     }
@@ -306,7 +345,13 @@ export async function POST(request: NextRequest) {
         title: `${platformLabels[platform]} Video`,
         duration: formatTime(analysisResult?.duration || 30),
         platform: platformLabels[platform],
-        analyzedWithFFmpeg: !!analysisResult,
+        analyzedWithFFmpeg: analysisResult?.method === 'ffmpeg_video_download',
+        sceneDetectionMethod: analysisResult?.method || 'fixed_5s_fallback',
+        sceneDetectionFallbackReason:
+          sceneDetectionFallbackReason
+          || (analysisResult ? null : platform === 'youtube' || platform === 'youtube-shorts'
+            ? 'youtube_scene_detection_not_available'
+            : 'no_platform_scene_detector'),
       },
     });
   } catch (error: unknown) {

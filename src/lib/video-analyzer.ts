@@ -2,21 +2,49 @@ import ffmpeg from 'fluent-ffmpeg';
 import ytdl from '@distube/ytdl-core';
 import fs from 'fs';
 import path from 'path';
+import sharp from 'sharp';
 import { promisify } from 'util';
 
-const writeFile = promisify(fs.writeFile);
 const unlink = promisify(fs.unlink);
 const mkdir = promisify(fs.mkdir);
+const rmdir = promisify(fs.rm);
+
+const MIN_SCENE_COUNT = 4;
+const MAX_SCENE_COUNT = 6;
+const MIN_SCENE_GAP_SECONDS = 2;
+const STORYBOARD_DIFF_SIZE = 24;
 
 interface SceneDetection {
   timestamp: number;
   thumbnailBase64: string;
 }
 
-interface VideoAnalysisResult {
+export interface VideoAnalysisResult {
   scenes: SceneDetection[];
   duration: number;
+  method?: 'youtube_storyboard_diff' | 'ffmpeg_video_download';
   error?: string;
+  fallbackReason?: string;
+}
+
+interface StoryboardLevel {
+  width: number;
+  height: number;
+  frameCount: number;
+  columns: number;
+  rows: number;
+  intervalMs: number;
+  name: string;
+  signature: string;
+  levelIndex: number;
+  baseUrl: string;
+}
+
+interface StoryboardFrame {
+  index: number;
+  timestamp: number;
+  thumbnailBase64: string;
+  diffScore: number;
 }
 
 /**
@@ -114,6 +142,267 @@ export async function getVideoDuration(videoPath: string): Promise<number> {
   });
 }
 
+function parseStoryboardSpec(spec: string): StoryboardLevel[] {
+  const [baseUrl, ...rawLevels] = spec.split('|');
+
+  return rawLevels
+    .map((rawLevel, index) => {
+      const [width, height, frameCount, columns, rows, intervalMs, name, signature] = rawLevel.split('#');
+
+      if (!width || !height || !frameCount || !columns || !rows || !intervalMs || !name || !signature) {
+        return null;
+      }
+
+      return {
+        width: Number(width),
+        height: Number(height),
+        frameCount: Number(frameCount),
+        columns: Number(columns),
+        rows: Number(rows),
+        intervalMs: Number(intervalMs),
+        name,
+        signature,
+        levelIndex: index,
+        baseUrl,
+      };
+    })
+    .filter((level): level is StoryboardLevel => Boolean(level));
+}
+
+function buildStoryboardSheetUrl(level: StoryboardLevel, sheetIndex: number) {
+  const sheetName = level.name.includes('$M')
+    ? level.name.replace('$M', String(sheetIndex))
+    : level.name;
+
+  return level.baseUrl
+    .replace('$L', String(level.levelIndex))
+    .replace('$N', sheetName) + `&sigh=${level.signature}`;
+}
+
+function getMean(values: number[]) {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function getStandardDeviation(values: number[], mean: number) {
+  if (values.length === 0) return 0;
+  const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
+  return Math.sqrt(variance);
+}
+
+function meanAbsoluteDifference(current: Uint8Array, previous: Uint8Array) {
+  let total = 0;
+
+  for (let index = 0; index < current.length; index += 1) {
+    total += Math.abs(current[index] - previous[index]);
+  }
+
+  return total / current.length;
+}
+
+function pickNearestFrame(frames: StoryboardFrame[], targetTimestamp: number) {
+  return [...frames].sort((a, b) => Math.abs(a.timestamp - targetTimestamp) - Math.abs(b.timestamp - targetTimestamp))[0] ?? null;
+}
+
+function selectStoryboardSceneFrames(frames: StoryboardFrame[], duration: number) {
+  if (frames.length === 0) {
+    return [];
+  }
+
+  const withDiff = frames.slice(1);
+  const scores = withDiff.map((frame) => frame.diffScore);
+  const mean = getMean(scores);
+  const stdDev = getStandardDeviation(scores, mean);
+  const threshold = mean + stdDev * 0.5;
+
+  const localPeaks = withDiff.filter((frame, index) => {
+    const previousScore = withDiff[index - 1]?.diffScore ?? -Infinity;
+    const nextScore = withDiff[index + 1]?.diffScore ?? -Infinity;
+    return frame.diffScore >= previousScore && frame.diffScore >= nextScore;
+  });
+
+  const selected = [frames[0]];
+  const minGap = Math.max(MIN_SCENE_GAP_SECONDS, Math.round((frames[1]?.timestamp ?? MIN_SCENE_GAP_SECONDS)));
+
+  const tryAddFrame = (candidate: StoryboardFrame | null | undefined) => {
+    if (!candidate) return false;
+    if (selected.some((frame) => Math.abs(frame.timestamp - candidate.timestamp) < minGap)) {
+      return false;
+    }
+
+    selected.push(candidate);
+    return true;
+  };
+
+  const prioritizedPeaks = localPeaks
+    .filter((frame) => frame.diffScore >= threshold)
+    .sort((a, b) => b.diffScore - a.diffScore);
+
+  for (const candidate of prioritizedPeaks) {
+    if (selected.length >= MAX_SCENE_COUNT) break;
+    tryAddFrame(candidate);
+  }
+
+  if (selected.length < MIN_SCENE_COUNT) {
+    const supplementalFrames = [...localPeaks, ...withDiff]
+      .sort((a, b) => b.diffScore - a.diffScore);
+
+    for (const candidate of supplementalFrames) {
+      if (selected.length >= MIN_SCENE_COUNT) break;
+      tryAddFrame(candidate);
+    }
+  }
+
+  if (selected.length < MIN_SCENE_COUNT) {
+    const targetRatios = [0.2, 0.4, 0.6, 0.8, 0.92];
+    for (const ratio of targetRatios) {
+      if (selected.length >= MIN_SCENE_COUNT) break;
+      const candidate = pickNearestFrame(frames, duration * ratio);
+      tryAddFrame(candidate);
+    }
+  }
+
+  const deduped = Array.from(
+    new Map(selected.map((frame) => [frame.timestamp, frame])).values()
+  ).sort((a, b) => a.timestamp - b.timestamp);
+
+  if (deduped.length <= MAX_SCENE_COUNT) {
+    return deduped;
+  }
+
+  const [firstFrame, ...remainingFrames] = deduped;
+  const trimmedFrames = remainingFrames
+    .sort((a, b) => b.diffScore - a.diffScore)
+    .slice(0, MAX_SCENE_COUNT - 1)
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  return [firstFrame, ...trimmedFrames];
+}
+
+async function extractStoryboardFrames(level: StoryboardLevel): Promise<StoryboardFrame[]> {
+  const perSheet = level.columns * level.rows;
+  const sheetCount = Math.ceil(level.frameCount / perSheet);
+  const frames: StoryboardFrame[] = [];
+  let previousPixels: Uint8Array | null = null;
+
+  for (let sheetIndex = 0; sheetIndex < sheetCount; sheetIndex += 1) {
+    const response = await fetch(buildStoryboardSheetUrl(level, sheetIndex), {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch storyboard sheet ${sheetIndex}: ${response.status}`);
+    }
+
+    const sheetBuffer = Buffer.from(await response.arrayBuffer());
+    const sprite = sharp(sheetBuffer);
+
+    for (let cellIndex = 0; cellIndex < perSheet; cellIndex += 1) {
+      const frameIndex = sheetIndex * perSheet + cellIndex;
+      if (frameIndex >= level.frameCount) {
+        break;
+      }
+
+      const left = (cellIndex % level.columns) * level.width;
+      const top = Math.floor(cellIndex / level.columns) * level.height;
+      const extractedFrame = sprite.clone().extract({
+        left,
+        top,
+        width: level.width,
+        height: level.height,
+      });
+
+      const [thumbnailBuffer, normalizedBuffer] = await Promise.all([
+        extractedFrame.clone().jpeg({ quality: 82 }).toBuffer(),
+        extractedFrame
+          .clone()
+          .resize(STORYBOARD_DIFF_SIZE, STORYBOARD_DIFF_SIZE)
+          .grayscale()
+          .raw()
+          .toBuffer(),
+      ]);
+
+      const currentPixels = new Uint8Array(normalizedBuffer);
+      const diffScore = previousPixels ? meanAbsoluteDifference(currentPixels, previousPixels) : 0;
+
+      frames.push({
+        index: frameIndex,
+        timestamp: (frameIndex * level.intervalMs) / 1000,
+        thumbnailBase64: `data:image/jpeg;base64,${thumbnailBuffer.toString('base64')}`,
+        diffScore,
+      });
+
+      previousPixels = currentPixels;
+    }
+  }
+
+  return frames;
+}
+
+async function analyzeYouTubeStoryboards(url: string): Promise<VideoAnalysisResult | null> {
+  const info = await ytdl.getBasicInfo(url);
+  const duration = Number(info.videoDetails.lengthSeconds || 30);
+  const storyboardSpec = (info as { player_response?: { storyboards?: { playerStoryboardSpecRenderer?: { spec?: string } } } })
+    .player_response?.storyboards?.playerStoryboardSpecRenderer?.spec;
+
+  if (!storyboardSpec) {
+    return null;
+  }
+
+  const levels = parseStoryboardSpec(storyboardSpec);
+  const level = [...levels].reverse().find((candidate) => candidate.intervalMs > 0);
+  if (!level) {
+    return null;
+  }
+
+  const frames = await extractStoryboardFrames(level);
+  const selectedFrames = selectStoryboardSceneFrames(frames, duration);
+
+  if (selectedFrames.length === 0) {
+    return null;
+  }
+
+  return {
+    scenes: selectedFrames.map((frame) => ({
+      timestamp: frame.timestamp,
+      thumbnailBase64: frame.thumbnailBase64,
+    })),
+    duration,
+    method: 'youtube_storyboard_diff',
+  };
+}
+
+function normalizeDetectedSceneTimestamps(sceneTimestamps: number[], duration: number) {
+  let normalizedTimestamps = Array.from(
+    new Set(
+      sceneTimestamps
+        .filter((timestamp) => Number.isFinite(timestamp))
+        .map((timestamp) => Math.max(0, Math.min(timestamp, duration)))
+    )
+  ).sort((a, b) => a - b);
+
+  normalizedTimestamps = normalizedTimestamps.filter((timestamp, index) => {
+    if (index === 0) return true;
+    return timestamp - normalizedTimestamps[index - 1] >= MIN_SCENE_GAP_SECONDS;
+  });
+
+  if (normalizedTimestamps.length > MAX_SCENE_COUNT) {
+    const [firstFrame, ...remainingFrames] = normalizedTimestamps;
+    const step = Math.ceil(remainingFrames.length / (MAX_SCENE_COUNT - 1));
+    normalizedTimestamps = [firstFrame, ...remainingFrames.filter((_, index) => index % step === 0)].slice(0, MAX_SCENE_COUNT);
+  }
+
+  if (normalizedTimestamps.length < MIN_SCENE_COUNT) {
+    const sceneCount = Math.min(MAX_SCENE_COUNT, Math.max(MIN_SCENE_COUNT, Math.floor(duration / 3)));
+    normalizedTimestamps = Array.from({ length: sceneCount }, (_, index) => (duration / sceneCount) * index);
+  }
+
+  return normalizedTimestamps;
+}
+
 /**
  * YouTube 비디오를 임시로 다운로드하고 분석
  */
@@ -121,6 +410,16 @@ export async function analyzeYouTubeVideo(url: string): Promise<VideoAnalysisRes
   const videoId = extractVideoId(url);
   if (!videoId) {
     return { scenes: [], duration: 0, error: 'Invalid YouTube URL' };
+  }
+
+  try {
+    const storyboardResult = await analyzeYouTubeStoryboards(url);
+    if (storyboardResult && storyboardResult.scenes.length > 0) {
+      console.log(`YouTube storyboard scene detection succeeded with ${storyboardResult.scenes.length} scenes`);
+      return storyboardResult;
+    }
+  } catch (error) {
+    console.warn('Storyboard scene detection failed, trying FFmpeg download fallback:', error);
   }
 
   const tempDir = path.join(process.cwd(), 'temp');
@@ -141,7 +440,7 @@ export async function analyzeYouTubeVideo(url: string): Promise<VideoAnalysisRes
     
     const videoStream = ytdl(url, {
       quality: 'lowestvideo',
-      filter: format => format.container === 'mp4' && format.hasVideo && format.hasAudio,
+      filter: (format) => format.hasVideo,
       requestOptions: {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -189,24 +488,7 @@ export async function analyzeYouTubeVideo(url: string): Promise<VideoAnalysisRes
 
     // 장면 전환 감지 (threshold 낮추어 더 많은 컬 감지)
     let sceneTimestamps = await detectSceneChanges(videoPath, 0.3);
-    
-    // 컬이 너무 촉박하면 필터링 (최소 2초 간격)
-    sceneTimestamps = sceneTimestamps.filter((timestamp, idx) => {
-      if (idx === 0) return true;
-      return timestamp - sceneTimestamps[idx - 1] >= 2.0;
-    });
-    
-    // 장면이 너무 많으면 6~8개로 제한
-    if (sceneTimestamps.length > 8) {
-      const step = Math.ceil(sceneTimestamps.length / 6);
-      sceneTimestamps = sceneTimestamps.filter((_, i) => i % step === 0).slice(0, 8);
-    }
-
-    // 장면이 너무 적으면 균등 분할
-    if (sceneTimestamps.length < 4) {
-      const sceneCount = Math.min(6, Math.max(4, Math.floor(duration / 3)));
-      sceneTimestamps = Array.from({ length: sceneCount }, (_, i) => (duration / sceneCount) * i);
-    }
+    sceneTimestamps = normalizeDetectedSceneTimestamps(sceneTimestamps, duration);
 
     console.log(`Found ${sceneTimestamps.length} scenes`);
 
@@ -227,21 +509,28 @@ export async function analyzeYouTubeVideo(url: string): Promise<VideoAnalysisRes
 
     // 임시 비디오 파일 삭제
     await unlink(videoPath);
+    await rmdir(thumbDir, { recursive: true, force: true });
 
-    return { scenes, duration };
+    return { scenes, duration, method: 'ffmpeg_video_download' };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Video analysis error:', error);
     
     // 정리
     try {
       if (fs.existsSync(videoPath)) await unlink(videoPath);
     } catch {}
+    try {
+      if (fs.existsSync(thumbDir)) {
+        await rmdir(thumbDir, { recursive: true, force: true });
+      }
+    } catch {}
 
     return { 
       scenes: [], 
       duration: 0, 
-      error: error.message || 'Failed to analyze video' 
+      error: error instanceof Error ? error.message : 'Failed to analyze video',
+      fallbackReason: 'youtube_scene_detection_failed',
     };
   }
 }
