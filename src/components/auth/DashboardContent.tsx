@@ -154,14 +154,6 @@ function parseStatCount(value: unknown): number {
   return Number.isFinite(numericValue) ? Math.max(0, numericValue) : 0;
 }
 
-const PROFILE_FIELD_LABELS: Record<keyof OnboardingProfileExtras, string> = {
-  ageGroup: 'Age',
-  gender: 'Gender',
-  domain: 'Domain',
-  followerRange: 'Followers',
-  activityPurpose: 'Purpose',
-};
-
 const brandActionGradientClass =
   'text-white hover:scale-[1.02]';
 const brandActionGradientStyle: React.CSSProperties = {
@@ -995,26 +987,12 @@ export const Settings: React.FC = () => {
               <h3 className="font-bold text-lg text-gray-900 mb-0.5">{user?.username || 'User'}</h3>
               <p className="text-sm text-gray-900 font-semibold">{user?.email}</p>
             </div>
-            <span className="text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
-              Tap to edit
+            <span
+              className="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 text-gray-500 flex items-center justify-center text-lg"
+              aria-hidden="true"
+            >
+              ›
             </span>
-          </div>
-
-          <div className="mb-4 rounded-xl border border-purple-100 bg-gradient-to-r from-purple-50/80 to-blue-50/80 p-3">
-            <div className="grid grid-cols-2 gap-2">
-              {(
-                Object.keys(PROFILE_FIELD_LABELS) as Array<keyof OnboardingProfileExtras>
-              ).map((field) => (
-                <div key={field} className="rounded-lg bg-white/85 border border-white px-2.5 py-2">
-                  <p className="text-[10px] uppercase tracking-wide text-gray-500 font-bold">
-                    {PROFILE_FIELD_LABELS[field]}
-                  </p>
-                  <p className="text-xs text-gray-900 font-semibold mt-0.5 truncate">
-                    {profileExtras[field] || 'Not set'}
-                  </p>
-                </div>
-              ))}
-            </div>
           </div>
 
           <div className="flex gap-2">
