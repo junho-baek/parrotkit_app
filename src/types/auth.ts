@@ -39,6 +39,68 @@ export interface InterestsData {
   selectedInterests: InterestCategory[];
 }
 
+export interface OnboardingProfileExtras {
+  ageGroup: string;
+  gender: string;
+  domain: string;
+  followerRange: string;
+  activityPurpose: string;
+}
+
+export const ONBOARDING_PROFILE_DEFAULTS: OnboardingProfileExtras = {
+  ageGroup: '',
+  gender: '',
+  domain: '',
+  followerRange: '',
+  activityPurpose: '',
+};
+
+export const CREATOR_AGE_GROUP_OPTIONS = [
+  'Gen Alpha (2013+)',
+  'Gen Z (1997-2012)',
+  'Millennial (1981-1996)',
+  'Gen X (1965-1980)',
+  'Boomer (1964 or earlier)',
+  'Prefer not to say',
+] as const;
+
+export const CREATOR_GENDER_OPTIONS = [
+  'Female',
+  'Male',
+  'Non-binary',
+  'Prefer not to say',
+] as const;
+
+export const CREATOR_FOLLOWER_RANGE_OPTIONS = [
+  '0 - 999',
+  '1K - 9.9K',
+  '10K - 49.9K',
+  '50K - 99.9K',
+  '100K - 499K',
+  '500K+',
+] as const;
+
+export const CREATOR_ACTIVITY_PURPOSE_OPTIONS = [
+  'Grow followers',
+  'Build personal brand',
+  'Sell products or services',
+  'Build portfolio',
+  'Just for fun',
+] as const;
+
+export const CREATOR_DOMAIN_SUGGESTIONS = [
+  'Beauty',
+  'Fashion',
+  'Food',
+  'Travel',
+  'Finance',
+  'Education',
+  'Gaming',
+  'Music',
+  'Lifestyle',
+  'Tech',
+] as const;
+
 export const INTEREST_CATEGORIES: InterestCategory[] = [
   'Meme/Trend',
   'Fashion',

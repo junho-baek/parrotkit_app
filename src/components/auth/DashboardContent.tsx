@@ -12,6 +12,20 @@ import {
   readRefreshToken,
 } from '@/lib/auth/client-session';
 import { logClientEvent } from '@/lib/client-events';
+import {
+  CREATOR_ACTIVITY_PURPOSE_OPTIONS,
+  CREATOR_AGE_GROUP_OPTIONS,
+  CREATOR_DOMAIN_SUGGESTIONS,
+  CREATOR_FOLLOWER_RANGE_OPTIONS,
+  CREATOR_GENDER_OPTIONS,
+  ONBOARDING_PROFILE_DEFAULTS,
+  OnboardingProfileExtras,
+} from '@/types/auth';
+import {
+  isOnboardingProfileExtrasComplete,
+  readOnboardingProfileExtras,
+  saveOnboardingProfileExtras,
+} from '@/lib/onboarding-profile';
 
 type RecipeScene = {
   id: number;
@@ -139,6 +153,14 @@ function parseStatCount(value: unknown): number {
   const numericValue = Number(value);
   return Number.isFinite(numericValue) ? Math.max(0, numericValue) : 0;
 }
+
+const PROFILE_FIELD_LABELS: Record<keyof OnboardingProfileExtras, string> = {
+  ageGroup: 'Age',
+  gender: 'Gender',
+  domain: 'Domain',
+  followerRange: 'Followers',
+  activityPurpose: 'Purpose',
+};
 
 const brandActionGradientClass =
   'text-white hover:scale-[1.02]';
@@ -814,6 +836,14 @@ export const Settings: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [likedVideos, setLikedVideos] = React.useState<LikedVideo[]>([]);
   const [playingVideo, setPlayingVideo] = React.useState<string | null>(null);
+  const [profileExtras, setProfileExtras] = React.useState<OnboardingProfileExtras>({
+    ...ONBOARDING_PROFILE_DEFAULTS,
+  });
+  const [profileEditorDraft, setProfileEditorDraft] = React.useState<OnboardingProfileExtras>({
+    ...ONBOARDING_PROFILE_DEFAULTS,
+  });
+  const [isProfileEditorOpen, setIsProfileEditorOpen] = React.useState(false);
+  const [profileEditorError, setProfileEditorError] = React.useState('');
 
   React.useEffect(() => {
     const fetchUserData = async () => {
@@ -863,7 +893,38 @@ export const Settings: React.FC = () => {
   // Load liked videos from localStorage
   React.useEffect(() => {
     setLikedVideos(parseLikedVideos(localStorage.getItem('likedVideos')));
+    const storedProfile = readOnboardingProfileExtras();
+    setProfileExtras(storedProfile);
+    setProfileEditorDraft(storedProfile);
   }, []);
+
+  const openProfileEditor = () => {
+    setProfileEditorDraft(profileExtras);
+    setProfileEditorError('');
+    setIsProfileEditorOpen(true);
+  };
+
+  const handleProfileDraftChange = (
+    field: keyof OnboardingProfileExtras,
+    value: string
+  ) => {
+    setProfileEditorDraft((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+    setProfileEditorError('');
+  };
+
+  const handleSaveProfileExtras = () => {
+    if (!isOnboardingProfileExtrasComplete(profileEditorDraft)) {
+      setProfileEditorError('모든 항목을 입력한 후 저장해주세요.');
+      return;
+    }
+
+    saveOnboardingProfileExtras(profileEditorDraft);
+    setProfileExtras(profileEditorDraft);
+    setIsProfileEditorOpen(false);
+  };
 
   const handleLogout = async () => {
     const accessToken = readAccessToken();
@@ -913,7 +974,19 @@ export const Settings: React.FC = () => {
       {/* Profile Card with Avatar */}
       <Card className="relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-100 to-purple-100 rounded-bl-full opacity-50"></div>
-        <div className="relative">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={openProfileEditor}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              openProfileEditor();
+            }
+          }}
+          className="relative cursor-pointer rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100"
+          aria-label="Edit creator profile details"
+        >
           <div className="flex items-center gap-4 mb-4">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg ring-4 ring-white">
               {user?.username?.charAt(0).toUpperCase() || 'U'}
@@ -922,7 +995,28 @@ export const Settings: React.FC = () => {
               <h3 className="font-bold text-lg text-gray-900 mb-0.5">{user?.username || 'User'}</h3>
               <p className="text-sm text-gray-900 font-semibold">{user?.email}</p>
             </div>
+            <span className="text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
+              Tap to edit
+            </span>
           </div>
+
+          <div className="mb-4 rounded-xl border border-purple-100 bg-gradient-to-r from-purple-50/80 to-blue-50/80 p-3">
+            <div className="grid grid-cols-2 gap-2">
+              {(
+                Object.keys(PROFILE_FIELD_LABELS) as Array<keyof OnboardingProfileExtras>
+              ).map((field) => (
+                <div key={field} className="rounded-lg bg-white/85 border border-white px-2.5 py-2">
+                  <p className="text-[10px] uppercase tracking-wide text-gray-500 font-bold">
+                    {PROFILE_FIELD_LABELS[field]}
+                  </p>
+                  <p className="text-xs text-gray-900 font-semibold mt-0.5 truncate">
+                    {profileExtras[field] || 'Not set'}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="flex gap-2">
             <div className="flex-1 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2.5 text-center border border-blue-200">
               <div className="text-lg font-bold text-blue-600">{formatCompactCount(stats.references)}</div>
@@ -1051,6 +1145,141 @@ export const Settings: React.FC = () => {
           </button>
         </div>
       </Card>
+
+      {isProfileEditorOpen ? (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9998] flex items-end sm:items-center justify-center p-3 sm:p-4"
+          onClick={() => setIsProfileEditorOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl p-5 sm:p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Edit creator profile</h3>
+              <button
+                type="button"
+                className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold"
+                onClick={() => setIsProfileEditorOpen(false)}
+                aria-label="Close profile editor"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block">
+                <span className="block text-sm font-bold text-gray-900 mb-1.5">Age Group</span>
+                <select
+                  value={profileEditorDraft.ageGroup}
+                  onChange={(event) => handleProfileDraftChange('ageGroup', event.target.value)}
+                  className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                >
+                  <option value="">Select age group</option>
+                  {CREATOR_AGE_GROUP_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="block text-sm font-bold text-gray-900 mb-1.5">Gender</span>
+                <select
+                  value={profileEditorDraft.gender}
+                  onChange={(event) => handleProfileDraftChange('gender', event.target.value)}
+                  className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                >
+                  <option value="">Select gender</option>
+                  {CREATOR_GENDER_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="block text-sm font-bold text-gray-900 mb-1.5">Domain</span>
+                <input
+                  type="text"
+                  value={profileEditorDraft.domain}
+                  onChange={(event) => handleProfileDraftChange('domain', event.target.value)}
+                  list="profile-domain-suggestions"
+                  placeholder="e.g. Beauty, Finance, Food, Education"
+                  className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                />
+                <datalist id="profile-domain-suggestions">
+                  {CREATOR_DOMAIN_SUGGESTIONS.map((domain) => (
+                    <option key={domain} value={domain} />
+                  ))}
+                </datalist>
+              </label>
+
+              <label className="block">
+                <span className="block text-sm font-bold text-gray-900 mb-1.5">Followers</span>
+                <select
+                  value={profileEditorDraft.followerRange}
+                  onChange={(event) => handleProfileDraftChange('followerRange', event.target.value)}
+                  className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                >
+                  <option value="">Select follower range</option>
+                  {CREATOR_FOLLOWER_RANGE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div>
+                <span className="block text-sm font-bold text-gray-900 mb-2">Activity Purpose</span>
+                <div className="flex flex-wrap gap-2">
+                  {CREATOR_ACTIVITY_PURPOSE_OPTIONS.map((purpose) => {
+                    const isSelected = profileEditorDraft.activityPurpose === purpose;
+                    return (
+                      <button
+                        key={purpose}
+                        type="button"
+                        onClick={() => handleProfileDraftChange('activityPurpose', purpose)}
+                        className={`px-3.5 py-2 rounded-full text-xs font-bold border-2 transition-all ${
+                          isSelected
+                            ? 'bg-gray-900 text-white border-gray-900'
+                            : 'bg-white text-gray-800 border-gray-300 hover:border-gray-500'
+                        }`}
+                      >
+                        {purpose}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {profileEditorError ? (
+              <p className="mt-3 text-sm text-red-600 font-semibold">{profileEditorError}</p>
+            ) : null}
+
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setIsProfileEditorOpen(false)}
+                className="rounded-xl border-2 border-gray-300 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveProfileExtras}
+                className="rounded-xl bg-gray-900 py-2.5 text-sm font-bold text-white hover:bg-black"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Video Player Modal */}
       {playingVideo && (
