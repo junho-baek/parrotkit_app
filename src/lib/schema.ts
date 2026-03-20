@@ -66,6 +66,10 @@ export const references = pgTable(
     niche: text('niche'),
     goal: text('goal'),
     description: text('description'),
+    transcript: jsonb('transcript').$type<JsonValue>().notNull().default(sql`'[]'::jsonb`),
+    transcriptSource: text('transcript_source').notNull().default('none'),
+    transcriptLanguage: text('transcript_language'),
+    sourceMetadata: jsonb('source_metadata').$type<JsonValue>().notNull().default(sql`'{}'::jsonb`),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
@@ -91,6 +95,8 @@ export const recipes = pgTable(
       .notNull()
       .default(sql`'{}'::integer[]`),
     matchResults: jsonb('match_results').$type<JsonValue>().notNull().default(sql`'{}'::jsonb`),
+    analysisMetadata: jsonb('analysis_metadata').$type<JsonValue>().notNull().default(sql`'{}'::jsonb`),
+    scriptSource: text('script_source').notNull().default('default'),
     capturedCount: integer('captured_count').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

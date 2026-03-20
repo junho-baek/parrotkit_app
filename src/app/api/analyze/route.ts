@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analyzeYouTubeVideo } from '@/lib/video-analyzer';
+import { analyzeVideoFrameCandidates, analyzeYouTubeVideo, type SceneCandidate, type VideoAnalysisResult } from '@/lib/video-analyzer';
 import { generateReplicateGeminiFlashText } from '@/lib/replicate';
+import { fetchSupadataTranscript, type TranscriptSegment, type TranscriptSource } from '@/lib/supadata';
 
 type Platform = 'youtube' | 'youtube-shorts' | 'instagram' | 'tiktok' | 'other';
+
+type SceneScriptMap = { [key: number]: string[] };
+
+type ScriptGenerationResult = {
+  descriptions: string[];
+  scripts: SceneScriptMap;
+};
+
+type PageMedia = {
+  imageUrl: string | null;
+  videoUrl: string | null;
+};
 
 function detectPlatform(url: string): Platform {
   if (url.includes('youtube.com/shorts') || url.includes('youtu.be')) return 'youtube-shorts';
@@ -35,36 +48,50 @@ function extractTikTokId(url: string): string | null {
   return match ? match[1] : null;
 }
 
-/** Fetch the page HTML and extract og:image meta tag */
-async function fetchOgImage(url: string): Promise<string | null> {
+function isDirectVideoUrl(url: string) {
+  return /\.(mp4|mov|m4v|webm)(\?.*)?$/i.test(url);
+}
+
+function extractMetaContent(html: string, metaName: string) {
+  const escaped = metaName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const directMatch = html.match(new RegExp(`<meta\\s+(?:property|name)=["']${escaped}["']\\s+content=["']([^"']+)["']`, 'i'))
+    || html.match(new RegExp(`<meta\\s+content=["']([^"']+)["']\\s+(?:property|name)=["']${escaped}["']`, 'i'));
+  return directMatch?.[1] || null;
+}
+
+async function fetchPageMedia(url: string): Promise<PageMedia> {
+  if (isDirectVideoUrl(url)) {
+    return {
+      imageUrl: null,
+      videoUrl: url,
+    };
+  }
+
   try {
     const res = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
+        Accept: 'text/html,application/xhtml+xml',
         'Accept-Language': 'en-US,en;q=0.9',
       },
       redirect: 'follow',
+      cache: 'no-store',
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      return { imageUrl: null, videoUrl: null };
+    }
 
     const html = await res.text();
+    const imageUrl = extractMetaContent(html, 'og:image') || extractMetaContent(html, 'twitter:image');
+    const videoUrl = extractMetaContent(html, 'og:video:secure_url')
+      || extractMetaContent(html, 'og:video')
+      || extractMetaContent(html, 'twitter:player:stream');
 
-    const ogMatch = html.match(/<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']/i)
-      || html.match(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']og:image["']/i);
-
-    if (ogMatch) return ogMatch[1];
-
-    const twitterMatch = html.match(/<meta\s+(?:property|name)=["']twitter:image["']\s+content=["']([^"']+)["']/i)
-      || html.match(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']twitter:image["']/i);
-
-    if (twitterMatch) return twitterMatch[1];
-
-    return null;
-  } catch (e) {
-    console.error('Failed to fetch og:image:', e);
-    return null;
+    return { imageUrl, videoUrl };
+  } catch (error) {
+    console.warn('Failed to fetch page media:', error);
+    return { imageUrl: null, videoUrl: null };
   }
 }
 
@@ -92,7 +119,7 @@ function generatePlaceholderThumbnail(sceneIndex: number, sceneTitle: string): s
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
+  const secs = Math.max(0, Math.floor(seconds % 60));
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
@@ -102,10 +129,10 @@ const defaultSceneDescriptions = [
   'I was skeptical at first, but after trying it myself, it actually works',
   'Okay, here\'s the key part. Just follow this and you\'re set',
   'And that\'s it! Easier than you thought, right?',
-  'If this helped, hit like and follow! More great tips coming soon!'
+  'If this helped, hit like and follow! More great tips coming soon!',
 ];
 
-const defaultSceneScripts: {[key: number]: string[]} = {
+const defaultSceneScripts: SceneScriptMap = {
   1: [
     'Most people still don\'t know this... you NEED to hear this',
     '(Look at the camera with confidence)',
@@ -138,72 +165,207 @@ const defaultSceneScripts: {[key: number]: string[]} = {
   ],
 };
 
+function getDefaultDescription(index: number) {
+  return defaultSceneDescriptions[index] || `Scene ${index + 1}`;
+}
+
+function getDefaultScript(sceneId: number, description: string) {
+  return defaultSceneScripts[sceneId] || [description];
+}
+
 function extractJsonObject(text: string) {
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   return jsonMatch?.[0] || null;
 }
 
-async function parseGeneratedScripts(text: string) {
+async function repairJsonObject(rawJson: string) {
+  const repairedText = await generateReplicateGeminiFlashText({
+    systemInstruction: 'You repair malformed JSON. Return valid JSON only with no markdown fences or commentary.',
+    prompt: `Convert the following malformed JSON-like text into valid JSON without changing the meaning.\n\n${rawJson}`,
+    maxOutputTokens: 2048,
+    temperature: 0,
+    topP: 1,
+    thinkingBudget: 0,
+  });
+
+  const repairedJson = extractJsonObject(repairedText);
+  return repairedJson ? JSON.parse(repairedJson) : null;
+}
+
+async function parseJsonWithRepair<T>(text: string) {
   const rawJson = extractJsonObject(text);
   if (!rawJson) {
     return null;
   }
 
   try {
-    return JSON.parse(rawJson);
+    return JSON.parse(rawJson) as T;
   } catch (error) {
     console.warn('Primary AI JSON parse failed, attempting repair:', error);
   }
 
   try {
-    const repairedText = await generateReplicateGeminiFlashText({
-      systemInstruction: 'You repair malformed JSON. Return valid JSON only with no markdown fences or commentary.',
-      prompt: `Convert the following malformed JSON-like text into valid JSON without changing the meaning.\n\n${rawJson}`,
-      maxOutputTokens: 2048,
-      temperature: 0,
-      topP: 1,
-      thinkingBudget: 0,
-    });
-    const repairedJson = extractJsonObject(repairedText);
-    if (!repairedJson) {
-      return null;
-    }
-
-    return JSON.parse(repairedJson);
+    return await repairJsonObject(rawJson) as T | null;
   } catch (error) {
     console.error('AI JSON repair failed:', error);
     return null;
   }
 }
 
-async function generateScriptsWithAI(niche: string, goal: string, description: string): Promise<{descriptions: string[], scripts: {[key: number]: string[]}} | null> {
-  try {
-    const prompt = `Based on the user's info, write scripts for 6 scenes.
+function getTranscriptSummary(segments: TranscriptSegment[], limit: number = 14) {
+  return segments
+    .slice(0, limit)
+    .map((segment) => `[${formatTime(segment.start)}-${formatTime(segment.end)}] ${segment.text}`)
+    .join('\n');
+}
 
-User Info:
-- Niche: ${niche}
-- Goal: ${goal}
-- Description: ${description}
+function getTranscriptSnippet(segments: TranscriptSegment[], startTime: number, endTime: number) {
+  const matched = segments.filter((segment) => segment.end >= startTime && segment.start <= endTime);
+  return matched.map((segment) => segment.text).join(' ').trim();
+}
 
-6 scene structure: Hook, Introduction, Build Up, Peak, Resolution, Outro
+async function confirmCandidatesWithAI(
+  candidates: SceneCandidate[],
+  transcript: TranscriptSegment[],
+  duration: number
+) {
+  if (candidates.length === 0) {
+    return null;
+  }
 
-Respond ONLY in the following JSON format (no other text):
+  const prompt = `Select the best 4 to 6 scene boundaries from the candidate list for a short-form video recipe.
+
+Rules:
+- Always include candidate 1 because it is the opening frame.
+- Prefer candidates that reflect meaningful visual changes, beat changes, or content pivots.
+- Avoid redundant cuts that are too close together unless the change is clearly important.
+- Return only JSON in the following shape:
 {
-  "descriptions": ["scene1 one-line summary", "scene2 one-line summary", "scene3 one-line summary", "scene4 one-line summary", "scene5 one-line summary", "scene6 one-line summary"],
+  "selectedCandidateIds": [1, 2, 4, 6, 8]
+}
+
+Video duration: ${duration.toFixed(1)} seconds
+
+Candidates:
+${candidates
+  .map((candidate, index) => {
+    const snippet = getTranscriptSnippet(
+      transcript,
+      Math.max(0, candidate.timestamp - 2.5),
+      Math.min(duration, candidate.timestamp + 2.5)
+    );
+    return [
+      `Candidate ${index + 1}`,
+      `time=${candidate.timestamp.toFixed(2)}s`,
+      `diffScore=${candidate.diffScore.toFixed(2)}`,
+      `transcript=${snippet || '(none)'}`,
+    ].join(' | ');
+  })
+  .join('\n')}`;
+
+  const runConfirmation = async (useImages: boolean) => {
+    const response = await generateReplicateGeminiFlashText({
+      systemInstruction: 'You are a video scene boundary selector. Return valid JSON only.',
+      prompt,
+      maxOutputTokens: 512,
+      temperature: 0.1,
+      topP: 0.9,
+      thinkingBudget: 0,
+      images: useImages ? candidates.map((candidate) => candidate.thumbnailBase64) : [],
+    });
+    return parseJsonWithRepair<{ selectedCandidateIds?: number[] }>(response);
+  };
+
+  let parsed = null;
+  try {
+    parsed = await runConfirmation(true);
+  } catch (error) {
+    console.warn('AI cut confirmation with images failed, retrying text-only:', error);
+  }
+
+  if (!parsed) {
+    try {
+      parsed = await runConfirmation(false);
+    } catch (error) {
+      console.warn('AI cut confirmation text-only retry failed:', error);
+    }
+  }
+
+  const selectedIds = Array.from(
+    new Set(
+      (parsed?.selectedCandidateIds || [])
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value >= 1 && value <= candidates.length)
+    )
+  ).sort((left, right) => left - right);
+
+  if (!selectedIds.includes(1)) {
+    selectedIds.unshift(1);
+  }
+
+  const trimmedIds = selectedIds.slice(0, 6);
+  if (trimmedIds.length < 4) {
+    return null;
+  }
+
+  return trimmedIds
+    .map((candidateId) => candidates[candidateId - 1])
+    .filter(Boolean)
+    .map((candidate) => ({
+      timestamp: candidate.timestamp,
+      thumbnailBase64: candidate.thumbnailBase64,
+    }));
+}
+
+async function generateScriptsWithAI({
+  scenes,
+  transcript,
+  niche,
+  goal,
+  description,
+  sourceTitle,
+}: {
+  scenes: Array<{ id: number; title: string; startTime: string; endTime: string; transcriptSnippet: string }>;
+  transcript: TranscriptSegment[];
+  niche: string;
+  goal: string;
+  description: string;
+  sourceTitle: string | null;
+}): Promise<ScriptGenerationResult | null> {
+  try {
+    const prompt = `Write scripts for ${scenes.length} scenes of a short-form video recipe.
+
+User info:
+- Niche: ${niche || '(not provided)'}
+- Goal: ${goal || '(not provided)'}
+- Description: ${description || '(not provided)'}
+- Source title: ${sourceTitle || '(not provided)'}
+
+Transcript summary:
+${getTranscriptSummary(transcript) || '(no transcript available)'}
+
+Scene windows:
+${scenes
+  .map(
+    (scene) =>
+      `${scene.id}. ${scene.title} (${scene.startTime}-${scene.endTime}) | transcript snippet: ${scene.transcriptSnippet || '(none)'}`
+  )
+  .join('\n')}
+
+Respond ONLY in valid JSON:
+{
+  "descriptions": ["scene1 one-line summary", "..."],
   "scripts": {
-    "1": ["dialogue line", "acting direction", "expression/gesture"],
-    "2": ["dialogue line", "acting direction", "expression/gesture"],
-    "3": ["dialogue line", "acting direction", "expression/gesture"],
-    "4": ["dialogue line", "acting direction", "expression/gesture"],
-    "5": ["dialogue line", "acting direction", "expression/gesture"],
-    "6": ["dialogue line", "acting direction", "expression/gesture"]
+    "1": ["dialogue line", "acting direction", "expression/gesture"]
   }
 }
 
-Each scene script has 3 lines:
-1. The actual dialogue to say (natural, conversational English)
-2. Acting direction (in parentheses)
-3. Expression or gesture guide`;
+Requirements:
+- Keep the response aligned with the transcript when transcript exists.
+- Each script entry must have exactly 3 lines.
+- Dialogue should be natural, conversational English.
+- Acting direction must be in parentheses.
+- The descriptions array length must equal ${scenes.length}.`;
 
     const text = await generateReplicateGeminiFlashText({
       systemInstruction:
@@ -214,152 +376,239 @@ Each scene script has 3 lines:
       topP: 0.95,
       thinkingBudget: 0,
     });
-    const parsed = await parseGeneratedScripts(text);
-    if (!parsed) return null;
+
+    const parsed = await parseJsonWithRepair<{
+      descriptions?: string[];
+      scripts?: Record<string, string[]>;
+    }>(text);
+
+    if (!parsed || !Array.isArray(parsed.descriptions) || !parsed.scripts) {
+      return null;
+    }
 
     return {
       descriptions: parsed.descriptions,
       scripts: Object.fromEntries(
-        Object.entries(parsed.scripts).map(([k, v]) => [parseInt(k), v])
-      ) as {[key: number]: string[]},
+        Object.entries(parsed.scripts).map(([key, value]) => [parseInt(key, 10), Array.isArray(value) ? value.map(String) : []])
+      ) as SceneScriptMap,
     };
-  } catch (e) {
-    console.error('AI script generation failed:', e);
+  } catch (error) {
+    console.error('AI script generation failed:', error);
     return null;
   }
 }
 
+function buildSceneStructure({
+  detections,
+  duration,
+  pageMedia,
+  platform,
+  videoId,
+  transcript,
+}: {
+  detections: VideoAnalysisResult | null;
+  duration: number;
+  pageMedia: PageMedia;
+  platform: Platform;
+  videoId: string | null;
+  transcript: TranscriptSegment[];
+}) {
+  const sceneNames = ['Hook', 'Introduction', 'Build Up', 'Peak', 'Resolution', 'Outro'];
+  const scenes: Array<{
+    id: number;
+    title: string;
+    startTime: string;
+    endTime: string;
+    thumbnail: string;
+    transcriptSnippet: string;
+  }> = [];
+
+  if (detections && detections.scenes.length > 0) {
+    for (let index = 0; index < detections.scenes.length; index += 1) {
+      const scene = detections.scenes[index];
+      const nextScene = detections.scenes[index + 1];
+      const startSeconds = scene.timestamp;
+      const endSeconds = nextScene ? nextScene.timestamp : duration;
+
+      scenes.push({
+        id: index + 1,
+        title: sceneNames[index] || `Scene ${index + 1}`,
+        startTime: formatTime(startSeconds),
+        endTime: formatTime(endSeconds),
+        thumbnail: scene.thumbnailBase64,
+        transcriptSnippet: getTranscriptSnippet(transcript, startSeconds, endSeconds),
+      });
+    }
+
+    return scenes;
+  }
+
+  const fallbackDuration = duration || 30;
+  const sceneCount = 6;
+  const sceneDuration = fallbackDuration / sceneCount;
+
+  for (let index = 0; index < sceneCount; index += 1) {
+    const startSeconds = index * sceneDuration;
+    const endSeconds = Math.min(fallbackDuration, (index + 1) * sceneDuration);
+    let thumbnail = pageMedia.imageUrl || generatePlaceholderThumbnail(index, sceneNames[index] || `Scene ${index + 1}`);
+
+    if (!pageMedia.imageUrl && (platform === 'youtube' || platform === 'youtube-shorts')) {
+      const thumbIndexes = [0, 1, 2, 3, 1, 2];
+      thumbnail = `https://img.youtube.com/vi/${videoId || 'dQw4w9WgXcQ'}/${thumbIndexes[index % thumbIndexes.length]}.jpg`;
+    }
+
+    scenes.push({
+      id: index + 1,
+      title: sceneNames[index] || `Scene ${index + 1}`,
+      startTime: formatTime(startSeconds),
+      endTime: formatTime(endSeconds),
+      thumbnail,
+      transcriptSnippet: getTranscriptSnippet(transcript, startSeconds, endSeconds),
+    });
+  }
+
+  return scenes;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { url, niche, goal, description } = await request.json();
+    const { url, niche = '', goal = '', description = '' } = await request.json();
 
     if (!url) {
-      return NextResponse.json(
-        { error: 'URL is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'URL is required' }, { status: 400 });
     }
 
     const platform = detectPlatform(url);
     const videoId = extractVideoId(url);
 
-    // YouTube 비디오는 storyboard diff 또는 FFmpeg로 실제 컷 감지 시도
-    let analysisResult = null;
+    const [pageMedia, transcriptResult] = await Promise.all([
+      fetchPageMedia(url),
+      fetchSupadataTranscript(url),
+    ]);
+
+    let analysisResult: VideoAnalysisResult | null = null;
     let sceneDetectionFallbackReason: string | null = null;
+
     if (platform === 'youtube' || platform === 'youtube-shorts') {
       console.log('Using YouTube scene detection pipeline...');
-      analysisResult = await analyzeYouTubeVideo(url);
-      
-      if (analysisResult.error) {
-        console.warn('YouTube scene detection failed, falling back to default:', analysisResult.error);
-        sceneDetectionFallbackReason = analysisResult.fallbackReason || analysisResult.error;
-        analysisResult = null;
+      const youtubeAnalysis = await analyzeYouTubeVideo(url);
+      if (youtubeAnalysis.error) {
+        sceneDetectionFallbackReason = youtubeAnalysis.fallbackReason || youtubeAnalysis.error;
+      } else {
+        analysisResult = youtubeAnalysis;
       }
     }
 
-    // Generate AI scripts if prompts are provided
-    const hasPrompts = niche?.trim() || goal?.trim() || description?.trim();
-    const aiResult = hasPrompts
-      ? await generateScriptsWithAI(niche || '', goal || '', description || '')
-      : null;
+    if (!analysisResult && pageMedia.videoUrl) {
+      const candidateAnalysis = await analyzeVideoFrameCandidates(pageMedia.videoUrl);
+      if (candidateAnalysis.error) {
+        sceneDetectionFallbackReason = candidateAnalysis.fallbackReason || candidateAnalysis.error;
+      } else if (candidateAnalysis.candidates.length > 0) {
+        const aiConfirmedScenes = await confirmCandidatesWithAI(
+          candidateAnalysis.candidates,
+          transcriptResult.transcript,
+          candidateAnalysis.duration
+        );
 
-    const sceneNames = ['Hook', 'Introduction', 'Build Up', 'Peak', 'Resolution', 'Outro'];
-    const sceneDescriptions = aiResult?.descriptions || defaultSceneDescriptions;
-
-    const scenes = [];
-
-    if (analysisResult && analysisResult.scenes.length > 0) {
-      // FFmpeg 분석 결과 사용
-      const detectedScenes = analysisResult.scenes;
-      const totalDuration = analysisResult.duration;
-
-      for (let i = 0; i < detectedScenes.length; i++) {
-        const scene = detectedScenes[i];
-        const nextScene = detectedScenes[i + 1];
-        const startTime = scene.timestamp;
-        const endTime = nextScene ? nextScene.timestamp : totalDuration;
-        const title = sceneNames[i] || `Scene ${i + 1}`;
-
-        scenes.push({
-          id: i + 1,
-          title,
-          startTime: formatTime(Math.floor(startTime)),
-          endTime: formatTime(Math.floor(endTime)),
-          thumbnail: scene.thumbnailBase64, // FFmpeg에서 추출한 실제 썸네일
-          description: sceneDescriptions[i] || `Scene ${i + 1}`,
-          script: aiResult?.scripts?.[i + 1] || defaultSceneScripts[i + 1] || [],
-          progress: 0,
-        });
-      }
-    } else {
-      // 기본 분할 방식 (fallback)
-      const totalDuration = 30;
-      const sceneDuration = 5;
-      const sceneCount = Math.ceil(totalDuration / sceneDuration);
-      const ogImage = await fetchOgImage(url);
-
-      for (let i = 0; i < sceneCount; i++) {
-        const startTime = i * sceneDuration;
-        const endTime = Math.min((i + 1) * sceneDuration, totalDuration);
-        const title = sceneNames[i] || `Scene ${i + 1}`;
-
-        let thumbnail: string;
-
-        if (platform === 'youtube' || platform === 'youtube-shorts') {
-          const thumbIndexes = [0, 1, 2, 3, 1, 2];
-          const thumbIdx = thumbIndexes[i % thumbIndexes.length];
-          thumbnail = `https://img.youtube.com/vi/${videoId || 'dQw4w9WgXcQ'}/${thumbIdx}.jpg`;
-        } else if (ogImage) {
-          thumbnail = ogImage;
+        if (aiConfirmedScenes && aiConfirmedScenes.length > 0) {
+          analysisResult = {
+            scenes: aiConfirmedScenes,
+            duration: candidateAnalysis.duration,
+            method: 'frame_diff_ai_confirmed',
+          };
+        } else if (candidateAnalysis.scenes.length > 0) {
+          analysisResult = {
+            scenes: candidateAnalysis.scenes,
+            duration: candidateAnalysis.duration,
+            method: 'frame_diff_ai_confirmed',
+            fallbackReason: 'ai_cut_confirmation_failed_used_raw_candidates',
+          };
+          sceneDetectionFallbackReason = 'ai_cut_confirmation_failed_used_raw_candidates';
         } else {
-          thumbnail = generatePlaceholderThumbnail(i, title);
+          sceneDetectionFallbackReason = candidateAnalysis.fallbackReason || 'frame_diff_candidates_empty';
         }
-
-        scenes.push({
-          id: i + 1,
-          title,
-          startTime: formatTime(startTime),
-          endTime: formatTime(endTime),
-          thumbnail,
-          description: sceneDescriptions[i] || `Scene ${i + 1}`,
-          script: aiResult?.scripts?.[i + 1] || defaultSceneScripts[i + 1] || [],
-          progress: 0,
-        });
       }
+    } else if (!analysisResult && !pageMedia.videoUrl && sceneDetectionFallbackReason === null) {
+      sceneDetectionFallbackReason = 'direct_video_url_not_available';
     }
+
+    const detectedDuration = analysisResult?.duration
+      || transcriptResult.sourceMetadata?.durationSeconds
+      || 30;
+
+    const provisionalScenes = buildSceneStructure({
+      detections: analysisResult,
+      duration: detectedDuration,
+      pageMedia: {
+        imageUrl: transcriptResult.sourceMetadata?.thumbnailUrl || pageMedia.imageUrl,
+        videoUrl: pageMedia.videoUrl,
+      },
+      platform,
+      videoId,
+      transcript: transcriptResult.transcript,
+    });
+
+    const aiResult = await generateScriptsWithAI({
+      scenes: provisionalScenes,
+      transcript: transcriptResult.transcript,
+      niche,
+      goal,
+      description,
+      sourceTitle: transcriptResult.sourceMetadata?.title || null,
+    });
+
+    const scriptSource = aiResult ? 'ai_generated' : 'default';
+
+    const scenes = provisionalScenes.map((scene, index) => ({
+      id: scene.id,
+      title: scene.title,
+      startTime: scene.startTime,
+      endTime: scene.endTime,
+      thumbnail: scene.thumbnail,
+      description: aiResult?.descriptions?.[index] || getDefaultDescription(index),
+      script: aiResult?.scripts?.[scene.id] || getDefaultScript(scene.id, aiResult?.descriptions?.[index] || getDefaultDescription(index)),
+      progress: 0,
+      transcriptSnippet: scene.transcriptSnippet || null,
+    }));
 
     const platformLabels: Record<Platform, string> = {
-      'youtube': 'YouTube',
+      youtube: 'YouTube',
       'youtube-shorts': 'YouTube Shorts',
-      'instagram': 'Instagram Reels',
-      'tiktok': 'TikTok',
-      'other': 'Video',
+      instagram: 'Instagram Reels',
+      tiktok: 'TikTok',
+      other: 'Video',
     };
 
     return NextResponse.json({
       success: true,
-      videoId: videoId || extractInstagramId(url) || extractTikTokId(url) || 'unknown',
+      videoId: videoId || extractInstagramId(url) || extractTikTokId(url) || transcriptResult.sourceMetadata?.id || 'unknown',
       url,
       scenes,
+      transcript: transcriptResult.transcript,
       metadata: {
-        title: `${platformLabels[platform]} Video`,
-        duration: formatTime(analysisResult?.duration || 30),
-        platform: platformLabels[platform],
+        title: transcriptResult.sourceMetadata?.title || `${platformLabels[platform]} Video`,
+        duration: formatTime(detectedDuration),
+        durationSeconds: detectedDuration,
+        platform: transcriptResult.sourceMetadata?.platform || platformLabels[platform],
         analyzedWithFFmpeg: analysisResult?.method === 'ffmpeg_video_download',
         sceneDetectionMethod: analysisResult?.method || 'fixed_5s_fallback',
         sceneDetectionFallbackReason:
           sceneDetectionFallbackReason
+          || analysisResult?.fallbackReason
           || (analysisResult ? null : platform === 'youtube' || platform === 'youtube-shorts'
             ? 'youtube_scene_detection_not_available'
             : 'no_platform_scene_detector'),
+        transcriptSource: transcriptResult.transcriptSource as TranscriptSource,
+        transcriptLanguage: transcriptResult.language,
+        transcriptSegmentCount: transcriptResult.transcript.length,
+        transcriptFallbackReason: transcriptResult.fallbackReason,
+        scriptSource,
+        sourceMetadata: transcriptResult.sourceMetadata,
       },
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to analyze video';
     console.error('Analyze error:', error);
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

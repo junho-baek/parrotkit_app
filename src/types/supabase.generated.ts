@@ -31,6 +31,10 @@ export interface Database {
           niche: string | null;
           goal: string | null;
           description: string | null;
+          transcript: Json;
+          transcript_source: string;
+          transcript_language: string | null;
+          source_metadata: Json;
           created_at: string;
         };
       };
@@ -44,6 +48,8 @@ export interface Database {
           total_scenes: number;
           captured_scene_ids: number[];
           match_results: Json;
+          analysis_metadata: Json;
+          script_source: string;
           captured_count: number;
           created_at: string;
           updated_at: string;

@@ -106,18 +106,47 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         throw updateReferenceError;
       }
     } else {
-      const { data: createdReference, error: createReferenceError } = await supabase
-        .from('references')
-        .insert({
-          user_id: authUser.id,
-          source_url: recipe.video_url,
-          description: title,
-        })
-        .select('id')
-        .single();
+      let createdReference;
+      {
+        const { data, error } = await supabase
+          .from('references')
+          .insert({
+            user_id: authUser.id,
+            source_url: recipe.video_url,
+            description: title,
+            transcript: [],
+            transcript_source: 'none',
+            source_metadata: {},
+          })
+          .select('id')
+          .single();
 
-      if (createReferenceError) {
-        throw createReferenceError;
+        if (error) {
+          const message = String(error.message || '');
+          const needsLegacyRetry = message.includes('transcript') || message.includes('source_metadata');
+
+          if (!needsLegacyRetry) {
+            throw error;
+          }
+
+          const { data: legacyData, error: legacyError } = await supabase
+            .from('references')
+            .insert({
+              user_id: authUser.id,
+              source_url: recipe.video_url,
+              description: title,
+            })
+            .select('id')
+            .single();
+
+          if (legacyError) {
+            throw legacyError;
+          }
+
+          createdReference = legacyData;
+        } else {
+          createdReference = data;
+        }
       }
 
       const { error: updateRecipeError } = await supabase

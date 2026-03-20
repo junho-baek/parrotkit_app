@@ -7,6 +7,7 @@ export interface RecipeScene {
   description: string;
   script?: string[];
   progress?: number;
+  transcriptSnippet?: string | null;
 }
 
 export interface RecipeRecord {
@@ -19,6 +20,8 @@ export interface RecipeRecord {
   capturedCount: number;
   capturedSceneIds: number[];
   matchResults: Record<string, boolean>;
+  analysisMetadata?: Record<string, unknown>;
+  scriptSource?: string;
   createdAt: string;
   updatedAt: string;
 }

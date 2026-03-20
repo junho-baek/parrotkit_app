@@ -11,6 +11,7 @@ const rmdir = promisify(fs.rm);
 
 const MIN_SCENE_COUNT = 4;
 const MAX_SCENE_COUNT = 6;
+const MAX_CANDIDATE_COUNT = 8;
 const MIN_SCENE_GAP_SECONDS = 2;
 const STORYBOARD_DIFF_SIZE = 24;
 
@@ -22,7 +23,19 @@ interface SceneDetection {
 export interface VideoAnalysisResult {
   scenes: SceneDetection[];
   duration: number;
-  method?: 'youtube_storyboard_diff' | 'ffmpeg_video_download';
+  method?: 'youtube_storyboard_diff' | 'ffmpeg_video_download' | 'frame_diff_ai_confirmed';
+  error?: string;
+  fallbackReason?: string;
+}
+
+export interface SceneCandidate extends SceneDetection {
+  diffScore: number;
+}
+
+export interface VideoCandidateAnalysisResult {
+  candidates: SceneCandidate[];
+  scenes: SceneDetection[];
+  duration: number;
   error?: string;
   fallbackReason?: string;
 }
@@ -113,9 +126,9 @@ export async function extractThumbnail(
   
   return new Promise((resolve, reject) => {
     ffmpeg(videoPath)
-      .seekInput(timestamp)
-      .frames(1)
+      .inputOptions([`-ss ${Math.max(0, timestamp)}`])
       .output(outputPath)
+      .outputOptions(['-frames:v 1', '-update 1'])
       .on('end', () => resolve(outputPath))
       .on('error', reject)
       .run();
@@ -140,6 +153,24 @@ export async function getVideoDuration(videoPath: string): Promise<number> {
       resolve(metadata.format.duration || 30);
     });
   });
+}
+
+async function downloadRemoteVideo(remoteUrl: string, tempDir: string) {
+  const response = await fetch(remoteUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    },
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to download remote video: ${response.status}`);
+  }
+
+  const filePath = path.join(tempDir, 'source-video.mp4');
+  const buffer = Buffer.from(await response.arrayBuffer());
+  await fs.promises.writeFile(filePath, buffer);
+  return filePath;
 }
 
 function parseStoryboardSpec(spec: string): StoryboardLevel[] {
@@ -202,6 +233,56 @@ function meanAbsoluteDifference(current: Uint8Array, previous: Uint8Array) {
 
 function pickNearestFrame(frames: StoryboardFrame[], targetTimestamp: number) {
   return [...frames].sort((a, b) => Math.abs(a.timestamp - targetTimestamp) - Math.abs(b.timestamp - targetTimestamp))[0] ?? null;
+}
+
+function sortFramesChronologically(frames: StoryboardFrame[]) {
+  return [...frames].sort((a, b) => a.timestamp - b.timestamp);
+}
+
+function collectCandidateFrames(frames: StoryboardFrame[], duration: number, maxCandidates: number = MAX_CANDIDATE_COUNT) {
+  if (frames.length === 0) {
+    return [];
+  }
+
+  const withDiff = frames.slice(1);
+  const scores = withDiff.map((frame) => frame.diffScore);
+  const mean = getMean(scores);
+  const stdDev = getStandardDeviation(scores, mean);
+  const localPeaks = withDiff.filter((frame, index) => {
+    const previousScore = withDiff[index - 1]?.diffScore ?? -Infinity;
+    const nextScore = withDiff[index + 1]?.diffScore ?? -Infinity;
+    return frame.diffScore >= previousScore && frame.diffScore >= nextScore;
+  });
+
+  const selected = [frames[0]];
+  const minGap = Math.max(MIN_SCENE_GAP_SECONDS, Math.round((frames[1]?.timestamp ?? MIN_SCENE_GAP_SECONDS)));
+
+  const tryAddFrame = (candidate: StoryboardFrame | null | undefined) => {
+    if (!candidate) return false;
+    if (selected.some((frame) => Math.abs(frame.timestamp - candidate.timestamp) < minGap)) {
+      return false;
+    }
+
+    selected.push(candidate);
+    return true;
+  };
+
+  for (const candidate of localPeaks.sort((a, b) => b.diffScore - a.diffScore)) {
+    if (selected.length >= maxCandidates) break;
+    if (candidate.diffScore >= mean || stdDev === 0) {
+      tryAddFrame(candidate);
+    }
+  }
+
+  if (selected.length < MIN_SCENE_COUNT) {
+    const targetRatios = [0.15, 0.3, 0.45, 0.6, 0.75, 0.9];
+    for (const ratio of targetRatios) {
+      if (selected.length >= Math.min(maxCandidates, MIN_SCENE_COUNT + 2)) break;
+      tryAddFrame(pickNearestFrame(frames, duration * ratio));
+    }
+  }
+
+  return sortFramesChronologically(selected).slice(0, maxCandidates);
 }
 
 function selectStoryboardSceneFrames(frames: StoryboardFrame[], duration: number) {
@@ -342,6 +423,28 @@ async function extractStoryboardFrames(level: StoryboardLevel): Promise<Storyboa
   return frames;
 }
 
+async function buildFrameFromImagePath(imagePath: string, timestamp: number, previousPixels: Uint8Array | null) {
+  const imageBuffer = await fs.promises.readFile(imagePath);
+  const normalizedBuffer = await sharp(imageBuffer)
+    .resize(STORYBOARD_DIFF_SIZE, STORYBOARD_DIFF_SIZE)
+    .grayscale()
+    .raw()
+    .toBuffer();
+
+  const currentPixels = new Uint8Array(normalizedBuffer);
+  const diffScore = previousPixels ? meanAbsoluteDifference(currentPixels, previousPixels) : 0;
+
+  return {
+    frame: {
+      index: Math.round(timestamp * 1000),
+      timestamp,
+      thumbnailBase64: `data:image/jpeg;base64,${imageBuffer.toString('base64')}`,
+      diffScore,
+    },
+    pixels: currentPixels,
+  };
+}
+
 async function analyzeYouTubeStoryboards(url: string): Promise<VideoAnalysisResult | null> {
   const info = await ytdl.getBasicInfo(url);
   const duration = Number(info.videoDetails.lengthSeconds || 30);
@@ -373,6 +476,68 @@ async function analyzeYouTubeStoryboards(url: string): Promise<VideoAnalysisResu
     duration,
     method: 'youtube_storyboard_diff',
   };
+}
+
+export async function analyzeVideoFrameCandidates(videoUrl: string): Promise<VideoCandidateAnalysisResult> {
+  const tempDir = path.join(process.cwd(), 'temp', 'frame-candidates', `${Date.now()}`);
+
+  try {
+    await mkdir(tempDir, { recursive: true });
+    const localVideoPath = /^https?:\/\//i.test(videoUrl)
+      ? await downloadRemoteVideo(videoUrl, tempDir)
+      : videoUrl;
+    const duration = await getVideoDuration(localVideoPath);
+    const sampleInterval = Math.max(1.5, Math.min(4, duration / 12));
+    const safeDuration = Math.max(0, duration - 0.5);
+    const timestamps = Array.from(
+      new Set(
+        [0, ...Array.from({ length: Math.ceil(duration / sampleInterval) }, (_, index) => Number((index * sampleInterval).toFixed(2))), safeDuration]
+          .map((timestamp) => Math.max(0, Math.min(safeDuration, timestamp)))
+      )
+    ).sort((a, b) => a - b);
+
+    const frames: StoryboardFrame[] = [];
+    let previousPixels: Uint8Array | null = null;
+
+    for (const timestamp of timestamps) {
+      const thumbnailPath = await extractThumbnail(localVideoPath, timestamp, tempDir);
+      const { frame, pixels } = await buildFrameFromImagePath(thumbnailPath, timestamp, previousPixels);
+      frames.push(frame);
+      previousPixels = pixels;
+      await unlink(thumbnailPath);
+    }
+
+    const candidates = collectCandidateFrames(frames, duration).map((frame) => ({
+      timestamp: frame.timestamp,
+      thumbnailBase64: frame.thumbnailBase64,
+      diffScore: frame.diffScore,
+    }));
+    const scenes = selectStoryboardSceneFrames(frames, duration).map((frame) => ({
+      timestamp: frame.timestamp,
+      thumbnailBase64: frame.thumbnailBase64,
+    }));
+
+    return {
+      candidates,
+      scenes,
+      duration,
+      ...(candidates.length > 0 ? {} : { fallbackReason: 'frame_diff_candidates_empty' }),
+    };
+  } catch (error) {
+    return {
+      candidates: [],
+      scenes: [],
+      duration: 0,
+      error: error instanceof Error ? error.message : 'Failed to analyze video frames',
+      fallbackReason: 'frame_diff_analysis_failed',
+    };
+  } finally {
+    try {
+      if (fs.existsSync(tempDir)) {
+        await rmdir(tempDir, { recursive: true, force: true });
+      }
+    } catch {}
+  }
 }
 
 function normalizeDetectedSceneTimestamps(sceneTimestamps: number[], duration: number) {

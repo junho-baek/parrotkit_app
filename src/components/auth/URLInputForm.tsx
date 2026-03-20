@@ -92,6 +92,12 @@ export const URLInputForm: React.FC = () => {
             description: describe,
             platform: data?.metadata?.platform || null,
             videoId: data.videoId || null,
+            transcript: data.transcript || [],
+            transcriptSource: data?.metadata?.transcriptSource || 'none',
+            transcriptLanguage: data?.metadata?.transcriptLanguage || null,
+            sourceMetadata: data?.metadata?.sourceMetadata || {},
+            analysisMetadata: data?.metadata || {},
+            scriptSource: data?.metadata?.scriptSource || 'default',
           }),
         });
 
@@ -113,6 +119,8 @@ export const URLInputForm: React.FC = () => {
         capturedVideos: {},
         matchResults: {},
         recipeId,
+        metadata: data.metadata || {},
+        transcript: data.transcript || [],
       }));
 
       // Home 탭으로 이동하여 레시피 표시
