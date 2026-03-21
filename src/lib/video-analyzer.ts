@@ -1,6 +1,7 @@
 import ffmpeg from 'fluent-ffmpeg';
 import ytdl from '@distube/ytdl-core';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import sharp from 'sharp';
 import { promisify } from 'util';
@@ -23,7 +24,7 @@ interface SceneDetection {
 export interface VideoAnalysisResult {
   scenes: SceneDetection[];
   duration: number;
-  method?: 'youtube_storyboard_diff' | 'ffmpeg_video_download' | 'frame_diff_ai_confirmed';
+  method?: 'ffmpeg_video_download' | 'frame_diff_ai_confirmed';
   error?: string;
   fallbackReason?: string;
 }
@@ -40,24 +41,15 @@ export interface VideoCandidateAnalysisResult {
   fallbackReason?: string;
 }
 
-interface StoryboardLevel {
-  width: number;
-  height: number;
-  frameCount: number;
-  columns: number;
-  rows: number;
-  intervalMs: number;
-  name: string;
-  signature: string;
-  levelIndex: number;
-  baseUrl: string;
-}
-
-interface StoryboardFrame {
+interface FrameSample {
   index: number;
   timestamp: number;
   thumbnailBase64: string;
   diffScore: number;
+}
+
+function getTempRoot(...segments: string[]) {
+  return path.join(os.tmpdir(), 'parrotkit', ...segments);
 }
 
 /**
@@ -173,43 +165,6 @@ async function downloadRemoteVideo(remoteUrl: string, tempDir: string) {
   return filePath;
 }
 
-function parseStoryboardSpec(spec: string): StoryboardLevel[] {
-  const [baseUrl, ...rawLevels] = spec.split('|');
-
-  return rawLevels
-    .map((rawLevel, index) => {
-      const [width, height, frameCount, columns, rows, intervalMs, name, signature] = rawLevel.split('#');
-
-      if (!width || !height || !frameCount || !columns || !rows || !intervalMs || !name || !signature) {
-        return null;
-      }
-
-      return {
-        width: Number(width),
-        height: Number(height),
-        frameCount: Number(frameCount),
-        columns: Number(columns),
-        rows: Number(rows),
-        intervalMs: Number(intervalMs),
-        name,
-        signature,
-        levelIndex: index,
-        baseUrl,
-      };
-    })
-    .filter((level): level is StoryboardLevel => Boolean(level));
-}
-
-function buildStoryboardSheetUrl(level: StoryboardLevel, sheetIndex: number) {
-  const sheetName = level.name.includes('$M')
-    ? level.name.replace('$M', String(sheetIndex))
-    : level.name;
-
-  return level.baseUrl
-    .replace('$L', String(level.levelIndex))
-    .replace('$N', sheetName) + `&sigh=${level.signature}`;
-}
-
 function getMean(values: number[]) {
   if (values.length === 0) return 0;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -231,15 +186,15 @@ function meanAbsoluteDifference(current: Uint8Array, previous: Uint8Array) {
   return total / current.length;
 }
 
-function pickNearestFrame(frames: StoryboardFrame[], targetTimestamp: number) {
+function pickNearestFrame(frames: FrameSample[], targetTimestamp: number) {
   return [...frames].sort((a, b) => Math.abs(a.timestamp - targetTimestamp) - Math.abs(b.timestamp - targetTimestamp))[0] ?? null;
 }
 
-function sortFramesChronologically(frames: StoryboardFrame[]) {
+function sortFramesChronologically(frames: FrameSample[]) {
   return [...frames].sort((a, b) => a.timestamp - b.timestamp);
 }
 
-function collectCandidateFrames(frames: StoryboardFrame[], duration: number, maxCandidates: number = MAX_CANDIDATE_COUNT) {
+function collectCandidateFrames(frames: FrameSample[], duration: number, maxCandidates: number = MAX_CANDIDATE_COUNT) {
   if (frames.length === 0) {
     return [];
   }
@@ -257,7 +212,7 @@ function collectCandidateFrames(frames: StoryboardFrame[], duration: number, max
   const selected = [frames[0]];
   const minGap = Math.max(MIN_SCENE_GAP_SECONDS, Math.round((frames[1]?.timestamp ?? MIN_SCENE_GAP_SECONDS)));
 
-  const tryAddFrame = (candidate: StoryboardFrame | null | undefined) => {
+  const tryAddFrame = (candidate: FrameSample | null | undefined) => {
     if (!candidate) return false;
     if (selected.some((frame) => Math.abs(frame.timestamp - candidate.timestamp) < minGap)) {
       return false;
@@ -285,7 +240,7 @@ function collectCandidateFrames(frames: StoryboardFrame[], duration: number, max
   return sortFramesChronologically(selected).slice(0, maxCandidates);
 }
 
-function selectStoryboardSceneFrames(frames: StoryboardFrame[], duration: number) {
+function selectSceneFrames(frames: FrameSample[], duration: number) {
   if (frames.length === 0) {
     return [];
   }
@@ -305,7 +260,7 @@ function selectStoryboardSceneFrames(frames: StoryboardFrame[], duration: number
   const selected = [frames[0]];
   const minGap = Math.max(MIN_SCENE_GAP_SECONDS, Math.round((frames[1]?.timestamp ?? MIN_SCENE_GAP_SECONDS)));
 
-  const tryAddFrame = (candidate: StoryboardFrame | null | undefined) => {
+  const tryAddFrame = (candidate: FrameSample | null | undefined) => {
     if (!candidate) return false;
     if (selected.some((frame) => Math.abs(frame.timestamp - candidate.timestamp) < minGap)) {
       return false;
@@ -360,69 +315,6 @@ function selectStoryboardSceneFrames(frames: StoryboardFrame[], duration: number
   return [firstFrame, ...trimmedFrames];
 }
 
-async function extractStoryboardFrames(level: StoryboardLevel): Promise<StoryboardFrame[]> {
-  const perSheet = level.columns * level.rows;
-  const sheetCount = Math.ceil(level.frameCount / perSheet);
-  const frames: StoryboardFrame[] = [];
-  let previousPixels: Uint8Array | null = null;
-
-  for (let sheetIndex = 0; sheetIndex < sheetCount; sheetIndex += 1) {
-    const response = await fetch(buildStoryboardSheetUrl(level, sheetIndex), {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-      cache: 'no-store',
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch storyboard sheet ${sheetIndex}: ${response.status}`);
-    }
-
-    const sheetBuffer = Buffer.from(await response.arrayBuffer());
-    const sprite = sharp(sheetBuffer);
-
-    for (let cellIndex = 0; cellIndex < perSheet; cellIndex += 1) {
-      const frameIndex = sheetIndex * perSheet + cellIndex;
-      if (frameIndex >= level.frameCount) {
-        break;
-      }
-
-      const left = (cellIndex % level.columns) * level.width;
-      const top = Math.floor(cellIndex / level.columns) * level.height;
-      const extractedFrame = sprite.clone().extract({
-        left,
-        top,
-        width: level.width,
-        height: level.height,
-      });
-
-      const [thumbnailBuffer, normalizedBuffer] = await Promise.all([
-        extractedFrame.clone().jpeg({ quality: 82 }).toBuffer(),
-        extractedFrame
-          .clone()
-          .resize(STORYBOARD_DIFF_SIZE, STORYBOARD_DIFF_SIZE)
-          .grayscale()
-          .raw()
-          .toBuffer(),
-      ]);
-
-      const currentPixels = new Uint8Array(normalizedBuffer);
-      const diffScore = previousPixels ? meanAbsoluteDifference(currentPixels, previousPixels) : 0;
-
-      frames.push({
-        index: frameIndex,
-        timestamp: (frameIndex * level.intervalMs) / 1000,
-        thumbnailBase64: `data:image/jpeg;base64,${thumbnailBuffer.toString('base64')}`,
-        diffScore,
-      });
-
-      previousPixels = currentPixels;
-    }
-  }
-
-  return frames;
-}
-
 async function buildFrameFromImagePath(imagePath: string, timestamp: number, previousPixels: Uint8Array | null) {
   const imageBuffer = await fs.promises.readFile(imagePath);
   const normalizedBuffer = await sharp(imageBuffer)
@@ -445,41 +337,8 @@ async function buildFrameFromImagePath(imagePath: string, timestamp: number, pre
   };
 }
 
-async function analyzeYouTubeStoryboards(url: string): Promise<VideoAnalysisResult | null> {
-  const info = await ytdl.getBasicInfo(url);
-  const duration = Number(info.videoDetails.lengthSeconds || 30);
-  const storyboardSpec = (info as { player_response?: { storyboards?: { playerStoryboardSpecRenderer?: { spec?: string } } } })
-    .player_response?.storyboards?.playerStoryboardSpecRenderer?.spec;
-
-  if (!storyboardSpec) {
-    return null;
-  }
-
-  const levels = parseStoryboardSpec(storyboardSpec);
-  const level = [...levels].reverse().find((candidate) => candidate.intervalMs > 0);
-  if (!level) {
-    return null;
-  }
-
-  const frames = await extractStoryboardFrames(level);
-  const selectedFrames = selectStoryboardSceneFrames(frames, duration);
-
-  if (selectedFrames.length === 0) {
-    return null;
-  }
-
-  return {
-    scenes: selectedFrames.map((frame) => ({
-      timestamp: frame.timestamp,
-      thumbnailBase64: frame.thumbnailBase64,
-    })),
-    duration,
-    method: 'youtube_storyboard_diff',
-  };
-}
-
 export async function analyzeVideoFrameCandidates(videoUrl: string): Promise<VideoCandidateAnalysisResult> {
-  const tempDir = path.join(process.cwd(), 'temp', 'frame-candidates', `${Date.now()}`);
+  const tempDir = getTempRoot('frame-candidates', `${Date.now()}`);
 
   try {
     await mkdir(tempDir, { recursive: true });
@@ -496,7 +355,7 @@ export async function analyzeVideoFrameCandidates(videoUrl: string): Promise<Vid
       )
     ).sort((a, b) => a - b);
 
-    const frames: StoryboardFrame[] = [];
+    const frames: FrameSample[] = [];
     let previousPixels: Uint8Array | null = null;
 
     for (const timestamp of timestamps) {
@@ -512,7 +371,7 @@ export async function analyzeVideoFrameCandidates(videoUrl: string): Promise<Vid
       thumbnailBase64: frame.thumbnailBase64,
       diffScore: frame.diffScore,
     }));
-    const scenes = selectStoryboardSceneFrames(frames, duration).map((frame) => ({
+    const scenes = selectSceneFrames(frames, duration).map((frame) => ({
       timestamp: frame.timestamp,
       thumbnailBase64: frame.thumbnailBase64,
     }));
@@ -577,17 +436,7 @@ export async function analyzeYouTubeVideo(url: string): Promise<VideoAnalysisRes
     return { scenes: [], duration: 0, error: 'Invalid YouTube URL' };
   }
 
-  try {
-    const storyboardResult = await analyzeYouTubeStoryboards(url);
-    if (storyboardResult && storyboardResult.scenes.length > 0) {
-      console.log(`YouTube storyboard scene detection succeeded with ${storyboardResult.scenes.length} scenes`);
-      return storyboardResult;
-    }
-  } catch (error) {
-    console.warn('Storyboard scene detection failed, trying FFmpeg download fallback:', error);
-  }
-
-  const tempDir = path.join(process.cwd(), 'temp');
+  const tempDir = getTempRoot('youtube-analysis');
   const videoPath = path.join(tempDir, `${videoId}.mp4`);
   const thumbDir = path.join(tempDir, 'thumbnails', videoId);
 
