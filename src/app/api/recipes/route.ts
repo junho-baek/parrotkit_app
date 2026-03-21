@@ -26,24 +26,58 @@ function parseScenes(raw: unknown) {
   });
 }
 
+const RECIPE_BASE_SELECT =
+  'id, user_id, reference_id, video_url, scenes, total_scenes, captured_scene_ids, match_results, captured_count, analysis_metadata, script_source, created_at, updated_at';
+
+const REFERENCE_SELECT_SUFFIX =
+  '(description, transcript, transcript_source, transcript_language, source_metadata)';
+
+async function listRecipesWithReferenceFallback(userId: string) {
+  const supabase = createSupabaseAdminClient();
+  const relationCandidates = [
+    `reference:references!recipes_reference_id_references_id_fk${REFERENCE_SELECT_SUFFIX}`,
+    `reference:references!recipes_reference_id_fkey${REFERENCE_SELECT_SUFFIX}`,
+    `reference:references${REFERENCE_SELECT_SUFFIX}`,
+  ];
+
+  let lastError: unknown = null;
+
+  for (const relationSelect of relationCandidates) {
+    const { data, error } = await supabase
+      .from('recipes')
+      .select(`${RECIPE_BASE_SELECT}, ${relationSelect}`)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (!error) {
+      return { data, error: null };
+    }
+
+    lastError = error;
+    const message = String(error.message || '');
+    const isAmbiguousRelation =
+      error.code === 'PGRST201'
+      || message.includes('more than one relationship')
+      || message.includes('Could not embed');
+
+    if (!isAmbiguousRelation) {
+      return { data: null, error };
+    }
+  }
+
+  return { data: null, error: lastError };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const authUser = await requireAuthenticatedUser(request);
-    const supabase = createSupabaseAdminClient();
-
-    const { data, error } = await supabase
-      .from('recipes')
-      .select(
-        'id, user_id, reference_id, video_url, scenes, total_scenes, captured_scene_ids, match_results, captured_count, analysis_metadata, script_source, created_at, updated_at, reference:references(description, transcript, transcript_source, transcript_language, source_metadata)'
-      )
-      .eq('user_id', authUser.id)
-      .order('created_at', { ascending: false });
+    const { data, error } = await listRecipesWithReferenceFallback(authUser.id);
 
     if (error) {
       throw error;
     }
 
-    const recipes = (data || []).map((item) => {
+    const recipes = ((data as Array<Record<string, unknown>> | null) || []).map((item) => {
       const { reference, ...recipe } = item;
       const referenceRecord = Array.isArray(reference) ? reference[0] : reference;
       return {
