@@ -24,7 +24,7 @@ interface SceneDetection {
 export interface VideoAnalysisResult {
   scenes: SceneDetection[];
   duration: number;
-  method?: 'ffmpeg_video_download' | 'frame_diff_ai_confirmed';
+  method?: 'ffmpeg_video_download' | 'frame_diff_ai_confirmed' | 'transcript_guided';
   error?: string;
   fallbackReason?: string;
 }

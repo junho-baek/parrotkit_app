@@ -224,6 +224,80 @@ function getTranscriptSnippet(segments: TranscriptSegment[], startTime: number, 
   return matched.map((segment) => segment.text).join(' ').trim();
 }
 
+function countWords(text: string) {
+  return text
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+}
+
+function buildTranscriptGuidedDetections(
+  transcript: TranscriptSegment[],
+  duration: number
+): VideoAnalysisResult | null {
+  if (transcript.length === 0) {
+    return null;
+  }
+
+  const usableDuration = Math.max(
+    duration,
+    transcript[transcript.length - 1]?.end || transcript[transcript.length - 1]?.start || 0
+  );
+  const totalWords = transcript.reduce((sum, segment) => sum + Math.max(1, countWords(segment.text)), 0);
+  const targetSceneCount = Math.min(
+    6,
+    Math.max(4, totalWords >= 180 ? 6 : totalWords >= 90 ? 5 : 4)
+  );
+  const wordsPerScene = Math.max(1, totalWords / targetSceneCount);
+
+  const timestamps = [Math.max(0, transcript[0]?.start || 0)];
+  let runningWords = 0;
+  let targetIndex = 1;
+
+  for (const segment of transcript) {
+    runningWords += Math.max(1, countWords(segment.text));
+
+    while (
+      targetIndex < targetSceneCount &&
+      runningWords >= wordsPerScene * targetIndex
+    ) {
+      const candidateTimestamp = Math.max(segment.start, timestamps[timestamps.length - 1] + 2);
+      if (candidateTimestamp < usableDuration - 1) {
+        timestamps.push(candidateTimestamp);
+      }
+      targetIndex += 1;
+    }
+  }
+
+  if (timestamps.length < 4) {
+    const targetRatios = [0.18, 0.38, 0.58, 0.78, 0.9];
+    for (const ratio of targetRatios) {
+      if (timestamps.length >= targetSceneCount) break;
+      const candidateTimestamp = Number((usableDuration * ratio).toFixed(2));
+      if (timestamps.every((timestamp) => Math.abs(timestamp - candidateTimestamp) >= 2)) {
+        timestamps.push(candidateTimestamp);
+      }
+    }
+  }
+
+  const normalized = Array.from(new Set(timestamps.map((timestamp) => Math.max(0, Math.min(usableDuration, timestamp)))))
+    .sort((left, right) => left - right)
+    .slice(0, 6);
+
+  if (normalized.length === 0) {
+    return null;
+  }
+
+  return {
+    scenes: normalized.map((timestamp) => ({
+      timestamp,
+      thumbnailBase64: '',
+    })),
+    duration: usableDuration,
+    method: 'transcript_guided',
+  };
+}
+
 async function confirmCandidatesWithAI(
   candidates: SceneCandidate[],
   transcript: TranscriptSegment[],
@@ -429,13 +503,18 @@ function buildSceneStructure({
       const nextScene = detections.scenes[index + 1];
       const startSeconds = scene.timestamp;
       const endSeconds = nextScene ? nextScene.timestamp : duration;
+      let thumbnail = scene.thumbnailBase64;
+
+      if (!thumbnail) {
+        thumbnail = pageMedia.imageUrl || generatePlaceholderThumbnail(index, sceneNames[index] || `Scene ${index + 1}`);
+      }
 
       scenes.push({
         id: index + 1,
         title: sceneNames[index] || `Scene ${index + 1}`,
         startTime: formatTime(startSeconds),
         endTime: formatTime(endSeconds),
-        thumbnail: scene.thumbnailBase64,
+        thumbnail,
         transcriptSnippet: getTranscriptSnippet(transcript, startSeconds, endSeconds),
       });
     }
@@ -530,6 +609,16 @@ export async function POST(request: NextRequest) {
       }
     } else if (!analysisResult && !pageMedia.videoUrl && sceneDetectionFallbackReason === null) {
       sceneDetectionFallbackReason = 'direct_video_url_not_available';
+    }
+
+    if (!analysisResult && transcriptResult.transcript.length > 0) {
+      analysisResult = buildTranscriptGuidedDetections(
+        transcriptResult.transcript,
+        transcriptResult.sourceMetadata?.durationSeconds || 0
+      );
+      if (analysisResult) {
+        sceneDetectionFallbackReason = sceneDetectionFallbackReason || 'video_detection_unavailable_used_transcript';
+      }
     }
 
     const detectedDuration = analysisResult?.duration
