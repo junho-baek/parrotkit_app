@@ -40,6 +40,29 @@ function normalizeDatabaseUrl(rawUrl) {
   if (value.startsWith('"') && value.endsWith('"')) {
     value = value.slice(1, -1);
   }
+  if (value.includes('#')) {
+    const hashIndex = value.indexOf('#');
+    const beforeHash = value.slice(0, hashIndex);
+    const afterHash = value.slice(hashIndex + 1);
+    const atIndex = afterHash.indexOf('@');
+    if (atIndex !== -1) {
+      const passwordSuffix = afterHash.slice(0, atIndex);
+      const hostAndPath = afterHash.slice(atIndex + 1);
+      value = `${beforeHash}${encodeURIComponent(`#${passwordSuffix}`)}@${hostAndPath}`;
+    }
+  }
+  try {
+    const parsed = new URL(value);
+    if (
+      parsed.searchParams.get('sslmode') === 'require' &&
+      !parsed.searchParams.has('uselibpqcompat')
+    ) {
+      parsed.searchParams.set('uselibpqcompat', 'true');
+      value = parsed.toString();
+    }
+  } catch {
+    return value;
+  }
   return value;
 }
 
@@ -61,7 +84,20 @@ async function main() {
     process.exit(0);
   }
 
-  const client = new Client({ connectionString: url });
+  const parsedUrl = new URL(url);
+  const isSupabaseManagedHost =
+    parsedUrl.hostname.endsWith('.supabase.co') ||
+    parsedUrl.hostname.endsWith('.supabase.com') ||
+    parsedUrl.hostname.endsWith('.pooler.supabase.com');
+  const requiresSsl =
+    parsedUrl.searchParams.get('sslmode') === 'require' ||
+    parsedUrl.searchParams.get('ssl') === 'true' ||
+    isSupabaseManagedHost;
+
+  const client = new Client({
+    connectionString: url,
+    ...(requiresSsl ? { ssl: { rejectUnauthorized: false } } : {}),
+  });
   await client.connect();
 
   try {
