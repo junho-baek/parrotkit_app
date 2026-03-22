@@ -162,13 +162,7 @@ export const InterestsForm: React.FC = () => {
 
   if (initializing) {
     return (
-      <div
-        className="rounded-[2rem] border p-6 text-center shadow-[0_18px_40px_rgba(15,23,42,0.06)]"
-        style={{
-          borderColor: 'var(--brand-soft-border)',
-          background: 'var(--brand-soft-surface)',
-        }}
-      >
+      <div className="py-10 text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 animate-pulse items-center justify-center rounded-full bg-white/80 shadow-md">
           <span className="text-xl">✨</span>
         </div>
@@ -178,48 +172,37 @@ export const InterestsForm: React.FC = () => {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div
-        className="rounded-[2rem] border p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-6"
-        style={{
-          borderColor: 'var(--brand-soft-border)',
-          background: 'var(--brand-soft-surface)',
-        }}
-      >
-        <div className="mb-5">
-          <span className="inline-flex rounded-full border border-white/80 bg-white/70 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-600">
-            Step 2 of 2
-          </span>
-          <h1 className="mt-3 text-[2rem] font-bold tracking-[-0.04em] text-gray-900">
-            Explore interests
-          </h1>
-          <p className="mt-2 text-sm font-medium leading-6 text-gray-700">
-            Pick a few genres so your recommendations feel closer to your actual taste and format.
-          </p>
-        </div>
-
-        <InterestPicker interests={interests} onToggle={toggleInterest} />
-
-        <div className="mt-5 flex items-center justify-between gap-3 rounded-[1.35rem] bg-white/75 px-4 py-3 shadow-sm">
-          <p className="text-sm font-semibold tracking-[-0.02em] text-gray-700">
-            {selectedCount} selected
-          </p>
-          <p className="text-xs font-medium text-gray-500">
-            Choose at least one
-          </p>
-        </div>
-
-        {selectionError ? (
-          <p className="brand-inline-error mt-4">{selectionError}</p>
-        ) : null}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-1.5">
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gray-500">
+          Step 2 of 2
+        </p>
+        <h1 className="text-[1.45rem] font-bold tracking-[-0.04em] text-gray-900">
+          Interests
+        </h1>
       </div>
+
+      <InterestPicker interests={interests} onToggle={toggleInterest} />
+
+      <div className="flex items-center justify-between gap-3 rounded-[1rem] bg-white/80 px-3 py-2.5 shadow-sm">
+        <p className="text-sm font-semibold tracking-[-0.02em] text-gray-700">
+          {selectedCount} selected
+        </p>
+        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-gray-500">
+          Min 1
+        </p>
+      </div>
+
+      {selectionError ? (
+        <p className="brand-inline-error">{selectionError}</p>
+      ) : null}
 
       <button
         type="submit"
         disabled={loading}
-        className="brand-primary-button flex min-h-[56px] w-full items-center justify-center rounded-[1.4rem] px-5 text-base font-bold tracking-[-0.02em]"
+        className="brand-primary-button flex min-h-[52px] w-full items-center justify-center rounded-[1.2rem] px-5 text-sm font-bold tracking-[-0.02em]"
       >
-        {loading ? 'Saving interests...' : 'Finish onboarding'}
+        {loading ? 'Saving...' : 'Finish'}
       </button>
     </form>
   );

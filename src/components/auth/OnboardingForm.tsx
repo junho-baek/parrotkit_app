@@ -51,42 +51,31 @@ export const OnboardingForm: React.FC = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div
-        className="rounded-[2rem] border p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-6"
-        style={{
-          borderColor: 'var(--brand-soft-border)',
-          background: 'var(--brand-soft-surface)',
-        }}
-      >
-        <div className="mb-5">
-          <span className="inline-flex rounded-full border border-white/80 bg-white/70 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-600">
-            Step 1 of 2
-          </span>
-          <h1 className="mt-3 text-[2rem] font-bold tracking-[-0.04em] text-gray-900">
-            Build your creator profile
-          </h1>
-          <p className="mt-2 text-sm font-medium leading-6 text-gray-700">
-            Tell us who you create for so we can shape a sharper reference feed in the next step.
-          </p>
-        </div>
-
-        <CreatorProfileFields
-          profile={profile}
-          onChange={handleChange}
-          domainSuggestionsId="onboarding-domain-suggestions"
-        />
-
-        {error ? (
-          <p className="brand-inline-error mt-4">{error}</p>
-        ) : null}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-1.5">
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gray-500">
+          Step 1 of 2
+        </p>
+        <h1 className="text-[1.45rem] font-bold tracking-[-0.04em] text-gray-900">
+          Creator profile
+        </h1>
       </div>
+
+      <CreatorProfileFields
+        profile={profile}
+        onChange={handleChange}
+        domainSuggestionsId="onboarding-domain-suggestions"
+      />
+
+      {error ? (
+        <p className="brand-inline-error">{error}</p>
+      ) : null}
 
       <button
         type="submit"
-        className="brand-primary-button flex min-h-[56px] w-full items-center justify-center rounded-[1.4rem] px-5 text-base font-bold tracking-[-0.02em]"
+        className="brand-primary-button flex min-h-[52px] w-full items-center justify-center rounded-[1.2rem] px-5 text-sm font-bold tracking-[-0.02em]"
       >
-        Continue to interests
+        Continue
       </button>
     </form>
   );
