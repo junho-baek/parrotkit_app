@@ -62,12 +62,14 @@ interface RecipeVideoPlayerProps {
   onScriptOpenChange: (open: boolean) => void;
 }
 
+type SupportedPlatform = 'youtube' | 'instagram' | 'tiktok' | 'direct-video' | 'other';
+
 function timeToSeconds(time: string): number {
   const [mins, secs] = time.split(':').map(Number);
   return mins * 60 + secs;
 }
 
-function extractVideoId(url: string): string {
+function extractYouTubeVideoId(url: string): string {
   const patterns = [
     /shorts\/([a-zA-Z0-9_-]+)/,
     /watch\?v=([a-zA-Z0-9_-]+)/,
@@ -79,6 +81,45 @@ function extractVideoId(url: string): string {
     if (match) return match[1];
   }
   return '';
+}
+
+function extractInstagramEmbedUrl(url: string): string | null {
+  const match = url.match(/instagram\.com\/(reel|p|tv)\/([^/?#]+)/i);
+  if (!match) return null;
+  return `https://www.instagram.com/${match[1].toLowerCase()}/${match[2]}/embed/captioned/`;
+}
+
+function extractTikTokEmbedUrl(url: string): string | null {
+  const match = url.match(/tiktok\.com\/(?:@[^/]+\/video\/)?(\d+)/i);
+  if (!match) return null;
+  return `https://www.tiktok.com/embed/v2/${match[1]}`;
+}
+
+function isDirectVideoUrl(url: string): boolean {
+  return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(url);
+}
+
+function getPlatform(url: string): SupportedPlatform {
+  if (extractYouTubeVideoId(url)) return 'youtube';
+  if (extractInstagramEmbedUrl(url)) return 'instagram';
+  if (extractTikTokEmbedUrl(url)) return 'tiktok';
+  if (isDirectVideoUrl(url)) return 'direct-video';
+  return 'other';
+}
+
+function getOpenLabel(platform: SupportedPlatform): string {
+  switch (platform) {
+    case 'instagram':
+      return 'Open on Instagram';
+    case 'tiktok':
+      return 'Open on TikTok';
+    case 'youtube':
+      return 'Watch on YouTube';
+    case 'direct-video':
+      return 'Open video source';
+    default:
+      return 'Open source video';
+  }
 }
 
 export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
@@ -93,13 +134,20 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
   void onSwitchToShooting;
   void _onBack;
   const playerRef = useRef<YouTubePlayerInstance | null>(null);
+  const htmlVideoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [failedVideoId, setFailedVideoId] = useState<string | null>(null);
-  const videoId = extractVideoId(videoUrl);
-  const isYouTube = Boolean(videoId);
-  const playerError = !isYouTube || failedVideoId === videoId;
+  const platform = getPlatform(videoUrl);
+  const videoId = extractYouTubeVideoId(videoUrl);
+  const isYouTube = platform === 'youtube';
+  const isDirectVideo = platform === 'direct-video';
+  const instagramEmbedUrl = extractInstagramEmbedUrl(videoUrl);
+  const tiktokEmbedUrl = extractTikTokEmbedUrl(videoUrl);
+  const embedUrl = instagramEmbedUrl || tiktokEmbedUrl;
+  const playerError = isYouTube ? failedVideoId === videoId : platform === 'other';
   const startSeconds = timeToSeconds(scene.startTime);
   const endSeconds = timeToSeconds(scene.endTime);
+  const openLabel = getOpenLabel(platform);
 
   useEffect(() => {
     if (!isYouTube) {
@@ -205,25 +253,95 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
     };
   }, [isYouTube, videoId, startSeconds, endSeconds]);
 
-  const thumbnailUrl = scene.thumbnail || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+  useEffect(() => {
+    if (!isDirectVideo) {
+      return;
+    }
+
+    const videoElement = htmlVideoRef.current;
+    if (!videoElement) {
+      return;
+    }
+
+    const syncSegment = () => {
+      if (Number.isFinite(startSeconds)) {
+        try {
+          if (Math.abs(videoElement.currentTime - startSeconds) > 0.35) {
+            videoElement.currentTime = startSeconds;
+          }
+        } catch {
+          // ignore seek issues until metadata is ready
+        }
+      }
+
+      void videoElement.play().catch(() => {
+        // Browsers may block autoplay with sound.
+      });
+    };
+
+    const handleLoadedMetadata = () => {
+      syncSegment();
+    };
+
+    const handleTimeUpdate = () => {
+      if (videoElement.currentTime >= endSeconds) {
+        videoElement.currentTime = startSeconds;
+        void videoElement.play().catch(() => {
+          // ignore autoplay rejection while looping
+        });
+      }
+    };
+
+    videoElement.addEventListener('loadedmetadata', handleLoadedMetadata);
+    videoElement.addEventListener('timeupdate', handleTimeUpdate);
+    syncSegment();
+
+    return () => {
+      videoElement.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      videoElement.removeEventListener('timeupdate', handleTimeUpdate);
+    };
+  }, [isDirectVideo, startSeconds, endSeconds, videoUrl]);
+
+  const thumbnailUrl = scene.thumbnail || (isYouTube ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : '');
+  const badgeLabel = isYouTube || isDirectVideo ? 'Segment' : 'Source video';
 
   return (
     <div className="relative w-full h-full bg-black flex items-center justify-center">
       <div className="relative w-full h-full max-w-md mx-auto" ref={containerRef}>
-        {/* YouTube Player or Fallback */}
-        {playerError ? (
+        {isYouTube && !playerError ? (
+          <div id="youtube-player" className="absolute inset-0 w-full h-full" />
+        ) : isDirectVideo ? (
+          <video
+            ref={htmlVideoRef}
+            src={videoUrl}
+            className="absolute inset-0 h-full w-full object-contain"
+            playsInline
+            controls
+            preload="metadata"
+          />
+        ) : embedUrl ? (
+          <iframe
+            src={embedUrl}
+            title={scene.title}
+            className="absolute inset-0 h-full w-full"
+            allow="autoplay; encrypted-media; picture-in-picture; clipboard-write"
+            allowFullScreen
+          />
+        ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black">
-            <img
-              src={thumbnailUrl}
-              alt={scene.title}
-              className="absolute inset-0 w-full h-full object-cover opacity-60"
-            />
+            {thumbnailUrl ? (
+              <img
+                src={thumbnailUrl}
+                alt={scene.title}
+                className="absolute inset-0 w-full h-full object-cover opacity-60"
+              />
+            ) : null}
             <div className="relative z-10 text-center p-6">
               <div className="w-16 h-16 mx-auto mb-4 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
                 <div className="w-0 h-0 border-l-[24px] border-l-white border-t-[14px] border-t-transparent border-b-[14px] border-b-transparent ml-1" />
               </div>
               <p className="text-white text-sm mb-2">
-                {isYouTube ? 'This video cannot be embedded.' : 'Segment preview is not available for this platform.'}
+                {isYouTube ? 'This video cannot be embedded.' : 'Inline preview is not available for this source.'}
               </p>
               <a
                 href={videoUrl}
@@ -231,19 +349,17 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
                 rel="noopener noreferrer"
                 className="inline-block px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
               >
-                Watch on YouTube
+                {openLabel}
               </a>
             </div>
           </div>
-        ) : (
-          <div id="youtube-player" className="absolute inset-0 w-full h-full" />
         )}
 
         {/* Loop indicator */}
         <div className="absolute top-4 right-4 z-10">
           <div className="bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-2">
             <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
-            <span className="text-white text-sm font-medium">Segment</span>
+            <span className="text-white text-sm font-medium">{badgeLabel}</span>
           </div>
         </div>
 
