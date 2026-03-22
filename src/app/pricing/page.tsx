@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { PricingCard } from '@/components/auth';
+import { FaqSection } from '@/components/common';
 import { PRICING_PLANS } from '@/types/auth';
 import { logClientEvent } from '@/lib/client-events';
 
@@ -51,27 +52,7 @@ export default function PricingPage() {
 
           {/* FAQ */}
           <div className="max-w-2xl mx-auto">
-            <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">FAQ</h2>
-            <div className="space-y-6">
-              <div className="bg-white rounded-xl p-6 border border-gray-200">
-                <h3 className="font-semibold text-gray-900 mb-2">Can I cancel anytime?</h3>
-                <p className="text-gray-600 text-sm">
-                  Yes, you can cancel your Pro subscription anytime. No long-term commitment required.
-                </p>
-              </div>
-              <div className="bg-white rounded-xl p-6 border border-gray-200">
-                <h3 className="font-semibold text-gray-900 mb-2">Can I upgrade or downgrade?</h3>
-                <p className="text-gray-600 text-sm">
-                  Of course! You can upgrade to Pro or downgrade to Free at any time.
-                </p>
-              </div>
-              <div className="bg-white rounded-xl p-6 border border-gray-200">
-                <h3 className="font-semibold text-gray-900 mb-2">Do you offer refunds?</h3>
-                <p className="text-gray-600 text-sm">
-                  We offer a 14-day money-back guarantee if you&apos;re not satisfied with Pro Plan.
-                </p>
-              </div>
-            </div>
+            <FaqSection showViewAllLink />
           </div>
 
           {/* Back to My Page */}

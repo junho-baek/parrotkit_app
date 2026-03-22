@@ -13,3 +13,4 @@ export { TrackingInitializer } from './TrackingInitializer';
 export { AuthSessionSync } from './AuthSessionSync';
 export { PWARegistration } from './PWARegistration';
 export { ShortVideoCard } from './ShortVideoCard';
+export { FaqSection } from './FaqSection';

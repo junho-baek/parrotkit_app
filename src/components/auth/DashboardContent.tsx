@@ -1081,9 +1081,10 @@ export const Settings: React.FC = () => {
       {/* Liked Videos */}
       <Card>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold flex items-center gap-2">
-            <span>❤️</span> Liked Videos
-            <span className="text-sm text-gray-900 font-semibold">({likedVideos.length})</span>
+          <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900">
+            <span className="text-lg text-gray-900">❤️</span>
+            <span className="text-gray-900">Liked Videos</span>
+            <span className="text-sm font-semibold text-gray-900">({likedVideos.length})</span>
           </h3>
         </div>
         
@@ -1131,6 +1132,15 @@ export const Settings: React.FC = () => {
           <span className="text-lg">⚡</span> Quick Actions
         </h3>
         <div className="space-y-2">
+          <Link
+            href="/faq"
+            className="flex items-center justify-between w-full px-4 py-3.5 rounded-xl bg-gradient-to-r from-amber-50 via-rose-50 to-violet-50 hover:from-amber-100 hover:via-rose-100 hover:to-violet-100 transition-all border border-orange-100 hover:border-rose-200 group"
+          >
+            <span className="flex items-center gap-2.5 text-sm font-bold text-gray-900">
+              <span className="text-xl">❓</span> View FAQ
+            </span>
+            <span className="text-gray-400 group-hover:text-rose-500 transition-colors">→</span>
+          </Link>
           <Link
             href="/pricing"
             className="flex items-center justify-between w-full px-4 py-3.5 rounded-xl bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 transition-all border border-blue-100 hover:border-blue-200 group"
