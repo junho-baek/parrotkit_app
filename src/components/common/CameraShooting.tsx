@@ -8,7 +8,12 @@ interface CameraShootingProps {
   instructions: string[];
   onCapture: (videoBlob: Blob) => void;
   onBack: () => void;
+  onPreviousScene?: () => void;
+  onNextScene?: () => void;
+  hasPreviousScene?: boolean;
+  hasNextScene?: boolean;
   embedded?: boolean;
+  existingCapture?: Blob | null;
 }
 
 export const CameraShooting: React.FC<CameraShootingProps> = ({
@@ -17,9 +22,15 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   instructions,
   onCapture,
   onBack,
+  onPreviousScene,
+  onNextScene,
+  hasPreviousScene = false,
+  hasNextScene = false,
   embedded = false,
+  existingCapture = null,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const reviewVideoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const previewStreamRef = useRef<MediaStream | null>(null);
   const recordingStreamRef = useRef<MediaStream | null>(null);
@@ -27,6 +38,43 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   const isActiveRef = useRef(false);
   const [isRecording, setIsRecording] = useState(false);
   const [scriptOpen, setScriptOpen] = useState(false);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [reviewUrl, setReviewUrl] = useState<string | null>(null);
+  const [audioStatus, setAudioStatus] = useState<'idle' | 'ready' | 'missing' | 'denied'>('idle');
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const existingCaptureUrl = React.useMemo(
+    () => (existingCapture ? URL.createObjectURL(existingCapture) : null),
+    [existingCapture]
+  );
+  const effectiveReviewUrl = reviewUrl || existingCaptureUrl;
+  const effectiveRecordedBlob = recordedBlob || existingCapture;
+
+  useEffect(() => {
+    return () => {
+      if (reviewUrl) {
+        URL.revokeObjectURL(reviewUrl);
+      }
+      if (existingCaptureUrl) {
+        URL.revokeObjectURL(existingCaptureUrl);
+      }
+    };
+  }, [existingCaptureUrl, reviewUrl]);
+
+  const getRecordingMimeType = useCallback(() => {
+    const candidates = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm;codecs=h264,opus',
+      'video/webm',
+      'video/mp4',
+    ];
+
+    if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
+      return '';
+    }
+
+    return candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate)) || '';
+  }, []);
 
   const startCamera = useCallback(async () => {
     try {
@@ -97,15 +145,19 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
     if (!previewVideoTrack) return;
 
     const recordingTracks: MediaStreamTrack[] = [previewVideoTrack.clone()];
+    setSaveMessage(null);
+    setAudioStatus('missing');
 
     try {
       const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const audioTrack = audioStream.getAudioTracks()[0];
       if (audioTrack) {
         recordingTracks.push(audioTrack);
+        setAudioStatus('ready');
       }
     } catch (error) {
       console.warn('Audio access denied, recording video without microphone:', error);
+      setAudioStatus('denied');
     }
 
     if (!isActiveRef.current) {
@@ -115,9 +167,10 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
 
     const recordingStream = new MediaStream(recordingTracks);
     recordingStreamRef.current = recordingStream;
-    const mediaRecorder = new MediaRecorder(recordingStream, {
-      mimeType: 'video/webm',
-    });
+    const recordingMimeType = getRecordingMimeType();
+    const mediaRecorder = recordingMimeType
+      ? new MediaRecorder(recordingStream, { mimeType: recordingMimeType })
+      : new MediaRecorder(recordingStream);
 
     mediaRecorderRef.current = mediaRecorder;
     const chunks: Blob[] = [];
@@ -137,9 +190,16 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
         return;
       }
 
-      const blob = new Blob(chunks, { type: 'video/webm' });
+      const blob = new Blob(chunks, { type: mediaRecorder.mimeType || recordingMimeType || 'video/webm' });
       if (blob.size > 0) {
-        onCapture(blob);
+        const nextUrl = URL.createObjectURL(blob);
+        setRecordedBlob(blob);
+        setReviewUrl((prev) => {
+          if (prev) {
+            URL.revokeObjectURL(prev);
+          }
+          return nextUrl;
+        });
       }
     };
 
@@ -168,6 +228,24 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
     ? 'relative w-full h-full bg-black'
     : 'fixed inset-0 bg-black z-50';
 
+  const handleRetry = () => {
+    if (reviewUrl) {
+      URL.revokeObjectURL(reviewUrl);
+    }
+    setRecordedBlob(null);
+    setReviewUrl(null);
+    setSaveMessage(null);
+  };
+
+  const handleUseTake = () => {
+    if (!effectiveRecordedBlob) {
+      return;
+    }
+
+    onCapture(effectiveRecordedBlob);
+    setSaveMessage('Take saved');
+  };
+
   return (
     <div className={containerClass}>
       {/* Video Preview */}
@@ -187,6 +265,27 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
           className="px-3.5 py-2 bg-black/65 backdrop-blur-sm text-white rounded-xl font-semibold text-sm border border-white/20 active:scale-95 transition-transform"
         >
           ← Back
+        </button>
+      </div>
+
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onPreviousScene}
+          disabled={!hasPreviousScene}
+          className="h-10 w-10 rounded-full border border-white/20 bg-black/55 text-white backdrop-blur-sm transition disabled:opacity-35 disabled:cursor-not-allowed"
+          aria-label="Previous segment"
+        >
+          ←
+        </button>
+        <button
+          type="button"
+          onClick={onNextScene}
+          disabled={!hasNextScene}
+          className="h-10 w-10 rounded-full border border-white/20 bg-black/55 text-white backdrop-blur-sm transition disabled:opacity-35 disabled:cursor-not-allowed"
+          aria-label="Next segment"
+        >
+          →
         </button>
       </div>
 
@@ -246,6 +345,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
           {/* Record Button */}
           <button
             onClick={handleShootButton}
+            disabled={Boolean(effectiveReviewUrl)}
             className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all ${
               isRecording
                 ? 'bg-red-500 scale-90'
@@ -258,10 +358,91 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
             {!isRecording && <div className="w-16 h-16 rounded-full bg-red-500" />}
           </button>
 
-          {/* Spacer for symmetry */}
-          <div className="w-[72px]" />
+          <button
+            type="button"
+            onClick={() => {
+              if (reviewVideoRef.current) {
+                reviewVideoRef.current.currentTime = 0;
+                void reviewVideoRef.current.play().catch(() => {
+                  // ignore replay failures
+                });
+              }
+            }}
+            disabled={!effectiveReviewUrl}
+            className="w-[72px] rounded-xl bg-white/95 px-3 py-2.5 text-xs font-semibold text-gray-900 shadow-lg disabled:opacity-45 disabled:cursor-not-allowed"
+          >
+            Review
+          </button>
+        </div>
+        <div className="mt-3 text-center">
+          {audioStatus === 'ready' ? (
+            <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-100">
+              Mic ready
+            </span>
+          ) : audioStatus === 'denied' ? (
+            <span className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-100">
+              Mic denied, video only
+            </span>
+          ) : audioStatus === 'missing' && isRecording ? (
+            <span className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-100">
+              Recording without microphone
+            </span>
+          ) : null}
+          {saveMessage ? (
+            <span className="ml-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80">
+              {saveMessage}
+            </span>
+          ) : null}
         </div>
       </div>
+
+      {effectiveReviewUrl ? (
+        <div className="absolute inset-0 z-20 bg-black/82 px-5 py-6 backdrop-blur-sm">
+          <div className="mx-auto flex h-full max-w-sm flex-col">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/50">Review Take</p>
+                <h3 className="text-lg font-bold text-white">Scene #{sceneId}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white"
+              >
+                Close
+              </button>
+            </div>
+            <div className="relative flex-1 overflow-hidden rounded-3xl border border-white/10 bg-black">
+              <video
+                ref={reviewVideoRef}
+                src={effectiveReviewUrl}
+                controls
+                playsInline
+                className="h-full w-full object-contain"
+              />
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white"
+              >
+                Retry
+              </button>
+              <button
+                type="button"
+                onClick={handleUseTake}
+                className="rounded-2xl bg-white px-4 py-3 text-sm font-bold text-black"
+              >
+                Use Take
+              </button>
+            </div>
+            <p className="mt-3 text-center text-xs text-white/55">
+              Play the clip here to confirm video and microphone audio before saving.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {/* Script Bottom Sheet */}
       {scriptOpen && (

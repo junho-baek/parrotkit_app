@@ -94,6 +94,10 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     () => recipeScenes.find((scene) => scene.id === selectedSceneId) || null,
     [recipeScenes, selectedSceneId]
   );
+  const selectedSceneIndex = React.useMemo(
+    () => recipeScenes.findIndex((scene) => scene.id === selectedSceneId),
+    [recipeScenes, selectedSceneId]
+  );
   const localCapturedSceneIds = React.useMemo(
     () =>
       Object.keys(capturedVideos)
@@ -254,10 +258,10 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     setGlobalChatHistory(messages);
   }, [assistantMode, selectedScene]);
 
-  const closeChatAssistant = () => {
+  const closeChatAssistant = React.useCallback(() => {
     setChatOpen(false);
     setSheetHeight(50);
-  };
+  }, []);
 
   const openChatAssistant = (mode?: AssistantMode) => {
     setScriptOpen(false);
@@ -376,6 +380,22 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     setScriptOpen(false);
     closeChatAssistant();
   };
+
+  const navigateScene = React.useCallback((direction: -1 | 1) => {
+    if (selectedSceneIndex < 0) {
+      return;
+    }
+
+    const nextScene = recipeScenes[selectedSceneIndex + direction];
+    if (!nextScene) {
+      return;
+    }
+
+    setSelectedSceneId(nextScene.id);
+    setScriptOpen(false);
+    closeChatAssistant();
+    setAssistantMode('scene');
+  }, [closeChatAssistant, recipeScenes, selectedSceneIndex]);
 
   const markSceneCaptured = useCallback((sceneId: number) => {
     setCapturedScenes((prev) => {
@@ -526,9 +546,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
       });
     }
 
-    // 랜덤 매칭 게이트 제거: 촬영 후 즉시 리스트로 복귀하고 업로드 결과로만 상태를 확정한다.
-    setSelectedSceneId(null);
-    setActiveTab('recipe');
+    setScriptSaveError(null);
   };
 
   const handleCameraBack = () => {
@@ -655,19 +673,37 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   if (selectedScene) {
     return (
       <div className="fixed inset-0 flex flex-col bg-black overflow-hidden z-[9999]">
-        {/* Header */}
-        <div className="bg-black border-b border-gray-800 flex-shrink-0">
-          <div className="flex items-center justify-between px-4 py-3 text-white max-w-md mx-auto">
-            <button
-              onClick={handleCameraBack}
-              className="flex items-center gap-2 font-bold text-blue-400 text-base"
-            >
-              ← Back
-            </button>
-            <span className="text-sm font-medium truncate">#{selectedScene.id}: {selectedScene.title}</span>
-            <div className="text-xs text-gray-400">slow mode</div>
+        {activeTab === 'recipe' ? (
+          <div className="bg-black border-b border-gray-800 flex-shrink-0">
+            <div className="flex items-center justify-between px-4 py-3 text-white max-w-md mx-auto">
+              <button
+                onClick={handleCameraBack}
+                className="flex items-center gap-2 font-bold text-blue-400 text-base"
+              >
+                ← Back
+              </button>
+              <span className="text-sm font-medium truncate">#{selectedScene.id}: {selectedScene.title}</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => navigateScene(-1)}
+                  disabled={selectedSceneIndex <= 0}
+                  className="h-9 w-9 rounded-full bg-gray-800 text-white disabled:opacity-30"
+                >
+                  ←
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigateScene(1)}
+                  disabled={selectedSceneIndex >= recipeScenes.length - 1}
+                  className="h-9 w-9 rounded-full bg-gray-800 text-white disabled:opacity-30"
+                >
+                  →
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        ) : null}
 
         {/* Tab Bar */}
         <div className="flex items-center justify-center gap-4 py-2 bg-black flex-shrink-0">
@@ -707,11 +743,17 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
             />
           ) : (
             <CameraShooting
+              key={selectedScene.id}
               sceneId={selectedScene.id}
               sceneTitle={selectedScene.title}
               instructions={getScriptForScene(selectedScene)}
               onCapture={handleVideoCapture}
               onBack={handleCameraBack}
+              onPreviousScene={() => navigateScene(-1)}
+              onNextScene={() => navigateScene(1)}
+              hasPreviousScene={selectedSceneIndex > 0}
+              hasNextScene={selectedSceneIndex >= 0 && selectedSceneIndex < recipeScenes.length - 1}
+              existingCapture={capturedVideos[selectedScene.id] || null}
               embedded={true}
             />
           )}
