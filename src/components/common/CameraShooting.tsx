@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 
 interface CameraShootingProps {
   sceneId: number;
@@ -28,18 +28,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   const [isRecording, setIsRecording] = useState(false);
   const [scriptOpen, setScriptOpen] = useState(false);
 
-  useEffect(() => {
-    isActiveRef.current = true;
-    skipCaptureRef.current = false;
-    startCamera();
-    return () => {
-      isActiveRef.current = false;
-      skipCaptureRef.current = true;
-      stopCamera();
-    };
-  }, []);
-
-  const startCamera = async () => {
+  const startCamera = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user' },
@@ -58,16 +47,16 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
       console.error('Camera access error:', error);
       alert('카메라 접근 권한이 필요합니다.');
     }
-  };
+  }, []);
 
-  const stopRecordingStream = () => {
+  const stopRecordingStream = useCallback(() => {
     if (recordingStreamRef.current) {
       recordingStreamRef.current.getTracks().forEach((track) => track.stop());
       recordingStreamRef.current = null;
     }
-  };
+  }, []);
 
-  const stopPreviewStream = () => {
+  const stopPreviewStream = useCallback(() => {
     if (previewStreamRef.current) {
       previewStreamRef.current.getTracks().forEach((track) => track.stop());
       previewStreamRef.current = null;
@@ -75,9 +64,9 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-  };
+  }, []);
 
-  const stopCamera = () => {
+  const stopCamera = useCallback(() => {
     const recorder = mediaRecorderRef.current;
     if (recorder && recorder.state !== 'inactive') {
       recorder.stop();
@@ -85,7 +74,18 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
     setIsRecording(false);
     stopRecordingStream();
     stopPreviewStream();
-  };
+  }, [stopPreviewStream, stopRecordingStream]);
+
+  useEffect(() => {
+    isActiveRef.current = true;
+    skipCaptureRef.current = false;
+    void startCamera();
+    return () => {
+      isActiveRef.current = false;
+      skipCaptureRef.current = true;
+      stopCamera();
+    };
+  }, [startCamera, stopCamera]);
 
   const startRecording = async () => {
     const previewStream = previewStreamRef.current;
@@ -214,6 +214,22 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
           </div>
         </div>
       )}
+
+      {/* Passive Script Prompt */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-32 z-10 flex justify-center px-5">
+        <div className="max-w-sm rounded-2xl bg-black/18 px-4 py-3 backdrop-blur-[2px]">
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/45">
+            Scene #{sceneId}
+          </div>
+          <div className="space-y-1.5">
+            {instructions.slice(0, 3).map((instruction, idx) => (
+              <p key={idx} className="text-sm font-medium leading-snug text-white/42">
+                {instruction}
+              </p>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* Bottom Controls */}
       <div className="absolute bottom-8 left-0 right-0 z-20">

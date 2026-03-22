@@ -10,6 +10,8 @@ import { Spinner } from '@/components/ui/spinner';
 import { authenticatedFetch, ensureValidAccessToken } from '@/lib/auth/client-session';
 import { logClientEvent } from '@/lib/client-events';
 
+type ChatRole = 'user' | 'assistant';
+
 interface RecipeScene {
   id: number;
   title: string;
@@ -30,19 +32,28 @@ interface RecipeResultProps {
   initialMatchResults?: {[key: number]: boolean}; // 초기 매칭 결과
 }
 
+type ChatMessage = {
+  role: ChatRole;
+  content: string;
+};
+
+type AssistantMode = 'global' | 'scene';
+
 export const RecipeResult: React.FC<RecipeResultProps> = ({ 
   scenes, 
   videoUrl, 
   onBack,
   recipeId,
-  initialCapturedVideos = {}
+  initialCapturedVideos = {},
+  initialMatchResults = {},
 }) => {
   const router = useRouter();
   const brandActionStyle: React.CSSProperties = {
     backgroundImage: 'linear-gradient(135deg, #ff9568 0%, #de81c1 52%, #8c67ff 100%)',
     boxShadow: '0 10px 20px rgba(140, 103, 255, 0.2)',
   };
-  const [selectedScene, setSelectedScene] = useState<RecipeScene | null>(null);
+  const [recipeScenes, setRecipeScenes] = useState<RecipeScene[]>(scenes);
+  const [selectedSceneId, setSelectedSceneId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'recipe' | 'shooting'>('recipe');
   const [capturedVideos, setCapturedVideos] = useState<{[key: number]: Blob}>({});
   const [isExporting, setIsExporting] = useState(false);
@@ -50,10 +61,12 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const [capturedScenes, setCapturedScenes] = useState<{[key: number]: boolean}>(initialCapturedVideos);
   const [uploadingScenes, setUploadingScenes] = useState<{[key: number]: boolean}>({});
   const [uploadErrors, setUploadErrors] = useState<{[key: number]: string}>({});
-  const [sceneScripts, setSceneScripts] = useState<{[key: number]: string[]}>({});
+  const [scriptSaveError, setScriptSaveError] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessage, setChatMessage] = useState('');
-  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'assistant'; content: string}[]>([]);
+  const [assistantMode, setAssistantMode] = useState<AssistantMode>('global');
+  const [globalChatHistory, setGlobalChatHistory] = useState<ChatMessage[]>([]);
+  const [sceneChatHistory, setSceneChatHistory] = useState<Record<number, ChatMessage[]>>({});
   const [chatLoading, setChatLoading] = useState(false);
   const [applyingScriptMessageIndex, setApplyingScriptMessageIndex] = useState<number | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
@@ -61,6 +74,26 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const [scriptOpen, setScriptOpen] = useState(false);
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const capturedScenesRef = useRef<{[key: number]: boolean}>(initialCapturedVideos);
+
+  React.useEffect(() => {
+    setRecipeScenes(scenes);
+  }, [scenes]);
+
+  React.useEffect(() => {
+    setSelectedSceneId(null);
+    setAssistantMode('global');
+    setGlobalChatHistory([]);
+    setSceneChatHistory({});
+    setChatOpen(false);
+    setChatMessage('');
+    setScriptOpen(false);
+    setScriptSaveError(null);
+  }, [recipeId, videoUrl, scenes]);
+
+  const selectedScene = React.useMemo(
+    () => recipeScenes.find((scene) => scene.id === selectedSceneId) || null,
+    [recipeScenes, selectedSceneId]
+  );
   const localCapturedSceneIds = React.useMemo(
     () =>
       Object.keys(capturedVideos)
@@ -118,10 +151,36 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   };
 
   const getScriptForScene = (scene: RecipeScene): string[] => {
-    if (sceneScripts[scene.id]) return sceneScripts[scene.id];
-    if (scene.script && scene.script.length > 0) return scene.script;
+    const currentScene = recipeScenes.find((item) => item.id === scene.id) || scene;
+    if (currentScene.script && currentScene.script.length > 0) return currentScene.script;
     return defaultScripts[scene.id] || [scene.description];
   };
+
+  const getSceneAssistantIntro = (scene: RecipeScene): ChatMessage => ({
+    role: 'assistant',
+    content: `Hi! I'm editing the script for #${scene.id}: ${scene.title}. Ask me to rewrite, shorten, or change the tone while keeping the recipe flow natural.`,
+  });
+
+  const globalAssistantIntro = React.useMemo<ChatMessage>(() => ({
+    role: 'assistant',
+    content: "Hi! I'm your Script Assistant. I can help with the whole recipe flow, transitions, hooks, and scene-by-scene rewrites.",
+  }), []);
+
+  const activeChatHistory = React.useMemo(() => {
+    if (assistantMode === 'scene' && selectedScene) {
+      return sceneChatHistory[selectedScene.id] || [];
+    }
+    return globalChatHistory;
+  }, [assistantMode, globalChatHistory, sceneChatHistory, selectedScene]);
+
+  const activeThreadMessages = React.useMemo(() => {
+    if (assistantMode === 'scene' && selectedScene) {
+      const history = sceneChatHistory[selectedScene.id] || [];
+      return history.length > 0 ? history : [getSceneAssistantIntro(selectedScene)];
+    }
+
+    return globalChatHistory.length > 0 ? globalChatHistory : [globalAssistantIntro];
+  }, [assistantMode, globalAssistantIntro, globalChatHistory, sceneChatHistory, selectedScene]);
 
   const parseScriptLines = (text: string): string[] | null => {
     const lines = text.split('\n');
@@ -135,13 +194,74 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     return numbered.length >= 2 ? numbered : null;
   };
 
+  const buildRecipeSessionData = React.useCallback((nextScenes: RecipeScene[]) => ({
+    scenes: nextScenes,
+    videoUrl,
+    capturedVideos: capturedScenesRef.current,
+    matchResults: initialMatchResults,
+    recipeId: recipeId || '',
+  }), [initialMatchResults, recipeId, videoUrl]);
+
+  const syncRecipeSessionStorage = React.useCallback((nextScenes: RecipeScene[]) => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    sessionStorage.setItem('recipeData', JSON.stringify(buildRecipeSessionData(nextScenes)));
+  }, [buildRecipeSessionData]);
+
+  const persistSceneScripts = React.useCallback(async (nextScenes: RecipeScene[]) => {
+    if (!recipeId) {
+      syncRecipeSessionStorage(nextScenes);
+      return true;
+    }
+
+    const token = await ensureValidAccessToken();
+    if (!token) {
+      setScriptSaveError('Login required to save this script.');
+      return false;
+    }
+
+    const response = await authenticatedFetch(`/api/recipes/${recipeId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        scenes: nextScenes,
+      }),
+    });
+
+    if (!response.ok) {
+      setScriptSaveError('Could not save the script yet. Your local change is still visible.');
+      return false;
+    }
+
+    syncRecipeSessionStorage(nextScenes);
+    setScriptSaveError(null);
+    return true;
+  }, [recipeId, syncRecipeSessionStorage]);
+
+  const setActiveThread = React.useCallback((messages: ChatMessage[]) => {
+    if (assistantMode === 'scene' && selectedScene) {
+      setSceneChatHistory((prev) => ({
+        ...prev,
+        [selectedScene.id]: messages,
+      }));
+      return;
+    }
+
+    setGlobalChatHistory(messages);
+  }, [assistantMode, selectedScene]);
+
   const closeChatAssistant = () => {
     setChatOpen(false);
     setSheetHeight(50);
   };
 
-  const openChatAssistant = () => {
+  const openChatAssistant = (mode?: AssistantMode) => {
     setScriptOpen(false);
+    setAssistantMode(mode || (selectedScene ? 'scene' : 'global'));
     setChatOpen(true);
   };
 
@@ -153,14 +273,24 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   };
 
   const applyScript = async (messageContent: string, messageIndex: number) => {
-    if (!selectedScene) return;
+    if (!selectedScene || assistantMode !== 'scene') return;
     setApplyingScriptMessageIndex(messageIndex);
     await new Promise((resolve) => setTimeout(resolve, 900));
     const lines = parseScriptLines(messageContent);
     if (lines) {
-      setSceneScripts(prev => ({ ...prev, [selectedScene.id]: lines }));
+      const nextScenes = recipeScenes.map((scene) =>
+        scene.id === selectedScene.id
+          ? {
+              ...scene,
+              script: lines,
+            }
+          : scene
+      );
+      setRecipeScenes(nextScenes);
+      setScriptSaveError(null);
       setScriptOpen(true);
       closeChatAssistant();
+      void persistSceneScripts(nextScenes);
     }
     setApplyingScriptMessageIndex(null);
   };
@@ -169,8 +299,8 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     if (!chatMessage.trim() || chatLoading) return;
     const userMsg = chatMessage.trim();
     setChatMessage('');
-    const newHistory = [...chatHistory, { role: 'user' as const, content: userMsg }];
-    setChatHistory(newHistory);
+    const newHistory = [...activeChatHistory, { role: 'user' as const, content: userMsg }];
+    setActiveThread(newHistory);
     setChatLoading(true);
 
     setTimeout(() => chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: 'smooth' }), 50);
@@ -178,8 +308,16 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     const currentScript = selectedScene ? getScriptForScene(selectedScene) : [];
     const payload = {
       messages: newHistory,
-      scenes: scenes.map(s => ({ id: s.id, title: s.title, startTime: s.startTime, endTime: s.endTime, description: s.description })),
-      currentScene: selectedScene ? {
+      mode: assistantMode,
+      allScenes: recipeScenes.map(s => ({
+        id: s.id,
+        title: s.title,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        description: s.description,
+        script: getScriptForScene(s),
+      })),
+      targetScene: selectedScene ? {
         id: selectedScene.id,
         title: selectedScene.title,
         description: selectedScene.description,
@@ -195,12 +333,12 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
       });
       const data = await res.json();
       if (data.message) {
-        setChatHistory(prev => [...prev, { role: 'assistant', content: data.message }]);
+        setActiveThread([...newHistory, { role: 'assistant', content: data.message }]);
       } else {
-        setChatHistory(prev => [...prev, { role: 'assistant', content: 'Error: ' + (data.error || 'Failed to get response') }]);
+        setActiveThread([...newHistory, { role: 'assistant', content: 'Error: ' + (data.error || 'Failed to get response') }]);
       }
     } catch {
-      setChatHistory(prev => [...prev, { role: 'assistant', content: 'Network error. Please try again.' }]);
+      setActiveThread([...newHistory, { role: 'assistant', content: 'Network error. Please try again.' }]);
     } finally {
       setChatLoading(false);
       setTimeout(() => chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: 'smooth' }), 50);
@@ -232,8 +370,9 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   }, [sheetHeight]);
 
   const handleSceneClick = (scene: RecipeScene) => {
-    setSelectedScene(scene);
+    setSelectedSceneId(scene.id);
     setActiveTab('recipe'); // 기본으로 Recipe 탭 표시
+    setAssistantMode('scene');
     setScriptOpen(false);
     closeChatAssistant();
   };
@@ -388,12 +527,12 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     }
 
     // 랜덤 매칭 게이트 제거: 촬영 후 즉시 리스트로 복귀하고 업로드 결과로만 상태를 확정한다.
-    setSelectedScene(null);
+    setSelectedSceneId(null);
     setActiveTab('recipe');
   };
 
   const handleCameraBack = () => {
-    setSelectedScene(null);
+    setSelectedSceneId(null);
     setActiveTab('recipe');
     setScriptOpen(false);
     closeChatAssistant();
@@ -494,7 +633,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   };
 
   // Validate props after hooks are initialized to keep hook order stable.
-  if (!scenes || !Array.isArray(scenes) || scenes.length === 0) {
+  if (!recipeScenes || !Array.isArray(recipeScenes) || recipeScenes.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="text-6xl mb-4">⚠️</div>
@@ -581,7 +720,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
         {/* Floating Chatbot Button - More Visible */}
         {!chatOpen && (
           <button
-            onClick={openChatAssistant}
+            onClick={() => openChatAssistant('scene')}
             className="absolute bottom-8 right-6 w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all transform hover:scale-110 active:scale-95 flex items-center justify-center z-50 border-4 border-white"
           >
             <img src="/parrot-logo.png" alt="Chat" className="w-9 h-9" />
@@ -628,13 +767,35 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
               </button>
             </div>
+            <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+              <button
+                onClick={() => setAssistantMode('global')}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  assistantMode === 'global'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                Global
+              </button>
+              <button
+                onClick={() => setAssistantMode('scene')}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  assistantMode === 'scene'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-blue-50 text-blue-700'
+                }`}
+              >
+                Scene #{selectedScene.id}
+              </button>
+            </div>
             <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
-              <div className="bg-gray-100 p-3 rounded-2xl rounded-tl-sm max-w-[85%]">
-                <p className="text-sm text-gray-900 font-semibold">
-                  Hi! I&apos;m editing the script for <strong>#{selectedScene.id}: {selectedScene.title}</strong>. Ask me to rewrite, shorten, or change the tone!
-                </p>
-              </div>
-              {chatHistory.map((msg, i) => (
+              {scriptSaveError ? (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+                  {scriptSaveError}
+                </div>
+              ) : null}
+              {activeThreadMessages.map((msg, i) => (
                 <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                   <div className={`p-3 rounded-2xl max-w-[85%] ${
                     msg.role === 'user'
@@ -643,7 +804,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                   }`}>
                     <p className="text-sm font-semibold whitespace-pre-wrap">{msg.content}</p>
                   </div>
-                  {msg.role === 'assistant' && parseScriptLines(msg.content) && (
+                  {assistantMode === 'scene' && msg.role === 'assistant' && parseScriptLines(msg.content) && (
                     applyingScriptMessageIndex === i ? (
                       <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground">
                         <Spinner className="size-3.5" />
@@ -679,7 +840,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                 value={chatMessage}
                 onChange={(e) => setChatMessage(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } }}
-                placeholder="Ask about scripts..."
+                placeholder={assistantMode === 'scene' ? `Ask about Scene #${selectedScene.id}...` : 'Ask about the whole recipe...'}
                 disabled={chatLoading}
                 className="flex-1 px-4 py-3 bg-gray-100 rounded-full text-base text-gray-900 placeholder:text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all disabled:opacity-50"
               />
@@ -710,7 +871,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
           </button>
           <div className="flex items-center gap-2 text-sm text-gray-900 font-semibold">
             {exportableCaptureCount > 0 && (
-              <span>{exportableCaptureCount}/{scenes.length} captured</span>
+              <span>{exportableCaptureCount}/{recipeScenes.length} captured</span>
             )}
             {uploadingCount > 0 && (
               <span className="text-amber-600">• {uploadingCount} uploading</span>
@@ -751,7 +912,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
           {/* Scenes Grid - compact, fits in one screen */}
           <div className="grid grid-cols-2 gap-3 pb-20">
-            {scenes.map((scene) => {
+            {recipeScenes.map((scene) => {
               const isCaptured = capturedScenes[scene.id];
               const hasLocalCapture = Boolean(capturedVideos[scene.id]) || isCaptured;
               const isUploading = Boolean(uploadingScenes[scene.id]);
@@ -857,7 +1018,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
       {/* Floating Chatbot Button */}
       {!chatOpen && (
         <button
-          onClick={() => setChatOpen(true)}
+          onClick={() => openChatAssistant('global')}
           className="absolute bottom-6 right-6 w-14 h-14 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-all transform hover:scale-110 flex items-center justify-center z-40"
         >
           <img src="/parrot-logo.png" alt="Chat" className="w-8 h-8" />
@@ -875,7 +1036,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
         {chatOpen && (
           <div
             className="absolute inset-0 bg-black/30 -z-10"
-            onClick={() => { setChatOpen(false); setSheetHeight(50); }}
+            onClick={closeChatAssistant}
           />
         )}
 
@@ -903,29 +1064,33 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
               <span className="font-bold text-gray-900 text-lg">Script Assistant</span>
             </div>
             <button
-              onClick={() => { setChatOpen(false); setSheetHeight(50); }}
+              onClick={closeChatAssistant}
               className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
             </button>
           </div>
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+            <button
+              onClick={() => setAssistantMode('global')}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                assistantMode === 'global'
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              Global
+            </button>
+          </div>
 
           {/* Chat Messages - scrollable */}
           <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
-            {/* Welcome message */}
-            <div className="bg-gray-100 p-3 rounded-2xl rounded-tl-sm max-w-[85%]">
-              <p className="text-sm text-gray-700">
-                Hi! I&apos;m your Script Assistant. I can help you write and refine scripts for each scene. Try:
-              </p>
-              <ul className="text-xs text-gray-600 mt-2 space-y-1">
-                <li>&bull; &quot;Write a script for Scene #1 Hook&quot;</li>
-                <li>&bull; &quot;Make the intro more engaging&quot;</li>
-                <li>&bull; &quot;Suggest a funny voiceover for all scenes&quot;</li>
-              </ul>
-            </div>
-
-            {/* Chat history */}
-            {chatHistory.map((msg, i) => (
+            {scriptSaveError ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+                {scriptSaveError}
+              </div>
+            ) : null}
+            {activeThreadMessages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`p-3 rounded-2xl max-w-[85%] ${
                   msg.role === 'user'
@@ -958,7 +1123,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
               value={chatMessage}
               onChange={(e) => setChatMessage(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } }}
-              placeholder="Ask about scripts..."
+              placeholder="Ask about the whole recipe..."
               disabled={chatLoading}
               className="flex-1 px-4 py-2.5 bg-gray-100 rounded-full text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all disabled:opacity-50"
             />

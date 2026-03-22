@@ -71,10 +71,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const authUser = await requireAuthenticatedUser(request);
     const { id } = await params;
     const body = await request.json();
-    const title = String(body.title || '').trim();
+    const title = typeof body.title === 'string' ? body.title.trim() : '';
+    const nextScenes = Array.isArray(body.scenes) ? body.scenes : null;
 
-    if (!title) {
-      return NextResponse.json({ error: 'title is required' }, { status: 400 });
+    if (!title && !nextScenes) {
+      return NextResponse.json({ error: 'title or scenes is required' }, { status: 400 });
     }
 
     const supabase = createSupabaseAdminClient();
@@ -95,7 +96,19 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'Recipe not found' }, { status: 404 });
     }
 
-    if (recipe.reference_id) {
+    if (nextScenes) {
+      const { error: updateScenesError } = await supabase
+        .from('recipes')
+        .update({ scenes: nextScenes })
+        .eq('id', recipe.id)
+        .eq('user_id', authUser.id);
+
+      if (updateScenesError) {
+        throw updateScenesError;
+      }
+    }
+
+    if (title && recipe.reference_id) {
       const { error: updateReferenceError } = await supabase
         .from('references')
         .update({ description: title })
@@ -105,7 +118,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       if (updateReferenceError) {
         throw updateReferenceError;
       }
-    } else {
+    } else if (title && !recipe.reference_id) {
       let createdReference;
       {
         const { data, error } = await supabase
@@ -160,7 +173,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       }
     }
 
-    return NextResponse.json({ success: true, title });
+    return NextResponse.json({ success: true, title: title || null, scenesUpdated: Boolean(nextScenes) });
   } catch (error: unknown) {
     if (error instanceof Error && error.message === 'UNAUTHORIZED') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
