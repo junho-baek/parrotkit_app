@@ -95,7 +95,7 @@ export const CreatorProfileFields: React.FC<CreatorProfileFieldsProps> = ({
 
       <div>
         <span className="mb-1.5 block text-[13px] font-bold tracking-[-0.02em] text-gray-900">Activity Purpose</span>
-        <div className="grid grid-cols-3 gap-1.5">
+        <div className="mx-auto flex max-w-[21rem] flex-wrap justify-center gap-2">
           {CREATOR_ACTIVITY_PURPOSE_OPTIONS.map((purpose) => {
             const isSelected = profile.activityPurpose === purpose;
             return (
@@ -104,14 +104,14 @@ export const CreatorProfileFields: React.FC<CreatorProfileFieldsProps> = ({
                 type="button"
                 data-selected={isSelected ? 'true' : 'false'}
                 onClick={() => onChange('activityPurpose', purpose)}
-                className="brand-pill min-h-[42px] rounded-[0.95rem] px-2 py-1.5 text-[11px] font-bold leading-[1.15] tracking-[-0.025em]"
+                className="brand-pill flex min-h-[44px] w-[112px] items-center justify-center rounded-[0.95rem] px-2 py-1.5 text-center text-[11px] font-bold leading-[1.15] tracking-[-0.025em]"
                 style={
                   isSelected
                     ? {
                         backgroundImage: 'linear-gradient(135deg, #ff9568 0%, #de81c1 52%, #8c67ff 100%)',
                         backgroundColor: '#de81c1',
                         color: '#ffffff',
-                        borderColor: 'transparent',
+                        border: 'none',
                         boxShadow: '0 12px 22px rgba(140, 103, 255, 0.2)',
                       }
                     : undefined
