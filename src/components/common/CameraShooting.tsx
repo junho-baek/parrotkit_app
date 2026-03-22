@@ -32,6 +32,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   const [scriptOpen, setScriptOpen] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [reviewUrl, setReviewUrl] = useState<string | null>(null);
+  const [reviewVisible, setReviewVisible] = useState(false);
   const [audioStatus, setAudioStatus] = useState<'idle' | 'ready' | 'missing' | 'denied'>('idle');
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const existingCaptureUrl = React.useMemo(
@@ -186,6 +187,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
       if (blob.size > 0) {
         const nextUrl = URL.createObjectURL(blob);
         setRecordedBlob(blob);
+        setReviewVisible(true);
         setReviewUrl((prev) => {
           if (prev) {
             URL.revokeObjectURL(prev);
@@ -221,6 +223,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
     : 'fixed inset-0 bg-black z-50';
 
   const handleRetry = () => {
+    setReviewVisible(false);
     if (reviewUrl) {
       URL.revokeObjectURL(reviewUrl);
     }
@@ -234,6 +237,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
       return;
     }
 
+    setReviewVisible(false);
     onCapture(effectiveRecordedBlob);
     setSaveMessage('Take saved');
   };
@@ -332,6 +336,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
           <button
             type="button"
             onClick={() => {
+              setReviewVisible(true);
               if (reviewVideoRef.current) {
                 reviewVideoRef.current.currentTime = 0;
                 void reviewVideoRef.current.play().catch(() => {
@@ -367,7 +372,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
         </div>
       </div>
 
-      {effectiveReviewUrl ? (
+      {reviewVisible && effectiveReviewUrl ? (
         <div className="absolute inset-0 z-20 bg-black/82 px-5 py-6 backdrop-blur-sm">
           <div className="mx-auto flex h-full max-w-sm flex-col">
             <div className="mb-3 flex items-center justify-between">
