@@ -308,7 +308,7 @@ export const Home: React.FC = () => {
       {/* Header */}
       <div className="mb-2">
         <h2 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
-          Welcome Back! <span className="animate-bounce">👋</span>
+          Welcome! <span className="animate-bounce">👋</span>
         </h2>
         <p className="text-sm text-gray-900 font-medium">Your creative workspace</p>
       </div>

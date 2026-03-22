@@ -14,11 +14,7 @@ export default function PastePage() {
   }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Paste Reference</h2>
-        <p className="text-gray-900">Add a viral video URL to analyze</p>
-      </div>
+    <div>
       <URLInputForm />
     </div>
   );
