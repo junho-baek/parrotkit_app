@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useState } from 'react';
 
 type YouTubePlayerEvent = {
   target: {
-    mute: () => void;
+    unMute?: () => void;
     seekTo: (seconds: number) => void;
     playVideo: () => void;
   };
@@ -136,7 +136,7 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
           events: {
             onReady: (event: YouTubePlayerEvent) => {
               if (!mounted) return;
-              event.target.mute();
+              event.target.unMute?.();
               event.target.seekTo(startSeconds);
               event.target.playVideo();
             },
