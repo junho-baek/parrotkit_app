@@ -683,24 +683,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                 ← Back
               </button>
               <span className="text-sm font-medium truncate">#{selectedScene.id}: {selectedScene.title}</span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => navigateScene(-1)}
-                  disabled={selectedSceneIndex <= 0}
-                  className="h-9 w-9 rounded-full bg-gray-800 text-white disabled:opacity-30"
-                >
-                  ←
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigateScene(1)}
-                  disabled={selectedSceneIndex >= recipeScenes.length - 1}
-                  className="h-9 w-9 rounded-full bg-gray-800 text-white disabled:opacity-30"
-                >
-                  →
-                </button>
-              </div>
+              <div className="text-xs text-gray-400">slow mode</div>
             </div>
           </div>
         ) : null}
@@ -749,14 +732,29 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
               instructions={getScriptForScene(selectedScene)}
               onCapture={handleVideoCapture}
               onBack={handleCameraBack}
-              onPreviousScene={() => navigateScene(-1)}
-              onNextScene={() => navigateScene(1)}
-              hasPreviousScene={selectedSceneIndex > 0}
-              hasNextScene={selectedSceneIndex >= 0 && selectedSceneIndex < recipeScenes.length - 1}
               existingCapture={capturedVideos[selectedScene.id] || null}
               embedded={true}
             />
           )}
+
+          <button
+            type="button"
+            onClick={() => navigateScene(-1)}
+            disabled={selectedSceneIndex <= 0}
+            className="absolute left-3 top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-xl font-semibold text-white backdrop-blur-sm transition disabled:opacity-25 disabled:cursor-not-allowed"
+            aria-label="Previous segment"
+          >
+            ←
+          </button>
+          <button
+            type="button"
+            onClick={() => navigateScene(1)}
+            disabled={selectedSceneIndex >= recipeScenes.length - 1}
+            className="absolute right-3 top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-xl font-semibold text-white backdrop-blur-sm transition disabled:opacity-25 disabled:cursor-not-allowed"
+            aria-label="Next segment"
+          >
+            →
+          </button>
         </div>
 
         {/* Floating Chatbot Button - More Visible */}

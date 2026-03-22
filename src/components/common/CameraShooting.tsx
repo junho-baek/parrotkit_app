@@ -8,10 +8,6 @@ interface CameraShootingProps {
   instructions: string[];
   onCapture: (videoBlob: Blob) => void;
   onBack: () => void;
-  onPreviousScene?: () => void;
-  onNextScene?: () => void;
-  hasPreviousScene?: boolean;
-  hasNextScene?: boolean;
   embedded?: boolean;
   existingCapture?: Blob | null;
 }
@@ -22,10 +18,6 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   instructions,
   onCapture,
   onBack,
-  onPreviousScene,
-  onNextScene,
-  hasPreviousScene = false,
-  hasNextScene = false,
   embedded = false,
   existingCapture = null,
 }) => {
@@ -265,27 +257,6 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
           className="px-3.5 py-2 bg-black/65 backdrop-blur-sm text-white rounded-xl font-semibold text-sm border border-white/20 active:scale-95 transition-transform"
         >
           ← Back
-        </button>
-      </div>
-
-      <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onPreviousScene}
-          disabled={!hasPreviousScene}
-          className="h-10 w-10 rounded-full border border-white/20 bg-black/55 text-white backdrop-blur-sm transition disabled:opacity-35 disabled:cursor-not-allowed"
-          aria-label="Previous segment"
-        >
-          ←
-        </button>
-        <button
-          type="button"
-          onClick={onNextScene}
-          disabled={!hasNextScene}
-          className="h-10 w-10 rounded-full border border-white/20 bg-black/55 text-white backdrop-blur-sm transition disabled:opacity-35 disabled:cursor-not-allowed"
-          aria-label="Next segment"
-        >
-          →
         </button>
       </div>
 
