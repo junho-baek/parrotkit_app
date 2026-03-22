@@ -157,8 +157,8 @@ function parseStatCount(value: unknown): number {
 const brandActionGradientClass =
   'text-white hover:scale-[1.02]';
 const brandActionGradientStyle: React.CSSProperties = {
-  backgroundImage: 'linear-gradient(135deg, #ff9568 0%, #de81c1 52%, #8c67ff 100%)',
-  boxShadow: '0 14px 28px rgba(140, 103, 255, 0.24)',
+  backgroundImage: 'var(--gradient-brand-action)',
+  boxShadow: 'var(--shadow-brand-action-lg)',
 };
 
 // ============ HOME: 최근 Paste한 레퍼런스들 ============

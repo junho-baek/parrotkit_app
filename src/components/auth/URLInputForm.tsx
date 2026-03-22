@@ -17,8 +17,8 @@ export const URLInputForm: React.FC = () => {
   const brandActionClass =
     'w-full rounded-xl px-8 py-4 font-semibold text-white transition-all hover:translate-y-[-1px] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50';
   const brandActionStyle: React.CSSProperties = {
-    backgroundImage: 'linear-gradient(135deg, #ff9568 0%, #de81c1 52%, #8c67ff 100%)',
-    boxShadow: '0 14px 30px rgba(140, 103, 255, 0.22)',
+    backgroundImage: 'var(--gradient-brand-action)',
+    boxShadow: 'var(--shadow-brand-action-xl)',
   };
 
   // 로그인 체크

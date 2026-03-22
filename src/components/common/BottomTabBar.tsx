@@ -65,8 +65,6 @@ export const BottomTabBar: React.FC = () => {
   const [isInputFocused, setIsInputFocused] = React.useState(false);
   const [isViewportCompressed, setIsViewportCompressed] = React.useState(false);
   const baselineHeightRef = React.useRef<number>(0);
-  const activeGlassGradient =
-    'linear-gradient(118deg, rgba(255, 149, 104, 0.34) 0%, rgba(222, 129, 193, 0.18) 48%, rgba(140, 103, 255, 0.34) 100%)';
 
   React.useEffect(() => {
     if (typeof window === 'undefined') {
@@ -152,9 +150,12 @@ export const BottomTabBar: React.FC = () => {
 
   return (
     <nav
-      className="z-20 flex-shrink-0 border-t border-white/60 bg-white/78 shadow-[0_-16px_34px_rgba(15,23,42,0.08)] backdrop-blur-2xl"
+      className="z-20 flex-shrink-0 backdrop-blur-2xl"
       style={{
         paddingBottom: 'max(env(safe-area-inset-bottom), 0.6rem)',
+        borderTop: '1px solid var(--border-bottom-nav)',
+        background: 'var(--surface-bottom-nav)',
+        boxShadow: 'var(--shadow-bottom-nav)',
       }}
     >
       <div className="mx-auto flex max-w-md items-center justify-around gap-1 px-3 pt-2">
@@ -170,7 +171,7 @@ export const BottomTabBar: React.FC = () => {
               aria-current={isActive ? 'page' : undefined}
               className={`group relative flex flex-1 select-none overflow-hidden rounded-[1.35rem] px-2 py-2 text-center outline-none transition-all duration-300 ${
                 isActive
-                  ? 'border border-white/40 bg-white/[0.08] text-slate-900 shadow-[0_16px_30px_rgba(138,103,255,0.16)] backdrop-blur-[18px]'
+                  ? 'border border-white/40 text-slate-900 backdrop-blur-[18px]'
                   : 'border border-transparent text-slate-500 hover:bg-white/70 hover:text-slate-700 active:bg-white/40'
               }`}
               style={
@@ -179,9 +180,9 @@ export const BottomTabBar: React.FC = () => {
                   touchAction: 'manipulation',
                   ...(isActive
                     ? {
-                        backgroundImage: activeGlassGradient,
-                        boxShadow:
-                          '0 16px 30px rgba(138, 103, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.58), inset 0 -1px 0 rgba(255, 255, 255, 0.12)',
+                        backgroundColor: 'var(--surface-bottom-nav-active)',
+                        backgroundImage: 'var(--gradient-brand-nav-glass)',
+                        boxShadow: 'var(--shadow-bottom-nav-active)',
                       }
                     : {}),
                 }
@@ -191,15 +192,18 @@ export const BottomTabBar: React.FC = () => {
                 <>
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute inset-[1px] rounded-[1.28rem] bg-white/[0.10]"
+                    className="pointer-events-none absolute inset-[1px] rounded-[1.28rem]"
+                    style={{ background: 'var(--surface-bottom-nav-active-overlay)' }}
                   />
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute left-2 right-2 top-1 h-4 rounded-full bg-white/70 blur-md"
+                    className="pointer-events-none absolute left-2 right-2 top-1 h-4 rounded-full blur-md"
+                    style={{ background: 'var(--surface-bottom-nav-active-highlight)' }}
                   />
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute bottom-0 left-1/2 h-8 w-12 -translate-x-1/2 rounded-full bg-violet-400/25 blur-xl"
+                    className="pointer-events-none absolute bottom-0 left-1/2 h-8 w-12 -translate-x-1/2 rounded-full blur-xl"
+                    style={{ background: 'var(--surface-bottom-nav-active-bloom)' }}
                   />
                 </>
               ) : null}

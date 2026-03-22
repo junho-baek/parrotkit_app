@@ -16,8 +16,8 @@ type StoredRecipe = {
 
 export const Recipes: React.FC = () => {
   const brandActionStyle: React.CSSProperties = {
-    backgroundImage: 'linear-gradient(135deg, #ff9568 0%, #de81c1 52%, #8c67ff 100%)',
-    boxShadow: '0 14px 28px rgba(140, 103, 255, 0.24)',
+    backgroundImage: 'var(--gradient-brand-action)',
+    boxShadow: 'var(--shadow-brand-action-lg)',
   };
   const [myRecipes, setMyRecipes] = useState<StoredRecipe[]>([]);
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);

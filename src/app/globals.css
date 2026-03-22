@@ -12,6 +12,37 @@
   --color-secondary: #ec4899;
   --color-accent: #8b5cf6;
 
+  /* ParrotKit Brand Tokens */
+  --brand-sunset-orange: #ff9568;
+  --brand-orchid-pink: #de81c1;
+  --brand-electric-violet: #8c67ff;
+  --gradient-brand-action: linear-gradient(
+    135deg,
+    var(--brand-sunset-orange) 0%,
+    var(--brand-orchid-pink) 52%,
+    var(--brand-electric-violet) 100%
+  );
+  --gradient-brand-nav-glass: linear-gradient(
+    118deg,
+    rgb(255 149 104 / 0.34) 0%,
+    rgb(222 129 193 / 0.18) 48%,
+    rgb(140 103 255 / 0.34) 100%
+  );
+  --shadow-brand-action-md: 0 10px 20px rgb(140 103 255 / 0.2);
+  --shadow-brand-action-lg: 0 14px 28px rgb(140 103 255 / 0.24);
+  --shadow-brand-action-xl: 0 14px 30px rgb(140 103 255 / 0.22);
+  --surface-bottom-nav: rgb(255 255 255 / 0.78);
+  --border-bottom-nav: rgb(255 255 255 / 0.6);
+  --shadow-bottom-nav: 0 -16px 34px rgb(15 23 42 / 0.08);
+  --shadow-bottom-nav-active:
+    0 16px 30px rgb(138 103 255 / 0.16),
+    inset 0 1px 0 rgb(255 255 255 / 0.58),
+    inset 0 -1px 0 rgb(255 255 255 / 0.12);
+  --surface-bottom-nav-active: rgb(255 255 255 / 0.08);
+  --surface-bottom-nav-active-overlay: rgb(255 255 255 / 0.1);
+  --surface-bottom-nav-active-highlight: rgb(255 255 255 / 0.7);
+  --surface-bottom-nav-active-bloom: rgb(167 139 250 / 0.25);
+
   /* Gradients */
   --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
@@ -257,6 +288,14 @@ body.recipe-fullscreen-mode .app-shell-content {
 
 .btn-secondary {
   @apply bg-white text-gray-800 font-semibold py-3 px-6 rounded-xl border-2 border-gray-200 hover:border-indigo-500 hover:text-indigo-600 transform hover:-translate-y-0.5 transition-all duration-200;
+}
+
+.brand-gradient-action {
+  background-image: var(--gradient-brand-action);
+}
+
+.brand-gradient-nav-glass {
+  background-image: var(--gradient-brand-nav-glass);
 }
 
 /* Card Styles */
