@@ -13,11 +13,6 @@ import {
 } from '@/lib/auth/client-session';
 import { logClientEvent } from '@/lib/client-events';
 import {
-  CREATOR_ACTIVITY_PURPOSE_OPTIONS,
-  CREATOR_AGE_GROUP_OPTIONS,
-  CREATOR_DOMAIN_SUGGESTIONS,
-  CREATOR_FOLLOWER_RANGE_OPTIONS,
-  CREATOR_GENDER_OPTIONS,
   ONBOARDING_PROFILE_DEFAULTS,
   OnboardingProfileExtras,
 } from '@/types/auth';
@@ -26,6 +21,7 @@ import {
   readOnboardingProfileExtras,
   saveOnboardingProfileExtras,
 } from '@/lib/onboarding-profile';
+import { CreatorProfileFields } from './CreatorProfileFields';
 
 type RecipeScene = {
   id: number;
@@ -836,6 +832,7 @@ export const Settings: React.FC = () => {
   });
   const [isProfileEditorOpen, setIsProfileEditorOpen] = React.useState(false);
   const [profileEditorError, setProfileEditorError] = React.useState('');
+  const hasCompleteProfileExtras = isOnboardingProfileExtrasComplete(profileExtras);
 
   React.useEffect(() => {
     const fetchUserData = async () => {
@@ -909,7 +906,7 @@ export const Settings: React.FC = () => {
 
   const handleSaveProfileExtras = () => {
     if (!isOnboardingProfileExtrasComplete(profileEditorDraft)) {
-      setProfileEditorError('모든 항목을 입력한 후 저장해주세요.');
+      setProfileEditorError('Please complete every creator profile field before saving.');
       return;
     }
 
@@ -976,7 +973,7 @@ export const Settings: React.FC = () => {
               openProfileEditor();
             }
           }}
-          className="relative cursor-pointer rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100"
+          className="relative cursor-pointer rounded-xl focus:outline-none focus-visible:ring-4 focus-visible:ring-[var(--brand-focus-ring)]"
           aria-label="Edit creator profile details"
         >
           <div className="flex items-center gap-4 mb-4">
@@ -1008,6 +1005,46 @@ export const Settings: React.FC = () => {
               <div className="text-lg font-bold text-pink-600">{formatCompactCount(stats.views)}</div>
               <div className="text-[10px] text-pink-700 font-medium">Views</div>
             </div>
+          </div>
+
+          <div className="mt-4 rounded-[1.25rem] border border-white/80 bg-white/80 p-3.5 shadow-sm">
+            {hasCompleteProfileExtras ? (
+              <>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-sm font-bold tracking-[-0.02em] text-gray-900">Creator profile</p>
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-700">
+                    Ready
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {[profileExtras.ageGroup, profileExtras.gender, profileExtras.domain, profileExtras.followerRange, profileExtras.activityPurpose].map((item, index) => (
+                    <span
+                      key={`${item}-${index}`}
+                      className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold tracking-[-0.02em] text-gray-700"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="mb-2 inline-flex rounded-full border border-[var(--brand-soft-border)] bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--brand-orchid-pink)]">
+                    Recommended
+                  </div>
+                  <p className="text-sm font-bold tracking-[-0.02em] text-gray-900">
+                    Complete your creator profile
+                  </p>
+                  <p className="mt-1 text-xs font-medium leading-5 text-gray-600">
+                    Add your creator details to sharpen recommendations without changing your current access.
+                  </p>
+                </div>
+                <span className="brand-gradient-action rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-white shadow-sm">
+                  Update
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </Card>
@@ -1145,98 +1182,14 @@ export const Settings: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-3">
-              <label className="block">
-                <span className="block text-sm font-bold text-gray-900 mb-1.5">Age Group</span>
-                <select
-                  value={profileEditorDraft.ageGroup}
-                  onChange={(event) => handleProfileDraftChange('ageGroup', event.target.value)}
-                  className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
-                >
-                  <option value="">Select age group</option>
-                  {CREATOR_AGE_GROUP_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="block text-sm font-bold text-gray-900 mb-1.5">Gender</span>
-                <select
-                  value={profileEditorDraft.gender}
-                  onChange={(event) => handleProfileDraftChange('gender', event.target.value)}
-                  className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
-                >
-                  <option value="">Select gender</option>
-                  {CREATOR_GENDER_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="block text-sm font-bold text-gray-900 mb-1.5">Domain</span>
-                <input
-                  type="text"
-                  value={profileEditorDraft.domain}
-                  onChange={(event) => handleProfileDraftChange('domain', event.target.value)}
-                  list="profile-domain-suggestions"
-                  placeholder="e.g. Beauty, Finance, Food, Education"
-                  className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
-                />
-                <datalist id="profile-domain-suggestions">
-                  {CREATOR_DOMAIN_SUGGESTIONS.map((domain) => (
-                    <option key={domain} value={domain} />
-                  ))}
-                </datalist>
-              </label>
-
-              <label className="block">
-                <span className="block text-sm font-bold text-gray-900 mb-1.5">Followers</span>
-                <select
-                  value={profileEditorDraft.followerRange}
-                  onChange={(event) => handleProfileDraftChange('followerRange', event.target.value)}
-                  className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
-                >
-                  <option value="">Select follower range</option>
-                  {CREATOR_FOLLOWER_RANGE_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div>
-                <span className="block text-sm font-bold text-gray-900 mb-2">Activity Purpose</span>
-                <div className="flex flex-wrap gap-2">
-                  {CREATOR_ACTIVITY_PURPOSE_OPTIONS.map((purpose) => {
-                    const isSelected = profileEditorDraft.activityPurpose === purpose;
-                    return (
-                      <button
-                        key={purpose}
-                        type="button"
-                        onClick={() => handleProfileDraftChange('activityPurpose', purpose)}
-                        className={`px-3.5 py-2 rounded-full text-xs font-bold border-2 transition-all ${
-                          isSelected
-                            ? 'bg-gray-900 text-white border-gray-900'
-                            : 'bg-white text-gray-800 border-gray-300 hover:border-gray-500'
-                        }`}
-                      >
-                        {purpose}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+            <CreatorProfileFields
+              profile={profileEditorDraft}
+              onChange={handleProfileDraftChange}
+              domainSuggestionsId="profile-domain-suggestions"
+            />
 
             {profileEditorError ? (
-              <p className="mt-3 text-sm text-red-600 font-semibold">{profileEditorError}</p>
+              <p className="brand-inline-error mt-4">{profileEditorError}</p>
             ) : null}
 
             <div className="mt-5 grid grid-cols-2 gap-2">
@@ -1250,7 +1203,7 @@ export const Settings: React.FC = () => {
               <button
                 type="button"
                 onClick={handleSaveProfileExtras}
-                className="rounded-xl bg-gray-900 py-2.5 text-sm font-bold text-white hover:bg-black"
+                className="brand-primary-button rounded-xl py-2.5 text-sm font-bold"
               >
                 Save
               </button>

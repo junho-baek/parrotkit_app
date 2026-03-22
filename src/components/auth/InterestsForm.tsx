@@ -1,115 +1,130 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Card } from '@/components/common';
 import { authenticatedFetch, ensureValidAccessToken } from '@/lib/auth/client-session';
-import {
-  CREATOR_ACTIVITY_PURPOSE_OPTIONS,
-  CREATOR_AGE_GROUP_OPTIONS,
-  CREATOR_DOMAIN_SUGGESTIONS,
-  CREATOR_FOLLOWER_RANGE_OPTIONS,
-  CREATOR_GENDER_OPTIONS,
-  InterestCategory,
-  INTEREST_CATEGORIES,
-  ONBOARDING_PROFILE_DEFAULTS,
-  OnboardingProfileExtras,
-} from '@/types/auth';
 import { logClientEvent } from '@/lib/client-events';
+import {
+  INTEREST_CATEGORIES,
+  type InterestCategory,
+} from '@/types/auth';
 import {
   isOnboardingProfileExtrasComplete,
   readOnboardingProfileExtras,
-  saveOnboardingProfileExtras,
 } from '@/lib/onboarding-profile';
+import { InterestPicker } from './InterestPicker';
 
 interface InterestTag {
   category: InterestCategory;
   selected: boolean;
 }
 
+function buildInterestTags(selectedInterests: string[] = []): InterestTag[] {
+  const selectedSet = new Set(selectedInterests);
+  return INTEREST_CATEGORIES.map((category) => ({
+    category,
+    selected: selectedSet.has(category),
+  }));
+}
+
 export const InterestsForm: React.FC = () => {
   const router = useRouter();
-  const [interests, setInterests] = useState<InterestTag[]>(
-    INTEREST_CATEGORIES.map(category => ({
-      category,
-      selected: false,
-    }))
-  );
-  const [profileExtras, setProfileExtras] = useState<OnboardingProfileExtras>({
-    ...ONBOARDING_PROFILE_DEFAULTS,
-  });
+  const [interests, setInterests] = React.useState<InterestTag[]>(buildInterestTags());
+  const [loading, setLoading] = React.useState(false);
+  const [initializing, setInitializing] = React.useState(true);
+  const [selectionError, setSelectionError] = React.useState('');
 
-  const [loading, setLoading] = useState(false);
-  const [profileError, setProfileError] = useState('');
+  React.useEffect(() => {
+    let cancelled = false;
 
-  // 로그인 체크
-  useEffect(() => {
     void (async () => {
       const token = await ensureValidAccessToken();
       if (!token) {
-        alert('로그인이 필요합니다.');
-        router.push('/signin');
+        router.replace('/signin');
+        return;
+      }
+
+      try {
+        const response = await authenticatedFetch('/api/user/profile');
+
+        if (response.status === 401) {
+          router.replace('/signin');
+          return;
+        }
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as {
+          user?: {
+            interests?: string[];
+          };
+        };
+
+        const existingInterests = Array.isArray(data.user?.interests) ? data.user?.interests ?? [] : [];
+
+        if (!cancelled) {
+          setInterests(buildInterestTags(existingInterests));
+        }
+
+        const hasCompletedProfileStep = isOnboardingProfileExtrasComplete(readOnboardingProfileExtras());
+        if (existingInterests.length === 0 && !hasCompletedProfileStep) {
+          router.replace('/onboarding');
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to prepare interests form:', error);
+      } finally {
+        if (!cancelled) {
+          setInitializing(false);
+        }
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
-  useEffect(() => {
-    setProfileExtras(readOnboardingProfileExtras());
-  }, []);
-
   const toggleInterest = (index: number) => {
-    const updated = [...interests];
-    const willBeSelected = !updated[index].selected;
-    updated[index] = {
-      ...updated[index],
-      selected: willBeSelected
-    };
-    
-    void logClientEvent(willBeSelected ? 'select_interest' : 'deselect_interest', {
-      event_category: 'engagement',
-      interest_name: updated[index].category,
+    setInterests((prev) => {
+      const updated = [...prev];
+      const willBeSelected = !updated[index].selected;
+
+      updated[index] = {
+        ...updated[index],
+        selected: willBeSelected,
+      };
+
+      void logClientEvent(willBeSelected ? 'select_interest' : 'deselect_interest', {
+        event_category: 'engagement',
+        interest_name: updated[index].category,
+      });
+
+      return updated;
     });
-
-    setInterests(updated);
+    setSelectionError('');
   };
 
-  const handleProfileInputChange = (
-    field: keyof OnboardingProfileExtras,
-    value: string
-  ) => {
-    setProfileExtras((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-    setProfileError('');
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoading(true);
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
     const selectedInterests = interests
-      .filter(interest => interest.selected)
-      .map(interest => interest.category);
+      .filter((interest) => interest.selected)
+      .map((interest) => interest.category);
 
     if (selectedInterests.length === 0) {
-      alert('최소 하나 이상의 관심사를 선택해주세요');
-      setLoading(false);
+      setSelectionError('Select at least one interest to continue.');
       return;
     }
 
-    if (!isOnboardingProfileExtrasComplete(profileExtras)) {
-      setProfileError('나이대, 성별, 도메인, 팔로워 규모, 활동 목적을 모두 입력해주세요.');
-      setLoading(false);
-      return;
-    }
+    setLoading(true);
 
     try {
       const token = await ensureValidAccessToken();
-      
       if (!token) {
-        alert('로그인이 필요합니다.');
-        router.push('/signin');
+        router.replace('/signin');
         return;
       }
 
@@ -122,173 +137,90 @@ export const InterestsForm: React.FC = () => {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || '관심사 저장에 실패했습니다.');
+        const data = (await response.json()) as { error?: string };
+        throw new Error(data.error || 'Failed to save interests.');
       }
 
-      // 성공 - 다음 페이지로 이동
-      alert('관심사가 저장되었습니다!');
-      saveOnboardingProfileExtras(profileExtras);
-      
-      // 온보딩 완료 플래그 설정 (프로모션 모달 표시용)
       localStorage.setItem('onboardingCompleted', 'true');
-      
+
       await logClientEvent('onboarding_complete', {
         event_category: 'engagement',
         interests_count: selectedInterests.length,
         interests: selectedInterests.join(','),
       });
-      
+
       router.push('/paste');
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : '관심사 저장에 실패했습니다. 다시 시도해주세요.';
-      alert(message);
+      const message = err instanceof Error ? err.message : 'Failed to save interests. Please try again.';
+      setSelectionError(message);
     } finally {
       setLoading(false);
     }
   };
 
-  const selectedCount = interests.filter(i => i.selected).length;
+  const selectedCount = interests.filter((interest) => interest.selected).length;
+
+  if (initializing) {
+    return (
+      <div
+        className="rounded-[2rem] border p-6 text-center shadow-[0_18px_40px_rgba(15,23,42,0.06)]"
+        style={{
+          borderColor: 'var(--brand-soft-border)',
+          background: 'var(--brand-soft-surface)',
+        }}
+      >
+        <div className="mx-auto mb-4 flex h-12 w-12 animate-pulse items-center justify-center rounded-full bg-white/80 shadow-md">
+          <span className="text-xl">✨</span>
+        </div>
+        <p className="text-sm font-semibold text-gray-700">Preparing your interest feed...</p>
+      </div>
+    );
+  }
 
   return (
-    <Card className="w-full max-w-2xl">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Your interests</h1>
-        <p className="text-gray-900 text-base font-medium">
-          Select a few genres to help us tailor reference recommendations
-        </p>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div
+        className="rounded-[2rem] border p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-6"
+        style={{
+          borderColor: 'var(--brand-soft-border)',
+          background: 'var(--brand-soft-surface)',
+        }}
+      >
+        <div className="mb-5">
+          <span className="inline-flex rounded-full border border-white/80 bg-white/70 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-600">
+            Step 2 of 2
+          </span>
+          <h1 className="mt-3 text-[2rem] font-bold tracking-[-0.04em] text-gray-900">
+            Explore interests
+          </h1>
+          <p className="mt-2 text-sm font-medium leading-6 text-gray-700">
+            Pick a few genres so your recommendations feel closer to your actual taste and format.
+          </p>
+        </div>
+
+        <InterestPicker interests={interests} onToggle={toggleInterest} />
+
+        <div className="mt-5 flex items-center justify-between gap-3 rounded-[1.35rem] bg-white/75 px-4 py-3 shadow-sm">
+          <p className="text-sm font-semibold tracking-[-0.02em] text-gray-700">
+            {selectedCount} selected
+          </p>
+          <p className="text-xs font-medium text-gray-500">
+            Choose at least one
+          </p>
+        </div>
+
+        {selectionError ? (
+          <p className="brand-inline-error mt-4">{selectionError}</p>
+        ) : null}
       </div>
 
-      <form onSubmit={handleSubmit}>
-        <div className="rounded-2xl border-2 border-purple-100 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-4 mb-7">
-          <h3 className="text-lg font-bold text-gray-900 mb-1.5">Creator profile</h3>
-          <p className="text-sm text-gray-700 mb-4">
-            We use this to fine-tune recommendations for your style and growth goal.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <label className="block">
-              <span className="block text-sm font-bold text-gray-900 mb-1.5">Age Group</span>
-              <select
-                value={profileExtras.ageGroup}
-                onChange={(event) => handleProfileInputChange('ageGroup', event.target.value)}
-                className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
-              >
-                <option value="">Select age group</option>
-                {CREATOR_AGE_GROUP_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block">
-              <span className="block text-sm font-bold text-gray-900 mb-1.5">Gender</span>
-              <select
-                value={profileExtras.gender}
-                onChange={(event) => handleProfileInputChange('gender', event.target.value)}
-                className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
-              >
-                <option value="">Select gender</option>
-                {CREATOR_GENDER_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="md:col-span-2 block">
-              <span className="block text-sm font-bold text-gray-900 mb-1.5">Domain</span>
-              <input
-                type="text"
-                value={profileExtras.domain}
-                onChange={(event) => handleProfileInputChange('domain', event.target.value)}
-                list="creator-domain-suggestions"
-                placeholder="e.g. Beauty, Finance, Food, Education"
-                className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
-                required
-              />
-              <datalist id="creator-domain-suggestions">
-                {CREATOR_DOMAIN_SUGGESTIONS.map((domain) => (
-                  <option key={domain} value={domain} />
-                ))}
-              </datalist>
-            </label>
-
-            <label className="block">
-              <span className="block text-sm font-bold text-gray-900 mb-1.5">Followers</span>
-              <select
-                value={profileExtras.followerRange}
-                onChange={(event) => handleProfileInputChange('followerRange', event.target.value)}
-                className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
-              >
-                <option value="">Select range</option>
-                {CREATOR_FOLLOWER_RANGE_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="mt-4">
-            <span className="block text-sm font-bold text-gray-900 mb-2">Activity Purpose</span>
-            <div className="flex flex-wrap gap-2">
-              {CREATOR_ACTIVITY_PURPOSE_OPTIONS.map((purpose) => {
-                const isSelected = profileExtras.activityPurpose === purpose;
-                return (
-                  <button
-                    key={purpose}
-                    type="button"
-                    onClick={() => handleProfileInputChange('activityPurpose', purpose)}
-                    className={`px-3.5 py-2 rounded-full text-xs font-bold border-2 transition-all ${
-                      isSelected
-                        ? 'bg-gray-900 text-white border-gray-900'
-                        : 'bg-white text-gray-800 border-gray-300 hover:border-gray-500'
-                    }`}
-                  >
-                    {purpose}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {profileError ? (
-            <p className="mt-3 text-sm font-semibold text-red-600">{profileError}</p>
-          ) : null}
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
-          {interests.map((interest, index) => (
-            <button
-              key={interest.category}
-              type="button"
-              onClick={() => toggleInterest(index)}
-              style={{
-                backgroundColor: interest.selected ? '#3B82F6' : '#FFFFFF',
-                color: interest.selected ? '#FFFFFF' : '#111827',
-                borderColor: interest.selected ? '#3B82F6' : '#D1D5DB',
-              }}
-              className={`py-3 px-5 rounded-full font-bold text-base transition-all duration-200 border-2 active:scale-95`}
-            >
-              {interest.category}
-            </button>
-          ))}
-        </div>
-
-        <div className="text-base text-gray-900 mb-6 text-center font-semibold">
-          {selectedCount} 개 선택됨
-        </div>
-
-        <Button type="submit" disabled={loading || selectedCount === 0}>
-          {loading ? 'Saving...' : 'Submit'}
-        </Button>
-      </form>
-    </Card>
+      <button
+        type="submit"
+        disabled={loading}
+        className="brand-primary-button flex min-h-[56px] w-full items-center justify-center rounded-[1.4rem] px-5 text-base font-bold tracking-[-0.02em]"
+      >
+        {loading ? 'Saving interests...' : 'Finish onboarding'}
+      </button>
+    </form>
   );
 };

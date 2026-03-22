@@ -84,8 +84,8 @@ export const SignUpForm: React.FC = () => {
       
       await logClientEvent('signup_success', { method: 'email' });
       
-      // Interests 페이지로 이동
-      router.push('/interests');
+      // Onboarding 페이지로 이동
+      router.push('/onboarding');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : '회원가입에 실패했습니다. 다시 시도해주세요.';
       setError(message);

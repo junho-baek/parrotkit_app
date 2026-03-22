@@ -64,9 +64,9 @@ export const SignInForm: React.FC = () => {
 
       await logClientEvent('login', { method: 'email' });
 
-      // interests가 없으면 interests 페이지로, 있으면 홈으로
+      // interests가 없으면 onboarding 페이지로, 있으면 홈으로
       if (!data.user.interests || data.user.interests.length === 0) {
-        router.push('/interests');
+        router.push('/onboarding');
       } else {
         router.push('/home');
       }

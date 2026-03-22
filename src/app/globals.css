@@ -31,6 +31,14 @@
   --shadow-brand-action-md: 0 10px 20px rgb(140 103 255 / 0.2);
   --shadow-brand-action-lg: 0 14px 28px rgb(140 103 255 / 0.24);
   --shadow-brand-action-xl: 0 14px 30px rgb(140 103 255 / 0.22);
+  --brand-focus-ring: rgb(222 129 193 / 0.18);
+  --brand-soft-surface: linear-gradient(
+    145deg,
+    rgb(255 247 251 / 0.96) 0%,
+    rgb(252 246 255 / 0.98) 48%,
+    rgb(245 249 255 / 0.98) 100%
+  );
+  --brand-soft-border: rgb(240 217 252 / 0.95);
   --surface-bottom-nav: rgb(255 255 255 / 0.78);
   --border-bottom-nav: rgb(255 255 255 / 0.6);
   --shadow-bottom-nav: 0 -16px 34px rgb(15 23 42 / 0.08);
@@ -296,6 +304,92 @@ body.recipe-fullscreen-mode .app-shell-content {
 
 .brand-gradient-nav-glass {
   background-image: var(--gradient-brand-nav-glass);
+}
+
+.brand-form-field {
+  border: 2px solid rgb(209 213 219);
+  background: rgb(255 255 255 / 0.98);
+  box-shadow: 0 10px 24px rgb(15 23 42 / 0.05);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.brand-form-field:focus {
+  outline: none;
+  border-color: var(--brand-orchid-pink);
+  box-shadow:
+    0 0 0 4px var(--brand-focus-ring),
+    0 14px 28px rgb(140 103 255 / 0.08);
+}
+
+.brand-pill {
+  border: 2px solid rgb(209 213 219);
+  background: rgb(255 255 255 / 1);
+  color: rgb(17 24 39);
+  box-shadow: 0 8px 18px rgb(15 23 42 / 0.06);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease,
+    background 160ms ease;
+}
+
+.brand-pill:hover {
+  border-color: rgb(222 129 193 / 0.7);
+  box-shadow: 0 12px 22px rgb(15 23 42 / 0.08);
+}
+
+.brand-pill:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 4px var(--brand-focus-ring),
+    0 10px 22px rgb(140 103 255 / 0.1);
+}
+
+.brand-pill[data-selected="true"] {
+  border-color: transparent;
+  background: var(--gradient-brand-action);
+  color: white;
+  box-shadow:
+    var(--shadow-brand-action-md),
+    inset 0 1px 0 rgb(255 255 255 / 0.28);
+}
+
+.brand-inline-error {
+  color: rgb(220 38 38);
+  font-size: 0.925rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.45;
+}
+
+.brand-primary-button {
+  border: 0;
+  background-image: var(--gradient-brand-action);
+  box-shadow: var(--shadow-brand-action-lg);
+  color: white;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    filter 160ms ease,
+    opacity 160ms ease;
+}
+
+.brand-primary-button:hover {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-brand-action-xl);
+}
+
+.brand-primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  filter: saturate(0.8);
+  transform: none;
+  box-shadow: none;
 }
 
 /* Card Styles */
