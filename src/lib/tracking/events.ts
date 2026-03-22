@@ -94,6 +94,10 @@ export type ClientEventPayloadMap = {
   view_recipes_tab: CommonPayload & { page_title: string };
   view_submit_video_page: CommonPayload & { page_title: string };
   view_interests_page: CommonPayload & { page_title: string };
+  view_faq: CommonPayload & {
+    page_title: string;
+    faq_count: number;
+  };
   click_signin_home: CommonPayload;
   click_signup_home: CommonPayload;
   recipe_reopened: { recipe_id: string };
@@ -134,6 +138,7 @@ export const STANDARD_EVENT_NAMES = [
   'view_recipes_tab',
   'view_submit_video_page',
   'view_interests_page',
+  'view_faq',
   'click_signin_home',
   'click_signup_home',
   'recipe_reopened',
