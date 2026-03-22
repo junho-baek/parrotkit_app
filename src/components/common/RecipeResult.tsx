@@ -5,6 +5,8 @@ import JSZip from 'jszip';
 import { useRouter } from 'next/navigation';
 import { CameraShooting } from './CameraShooting';
 import { RecipeVideoPlayer } from './RecipeVideoPlayer';
+import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button';
+import { Spinner } from '@/components/ui/spinner';
 import { authenticatedFetch, ensureValidAccessToken } from '@/lib/auth/client-session';
 import { logClientEvent } from '@/lib/client-events';
 
@@ -53,8 +55,10 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const [chatMessage, setChatMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<{role: 'user' | 'assistant'; content: string}[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [applyingScriptMessageIndex, setApplyingScriptMessageIndex] = useState<number | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const [sheetHeight, setSheetHeight] = useState(50);
+  const [scriptOpen, setScriptOpen] = useState(false);
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const capturedScenesRef = useRef<{[key: number]: boolean}>(initialCapturedVideos);
   const localCapturedSceneIds = React.useMemo(
@@ -131,12 +135,34 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     return numbered.length >= 2 ? numbered : null;
   };
 
-  const applyScript = (messageContent: string) => {
+  const closeChatAssistant = () => {
+    setChatOpen(false);
+    setSheetHeight(50);
+  };
+
+  const openChatAssistant = () => {
+    setScriptOpen(false);
+    setChatOpen(true);
+  };
+
+  const handleScriptOpenChange = (open: boolean) => {
+    setScriptOpen(open);
+    if (open) {
+      closeChatAssistant();
+    }
+  };
+
+  const applyScript = async (messageContent: string, messageIndex: number) => {
     if (!selectedScene) return;
+    setApplyingScriptMessageIndex(messageIndex);
+    await new Promise((resolve) => setTimeout(resolve, 900));
     const lines = parseScriptLines(messageContent);
     if (lines) {
       setSceneScripts(prev => ({ ...prev, [selectedScene.id]: lines }));
+      setScriptOpen(true);
+      closeChatAssistant();
     }
+    setApplyingScriptMessageIndex(null);
   };
 
   const sendChatMessage = async () => {
@@ -208,6 +234,8 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const handleSceneClick = (scene: RecipeScene) => {
     setSelectedScene(scene);
     setActiveTab('recipe'); // 기본으로 Recipe 탭 표시
+    setScriptOpen(false);
+    closeChatAssistant();
   };
 
   const markSceneCaptured = useCallback((sceneId: number) => {
@@ -367,6 +395,8 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const handleCameraBack = () => {
     setSelectedScene(null);
     setActiveTab('recipe');
+    setScriptOpen(false);
+    closeChatAssistant();
   };
 
   // 모든 촬영한 비디오를 ZIP으로 다운로드
@@ -533,6 +563,8 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
               scriptLines={getScriptForScene(selectedScene)}
               onSwitchToShooting={() => setActiveTab('shooting')}
               onBack={handleCameraBack}
+              scriptOpen={scriptOpen}
+              onScriptOpenChange={handleScriptOpenChange}
             />
           ) : (
             <CameraShooting
@@ -549,7 +581,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
         {/* Floating Chatbot Button - More Visible */}
         {!chatOpen && (
           <button
-            onClick={() => setChatOpen(true)}
+            onClick={openChatAssistant}
             className="absolute bottom-8 right-6 w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all transform hover:scale-110 active:scale-95 flex items-center justify-center z-50 border-4 border-white"
           >
             <img src="/parrot-logo.png" alt="Chat" className="w-9 h-9" />
@@ -566,7 +598,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
           {chatOpen && (
             <div
               className="absolute inset-0 bg-black/30 -z-10"
-              onClick={() => { setChatOpen(false); setSheetHeight(50); }}
+              onClick={closeChatAssistant}
             />
           )}
           <div className="h-full bg-white rounded-t-3xl shadow-2xl flex flex-col overflow-hidden">
@@ -590,7 +622,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                 <span className="font-bold text-gray-900 text-lg">Script Assistant</span>
               </div>
               <button
-                onClick={() => { setChatOpen(false); setSheetHeight(50); }}
+                onClick={closeChatAssistant}
                 className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
@@ -612,12 +644,20 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                     <p className="text-sm font-semibold whitespace-pre-wrap">{msg.content}</p>
                   </div>
                   {msg.role === 'assistant' && parseScriptLines(msg.content) && (
-                    <button
-                      onClick={() => applyScript(msg.content)}
-                      className="mt-1.5 px-3 py-1 bg-green-500 text-white rounded-full text-xs font-semibold hover:bg-green-600 transition-colors"
-                    >
-                      Apply to Script
-                    </button>
+                    applyingScriptMessageIndex === i ? (
+                      <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground">
+                        <Spinner className="size-3.5" />
+                        Applying magic...
+                      </div>
+                    ) : (
+                      <InteractiveHoverButton
+                        onClick={() => void applyScript(msg.content, i)}
+                        className="mt-2 self-start"
+                        aria-label="Apply to script"
+                      >
+                        Apply to Script
+                      </InteractiveHoverButton>
+                    )
                   )}
                 </div>
               ))}

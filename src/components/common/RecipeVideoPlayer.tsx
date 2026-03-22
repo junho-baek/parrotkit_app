@@ -58,6 +58,8 @@ interface RecipeVideoPlayerProps {
   scriptLines?: string[];
   onSwitchToShooting: () => void;
   onBack?: () => void;
+  scriptOpen: boolean;
+  onScriptOpenChange: (open: boolean) => void;
 }
 
 function timeToSeconds(time: string): number {
@@ -85,14 +87,14 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
   scriptLines,
   onSwitchToShooting,
   onBack: _onBack,
+  scriptOpen,
+  onScriptOpenChange,
 }) => {
   void onSwitchToShooting;
   void _onBack;
   const playerRef = useRef<YouTubePlayerInstance | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [failedVideoId, setFailedVideoId] = useState<string | null>(null);
-  const [scriptOpen, setScriptOpen] = useState(false);
-  
   const videoId = extractVideoId(videoUrl);
   const isYouTube = Boolean(videoId);
   const playerError = !isYouTube || failedVideoId === videoId;
@@ -249,7 +251,7 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
         {!scriptOpen ? (
           <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30">
             <button
-              onClick={() => setScriptOpen(true)}
+              onClick={() => onScriptOpenChange(true)}
               className="px-6 py-3.5 bg-white text-gray-900 rounded-2xl font-bold shadow-2xl text-base flex items-center gap-2 hover:scale-105 active:scale-95 transition-transform border-2 border-gray-200"
             >
               <img src="/parrot-logo.png" alt="" className="w-6 h-6" />
@@ -260,7 +262,7 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
 
         {/* Script Bottom Sheet */}
         {scriptOpen && (
-          <div className="absolute inset-0 z-20" onClick={() => setScriptOpen(false)}>
+          <div className="absolute inset-0 z-20" onClick={() => onScriptOpenChange(false)}>
             <div className="absolute inset-0 bg-black/40" />
             <div
               className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl animate-slide-up"
@@ -279,7 +281,7 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
                   <span className="font-bold text-gray-900 text-base">Script - #{scene.id}: {scene.title}</span>
                 </div>
                 <button
-                  onClick={() => setScriptOpen(false)}
+                  onClick={() => onScriptOpenChange(false)}
                   className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
