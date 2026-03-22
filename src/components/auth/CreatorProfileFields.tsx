@@ -105,6 +105,17 @@ export const CreatorProfileFields: React.FC<CreatorProfileFieldsProps> = ({
                 data-selected={isSelected ? 'true' : 'false'}
                 onClick={() => onChange('activityPurpose', purpose)}
                 className="brand-pill min-h-[42px] rounded-[0.95rem] px-2 py-1.5 text-[11px] font-bold leading-[1.15] tracking-[-0.025em]"
+                style={
+                  isSelected
+                    ? {
+                        backgroundImage: 'linear-gradient(135deg, #ff9568 0%, #de81c1 52%, #8c67ff 100%)',
+                        backgroundColor: '#de81c1',
+                        color: '#ffffff',
+                        borderColor: 'transparent',
+                        boxShadow: '0 12px 22px rgba(140, 103, 255, 0.2)',
+                      }
+                    : undefined
+                }
               >
                 {purpose}
               </button>

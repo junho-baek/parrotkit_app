@@ -51,7 +51,7 @@ export const OnboardingForm: React.FC = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="flex min-h-full flex-col">
       <div className="space-y-1.5">
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gray-500">
           Step 1 of 2
@@ -61,22 +61,33 @@ export const OnboardingForm: React.FC = () => {
         </h1>
       </div>
 
-      <CreatorProfileFields
-        profile={profile}
-        onChange={handleChange}
-        domainSuggestionsId="onboarding-domain-suggestions"
-      />
+      <div className="flex-1 py-4">
+        <div className="flex h-full flex-col justify-center gap-4">
+          <CreatorProfileFields
+            profile={profile}
+            onChange={handleChange}
+            domainSuggestionsId="onboarding-domain-suggestions"
+          />
 
-      {error ? (
-        <p className="brand-inline-error">{error}</p>
-      ) : null}
+          {error ? (
+            <p className="brand-inline-error">{error}</p>
+          ) : null}
+        </div>
+      </div>
 
-      <button
-        type="submit"
-        className="brand-primary-button flex min-h-[52px] w-full items-center justify-center rounded-[1.2rem] px-5 text-sm font-bold tracking-[-0.02em]"
-      >
-        Continue
-      </button>
+      <div className="sticky bottom-0 mt-4 bg-white pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-3">
+        <button
+          type="submit"
+          className="flex min-h-[54px] w-full items-center justify-center rounded-[1.35rem] px-5 text-sm font-bold tracking-[-0.02em] text-white transition-transform duration-200 hover:-translate-y-0.5"
+          style={{
+            backgroundImage: 'linear-gradient(135deg, #ff9568 0%, #de81c1 52%, #8c67ff 100%)',
+            backgroundColor: '#de81c1',
+            boxShadow: '0 16px 28px rgba(140, 103, 255, 0.18)',
+          }}
+        >
+          Continue
+        </button>
+      </div>
     </form>
   );
 };

@@ -158,11 +158,9 @@ export const InterestsForm: React.FC = () => {
     }
   };
 
-  const selectedCount = interests.filter((interest) => interest.selected).length;
-
   if (initializing) {
     return (
-      <div className="py-10 text-center">
+      <div className="flex h-full items-center justify-center py-10 text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 animate-pulse items-center justify-center rounded-full bg-white/80 shadow-md">
           <span className="text-xl">✨</span>
         </div>
@@ -172,7 +170,7 @@ export const InterestsForm: React.FC = () => {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="flex min-h-full flex-col">
       <div className="space-y-1.5">
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gray-500">
           Step 2 of 2
@@ -182,28 +180,30 @@ export const InterestsForm: React.FC = () => {
         </h1>
       </div>
 
-      <InterestPicker interests={interests} onToggle={toggleInterest} />
-
-      <div className="flex items-center justify-between gap-3 rounded-[1rem] bg-white/80 px-3 py-2.5 shadow-sm">
-        <p className="text-sm font-semibold tracking-[-0.02em] text-gray-700">
-          {selectedCount} selected
-        </p>
-        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-gray-500">
-          Min 1
-        </p>
+      <div className="flex-1 py-4">
+        <div className="flex h-full items-center justify-center">
+          <InterestPicker interests={interests} onToggle={toggleInterest} />
+        </div>
       </div>
 
       {selectionError ? (
-        <p className="brand-inline-error">{selectionError}</p>
+        <p className="brand-inline-error pb-2">{selectionError}</p>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="brand-primary-button flex min-h-[52px] w-full items-center justify-center rounded-[1.2rem] px-5 text-sm font-bold tracking-[-0.02em]"
-      >
-        {loading ? 'Saving...' : 'Finish'}
-      </button>
+      <div className="sticky bottom-0 mt-4 bg-white pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-3">
+        <button
+          type="submit"
+          disabled={loading}
+          className="flex min-h-[54px] w-full items-center justify-center rounded-[1.35rem] px-5 text-sm font-bold tracking-[-0.02em] text-white transition-transform duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
+          style={{
+            backgroundImage: 'linear-gradient(135deg, #ff9568 0%, #de81c1 52%, #8c67ff 100%)',
+            backgroundColor: '#de81c1',
+            boxShadow: '0 16px 28px rgba(140, 103, 255, 0.18)',
+          }}
+        >
+          {loading ? 'Saving...' : 'Finish'}
+        </button>
+      </div>
     </form>
   );
 };
