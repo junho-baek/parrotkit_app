@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { analyzeVideoFrameCandidates, analyzeYouTubeVideo, type SceneCandidate, type VideoAnalysisResult } from '@/lib/video-analyzer';
 import { generateReplicateGeminiFlashText } from '@/lib/replicate';
 import { fetchSupadataTranscript, type TranscriptSegment, type TranscriptSource } from '@/lib/supadata';
+import { fetchSocialVideoDownload, type DownloadSource } from '@/lib/social-video-downloader';
 
 type Platform = 'youtube' | 'youtube-shorts' | 'instagram' | 'tiktok' | 'other';
 
@@ -15,6 +16,8 @@ type ScriptGenerationResult = {
 type PageMedia = {
   imageUrl: string | null;
   videoUrl: string | null;
+  source: DownloadSource | 'page_meta' | 'direct_url' | 'none';
+  fallbackReason: string | null;
 };
 
 function detectPlatform(url: string): Platform {
@@ -64,6 +67,8 @@ async function fetchPageMedia(url: string): Promise<PageMedia> {
     return {
       imageUrl: null,
       videoUrl: url,
+      source: 'direct_url',
+      fallbackReason: null,
     };
   }
 
@@ -79,7 +84,7 @@ async function fetchPageMedia(url: string): Promise<PageMedia> {
     });
 
     if (!res.ok) {
-      return { imageUrl: null, videoUrl: null };
+      return { imageUrl: null, videoUrl: null, source: 'none', fallbackReason: `page_media_http_${res.status}` };
     }
 
     const html = await res.text();
@@ -88,10 +93,15 @@ async function fetchPageMedia(url: string): Promise<PageMedia> {
       || extractMetaContent(html, 'og:video')
       || extractMetaContent(html, 'twitter:player:stream');
 
-    return { imageUrl, videoUrl };
+    return {
+      imageUrl,
+      videoUrl,
+      source: videoUrl ? 'page_meta' : 'none',
+      fallbackReason: videoUrl ? null : 'page_meta_video_missing',
+    };
   } catch (error) {
     console.warn('Failed to fetch page media:', error);
-    return { imageUrl: null, videoUrl: null };
+    return { imageUrl: null, videoUrl: null, source: 'none', fallbackReason: 'page_media_fetch_failed' };
   }
 }
 
@@ -560,26 +570,24 @@ export async function POST(request: NextRequest) {
     const platform = detectPlatform(url);
     const videoId = extractVideoId(url);
 
-    const [pageMedia, transcriptResult] = await Promise.all([
+    const [rapidMedia, pageMedia, transcriptResult] = await Promise.all([
+      fetchSocialVideoDownload(url),
       fetchPageMedia(url),
       fetchSupadataTranscript(url),
     ]);
 
+    const resolvedMedia: PageMedia = {
+      imageUrl: rapidMedia.thumbnailUrl || pageMedia.imageUrl,
+      videoUrl: rapidMedia.videoUrl || pageMedia.videoUrl,
+      source: rapidMedia.videoUrl ? rapidMedia.source : pageMedia.source,
+      fallbackReason: rapidMedia.videoUrl ? null : rapidMedia.fallbackReason || pageMedia.fallbackReason,
+    };
+
     let analysisResult: VideoAnalysisResult | null = null;
     let sceneDetectionFallbackReason: string | null = null;
 
-    if (platform === 'youtube' || platform === 'youtube-shorts') {
-      console.log('Using YouTube scene detection pipeline...');
-      const youtubeAnalysis = await analyzeYouTubeVideo(url);
-      if (youtubeAnalysis.error) {
-        sceneDetectionFallbackReason = youtubeAnalysis.fallbackReason || youtubeAnalysis.error;
-      } else {
-        analysisResult = youtubeAnalysis;
-      }
-    }
-
-    if (!analysisResult && pageMedia.videoUrl) {
-      const candidateAnalysis = await analyzeVideoFrameCandidates(pageMedia.videoUrl);
+    if (resolvedMedia.videoUrl) {
+      const candidateAnalysis = await analyzeVideoFrameCandidates(resolvedMedia.videoUrl);
       if (candidateAnalysis.error) {
         sceneDetectionFallbackReason = candidateAnalysis.fallbackReason || candidateAnalysis.error;
       } else if (candidateAnalysis.candidates.length > 0) {
@@ -607,8 +615,20 @@ export async function POST(request: NextRequest) {
           sceneDetectionFallbackReason = candidateAnalysis.fallbackReason || 'frame_diff_candidates_empty';
         }
       }
-    } else if (!analysisResult && !pageMedia.videoUrl && sceneDetectionFallbackReason === null) {
-      sceneDetectionFallbackReason = 'direct_video_url_not_available';
+    }
+
+    if (!analysisResult && (platform === 'youtube' || platform === 'youtube-shorts')) {
+      console.log('Using YouTube scene detection pipeline...');
+      const youtubeAnalysis = await analyzeYouTubeVideo(url);
+      if (youtubeAnalysis.error) {
+        sceneDetectionFallbackReason = sceneDetectionFallbackReason || youtubeAnalysis.fallbackReason || youtubeAnalysis.error;
+      } else {
+        analysisResult = youtubeAnalysis;
+      }
+    }
+
+    if (!analysisResult && !resolvedMedia.videoUrl && sceneDetectionFallbackReason === null) {
+      sceneDetectionFallbackReason = resolvedMedia.fallbackReason || 'direct_video_url_not_available';
     }
 
     if (!analysisResult && transcriptResult.transcript.length > 0) {
@@ -629,8 +649,10 @@ export async function POST(request: NextRequest) {
       detections: analysisResult,
       duration: detectedDuration,
       pageMedia: {
-        imageUrl: transcriptResult.sourceMetadata?.thumbnailUrl || pageMedia.imageUrl,
-        videoUrl: pageMedia.videoUrl,
+        imageUrl: transcriptResult.sourceMetadata?.thumbnailUrl || resolvedMedia.imageUrl,
+        videoUrl: resolvedMedia.videoUrl,
+        source: resolvedMedia.source,
+        fallbackReason: resolvedMedia.fallbackReason,
       },
       platform,
       videoId,
@@ -643,7 +665,7 @@ export async function POST(request: NextRequest) {
       niche,
       goal,
       description,
-      sourceTitle: transcriptResult.sourceMetadata?.title || null,
+      sourceTitle: transcriptResult.sourceMetadata?.title || rapidMedia.title || null,
     });
 
     const scriptSource = aiResult ? 'ai_generated' : 'default';
@@ -680,6 +702,8 @@ export async function POST(request: NextRequest) {
         durationSeconds: detectedDuration,
         platform: transcriptResult.sourceMetadata?.platform || platformLabels[platform],
         analyzedWithFFmpeg: analysisResult?.method === 'ffmpeg_video_download',
+        mediaSource: resolvedMedia.source,
+        mediaFallbackReason: resolvedMedia.fallbackReason,
         sceneDetectionMethod: analysisResult?.method || 'fixed_5s_fallback',
         sceneDetectionFallbackReason:
           sceneDetectionFallbackReason
