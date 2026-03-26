@@ -14,12 +14,22 @@ type DashboardResponse = {
     totalReferences: number;
     totalRecipes: number;
     paidUsers: number;
+    paidUserRatio: number;
     churnedUsers: number;
     signupToPaidConversionRate: number;
     churnRate: number;
     onboardingCompletionRate: number;
     referenceActivationRate: number;
     recipeActivationRate: number;
+    dau: number;
+    wau: number;
+    mau: number;
+    stickiness: number;
+    returningUsers30d: number;
+    returningRate30d: number;
+    avgEventsPerActiveUser30d: number;
+    referencesPerNewUser: number;
+    recipesPerNewUser: number;
     purchasesInPeriod: number;
     churnEventsInPeriod: number;
   };
@@ -35,16 +45,31 @@ type DashboardResponse = {
     sessions: number;
     share: number;
   }>;
+  sourcePerformance: Array<{
+    source: string;
+    users: number;
+    paidUsers: number;
+    conversionRate: number;
+    recipeActivatedUsers: number;
+    recipeActivationRate: number;
+  }>;
+  topEvents: Array<{
+    eventName: string;
+    count: number;
+    share: number;
+  }>;
   trend: Array<{
     date: string;
     signups: number;
     purchases: number;
+    activeUsers: number;
+    recipes: number;
   }>;
   insights: Array<{
     key: string;
     label: string;
-    value: number;
-    direction: string;
+    detail: string;
+    severity: 'positive' | 'warning' | 'critical';
   }>;
 };
 
@@ -56,6 +81,13 @@ function formatNumber(value: number) {
 
 function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
+}
+
+function formatDecimal(value: number) {
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
 function KPIStatCard({
@@ -74,6 +106,18 @@ function KPIStatCard({
       {sub ? <p className="mt-1 text-xs text-gray-500">{sub}</p> : null}
     </div>
   );
+}
+
+function InsightBadge({ severity }: { severity: 'positive' | 'warning' | 'critical' }) {
+  if (severity === 'positive') {
+    return <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">GOOD</span>;
+  }
+
+  if (severity === 'warning') {
+    return <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">WATCH</span>;
+  }
+
+  return <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">RISK</span>;
 }
 
 export default function DashboardPage() {
@@ -117,7 +161,9 @@ export default function DashboardPage() {
       return 0;
     }
 
-    return Math.max(...data.trend.map((entry) => Math.max(entry.signups, entry.purchases, 0)));
+    return Math.max(
+      ...data.trend.map((entry) => Math.max(entry.signups, entry.purchases, entry.activeUsers, entry.recipes, 0))
+    );
   }, [data]);
 
   return (
@@ -163,7 +209,11 @@ export default function DashboardPage() {
           <>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               <KPIStatCard label="Total Users" value={formatNumber(data.kpis.totalUsers)} />
-              <KPIStatCard label={`New Users (${data.range.days}d)`} value={formatNumber(data.kpis.newUsers)} />
+              <KPIStatCard
+                label={`New Users (${data.range.days}d)`}
+                value={formatNumber(data.kpis.newUsers)}
+                sub={`Paid ratio ${formatPercent(data.kpis.paidUserRatio)}`}
+              />
               <KPIStatCard
                 label="Signup → Paid"
                 value={formatPercent(data.kpis.signupToPaidConversionRate)}
@@ -182,6 +232,41 @@ export default function DashboardPage() {
                 label="Reference → Recipe"
                 value={formatPercent(data.kpis.recipeActivationRate)}
                 sub={`Ref activation ${formatPercent(data.kpis.referenceActivationRate)}`}
+              />
+              <KPIStatCard
+                label="Churned Users"
+                value={formatNumber(data.kpis.churnedUsers)}
+                sub={`${formatPercent(data.kpis.churnRate)} period churn proxy`}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+              <KPIStatCard label="DAU" value={formatNumber(data.kpis.dau)} />
+              <KPIStatCard label="WAU" value={formatNumber(data.kpis.wau)} />
+              <KPIStatCard label="MAU" value={formatNumber(data.kpis.mau)} />
+              <KPIStatCard
+                label="Stickiness"
+                value={formatPercent(data.kpis.stickiness)}
+                sub="DAU / MAU"
+              />
+              <KPIStatCard
+                label="Returning Rate (30d)"
+                value={formatPercent(data.kpis.returningRate30d)}
+                sub={`${formatNumber(data.kpis.returningUsers30d)} returning users`}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <KPIStatCard label="Total References" value={formatNumber(data.kpis.totalReferences)} />
+              <KPIStatCard label="Total Recipes" value={formatNumber(data.kpis.totalRecipes)} />
+              <KPIStatCard
+                label="Refs per New User"
+                value={formatDecimal(data.kpis.referencesPerNewUser)}
+              />
+              <KPIStatCard
+                label="Recipes per New User"
+                value={formatDecimal(data.kpis.recipesPerNewUser)}
+                sub={`Avg events/active ${formatDecimal(data.kpis.avgEventsPerActiveUser30d)}`}
               />
             </div>
 
@@ -234,7 +319,11 @@ export default function DashboardPage() {
                   <ul className="mt-3 space-y-2">
                     {data.insights.map((insight) => (
                       <li key={insight.key} className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                        {insight.label}: <span className="font-semibold">{formatPercent(insight.value)}</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold">{insight.label}</span>
+                          <InsightBadge severity={insight.severity} />
+                        </div>
+                        <p className="mt-1 text-xs text-gray-600">{insight.detail}</p>
                       </li>
                     ))}
                   </ul>
@@ -242,24 +331,91 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <h2 className="text-base font-semibold text-gray-900">Source Performance</h2>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="min-w-full text-left text-xs">
+                    <thead className="text-gray-500">
+                      <tr>
+                        <th className="py-2 pr-3 font-medium">Source</th>
+                        <th className="py-2 pr-3 font-medium">Users</th>
+                        <th className="py-2 pr-3 font-medium">Paid CVR</th>
+                        <th className="py-2 pr-3 font-medium">Recipe Act.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.sourcePerformance.length ? (
+                        data.sourcePerformance.map((row) => (
+                          <tr key={row.source} className="border-t border-gray-100 text-gray-700">
+                            <td className="py-2 pr-3 font-medium">{row.source}</td>
+                            <td className="py-2 pr-3">{formatNumber(row.users)}</td>
+                            <td className="py-2 pr-3">
+                              {formatPercent(row.conversionRate)} ({formatNumber(row.paidUsers)})
+                            </td>
+                            <td className="py-2 pr-3">
+                              {formatPercent(row.recipeActivationRate)} ({formatNumber(row.recipeActivatedUsers)})
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td className="py-3 text-gray-500" colSpan={4}>
+                            No source cohort data.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <h2 className="text-base font-semibold text-gray-900">Top Events ({data.range.days}d)</h2>
+                <div className="mt-3 space-y-2">
+                  {data.topEvents.length ? (
+                    data.topEvents.map((event) => (
+                      <div key={event.eventName} className="rounded-lg border border-gray-100 p-3">
+                        <div className="flex items-center justify-between text-sm text-gray-700">
+                          <span className="font-medium">{event.eventName}</span>
+                          <span>{formatNumber(event.count)} ({formatPercent(event.share)})</span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500">No event logs in this range.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h2 className="text-base font-semibold text-gray-900">Daily Signups vs Purchases</h2>
+              <h2 className="text-base font-semibold text-gray-900">Daily Trend (Signup / Purchase / Active / Recipe)</h2>
               <div className="mt-4 grid grid-cols-7 gap-2 sm:grid-cols-10 lg:grid-cols-14">
                 {data.trend.map((point) => {
                   const signupHeight = maxTrendValue > 0 ? Math.max(6, (point.signups / maxTrendValue) * 72) : 6;
-                  const purchaseHeight =
-                    maxTrendValue > 0 ? Math.max(6, (point.purchases / maxTrendValue) * 72) : 6;
+                  const purchaseHeight = maxTrendValue > 0 ? Math.max(6, (point.purchases / maxTrendValue) * 72) : 6;
+                  const activeHeight = maxTrendValue > 0 ? Math.max(6, (point.activeUsers / maxTrendValue) * 72) : 6;
+                  const recipeHeight = maxTrendValue > 0 ? Math.max(6, (point.recipes / maxTrendValue) * 72) : 6;
 
                   return (
                     <div key={point.date} className="flex flex-col items-center gap-1">
                       <div className="flex h-20 items-end gap-1">
                         <div className="w-2 rounded-sm bg-blue-500" style={{ height: `${signupHeight}px` }} />
                         <div className="w-2 rounded-sm bg-emerald-500" style={{ height: `${purchaseHeight}px` }} />
+                        <div className="w-2 rounded-sm bg-violet-500" style={{ height: `${activeHeight}px` }} />
+                        <div className="w-2 rounded-sm bg-amber-500" style={{ height: `${recipeHeight}px` }} />
                       </div>
                       <p className="text-[10px] text-gray-500">{point.date.slice(5)}</p>
                     </div>
                   );
                 })}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-gray-500">
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-blue-500" />Signup</span>
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" />Purchase</span>
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-violet-500" />Active Users</span>
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500" />Recipes</span>
               </div>
             </div>
           </>

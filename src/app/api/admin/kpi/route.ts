@@ -16,6 +16,7 @@ type UserRefRow = {
 };
 
 type EventRow = {
+  created_at: string;
   user_id: string | null;
   event_name: string;
   payload: Record<string, unknown> | null;
@@ -33,6 +34,28 @@ type SourceShare = {
   source: string;
   sessions: number;
   share: number;
+};
+
+type SourcePerformance = {
+  source: string;
+  users: number;
+  paidUsers: number;
+  conversionRate: number;
+  recipeActivatedUsers: number;
+  recipeActivationRate: number;
+};
+
+type TopEvent = {
+  eventName: string;
+  count: number;
+  share: number;
+};
+
+type Insight = {
+  key: string;
+  label: string;
+  detail: string;
+  severity: 'positive' | 'warning' | 'critical';
 };
 
 const MAX_LOOKBACK_DAYS = 90;
@@ -73,8 +96,22 @@ function toPercent(numerator: number, denominator: number) {
   return Number(((numerator / denominator) * 100).toFixed(1));
 }
 
+function toRatioPercent(numerator: number, denominator: number) {
+  if (denominator <= 0) {
+    return 0;
+  }
+
+  return Number(((numerator / denominator) * 100).toFixed(1));
+}
+
 function asDateKey(input: Date) {
   return input.toISOString().slice(0, 10);
+}
+
+function getDateBefore(days: number) {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() - days);
+  return date;
 }
 
 function buildDateSeries(days: number) {
@@ -130,6 +167,99 @@ function ensureAdminAccess(email: string) {
   return adminEmails.includes(email.toLowerCase());
 }
 
+function readUtmSource(payload: Record<string, unknown> | null) {
+  if (!payload) {
+    return null;
+  }
+
+  const sourceRaw = payload.utm_source;
+  if (typeof sourceRaw !== 'string') {
+    return null;
+  }
+
+  const normalized = sourceRaw.trim().toLowerCase();
+  return normalized || null;
+}
+
+function getDistinctUserCount(events: Array<{ user_id: string | null }>) {
+  return new Set(events.map((event) => event.user_id).filter((userId): userId is string => Boolean(userId))).size;
+}
+
+function getReturningUsers(events: EventRow[]) {
+  const userDays = new Map<string, Set<string>>();
+
+  for (const event of events) {
+    if (!event.user_id) {
+      continue;
+    }
+
+    const dayKey = event.created_at.slice(0, 10);
+    const days = userDays.get(event.user_id) || new Set<string>();
+    days.add(dayKey);
+    userDays.set(event.user_id, days);
+  }
+
+  let returningUsers = 0;
+  for (const days of userDays.values()) {
+    if (days.size >= 2) {
+      returningUsers += 1;
+    }
+  }
+
+  return returningUsers;
+}
+
+function getSourcePerformance(params: {
+  events: EventRow[];
+  purchaseUserIds: Set<string>;
+  recipeUserIds: Set<string>;
+}) {
+  const firstSourceByUser = new Map<string, { source: string; createdAt: string }>();
+
+  for (const event of params.events) {
+    if (!event.user_id) {
+      continue;
+    }
+
+    const source = readUtmSource(event.payload);
+    if (!source) {
+      continue;
+    }
+
+    const current = firstSourceByUser.get(event.user_id);
+    if (!current || event.created_at < current.createdAt) {
+      firstSourceByUser.set(event.user_id, { source, createdAt: event.created_at });
+    }
+  }
+
+  const sourceUserMap = new Map<string, Set<string>>();
+  for (const [userId, sourceData] of firstSourceByUser.entries()) {
+    const users = sourceUserMap.get(sourceData.source) || new Set<string>();
+    users.add(userId);
+    sourceUserMap.set(sourceData.source, users);
+  }
+
+  const performance: SourcePerformance[] = Array.from(sourceUserMap.entries())
+    .map(([source, users]) => {
+      const userList = Array.from(users);
+      const paidUsers = userList.filter((userId) => params.purchaseUserIds.has(userId)).length;
+      const recipeActivatedUsers = userList.filter((userId) => params.recipeUserIds.has(userId)).length;
+
+      return {
+        source,
+        users: userList.length,
+        paidUsers,
+        conversionRate: toRatioPercent(paidUsers, userList.length),
+        recipeActivatedUsers,
+        recipeActivationRate: toRatioPercent(recipeActivatedUsers, userList.length),
+      };
+    })
+    .sort((a, b) => b.users - a.users)
+    .slice(0, 6);
+
+  return performance;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const authUser = await requireAuthenticatedUser(request);
@@ -148,9 +278,14 @@ export async function GET(request: NextRequest) {
     const daysParam = request.nextUrl.searchParams.get('days');
     const days = clampDays(toNumber(daysParam, DEFAULT_LOOKBACK_DAYS));
 
-    const since = new Date();
-    since.setUTCDate(since.getUTCDate() - days);
+    const since = getDateBefore(days);
+    const since30d = getDateBefore(30);
+    const since7d = getDateBefore(7);
+    const since1d = getDateBefore(1);
     const sinceIso = since.toISOString();
+    const since30dIso = since30d.toISOString();
+    const since7dIso = since7d.toISOString();
+    const since1dIso = since1d.toISOString();
 
     const supabase = createSupabaseAdminClient();
 
@@ -162,6 +297,9 @@ export async function GET(request: NextRequest) {
       { data: purchaseRows, error: purchaseError },
       { data: churnRows, error: churnError },
       { data: periodEventRows, error: periodEventError },
+      { data: last30dEventRows, error: last30dEventError },
+      { data: last7dEventRows, error: last7dEventError },
+      { data: last1dEventRows, error: last1dEventError },
       { count: referencesTotalCount, error: referencesTotalError },
       { count: recipesTotalCount, error: recipesTotalError },
     ] = await Promise.all([
@@ -186,8 +324,20 @@ export async function GET(request: NextRequest) {
         .gte('created_at', sinceIso),
       supabase
         .from('event_logs')
-        .select('user_id, event_name, payload')
+        .select('created_at, user_id, event_name, payload')
         .gte('created_at', sinceIso),
+      supabase
+        .from('event_logs')
+        .select('created_at, user_id, event_name, payload')
+        .gte('created_at', since30dIso),
+      supabase
+        .from('event_logs')
+        .select('created_at, user_id, event_name, payload')
+        .gte('created_at', since7dIso),
+      supabase
+        .from('event_logs')
+        .select('created_at, user_id, event_name, payload')
+        .gte('created_at', since1dIso),
       supabase.from('references').select('id', { count: 'exact', head: true }),
       supabase.from('recipes').select('id', { count: 'exact', head: true }),
     ]);
@@ -200,6 +350,9 @@ export async function GET(request: NextRequest) {
       purchaseError ||
       churnError ||
       periodEventError ||
+      last30dEventError ||
+      last7dEventError ||
+      last1dEventError ||
       referencesTotalError ||
       recipesTotalError
     ) {
@@ -211,6 +364,9 @@ export async function GET(request: NextRequest) {
         purchaseError ||
         churnError ||
         periodEventError ||
+        last30dEventError ||
+        last7dEventError ||
+        last1dEventError ||
         referencesTotalError ||
         recipesTotalError
       );
@@ -225,6 +381,9 @@ export async function GET(request: NextRequest) {
     );
     const periodChurns = (churnRows || []) as Array<{ user_id: string | null }>;
     const periodEvents = (periodEventRows || []) as EventRow[];
+    const last30dEvents = (last30dEventRows || []) as EventRow[];
+    const last7dEvents = (last7dEventRows || []) as EventRow[];
+    const last1dEvents = (last1dEventRows || []) as EventRow[];
 
     const signups = periodProfiles.length;
     const onboarded = periodProfiles.filter((profile) => profile.onboarding_completed).length;
@@ -249,12 +408,25 @@ export async function GET(request: NextRequest) {
     const paidTotalUsers = totalProfiles.filter(isPaidProfile).length;
     const churnedTotalUsers = totalProfiles.filter((profile) => isChurnedStatus(profile.subscription_status)).length;
     const churnEventsInPeriod = periodChurns.length;
+    const paidUserRatio = toRatioPercent(paidTotalUsers, totalProfiles.length);
 
     const churnRate = toPercent(churnEventsInPeriod, paidTotalUsers + churnEventsInPeriod);
     const conversionRateSignupToPaid = toPercent(purchaseUsersFromSignup.size, signups);
     const onboardingCompletionRate = toPercent(onboarded, signups);
     const referenceActivationRate = toPercent(referenceUsersFromSignup.size, signups);
     const recipeActivationRate = toPercent(recipeUsersFromSignup.size, signups);
+
+    const mau = getDistinctUserCount(last30dEvents);
+    const wau = getDistinctUserCount(last7dEvents);
+    const dau = getDistinctUserCount(last1dEvents);
+    const stickiness = toRatioPercent(dau, mau);
+    const returningUsers30d = getReturningUsers(last30dEvents);
+    const returningRate30d = toRatioPercent(returningUsers30d, mau);
+    const avgEventsPerActiveUser30d =
+      mau > 0 ? Number((last30dEvents.length / mau).toFixed(2)) : 0;
+
+    const referencesPerNewUser = signups > 0 ? Number((periodReferences.length / signups).toFixed(2)) : 0;
+    const recipesPerNewUser = signups > 0 ? Number((periodRecipes.length / signups).toFixed(2)) : 0;
 
     const dailySeries = buildDateSeries(days);
     const dailyIndex = new Map(dailySeries.map((entry) => [entry.date, entry]));
@@ -280,24 +452,47 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const activeUsersByDay = new Map<string, Set<string>>();
+    for (const event of periodEvents) {
+      if (!event.user_id) {
+        continue;
+      }
+
+      const dayKey = event.created_at.slice(0, 10);
+      const users = activeUsersByDay.get(dayKey) || new Set<string>();
+      users.add(event.user_id);
+      activeUsersByDay.set(dayKey, users);
+    }
+
+    for (const recipe of periodRecipes as Array<{ created_at?: string }>) {
+      const createdAt = recipe.created_at;
+      if (!createdAt) {
+        continue;
+      }
+
+      const key = createdAt.slice(0, 10);
+      const item = dailyIndex.get(key);
+      if (item) {
+        (item as { date: string; signups: number; purchases: number; activeUsers?: number; recipes?: number }).recipes =
+          ((item as { recipes?: number }).recipes || 0) + 1;
+      }
+    }
+
+    for (const [dayKey, users] of activeUsersByDay.entries()) {
+      const item = dailyIndex.get(dayKey);
+      if (item) {
+        (item as { activeUsers?: number }).activeUsers = users.size;
+      }
+    }
+
     const sourceCounter = new Map<string, number>();
     for (const event of periodEvents) {
-      const payload = event.payload;
-      if (!payload || typeof payload !== 'object') {
+      const source = readUtmSource(event.payload);
+      if (!source) {
         continue;
       }
 
-      const sourceRaw = payload.utm_source;
-      if (typeof sourceRaw !== 'string') {
-        continue;
-      }
-
-      const normalized = sourceRaw.trim().toLowerCase();
-      if (!normalized) {
-        continue;
-      }
-
-      sourceCounter.set(normalized, (sourceCounter.get(normalized) || 0) + 1);
+      sourceCounter.set(source, (sourceCounter.get(source) || 0) + 1);
     }
 
     const sourceTotal = Array.from(sourceCounter.values()).reduce((sum, value) => sum + value, 0);
@@ -309,6 +504,27 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => b.sessions - a.sessions)
       .slice(0, 5);
+
+    const sourcePerformance = getSourcePerformance({
+      events: periodEvents,
+      purchaseUserIds: purchaseUsersFromSignup,
+      recipeUserIds: recipeUsersFromSignup,
+    });
+
+    const eventCounter = new Map<string, number>();
+    for (const event of periodEvents) {
+      eventCounter.set(event.event_name, (eventCounter.get(event.event_name) || 0) + 1);
+    }
+
+    const totalEvents = Array.from(eventCounter.values()).reduce((sum, count) => sum + count, 0);
+    const topEvents: TopEvent[] = Array.from(eventCounter.entries())
+      .map(([eventName, count]) => ({
+        eventName,
+        count,
+        share: toRatioPercent(count, totalEvents),
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
 
     const stages: Stage[] = [
       {
@@ -330,21 +546,27 @@ export async function GET(request: NextRequest) {
         label: 'Reference Created',
         users: referenceUsersFromSignup.size,
         conversionFromPrev: toPercent(referenceUsersFromSignup.size, onboarded),
-        dropoffFromPrev: toPercent(onboarded - referenceUsersFromSignup.size, onboarded),
+        dropoffFromPrev: toPercent(Math.max(0, onboarded - referenceUsersFromSignup.size), onboarded),
       },
       {
         key: 'recipe',
         label: 'Recipe Created',
         users: recipeUsersFromSignup.size,
         conversionFromPrev: toPercent(recipeUsersFromSignup.size, referenceUsersFromSignup.size),
-        dropoffFromPrev: toPercent(referenceUsersFromSignup.size - recipeUsersFromSignup.size, referenceUsersFromSignup.size),
+        dropoffFromPrev: toPercent(
+          Math.max(0, referenceUsersFromSignup.size - recipeUsersFromSignup.size),
+          referenceUsersFromSignup.size
+        ),
       },
       {
         key: 'purchase',
         label: 'Paid Conversion',
         users: purchaseUsersFromSignup.size,
         conversionFromPrev: toPercent(purchaseUsersFromSignup.size, recipeUsersFromSignup.size),
-        dropoffFromPrev: toPercent(recipeUsersFromSignup.size - purchaseUsersFromSignup.size, recipeUsersFromSignup.size),
+        dropoffFromPrev: toPercent(
+          Math.max(0, recipeUsersFromSignup.size - purchaseUsersFromSignup.size),
+          recipeUsersFromSignup.size
+        ),
       },
     ];
 
@@ -354,36 +576,67 @@ export async function GET(request: NextRequest) {
       totalReferences: referencesTotalCount || 0,
       totalRecipes: recipesTotalCount || 0,
       paidUsers: paidTotalUsers,
+      paidUserRatio,
       churnedUsers: churnedTotalUsers,
       signupToPaidConversionRate: conversionRateSignupToPaid,
       churnRate,
       onboardingCompletionRate,
       referenceActivationRate,
       recipeActivationRate,
+      dau,
+      wau,
+      mau,
+      stickiness,
+      returningUsers30d,
+      returningRate30d,
+      avgEventsPerActiveUser30d,
+      referencesPerNewUser,
+      recipesPerNewUser,
       purchasesInPeriod: periodPurchases.length,
       churnEventsInPeriod,
     };
 
-    const insights = [
+    const topSourceShare = sourceShares[0]?.share || 0;
+    const insights: Insight[] = [
       {
         key: 'onboarding_dropoff',
-        label: 'Onboarding Drop-off',
-        value: toPercent(signups - onboarded, signups),
-        direction: signups - onboarded > 0 ? 'down' : 'flat',
-      },
-      {
-        key: 'recipe_gap',
-        label: 'Reference → Recipe Gap',
-        value: toPercent(referenceUsersFromSignup.size - recipeUsersFromSignup.size, referenceUsersFromSignup.size),
-        direction: referenceUsersFromSignup.size > recipeUsersFromSignup.size ? 'down' : 'flat',
+        label: 'Onboarding Completion',
+        detail: `Current completion is ${onboardingCompletionRate.toFixed(1)}%.`,
+        severity: onboardingCompletionRate >= 70 ? 'positive' : onboardingCompletionRate >= 50 ? 'warning' : 'critical',
       },
       {
         key: 'paid_conversion',
-        label: 'Signup → Paid Conversion',
-        value: conversionRateSignupToPaid,
-        direction: conversionRateSignupToPaid >= 10 ? 'up' : 'flat',
+        label: 'Signup to Paid',
+        detail: `Conversion is ${conversionRateSignupToPaid.toFixed(1)}% for the selected period.`,
+        severity: conversionRateSignupToPaid >= 8 ? 'positive' : conversionRateSignupToPaid >= 4 ? 'warning' : 'critical',
+      },
+      {
+        key: 'retention_proxy',
+        label: 'Returning User Rate (30d)',
+        detail: `${returningRate30d.toFixed(1)}% of MAU returned on multiple days.`,
+        severity: returningRate30d >= 35 ? 'positive' : returningRate30d >= 20 ? 'warning' : 'critical',
+      },
+      {
+        key: 'source_concentration',
+        label: 'Source Concentration',
+        detail: `Top source share is ${topSourceShare.toFixed(1)}%.`,
+        severity: topSourceShare <= 45 ? 'positive' : topSourceShare <= 60 ? 'warning' : 'critical',
+      },
+      {
+        key: 'churn_monitor',
+        label: 'Churn Monitor',
+        detail: `Churn rate proxy is ${churnRate.toFixed(1)}%.`,
+        severity: churnRate <= 5 ? 'positive' : churnRate <= 10 ? 'warning' : 'critical',
       },
     ];
+
+    const trend = dailySeries.map((entry) => ({
+      date: entry.date,
+      signups: entry.signups,
+      purchases: entry.purchases,
+      activeUsers: (entry as { activeUsers?: number }).activeUsers || 0,
+      recipes: (entry as { recipes?: number }).recipes || 0,
+    }));
 
     return NextResponse.json({
       range: {
@@ -393,7 +646,9 @@ export async function GET(request: NextRequest) {
       kpis,
       funnel: stages,
       trafficSources: sourceShares,
-      trend: dailySeries,
+      sourcePerformance,
+      topEvents,
+      trend,
       insights,
     });
   } catch (error: unknown) {
