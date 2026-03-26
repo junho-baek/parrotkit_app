@@ -1,23 +1,269 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React from 'react';
+import { authenticatedFetch } from '@/lib/auth/client-session';
 
-// 기존 dashboard는 /home으로 리다이렉트
+type DashboardResponse = {
+  range: {
+    days: number;
+    since: string;
+  };
+  kpis: {
+    totalUsers: number;
+    newUsers: number;
+    totalReferences: number;
+    totalRecipes: number;
+    paidUsers: number;
+    churnedUsers: number;
+    signupToPaidConversionRate: number;
+    churnRate: number;
+    onboardingCompletionRate: number;
+    referenceActivationRate: number;
+    recipeActivationRate: number;
+    purchasesInPeriod: number;
+    churnEventsInPeriod: number;
+  };
+  funnel: Array<{
+    key: string;
+    label: string;
+    users: number;
+    conversionFromPrev: number;
+    dropoffFromPrev: number;
+  }>;
+  trafficSources: Array<{
+    source: string;
+    sessions: number;
+    share: number;
+  }>;
+  trend: Array<{
+    date: string;
+    signups: number;
+    purchases: number;
+  }>;
+  insights: Array<{
+    key: string;
+    label: string;
+    value: number;
+    direction: string;
+  }>;
+};
+
+const RANGE_OPTIONS = [7, 30, 90];
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat('en-US').format(value);
+}
+
+function formatPercent(value: number) {
+  return `${value.toFixed(1)}%`;
+}
+
+function KPIStatCard({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <p className="text-xs font-medium text-gray-500">{label}</p>
+      <p className="mt-2 text-2xl font-bold text-gray-900">{value}</p>
+      {sub ? <p className="mt-1 text-xs text-gray-500">{sub}</p> : null}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
-  const router = useRouter();
+  const [days, setDays] = React.useState<number>(30);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [data, setData] = React.useState<DashboardResponse | null>(null);
 
-  useEffect(() => {
-    router.replace('/home');
-  }, [router]);
+  const loadDashboard = React.useCallback(async (selectedDays: number) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await authenticatedFetch(`/api/admin/kpi?days=${selectedDays}`);
+      const payload = (await response.json()) as DashboardResponse & {
+        error?: string;
+        message?: string;
+      };
+
+      if (!response.ok) {
+        setError(payload.message || payload.error || 'Failed to load dashboard');
+        setData(null);
+        return;
+      }
+
+      setData(payload);
+    } catch {
+      setError('Failed to load dashboard');
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadDashboard(days);
+  }, [days, loadDashboard]);
+
+  const maxTrendValue = React.useMemo(() => {
+    if (!data?.trend?.length) {
+      return 0;
+    }
+
+    return Math.max(...data.trend.map((entry) => Math.max(entry.signups, entry.purchases, 0)));
+  }, [data]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <div className="mb-4 inline-block">
-          <img src="/parrot-logo.png" alt="Loading" className="w-16 h-16 animate-bounce-logo" />
+    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <div className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Admin Performance Dashboard</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Conversion / churn metrics for growth marketing and UX optimization
+            </p>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg bg-gray-100 p-1">
+            {RANGE_OPTIONS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                  option === days ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                }`}
+                onClick={() => setDays(option)}
+                disabled={loading}
+              >
+                {option}d
+              </button>
+            ))}
+          </div>
         </div>
-        <p className="text-gray-600 font-semibold">Redirecting...</p>
+
+        {loading ? (
+          <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500 shadow-sm">
+            Loading KPI data...
+          </div>
+        ) : null}
+
+        {!loading && error ? (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700 shadow-sm">
+            {error}
+          </div>
+        ) : null}
+
+        {!loading && !error && data ? (
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              <KPIStatCard label="Total Users" value={formatNumber(data.kpis.totalUsers)} />
+              <KPIStatCard label={`New Users (${data.range.days}d)`} value={formatNumber(data.kpis.newUsers)} />
+              <KPIStatCard
+                label="Signup → Paid"
+                value={formatPercent(data.kpis.signupToPaidConversionRate)}
+                sub={`${formatNumber(data.kpis.purchasesInPeriod)} paid events`}
+              />
+              <KPIStatCard
+                label="Churn Rate"
+                value={formatPercent(data.kpis.churnRate)}
+                sub={`${formatNumber(data.kpis.churnEventsInPeriod)} churn events`}
+              />
+              <KPIStatCard
+                label="Onboarding Completion"
+                value={formatPercent(data.kpis.onboardingCompletionRate)}
+              />
+              <KPIStatCard
+                label="Reference → Recipe"
+                value={formatPercent(data.kpis.recipeActivationRate)}
+                sub={`Ref activation ${formatPercent(data.kpis.referenceActivationRate)}`}
+              />
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm lg:col-span-2">
+                <h2 className="text-base font-semibold text-gray-900">Funnel ({data.range.days}d)</h2>
+                <div className="mt-4 space-y-3">
+                  {data.funnel.map((stage, index) => (
+                    <div key={stage.key} className="rounded-xl border border-gray-100 p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-gray-700">{index + 1}. {stage.label}</p>
+                        <p className="text-sm font-semibold text-gray-900">{formatNumber(stage.users)} users</p>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                        <span>Conversion from previous: {formatPercent(stage.conversionFromPrev)}</span>
+                        <span>Drop-off: {formatPercent(stage.dropoffFromPrev)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <h2 className="text-base font-semibold text-gray-900">Traffic Sources</h2>
+                  <div className="mt-4 space-y-3">
+                    {data.trafficSources.length ? (
+                      data.trafficSources.map((source) => (
+                        <div key={source.source}>
+                          <div className="mb-1 flex items-center justify-between text-xs text-gray-600">
+                            <span>{source.source}</span>
+                            <span>{formatNumber(source.sessions)} ({formatPercent(source.share)})</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-gray-100">
+                            <div
+                              className="h-2 rounded-full bg-blue-500"
+                              style={{ width: `${Math.min(source.share, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500">No UTM source data in this range.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <h2 className="text-base font-semibold text-gray-900">Action Insights</h2>
+                  <ul className="mt-3 space-y-2">
+                    {data.insights.map((insight) => (
+                      <li key={insight.key} className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                        {insight.label}: <span className="font-semibold">{formatPercent(insight.value)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <h2 className="text-base font-semibold text-gray-900">Daily Signups vs Purchases</h2>
+              <div className="mt-4 grid grid-cols-7 gap-2 sm:grid-cols-10 lg:grid-cols-14">
+                {data.trend.map((point) => {
+                  const signupHeight = maxTrendValue > 0 ? Math.max(6, (point.signups / maxTrendValue) * 72) : 6;
+                  const purchaseHeight =
+                    maxTrendValue > 0 ? Math.max(6, (point.purchases / maxTrendValue) * 72) : 6;
+
+                  return (
+                    <div key={point.date} className="flex flex-col items-center gap-1">
+                      <div className="flex h-20 items-end gap-1">
+                        <div className="w-2 rounded-sm bg-blue-500" style={{ height: `${signupHeight}px` }} />
+                        <div className="w-2 rounded-sm bg-emerald-500" style={{ height: `${purchaseHeight}px` }} />
+                      </div>
+                      <p className="text-[10px] text-gray-500">{point.date.slice(5)}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   );
