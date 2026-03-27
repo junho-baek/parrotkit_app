@@ -37,6 +37,7 @@ type MoneyPayload = {
 
 export type ClientEventPayloadMap = {
   signup_start: CommonPayload;
+  signup_failed: CommonPayload & { reason: string };
   signup_success: { method: string };
   login: { method: string };
   onboarding_complete: CommonPayload & {
@@ -69,7 +70,24 @@ export type ClientEventPayloadMap = {
       value: number;
       currency: string;
     };
+  checkout_redirected: CommonPayload &
+    MoneyPayload & {
+      plan_name: string;
+      plan_price: number;
+      value: number;
+      currency: string;
+      checkout_provider: 'lemonsqueezy';
+    };
+  checkout_failed: CommonPayload & {
+    plan_name: string;
+    reason: string;
+  };
   purchase_success: {
+    plan_name: string;
+    value: number;
+    currency: string;
+  };
+  purchase_success_client: {
     plan_name: string;
     value: number;
     currency: string;
@@ -115,6 +133,7 @@ export type ClientEventPayloadWithContext<TEventName extends ClientEventName> =
 
 export const STANDARD_EVENT_NAMES = [
   'signup_start',
+  'signup_failed',
   'signup_success',
   'login',
   'onboarding_complete',
@@ -123,7 +142,10 @@ export const STANDARD_EVENT_NAMES = [
   'recipe_saved',
   'view_pricing',
   'begin_checkout',
+  'checkout_redirected',
+  'checkout_failed',
   'purchase_success',
+  'purchase_success_client',
   'select_free_plan',
   'select_interest',
   'deselect_interest',

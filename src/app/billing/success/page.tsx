@@ -69,7 +69,7 @@ export default function BillingSuccessPage() {
           if (isPendingCheckout && !alreadyLogged) {
             sessionStorage.setItem(PURCHASE_LOGGED_KEY, '1');
             sessionStorage.removeItem(CHECKOUT_PENDING_KEY);
-            await logClientEvent('purchase_success', {
+            await logClientEvent('purchase_success_client', {
               plan_name: 'Pro Plan',
               currency: 'USD',
               value: 9.99,

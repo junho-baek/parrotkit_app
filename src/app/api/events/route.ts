@@ -33,6 +33,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Event logging error:', error);
-    return NextResponse.json({ success: false }, { status: 200 });
+    return NextResponse.json({ success: false, error: 'EVENT_LOGGING_FAILED' }, { status: 500 });
   }
 }

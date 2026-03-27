@@ -43,6 +43,8 @@ type SourcePerformance = {
   conversionRate: number;
   recipeActivatedUsers: number;
   recipeActivationRate: number;
+  checkoutUsers: number;
+  checkoutRate: number;
 };
 
 type TopEvent = {
@@ -62,6 +64,20 @@ const MAX_LOOKBACK_DAYS = 90;
 const DEFAULT_LOOKBACK_DAYS = 30;
 const CHURN_EVENT_NAMES = ['subscription_cancelled', 'subscription_expired'];
 const PURCHASE_EVENT_NAME = 'purchase_success';
+const CHECKOUT_EVENT_NAME = 'begin_checkout';
+const SIGNUP_SUCCESS_EVENT_NAME = 'signup_success';
+const ONBOARDING_EVENT_NAME = 'onboarding_complete';
+const REFERENCE_EVENT_NAME = 'reference_submitted';
+const RECIPE_EVENT_NAME = 'recipe_generated';
+
+type DailySeriesEntry = {
+  date: string;
+  signups: number;
+  purchases: number;
+  activeUsers?: number;
+  recipes?: number;
+  checkouts?: number;
+};
 
 function toNumber(value: string | null, fallback: number) {
   if (!value) {
@@ -116,7 +132,7 @@ function getDateBefore(days: number) {
 
 function buildDateSeries(days: number) {
   const today = new Date();
-  const series: Array<{ date: string; signups: number; purchases: number }> = [];
+  const series: DailySeriesEntry[] = [];
 
   for (let offset = days - 1; offset >= 0; offset -= 1) {
     const date = new Date(today);
@@ -125,6 +141,7 @@ function buildDateSeries(days: number) {
       date: asDateKey(date),
       signups: 0,
       purchases: 0,
+      checkouts: 0,
     });
   }
 
@@ -181,6 +198,38 @@ function readUtmSource(payload: Record<string, unknown> | null) {
   return normalized || null;
 }
 
+function readPayloadString(payload: Record<string, unknown> | null, key: string) {
+  if (!payload) {
+    return null;
+  }
+
+  const raw = payload[key];
+  if (typeof raw !== 'string') {
+    return null;
+  }
+
+  const normalized = raw.trim();
+  return normalized || null;
+}
+
+function getEventUserIds(events: EventRow[], eventName: string, filter?: (event: EventRow) => boolean) {
+  const ids = new Set<string>();
+
+  for (const event of events) {
+    if (event.event_name !== eventName || !event.user_id) {
+      continue;
+    }
+
+    if (filter && !filter(event)) {
+      continue;
+    }
+
+    ids.add(event.user_id);
+  }
+
+  return ids;
+}
+
 function getDistinctUserCount(events: Array<{ user_id: string | null }>) {
   return new Set(events.map((event) => event.user_id).filter((userId): userId is string => Boolean(userId))).size;
 }
@@ -213,6 +262,7 @@ function getSourcePerformance(params: {
   events: EventRow[];
   purchaseUserIds: Set<string>;
   recipeUserIds: Set<string>;
+  checkoutUserIds: Set<string>;
 }) {
   const firstSourceByUser = new Map<string, { source: string; createdAt: string }>();
 
@@ -244,6 +294,7 @@ function getSourcePerformance(params: {
       const userList = Array.from(users);
       const paidUsers = userList.filter((userId) => params.purchaseUserIds.has(userId)).length;
       const recipeActivatedUsers = userList.filter((userId) => params.recipeUserIds.has(userId)).length;
+      const checkoutUsers = userList.filter((userId) => params.checkoutUserIds.has(userId)).length;
 
       return {
         source,
@@ -252,6 +303,8 @@ function getSourcePerformance(params: {
         conversionRate: toRatioPercent(paidUsers, userList.length),
         recipeActivatedUsers,
         recipeActivationRate: toRatioPercent(recipeActivatedUsers, userList.length),
+        checkoutUsers,
+        checkoutRate: toRatioPercent(checkoutUsers, userList.length),
       };
     })
     .sort((a, b) => b.users - a.users)
@@ -314,7 +367,7 @@ export async function GET(request: NextRequest) {
       supabase.from('recipes').select('user_id, created_at').gte('created_at', sinceIso),
       supabase
         .from('event_logs')
-        .select('user_id, created_at, event_name')
+        .select('user_id, created_at, event_name, payload')
         .eq('event_name', PURCHASE_EVENT_NAME)
         .gte('created_at', sinceIso),
       supabase
@@ -376,8 +429,9 @@ export async function GET(request: NextRequest) {
     const periodProfiles = (profilesRows || []) as ProfileRow[];
     const periodReferences = ((referencesRows || []) as UserRefRow[]).filter((row) => Boolean(row.user_id));
     const periodRecipes = ((recipesRows || []) as UserRefRow[]).filter((row) => Boolean(row.user_id));
-    const periodPurchases = ((purchaseRows || []) as Array<{ user_id: string | null; created_at?: string }>).filter(
-      (row) => Boolean(row.user_id)
+    const periodPurchaseEvents = (purchaseRows || []) as EventRow[];
+    const periodPurchases = periodPurchaseEvents.filter(
+      (row) => Boolean(row.user_id) && readPayloadString(row.payload, 'source') === 'lemonsqueezy_webhook'
     );
     const periodChurns = (churnRows || []) as Array<{ user_id: string | null }>;
     const periodEvents = (periodEventRows || []) as EventRow[];
@@ -389,6 +443,9 @@ export async function GET(request: NextRequest) {
     const onboarded = periodProfiles.filter((profile) => profile.onboarding_completed).length;
 
     const signupUserIds = new Set(periodProfiles.map((profile) => profile.id));
+    const eventUserIdsInPeriod = new Set(
+      periodEvents.map((event) => event.user_id).filter((userId): userId is string => Boolean(userId))
+    );
     const referenceUsersFromSignup = new Set(
       periodReferences
         .map((row) => row.user_id)
@@ -399,11 +456,19 @@ export async function GET(request: NextRequest) {
         .map((row) => row.user_id)
         .filter((userId) => signupUserIds.has(userId))
     );
+    const checkoutUsersFromSignup = new Set(
+      Array.from(getEventUserIds(periodEvents, CHECKOUT_EVENT_NAME)).filter((userId) => signupUserIds.has(userId))
+    );
     const purchaseUsersFromSignup = new Set(
       periodPurchases
         .map((row) => row.user_id)
         .filter((userId): userId is string => Boolean(userId) && signupUserIds.has(userId as string))
     );
+
+    const onboardingUsers = getEventUserIds(periodEvents, ONBOARDING_EVENT_NAME);
+    const signupSuccessUsers = getEventUserIds(periodEvents, SIGNUP_SUCCESS_EVENT_NAME);
+    const referenceEventUsers = getEventUserIds(periodEvents, REFERENCE_EVENT_NAME);
+    const recipeEventUsers = getEventUserIds(periodEvents, RECIPE_EVENT_NAME);
 
     const paidTotalUsers = totalProfiles.filter(isPaidProfile).length;
     const churnedTotalUsers = totalProfiles.filter((profile) => isChurnedStatus(profile.subscription_status)).length;
@@ -412,9 +477,33 @@ export async function GET(request: NextRequest) {
 
     const churnRate = toPercent(churnEventsInPeriod, paidTotalUsers + churnEventsInPeriod);
     const conversionRateSignupToPaid = toPercent(purchaseUsersFromSignup.size, signups);
+    const conversionRateSignupToCheckout = toPercent(checkoutUsersFromSignup.size, signups);
+    const conversionRateCheckoutToPaid = toPercent(purchaseUsersFromSignup.size, checkoutUsersFromSignup.size);
+    const conversionRateRecipeToCheckout = toPercent(checkoutUsersFromSignup.size, recipeUsersFromSignup.size);
     const onboardingCompletionRate = toPercent(onboarded, signups);
     const referenceActivationRate = toPercent(referenceUsersFromSignup.size, signups);
     const recipeActivationRate = toPercent(recipeUsersFromSignup.size, signups);
+
+    const identifiedEventsInPeriod = periodEvents.filter((event) => Boolean(event.user_id)).length;
+    const anonymousEventsInPeriod = Math.max(0, periodEvents.length - identifiedEventsInPeriod);
+    const identifiedEventRatio = toRatioPercent(identifiedEventsInPeriod, periodEvents.length);
+    const eventCoverageRate = toRatioPercent(
+      Array.from(signupUserIds).filter((userId) => eventUserIdsInPeriod.has(userId)).length,
+      signups
+    );
+    const utmTaggedEvents = periodEvents.filter((event) => Boolean(readUtmSource(event.payload))).length;
+    const utmCoverageRate = toRatioPercent(utmTaggedEvents, periodEvents.length);
+
+    const purchaseEventsRaw = periodPurchaseEvents.length;
+    const purchaseEventsWebhook = periodPurchases.length;
+    const purchaseEventsClient = periodEvents.filter((event) => event.event_name === 'purchase_success_client').length;
+
+    const stageCoverage = {
+      signupSuccessUsers: signupSuccessUsers.size,
+      onboardingEventUsers: onboardingUsers.size,
+      referenceEventUsers: referenceEventUsers.size,
+      recipeEventUsers: recipeEventUsers.size,
+    };
 
     const mau = getDistinctUserCount(last30dEvents);
     const wau = getDistinctUserCount(last7dEvents);
@@ -452,6 +541,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    for (const event of periodEvents) {
+      if (event.event_name !== CHECKOUT_EVENT_NAME) {
+        continue;
+      }
+
+      const key = event.created_at.slice(0, 10);
+      const item = dailyIndex.get(key);
+      if (item) {
+        item.checkouts = (item.checkouts || 0) + 1;
+      }
+    }
+
     const activeUsersByDay = new Map<string, Set<string>>();
     for (const event of periodEvents) {
       if (!event.user_id) {
@@ -473,15 +574,14 @@ export async function GET(request: NextRequest) {
       const key = createdAt.slice(0, 10);
       const item = dailyIndex.get(key);
       if (item) {
-        (item as { date: string; signups: number; purchases: number; activeUsers?: number; recipes?: number }).recipes =
-          ((item as { recipes?: number }).recipes || 0) + 1;
+        item.recipes = (item.recipes || 0) + 1;
       }
     }
 
     for (const [dayKey, users] of activeUsersByDay.entries()) {
       const item = dailyIndex.get(dayKey);
       if (item) {
-        (item as { activeUsers?: number }).activeUsers = users.size;
+        item.activeUsers = users.size;
       }
     }
 
@@ -509,6 +609,7 @@ export async function GET(request: NextRequest) {
       events: periodEvents,
       purchaseUserIds: purchaseUsersFromSignup,
       recipeUserIds: recipeUsersFromSignup,
+      checkoutUserIds: checkoutUsersFromSignup,
     });
 
     const eventCounter = new Map<string, number>();
@@ -559,13 +660,23 @@ export async function GET(request: NextRequest) {
         ),
       },
       {
+        key: 'checkout',
+        label: 'Checkout Started',
+        users: checkoutUsersFromSignup.size,
+        conversionFromPrev: toPercent(checkoutUsersFromSignup.size, recipeUsersFromSignup.size),
+        dropoffFromPrev: toPercent(
+          Math.max(0, recipeUsersFromSignup.size - checkoutUsersFromSignup.size),
+          recipeUsersFromSignup.size
+        ),
+      },
+      {
         key: 'purchase',
         label: 'Paid Conversion',
         users: purchaseUsersFromSignup.size,
-        conversionFromPrev: toPercent(purchaseUsersFromSignup.size, recipeUsersFromSignup.size),
+        conversionFromPrev: toPercent(purchaseUsersFromSignup.size, checkoutUsersFromSignup.size),
         dropoffFromPrev: toPercent(
-          Math.max(0, recipeUsersFromSignup.size - purchaseUsersFromSignup.size),
-          recipeUsersFromSignup.size
+          Math.max(0, checkoutUsersFromSignup.size - purchaseUsersFromSignup.size),
+          checkoutUsersFromSignup.size
         ),
       },
     ];
@@ -579,6 +690,9 @@ export async function GET(request: NextRequest) {
       paidUserRatio,
       churnedUsers: churnedTotalUsers,
       signupToPaidConversionRate: conversionRateSignupToPaid,
+      signupToCheckoutRate: conversionRateSignupToCheckout,
+      checkoutToPaidRate: conversionRateCheckoutToPaid,
+      recipeToCheckoutRate: conversionRateRecipeToCheckout,
       churnRate,
       onboardingCompletionRate,
       referenceActivationRate,
@@ -594,6 +708,20 @@ export async function GET(request: NextRequest) {
       recipesPerNewUser,
       purchasesInPeriod: periodPurchases.length,
       churnEventsInPeriod,
+      totalEventsInPeriod: periodEvents.length,
+      identifiedEventsInPeriod,
+      anonymousEventsInPeriod,
+      identifiedEventRatio,
+      eventCoverageRate,
+      utmCoverageRate,
+      purchaseEventsRaw,
+      purchaseEventsWebhook,
+      purchaseEventsClient,
+      checkoutUsersFromSignup: checkoutUsersFromSignup.size,
+      signupSuccessUsers: stageCoverage.signupSuccessUsers,
+      onboardingEventUsers: stageCoverage.onboardingEventUsers,
+      referenceEventUsers: stageCoverage.referenceEventUsers,
+      recipeEventUsers: stageCoverage.recipeEventUsers,
     };
 
     const topSourceShare = sourceShares[0]?.share || 0;
@@ -609,6 +737,12 @@ export async function GET(request: NextRequest) {
         label: 'Signup to Paid',
         detail: `Conversion is ${conversionRateSignupToPaid.toFixed(1)}% for the selected period.`,
         severity: conversionRateSignupToPaid >= 8 ? 'positive' : conversionRateSignupToPaid >= 4 ? 'warning' : 'critical',
+      },
+      {
+        key: 'checkout_bottleneck',
+        label: 'Checkout to Paid',
+        detail: `Checkout-to-paid is ${conversionRateCheckoutToPaid.toFixed(1)}% with ${checkoutUsersFromSignup.size} checkout users.`,
+        severity: conversionRateCheckoutToPaid >= 55 ? 'positive' : conversionRateCheckoutToPaid >= 35 ? 'warning' : 'critical',
       },
       {
         key: 'retention_proxy',
@@ -628,14 +762,27 @@ export async function GET(request: NextRequest) {
         detail: `Churn rate proxy is ${churnRate.toFixed(1)}%.`,
         severity: churnRate <= 5 ? 'positive' : churnRate <= 10 ? 'warning' : 'critical',
       },
+      {
+        key: 'event_identity_quality',
+        label: 'Identified Event Ratio',
+        detail: `${identifiedEventRatio.toFixed(1)}% of events include user_id.`,
+        severity: identifiedEventRatio >= 85 ? 'positive' : identifiedEventRatio >= 70 ? 'warning' : 'critical',
+      },
+      {
+        key: 'utm_coverage',
+        label: 'UTM Coverage',
+        detail: `${utmCoverageRate.toFixed(1)}% of events include utm_source.`,
+        severity: utmCoverageRate >= 35 ? 'positive' : utmCoverageRate >= 20 ? 'warning' : 'critical',
+      },
     ];
 
     const trend = dailySeries.map((entry) => ({
       date: entry.date,
       signups: entry.signups,
       purchases: entry.purchases,
-      activeUsers: (entry as { activeUsers?: number }).activeUsers || 0,
-      recipes: (entry as { recipes?: number }).recipes || 0,
+      activeUsers: entry.activeUsers || 0,
+      recipes: entry.recipes || 0,
+      checkouts: entry.checkouts || 0,
     }));
 
     return NextResponse.json({
