@@ -34,29 +34,44 @@ export const SignUpForm: React.FC = () => {
     setLoading(true);
     setError('');
 
-    await logClientEvent('signup_start', {
-      event_category: 'engagement',
-      event_label: 'signup_form_submit',
-    });
-
     // 기본 유효성 검사
     if (!formData.email || !formData.username || !formData.password || !formData.confirmPassword) {
+      await logClientEvent('signup_failed', {
+        event_category: 'engagement',
+        event_label: 'signup_validation_failed',
+        reason: 'missing_required_field',
+      });
       setError('모든 필드를 입력해주세요');
       setLoading(false);
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
+      await logClientEvent('signup_failed', {
+        event_category: 'engagement',
+        event_label: 'signup_validation_failed',
+        reason: 'password_mismatch',
+      });
       setError('비밀번호가 일치하지 않습니다');
       setLoading(false);
       return;
     }
 
     if (formData.password.length < 6) {
+      await logClientEvent('signup_failed', {
+        event_category: 'engagement',
+        event_label: 'signup_validation_failed',
+        reason: 'password_too_short',
+      });
       setError('비밀번호는 최소 6자 이상이어야 합니다');
       setLoading(false);
       return;
     }
+
+    await logClientEvent('signup_start', {
+      event_category: 'engagement',
+      event_label: 'signup_valid_submit',
+    });
 
     try {
       const response = await fetch('/api/auth/signup', {
@@ -88,6 +103,11 @@ export const SignUpForm: React.FC = () => {
       router.push('/onboarding');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : '회원가입에 실패했습니다. 다시 시도해주세요.';
+      await logClientEvent('signup_failed', {
+        event_category: 'engagement',
+        event_label: 'signup_request_failed',
+        reason: message,
+      });
       setError(message);
     } finally {
       setLoading(false);

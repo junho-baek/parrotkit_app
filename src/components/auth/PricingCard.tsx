@@ -106,12 +106,26 @@ export const PricingCard: React.FC<PricingCardProps> = ({ plan }) => {
         throw new Error(data.error || 'Checkout failed');
       }
 
+      await logClientEvent('checkout_redirected', {
+        event_category: 'ecommerce',
+        plan_name: plan.name,
+        plan_price: plan.price,
+        currency: 'USD',
+        value: plan.price,
+        checkout_provider: 'lemonsqueezy',
+      });
+
       sessionStorage.setItem('parrotkit_pending_checkout', 'pro');
       sessionStorage.removeItem('parrotkit_purchase_success_logged');
       // Lemon Squeezy Checkout 페이지로 이동
       window.location.href = data.checkoutUrl;
     } catch (error) {
       console.error('Checkout error:', error);
+      await logClientEvent('checkout_failed', {
+        event_category: 'ecommerce',
+        plan_name: plan.name,
+        reason: error instanceof Error ? error.message : 'unknown_checkout_error',
+      });
       alert('결제 페이지를 열 수 없습니다. 다시 시도해주세요.');
     } finally {
       setLoading(false);
