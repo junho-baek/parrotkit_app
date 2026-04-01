@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RapidAPI + Gemini TikTok QA 보고서</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: AppleGothic, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+        background: #f4f6fb;
+        color: #111827;
+        line-height: 1.6;
+      }
+
+      .page {
+        width: 900px;
+        margin: 0 auto;
+        padding: 40px 32px 64px;
+      }
+
+      .hero {
+        background: linear-gradient(135deg, #ffefe7 0%, #f6eefe 50%, #eef3ff 100%);
+        border: 1px solid #e5e7eb;
+        border-radius: 24px;
+        padding: 28px 30px;
+        box-shadow: 0 20px 45px rgba(15, 23, 42, 0.06);
+      }
+
+      .eyebrow {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.8);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      h1 {
+        margin: 14px 0 10px;
+        font-size: 32px;
+        line-height: 1.25;
+      }
+
+      .hero p {
+        margin: 0;
+        font-size: 15px;
+        color: #374151;
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 22px;
+      }
+
+      .summary-card {
+        background: rgba(255, 255, 255, 0.88);
+        border: 1px solid #e5e7eb;
+        border-radius: 18px;
+        padding: 14px 16px;
+      }
+
+      .summary-card .label {
+        font-size: 12px;
+        color: #6b7280;
+        margin-bottom: 6px;
+      }
+
+      .summary-card .value {
+        font-size: 18px;
+        font-weight: 800;
+        color: #111827;
+      }
+
+      section {
+        margin-top: 28px;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 22px;
+        padding: 24px 26px;
+        box-shadow: 0 16px 30px rgba(15, 23, 42, 0.04);
+      }
+
+      h2 {
+        margin: 0 0 14px;
+        font-size: 22px;
+      }
+
+      p, li {
+        font-size: 14px;
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 20px;
+      }
+
+      .code-box {
+        margin-top: 12px;
+        background: #f8fafc;
+        border: 1px solid #dbe3f0;
+        border-radius: 16px;
+        padding: 14px 16px;
+        font-size: 13px;
+        white-space: pre-wrap;
+      }
+
+      .shots {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 18px;
+      }
+
+      .shot {
+        border: 1px solid #e5e7eb;
+        border-radius: 18px;
+        overflow: hidden;
+        background: #fff;
+      }
+
+      .shot img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .shot .caption {
+        padding: 12px 14px 14px;
+        font-size: 13px;
+        color: #374151;
+      }
+
+      .footer-note {
+        margin-top: 24px;
+        font-size: 12px;
+        color: #6b7280;
+      }
+
+      @media print {
+        body {
+          background: white;
+        }
+
+        .page {
+          width: auto;
+          padding: 0;
+        }
+
+        section,
+        .hero {
+          box-shadow: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div class="eyebrow">ParrotKit 로컬 QA · 2026-04-01</div>
+        <h1>RapidAPI + Gemini TikTok 붙여넣기 검증 결과</h1>
+        <p>
+          TikTok 링크를 넣었을 때 실제 영상 확보, Gemini 비디오 분석, 모션 설명 생성,
+          그리고 결과 화면 표시까지 되는지 확인한 결과 보고서입니다.
+        </p>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="label">테스트 링크</div>
+            <div class="value">TikTok</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">영상 소스</div>
+            <div class="value">RapidAPI</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">장면 추출</div>
+            <div class="value">Gemini</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">최종 판단</div>
+            <div class="value">통과</div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>한눈에 요약</h2>
+        <ul>
+          <li>TikTok 링크 기준으로 `/api/analyze` 호출이 성공했습니다.</li>
+          <li>장면 추출 방식은 `gemini_video_motion`으로 확인됐고, 폴백 없이 진행됐습니다.</li>
+          <li>영상 소스는 `rapidapi_smvd`로 확인됐습니다.</li>
+          <li>결과 카드에는 대본형 문장 대신 장면별 모션 설명이 노출됐습니다.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>무엇을 바꿨는가</h2>
+        <ul>
+          <li>RapidAPI에서 받은 영상 URL을 Gemini 비디오 분석 입력으로 우선 사용하도록 연결했습니다.</li>
+          <li>Gemini 출력은 `scene_number`, `start_time`, `end_time`, `motion_description` 중심의 최소 구조로 제한했습니다.</li>
+          <li>`motion_description`는 외형 설명이 아니라 시간축 변화만 쓰도록 프롬프트를 고정했습니다.</li>
+          <li>결과 카드 UI는 `script`보다 `scene.description`을 먼저 보여주도록 수정했습니다.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>백엔드 진실값</h2>
+        <div class="code-box">success: true
+sceneDetectionMethod: gemini_video_motion
+sceneDetectionFallbackReason: null
+mediaSource: rapidapi_smvd</div>
+        <p>
+          즉, 이번 링크는 `TikTok 링크 -> RapidAPI로 영상 확보 -> Gemini 비디오 분석 -> 장면별 motion description 생성`
+          흐름으로 실제 처리됐습니다.
+        </p>
+      </section>
+
+      <section>
+        <h2>생성된 장면 설명 예시</h2>
+        <div class="code-box">Scene 1
+A woman stands in a bedroom, speaking directly to the camera with moderate intensity. She gestures with her hands as she talks, while the camera remains static. The scene ends with her smiling and holding her fist up.
+
+Scene 2
+A woman sits cross-legged on the floor, typing steadily on a laptop placed on a low table. The camera holds a static, slightly high-angle shot of her working. She continues typing as the scene concludes.
+
+Scene 3
+A woman squats down to unfold a black and silver walking pad on a carpeted floor. The camera slowly pans downward to reveal the entire length of the device. The scene ends with the walking pad fully extended and flat.</div>
+        <p>
+          문장 성격을 보면 정적인 스타일 설명보다 실제 움직임, 카메라 변화, 끝 상태가 중심이라
+          이번 목적과 잘 맞습니다.
+        </p>
+      </section>
+
+      <section>
+        <h2>캡처 증거</h2>
+        <div class="shots">
+          <figure class="shot">
+            <img src="../playwright/tiktok-paste-filled.png" alt="TikTok 붙여넣기 입력 화면" />
+            <figcaption class="caption">
+              캡처 1. TikTok 링크와 제목을 넣은 붙여넣기 입력 화면
+            </figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="../playwright/tiktok-recipe-result-hydrated.png" alt="motion description 결과 화면" />
+            <figcaption class="caption">
+              캡처 2. 결과 카드에 모션 설명이 표시된 최종 화면
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section>
+        <h2>특이사항</h2>
+        <p>
+          브라우저 자동화에서는 `Analyze Video` 버튼 클릭이 React 제출 이벤트까지 안정적으로 이어지지 않았습니다.
+          그래서 이번 QA에서는 기능 진실값을 두 단계로 확인했습니다.
+        </p>
+        <ul>
+          <li>먼저 `/api/analyze`를 직접 호출해 TikTok 링크 분석이 실제 성공하는지 확인했습니다.</li>
+          <li>그다음 그 실제 응답을 결과 화면에 주입해, 화면이 모션 설명을 제대로 보여주는지 확인했습니다.</li>
+        </ul>
+        <p>
+          즉, 자동화 도구의 submit 재현은 불안정했지만 핵심 기능 자체는 정상으로 판단할 수 있습니다.
+        </p>
+      </section>
+
+      <section>
+        <h2>최종 판단</h2>
+        <p>
+          이번 테스트 기준으로 `TikTok 링크 -> 분석 -> motion description 결과 표시` 흐름은
+          로컬 `dev` 환경에서 동작합니다.
+        </p>
+        <ul>
+          <li>RapidAPI 연동 성공</li>
+          <li>Gemini 비디오 분석 성공</li>
+          <li>모션 설명 UI 표시 성공</li>
+        </ul>
+      </section>
+
+      <p class="footer-note">
+        보고서 원본: `output/reports/20260401_rapidapi_gemini_tiktok_qa_report.md`
+      </p>
+    </main>
+  </body>
+</html>

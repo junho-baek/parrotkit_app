@@ -1023,7 +1023,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                       {scene.title}
                     </h3>
                     <p className="text-[10px] text-gray-600 line-clamp-2 leading-tight">
-                      {scriptLines[0] || scene.description}
+                      {scene.description || scriptLines[0]}
                     </p>
                     {isUploading ? (
                       <span className="text-xs text-amber-600 font-medium flex items-center gap-1">

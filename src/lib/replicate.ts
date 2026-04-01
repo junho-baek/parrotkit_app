@@ -40,6 +40,17 @@ type GenerateGeminiFlashTextInput = {
   videos?: string[];
 };
 
+type GenerateGeminiProTextInput = {
+  prompt: string;
+  systemInstruction?: string | null;
+  maxOutputTokens?: number;
+  temperature?: number;
+  topP?: number;
+  thinkingLevel?: string | null;
+  images?: string[];
+  videos?: string[];
+};
+
 function getReplicateApiToken() {
   const token = process.env.REPLICATE_API_TOKEN?.trim();
   if (!token) {
@@ -181,6 +192,34 @@ export async function generateReplicateGeminiFlashText({
       top_p: topP,
       dynamic_thinking: dynamicThinking,
       ...(thinkingBudget !== null ? { thinking_budget: thinkingBudget } : {}),
+      ...(images.length > 0 ? { images } : {}),
+      ...(videos.length > 0 ? { videos } : {}),
+    },
+  });
+
+  return replicateOutputToText(prediction.output);
+}
+
+export async function generateReplicateGeminiProText({
+  prompt,
+  systemInstruction,
+  maxOutputTokens = 2048,
+  temperature = 0.2,
+  topP = 0.95,
+  thinkingLevel = null,
+  images = [],
+  videos = [],
+}: GenerateGeminiProTextInput) {
+  const prediction = await runReplicateModel({
+    owner: 'google',
+    name: 'gemini-3.1-pro',
+    input: {
+      prompt,
+      ...(systemInstruction ? { system_instruction: systemInstruction } : {}),
+      max_output_tokens: maxOutputTokens,
+      temperature,
+      top_p: topP,
+      ...(thinkingLevel ? { thinking_level: thinkingLevel } : {}),
       ...(images.length > 0 ? { images } : {}),
       ...(videos.length > 0 ? { videos } : {}),
     },

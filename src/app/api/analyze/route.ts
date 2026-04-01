@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { analyzeVideoFrameCandidates, analyzeYouTubeVideo, type SceneCandidate, type VideoAnalysisResult } from '@/lib/video-analyzer';
-import { generateReplicateGeminiFlashText } from '@/lib/replicate';
+import { generateReplicateGeminiFlashText, generateReplicateGeminiProText } from '@/lib/replicate';
 import { fetchSupadataTranscript, type TranscriptSegment, type TranscriptSource } from '@/lib/supadata';
 import { fetchSocialVideoDownload, type DownloadSource } from '@/lib/social-video-downloader';
 
@@ -18,6 +18,18 @@ type PageMedia = {
   videoUrl: string | null;
   source: DownloadSource | 'page_meta' | 'direct_url' | 'none';
   fallbackReason: string | null;
+};
+
+type ExtendedVideoAnalysisResult = Omit<VideoAnalysisResult, 'method'> & {
+  method?: VideoAnalysisResult['method'] | 'gemini_video_motion';
+  motionDescriptions?: string[];
+};
+
+type GeminiVideoScene = {
+  scene_number: number;
+  start_time: string;
+  end_time: string;
+  motion_description: string;
 };
 
 function detectPlatform(url: string): Platform {
@@ -241,6 +253,162 @@ function countWords(text: string) {
     .filter(Boolean).length;
 }
 
+const GEMINI_VIDEO_MAX_BYTES = 25 * 1024 * 1024;
+
+async function createVideoDataUri(videoUrl: string) {
+  const response = await fetch(videoUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    },
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    throw new Error(`gemini_video_download_failed_${response.status}`);
+  }
+
+  const contentLength = Number(response.headers.get('content-length') || '0');
+  if (contentLength > GEMINI_VIDEO_MAX_BYTES) {
+    throw new Error('gemini_video_input_too_large');
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (buffer.byteLength > GEMINI_VIDEO_MAX_BYTES) {
+    throw new Error('gemini_video_input_too_large');
+  }
+
+  const mimeType = (response.headers.get('content-type') || 'video/mp4').split(';')[0].trim() || 'video/mp4';
+  return `data:${mimeType};base64,${buffer.toString('base64')}`;
+}
+
+function parseTimeToSeconds(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const parts = trimmed.split(':').map((part) => part.trim()).filter(Boolean);
+  if (parts.length < 2 || parts.length > 3) {
+    return null;
+  }
+
+  const numbers = parts.map((part) => Number(part));
+  if (numbers.some((part) => !Number.isFinite(part) || part < 0)) {
+    return null;
+  }
+
+  if (numbers.length === 2) {
+    return numbers[0] * 60 + numbers[1];
+  }
+
+  return numbers[0] * 3600 + numbers[1] * 60 + numbers[2];
+}
+
+async function analyzeVideoMotionWithGemini(
+  videoUrl: string,
+  durationHint: number
+): Promise<ExtendedVideoAnalysisResult> {
+  try {
+    const videoDataUri = await createVideoDataUri(videoUrl);
+
+    const prompt = `Analyze this video scene by scene and return JSON only.
+
+Use this exact schema:
+{
+  "scenes": [
+    {
+      "scene_number": 1,
+      "start_time": "MM:SS",
+      "end_time": "MM:SS",
+      "motion_description": "..."
+    }
+  ]
+}
+
+motion_description rules:
+- Describe only visible movement over time, not appearance, style, mood, or worldbuilding.
+- Write 1 to 2 sentences, 25 to 45 words.
+- Include exactly one main action.
+- Include up to 2 secondary motions.
+- Camera motion is optional but useful when clearly visible.
+- Background motion is optional but useful when clearly visible.
+- Include speed or intensity.
+- Include a clear ending state.
+- Translate each segment into a filmable one-shot movement.
+
+Scene rules:
+- Return 4 to 8 scenes.
+- Cover the whole video in chronological order.
+- Do not overlap scenes.
+- Keep timestamps concise in MM:SS format.
+- Return valid JSON only, no markdown fences or extra commentary.`;
+
+    const response = await generateReplicateGeminiProText({
+      systemInstruction:
+        'You are a motion segmentation assistant. Describe only visible time-based changes in each scene. Return valid JSON only.',
+      prompt,
+      maxOutputTokens: 2048,
+      temperature: 0.1,
+      topP: 0.9,
+      videos: [videoDataUri],
+    });
+
+    const parsed = await parseJsonWithRepair<{ scenes?: GeminiVideoScene[] }>(response);
+    const rawScenes = Array.isArray(parsed?.scenes) ? parsed.scenes : [];
+
+    const normalizedScenes = rawScenes
+      .map((scene) => {
+        const start = parseTimeToSeconds(String(scene.start_time || ''));
+        const end = parseTimeToSeconds(String(scene.end_time || ''));
+        const motionDescription = String(scene.motion_description || '').replace(/\s+/g, ' ').trim();
+
+        if (start == null || end == null || end <= start || !motionDescription) {
+          return null;
+        }
+
+        return {
+          sceneNumber: Number(scene.scene_number) || 0,
+          start,
+          end,
+          motionDescription,
+        };
+      })
+      .filter((scene): scene is { sceneNumber: number; start: number; end: number; motionDescription: string } => Boolean(scene))
+      .sort((left, right) => left.start - right.start);
+
+    const dedupedScenes = normalizedScenes.filter((scene, index, array) => {
+      if (index === 0) return true;
+      return scene.start >= array[index - 1].end;
+    });
+
+    if (dedupedScenes.length < 4) {
+      return {
+        scenes: [],
+        duration: durationHint,
+        error: 'gemini_video_scene_count_too_low',
+        fallbackReason: 'gemini_video_scene_count_too_low',
+      };
+    }
+
+    const duration = Math.max(durationHint, dedupedScenes[dedupedScenes.length - 1]?.end || 0);
+
+    return {
+      scenes: dedupedScenes.map((scene) => ({
+        timestamp: scene.start,
+        thumbnailBase64: '',
+      })),
+      duration,
+      method: 'gemini_video_motion',
+      motionDescriptions: dedupedScenes.map((scene) => scene.motionDescription),
+    };
+  } catch (error) {
+    return {
+      scenes: [],
+      duration: durationHint,
+      error: error instanceof Error ? error.message : 'gemini_video_analysis_failed',
+      fallbackReason: 'gemini_video_analysis_failed',
+    };
+  }
+}
+
 function buildTranscriptGuidedDetections(
   transcript: TranscriptSegment[],
   duration: number
@@ -409,7 +577,7 @@ async function generateScriptsWithAI({
   description,
   sourceTitle,
 }: {
-  scenes: Array<{ id: number; title: string; startTime: string; endTime: string; transcriptSnippet: string }>;
+  scenes: Array<{ id: number; title: string; startTime: string; endTime: string; transcriptSnippet: string; motionDescription: string }>;
   transcript: TranscriptSegment[];
   niche: string;
   goal: string;
@@ -432,7 +600,7 @@ Scene windows:
 ${scenes
   .map(
     (scene) =>
-      `${scene.id}. ${scene.title} (${scene.startTime}-${scene.endTime}) | transcript snippet: ${scene.transcriptSnippet || '(none)'}`
+      `${scene.id}. ${scene.title} (${scene.startTime}-${scene.endTime}) | transcript snippet: ${scene.transcriptSnippet || '(none)'} | motion description: ${scene.motionDescription || '(none)'}`
   )
   .join('\n')}
 
@@ -490,7 +658,7 @@ function buildSceneStructure({
   videoId,
   transcript,
 }: {
-  detections: VideoAnalysisResult | null;
+  detections: ExtendedVideoAnalysisResult | null;
   duration: number;
   pageMedia: PageMedia;
   platform: Platform;
@@ -505,6 +673,7 @@ function buildSceneStructure({
     endTime: string;
     thumbnail: string;
     transcriptSnippet: string;
+    motionDescription: string;
   }> = [];
 
   if (detections && detections.scenes.length > 0) {
@@ -526,6 +695,7 @@ function buildSceneStructure({
         endTime: formatTime(endSeconds),
         thumbnail,
         transcriptSnippet: getTranscriptSnippet(transcript, startSeconds, endSeconds),
+        motionDescription: detections.motionDescriptions?.[index] || '',
       });
     }
 
@@ -553,6 +723,7 @@ function buildSceneStructure({
       endTime: formatTime(endSeconds),
       thumbnail,
       transcriptSnippet: getTranscriptSnippet(transcript, startSeconds, endSeconds),
+      motionDescription: '',
     });
   }
 
@@ -583,13 +754,26 @@ export async function POST(request: NextRequest) {
       fallbackReason: rapidMedia.videoUrl ? null : rapidMedia.fallbackReason || pageMedia.fallbackReason,
     };
 
-    let analysisResult: VideoAnalysisResult | null = null;
+    let analysisResult: ExtendedVideoAnalysisResult | null = null;
     let sceneDetectionFallbackReason: string | null = null;
 
     if (resolvedMedia.videoUrl) {
+      const geminiVideoAnalysis = await analyzeVideoMotionWithGemini(
+        resolvedMedia.videoUrl,
+        transcriptResult.sourceMetadata?.durationSeconds || 0
+      );
+
+      if (!geminiVideoAnalysis.error && geminiVideoAnalysis.scenes.length > 0) {
+        analysisResult = geminiVideoAnalysis;
+      } else {
+        sceneDetectionFallbackReason = geminiVideoAnalysis.fallbackReason || geminiVideoAnalysis.error || 'gemini_video_analysis_failed';
+      }
+    }
+
+    if (!analysisResult && resolvedMedia.videoUrl) {
       const candidateAnalysis = await analyzeVideoFrameCandidates(resolvedMedia.videoUrl);
       if (candidateAnalysis.error) {
-        sceneDetectionFallbackReason = candidateAnalysis.fallbackReason || candidateAnalysis.error;
+        sceneDetectionFallbackReason = sceneDetectionFallbackReason || candidateAnalysis.fallbackReason || candidateAnalysis.error;
       } else if (candidateAnalysis.candidates.length > 0) {
         const aiConfirmedScenes = await confirmCandidatesWithAI(
           candidateAnalysis.candidates,
@@ -610,9 +794,9 @@ export async function POST(request: NextRequest) {
             method: 'frame_diff_ai_confirmed',
             fallbackReason: 'ai_cut_confirmation_failed_used_raw_candidates',
           };
-          sceneDetectionFallbackReason = 'ai_cut_confirmation_failed_used_raw_candidates';
+          sceneDetectionFallbackReason = sceneDetectionFallbackReason || 'ai_cut_confirmation_failed_used_raw_candidates';
         } else {
-          sceneDetectionFallbackReason = candidateAnalysis.fallbackReason || 'frame_diff_candidates_empty';
+          sceneDetectionFallbackReason = sceneDetectionFallbackReason || candidateAnalysis.fallbackReason || 'frame_diff_candidates_empty';
         }
       }
     }
@@ -676,8 +860,8 @@ export async function POST(request: NextRequest) {
       startTime: scene.startTime,
       endTime: scene.endTime,
       thumbnail: scene.thumbnail,
-      description: aiResult?.descriptions?.[index] || getDefaultDescription(index),
-      script: aiResult?.scripts?.[scene.id] || getDefaultScript(scene.id, aiResult?.descriptions?.[index] || getDefaultDescription(index)),
+      description: scene.motionDescription || aiResult?.descriptions?.[index] || getDefaultDescription(index),
+      script: aiResult?.scripts?.[scene.id] || getDefaultScript(scene.id, scene.motionDescription || aiResult?.descriptions?.[index] || getDefaultDescription(index)),
       progress: 0,
       transcriptSnippet: scene.transcriptSnippet || null,
     }));
