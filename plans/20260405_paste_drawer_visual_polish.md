@@ -67,7 +67,7 @@
 - 이후 빌드 오류 대응으로 `(tabs)` layout에서 `useSearchParams()`를 쓰는 하위 클라이언트 컴포넌트를 `React.Suspense`로 감싸 배포 build를 통과시켰다.
 - drawer 본체는 `733px` 목표 높이로 조정하고, 더 작은 뷰포트에서는 `92dvh`를 상한으로 유지했다.
 - rotating platform copy는 `Instagram` 대신 `Instagram Reels`로 수정하고, hero 문장도 `Paste your ... link`로 맞췄다.
-- 이후 카피를 한 번 더 다듬어 `Paste a viral ... link, then make it your own🦜.` 형태로 정리했다.
+- 이후 카피를 한 번 더 다듬어 `Paste a viral ... link, then turn it into your own content recipe🦜.` 형태로 정리했다.
 
 ## 연결 Context
 - `context/context_20260405_025650_paste_drawer_visual_polish.md`

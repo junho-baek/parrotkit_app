@@ -20,7 +20,7 @@ export function PasteDrawer({ open, onOpenChange }: PasteDrawerProps) {
         <div className="relative flex h-[min(733px,92dvh)] min-h-0 max-h-[92dvh] flex-col overflow-hidden rounded-t-[2rem] border border-white/80 bg-white shadow-[0_-18px_44px_rgb(15_23_42_/_0.14)]">
           <DrawerTitle className="sr-only">Add Reference</DrawerTitle>
           <DrawerDescription className="sr-only">
-            Paste a viral TikTok, Instagram Reels, or YouTube Shorts link, then make it your own.
+            Paste a viral TikTok, Instagram Reels, or YouTube Shorts link, then turn it into your own content recipe.
           </DrawerDescription>
 
           <div

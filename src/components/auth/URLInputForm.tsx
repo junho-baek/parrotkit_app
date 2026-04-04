@@ -342,7 +342,7 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
                     link,
                   </span>
                   <span className="block">
-                    then make it your own
+                    then turn it into your own content recipe
                     <span aria-hidden="true">🦜</span>.
                   </span>
                 </>
@@ -354,7 +354,7 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
                     duration={2200}
                     className="inline-block bg-gradient-to-r from-sky-500 via-violet-500 to-fuchsia-500 bg-clip-text text-transparent"
                   />{' '}
-                  link, then make it your own
+                  link, then turn it into your own content recipe
                   <span aria-hidden="true">🦜</span>.
                 </>
               )}
