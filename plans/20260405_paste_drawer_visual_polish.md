@@ -69,6 +69,7 @@
 - rotating platform copy는 `Instagram` 대신 `Instagram Reels`로 수정하고, hero 문장도 `Paste your ... link`로 맞췄다.
 - 이후 카피를 한 번 더 다듬어 `Paste a viral ... link, then turn it into your own content recipe🦜.` 형태로 정리했다.
 - optional accordion 제목은 `Optional Details`에서 `Your Context`로 조정하고, 필드 라벨은 그대로 유지했다.
+- 하단 네비게이션은 `Paste`만 원형 액션 버튼처럼 띄우고, 다른 탭은 플랫하게 낮춰 유튜브식 액션 중심 구조로 정리했다.
 
 ## 연결 Context
 - `context/context_20260405_025650_paste_drawer_visual_polish.md`

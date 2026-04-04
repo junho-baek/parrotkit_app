@@ -17,6 +17,7 @@
 - rotating platform copy에서 `Instagram`을 `Instagram Reels`로 수정하고, 문장도 `Paste your ... link` 형태로 자연스럽게 다듬었다.
 - 최종 카피 보정으로 `Paste a viral ... link, then turn it into your own content recipe🦜.` 형태로 정리해 의미를 더 분명하게 맞췄다.
 - optional accordion 제목은 영어적으로 더 자연스러운 `Your Context`로 바꾸고, 내부 필드 라벨은 그대로 유지했다.
+- 하단 네비게이션은 `Paste`만 원형 액션 버튼처럼 강조하고, 나머지 탭은 훨씬 플랫하게 정리해 목적지 탭과 핵심 액션을 분리했다.
 
 ## 변경 파일
 - `package.json`
@@ -60,6 +61,9 @@
     - `drawerHeight: 733px`
 - 카피 확인
     - `Paste a viral Instagram Reels link, then turn it into your own content recipe🦜.`
+- 하단 네비 확인
+    - `Paste`만 원형 버튼 + 그라데이션 + 살짝 떠 있는 포커스 처리
+    - 다른 탭은 배경 강조 없이 아이콘/텍스트 중심으로 축소
 - 리다이렉트 헤더 확인
     - `curl -I http://127.0.0.1:3000/paste`
     - `location: /home?sheet=paste`
@@ -70,4 +74,4 @@
 ## 메모
 - drawer close 버튼은 시각상 보였지만 scroll subtree가 pointer를 가로막고 있어 `z-20`으로 올려 해결했다.
 - query 기반 overlay로 바꾸면서 Paste 탭 활성화는 `pathname` 대신 `sheet=paste` 기준으로 처리했다.
-- 검증 스크린샷은 `/tmp/parrotkit-paste-drawer-polished.png`, `/tmp/parrotkit-paste-direct-polished.png`, `/tmp/parrotkit-paste-sheet-refreshed.png`, `/tmp/parrotkit-paste-sheet-stable2.png`, `/tmp/parrotkit-paste-drawer-733.png`, `/tmp/parrotkit-paste-instagram-reels.png`, `/tmp/parrotkit-paste-copy-natural.png`, `/tmp/parrotkit-paste-copy-content-recipe.png`에 생성했다.
+- 검증 스크린샷은 `/tmp/parrotkit-paste-drawer-polished.png`, `/tmp/parrotkit-paste-direct-polished.png`, `/tmp/parrotkit-paste-sheet-refreshed.png`, `/tmp/parrotkit-paste-sheet-stable2.png`, `/tmp/parrotkit-paste-drawer-733.png`, `/tmp/parrotkit-paste-instagram-reels.png`, `/tmp/parrotkit-paste-copy-natural.png`, `/tmp/parrotkit-paste-copy-content-recipe.png`, `/tmp/parrotkit-bottom-nav-home-focus.png`, `/tmp/parrotkit-bottom-nav-paste-focus.png`에 생성했다.

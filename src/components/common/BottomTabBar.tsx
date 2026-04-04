@@ -173,8 +173,59 @@ export const BottomTabBar: React.FC = () => {
       >
         {tabs.map((tab) => {
           const isActive = tab.id === 'paste' ? pasteOpen : !pasteOpen && pathname === tab.href;
+          const isPasteAction = tab.id === 'paste';
           const Icon = tab.icon;
           const href = tab.id === 'paste' ? pasteHref : tab.href;
+
+          if (isPasteAction) {
+            return (
+              <NextLink
+                key={tab.id}
+                href={href}
+                onClick={() => handleTabClick(tab.gaEvent)}
+                aria-current={isActive ? 'page' : undefined}
+                aria-label="Paste"
+                className="group relative flex flex-1 select-none items-end justify-center pb-1 text-center outline-none"
+                style={{
+                  WebkitTapHighlightColor: 'transparent',
+                  touchAction: 'manipulation',
+                }}
+              >
+                <div className="relative z-10 flex flex-col items-center gap-1">
+                  <div
+                    className={`relative flex h-[50px] w-[50px] items-center justify-center rounded-full border transition-all duration-300 ${
+                      isActive
+                        ? '-translate-y-1 border-white/75'
+                        : '-translate-y-0.5 border-white/55 group-hover:-translate-y-1 group-active:-translate-y-0.5'
+                    }`}
+                    style={{
+                      backgroundImage: 'var(--gradient-brand-action)',
+                      boxShadow: isActive ? 'var(--shadow-brand-action-xl)' : 'var(--shadow-brand-action-lg)',
+                      opacity: isActive ? 1 : 0.95,
+                    }}
+                  >
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute inset-[1.5px] rounded-full bg-white/10"
+                    />
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute left-1/2 top-1 h-4 w-7 -translate-x-1/2 rounded-full bg-white/45 blur-md"
+                    />
+                    <Icon className="relative z-10 h-[19px] w-[19px] text-white" strokeWidth={2.35} />
+                  </div>
+
+                  <span
+                    className={`text-[10px] leading-none tracking-[0.01em] transition-colors duration-300 ${
+                      isActive ? 'font-semibold text-slate-950' : 'font-medium text-slate-500 group-hover:text-slate-700'
+                    }`}
+                  >
+                    {tab.label}
+                  </span>
+                </div>
+              </NextLink>
+            );
+          }
 
           return (
             <NextLink
@@ -182,48 +233,17 @@ export const BottomTabBar: React.FC = () => {
               href={href}
               onClick={() => handleTabClick(tab.gaEvent)}
               aria-current={isActive ? 'page' : undefined}
-              className="group relative flex flex-1 select-none items-center justify-center rounded-[1.35rem] px-1 py-1 text-center outline-none transition-all duration-300"
+              className="group relative flex flex-1 select-none items-center justify-center rounded-[1rem] px-1 py-1 text-center outline-none transition-all duration-300"
               style={{
                 WebkitTapHighlightColor: 'transparent',
                 touchAction: 'manipulation',
               }}
             >
               <div
-                className={`relative z-10 flex min-w-[58px] flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[1rem] px-2 py-1 transition-all duration-300 ${
-                  isActive
-                    ? 'border border-white/40 text-slate-900 backdrop-blur-[18px]'
-                    : 'text-slate-500 group-hover:bg-white/70 group-hover:text-slate-700 group-active:bg-white/40'
+                className={`relative z-10 flex min-w-[54px] flex-col items-center justify-center gap-0.5 rounded-[0.95rem] px-2 py-1.5 transition-all duration-300 ${
+                  isActive ? 'text-slate-950' : 'text-slate-500 group-hover:text-slate-700 group-active:text-slate-700'
                 }`}
-                style={
-                  isActive
-                    ? {
-                        backgroundColor: 'var(--surface-bottom-nav-active)',
-                        backgroundImage: 'var(--gradient-brand-nav-glass)',
-                        boxShadow: 'var(--shadow-bottom-nav-active)',
-                      }
-                    : undefined
-                }
               >
-                {isActive ? (
-                  <>
-                    <span
-                      aria-hidden
-                      className="pointer-events-none absolute inset-[1px] rounded-[0.92rem]"
-                      style={{ background: 'var(--surface-bottom-nav-active-overlay)' }}
-                    />
-                    <span
-                      aria-hidden
-                      className="pointer-events-none absolute left-2.5 right-2.5 top-1 h-3 rounded-full blur-md"
-                      style={{ background: 'var(--surface-bottom-nav-active-highlight)' }}
-                    />
-                    <span
-                      aria-hidden
-                      className="pointer-events-none absolute bottom-0 left-1/2 h-6 w-10 -translate-x-1/2 rounded-full blur-xl"
-                      style={{ background: 'var(--surface-bottom-nav-active-bloom)' }}
-                    />
-                  </>
-                ) : null}
-
                 <div
                   className={`relative z-10 flex h-7 w-7 items-center justify-center text-slate-500 transition-all duration-300 ${
                     isActive ? 'text-slate-950' : 'group-hover:text-slate-700 group-active:text-slate-700'
