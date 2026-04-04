@@ -115,7 +115,7 @@ export const SignUpForm: React.FC = () => {
   };
 
   return (
-    <Card className="w-full max-w-md card-luxury">
+    <Card className="w-full max-w-[500px] card-luxury">
       <div className="text-center mb-8">
         <div className="mb-4">
           <div className="w-16 h-16 mx-auto bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg animate-pulse-glow">

@@ -23,7 +23,7 @@ export default function TabsLayout({
 
       {/* Main Content - Scrollable */}
       <div className="app-shell-main flex-1 overflow-y-auto overflow-x-hidden">
-        <div className="app-shell-content max-w-md mx-auto px-4 py-4">
+        <div className="app-shell-content max-w-[500px] mx-auto px-4 py-4">
           {children}
         </div>
       </div>

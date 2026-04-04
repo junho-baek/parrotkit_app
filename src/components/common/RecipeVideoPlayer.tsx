@@ -307,7 +307,7 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
 
   return (
     <div className="relative w-full h-full bg-black flex items-center justify-center">
-      <div className="relative w-full h-full max-w-md mx-auto" ref={containerRef}>
+      <div className="relative w-full h-full max-w-[500px] mx-auto" ref={containerRef}>
         {isYouTube && !playerError ? (
           <div id="youtube-player" className="absolute inset-0 w-full h-full" />
         ) : isDirectVideo ? (

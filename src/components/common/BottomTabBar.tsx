@@ -158,7 +158,7 @@ export const BottomTabBar: React.FC = () => {
         boxShadow: 'var(--shadow-bottom-nav)',
       }}
     >
-      <div className="mx-auto flex max-w-md items-center justify-around gap-1 px-3 pt-2">
+      <div className="mx-auto flex max-w-[500px] items-center justify-around gap-1 px-3 pt-2">
         {tabs.map((tab) => {
           const isActive = pathname === tab.href;
           const Icon = tab.icon;

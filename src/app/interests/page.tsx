@@ -19,7 +19,7 @@ export default function InterestsPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto bg-white px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3">
-        <div className="mx-auto h-full w-full max-w-md">
+        <div className="mx-auto h-full w-full max-w-[500px]">
           <InterestsForm />
         </div>
       </div>

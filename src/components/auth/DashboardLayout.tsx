@@ -21,7 +21,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, acti
 
       {/* Main Content - Mobile App Style */}
       <div className="pt-14 pb-20 min-h-screen">
-        <div className="max-w-md mx-auto px-4 py-4">
+        <div className="max-w-[500px] mx-auto px-4 py-4">
           {children}
         </div>
       </div>

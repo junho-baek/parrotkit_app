@@ -22,6 +22,7 @@ export const AppFrame: React.FC<AppFrameProps> = ({ children }) => {
     width: '100%',
     height: '100dvh',
     scale: 1,
+    hasDesktopChrome: false,
   });
 
   useEffect(() => {
@@ -30,22 +31,18 @@ export const AppFrame: React.FC<AppFrameProps> = ({ children }) => {
       const vw = window.visualViewport?.width || window.innerWidth;
       const vh = window.visualViewport?.height || window.innerHeight;
 
-      // 모바일 앱 비율: 9:16 (세로 모드 기준)
-      const targetRatio = 9 / 16;
-      
-      // 현재 뷰포트 비율
-      const currentRatio = vw / vh;
-
       let finalWidth = vw;
       let finalHeight = vh;
-      let scale = 1;
+      const scale = 1;
+      let hasDesktopChrome = false;
 
       // 데스크탑/태블릿: 최대 너비 제한 + 가운데 정렬
       if (vw > 768) {
         // 최대 앱 너비 (태블릿 기준)
-        const maxWidth = 480;
+        const maxWidth = 500;
         finalWidth = Math.min(maxWidth, vw);
         finalHeight = vh;
+        hasDesktopChrome = true;
       } else {
         // 모바일: 전체 화면 사용
         finalWidth = vw;
@@ -56,6 +53,7 @@ export const AppFrame: React.FC<AppFrameProps> = ({ children }) => {
         width: `${finalWidth}px`,
         height: `${finalHeight}px`,
         scale,
+        hasDesktopChrome,
       });
     };
 
@@ -81,7 +79,7 @@ export const AppFrame: React.FC<AppFrameProps> = ({ children }) => {
   return (
     <>
       {/* Letterbox Background (남는 공간) */}
-      <div className="fixed inset-0 bg-white" style={{ zIndex: -1 }} />
+      <div className="fixed inset-0 bg-[#f4f5f7]" style={{ zIndex: -1 }} />
       
       {/* App Frame Container */}
       <div
@@ -92,7 +90,10 @@ export const AppFrame: React.FC<AppFrameProps> = ({ children }) => {
           height: dimensions.height,
           transform: `translateX(-50%) scale(${dimensions.scale})`,
           transformOrigin: 'top center',
-          maxWidth: '480px',
+          maxWidth: '500px',
+          boxShadow: dimensions.hasDesktopChrome
+            ? '0 18px 48px rgba(15, 23, 42, 0.10), 0 6px 18px rgba(15, 23, 42, 0.06)'
+            : 'none',
         }}
       >
         {/* Internal Scrollable Content */}

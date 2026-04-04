@@ -9,7 +9,7 @@ export default function VideoOptionsPage() {
       </div>
       
       <div className="flex-1 overflow-y-auto flex items-center justify-center p-4">
-        <div className="max-w-md w-full">
+        <div className="max-w-[500px] w-full">
           <SourceOptionsForm />
         </div>
       </div>
