@@ -332,7 +332,7 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
               {isDrawer ? (
                 <>
                   <span className="block">
-                    Paste your{' '}
+                    Paste a viral{' '}
                     <WordRotate
                       words={platformWords}
                       duration={2200}
@@ -342,19 +342,19 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
                     link,
                   </span>
                   <span className="block">
-                    then turn it into my video recipe
+                    then make it your own
                     <span aria-hidden="true">🦜</span>.
                   </span>
                 </>
               ) : (
                 <>
-                  Paste your{' '}
+                  Paste a viral{' '}
                   <WordRotate
                     words={platformWords}
                     duration={2200}
                     className="inline-block bg-gradient-to-r from-sky-500 via-violet-500 to-fuchsia-500 bg-clip-text text-transparent"
                   />{' '}
-                  link, then turn it into my video recipe
+                  link, then make it your own
                   <span aria-hidden="true">🦜</span>.
                 </>
               )}

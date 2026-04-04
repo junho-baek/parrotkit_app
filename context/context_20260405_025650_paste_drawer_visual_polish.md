@@ -15,6 +15,7 @@
 - 배포 빌드에서 `useSearchParams()` missing suspense 오류가 발생해 `(tabs)` layout의 `BottomTabBar`, `PasteDrawerHost`를 `React.Suspense`로 감쌌다.
 - drawer 본체 높이는 `733px`를 목표값으로 두고, 작은 화면에서는 `92dvh`를 넘지 않도록 조정했다.
 - rotating platform copy에서 `Instagram`을 `Instagram Reels`로 수정하고, 문장도 `Paste your ... link` 형태로 자연스럽게 다듬었다.
+- 최종 카피 보정으로 `Paste a viral ... link, then make it your own🦜.` 형태로 정리해 시점을 자연스럽게 맞췄다.
 
 ## 변경 파일
 - `package.json`
@@ -57,7 +58,7 @@
     - `directCloseVisible: true`
     - `drawerHeight: 733px`
 - 카피 확인
-    - `Paste your Instagram Reels link, then turn it into my video recipe🦜.`
+    - `Paste a viral Instagram Reels link, then make it your own🦜.`
 - 리다이렉트 헤더 확인
     - `curl -I http://127.0.0.1:3000/paste`
     - `location: /home?sheet=paste`
@@ -68,4 +69,4 @@
 ## 메모
 - drawer close 버튼은 시각상 보였지만 scroll subtree가 pointer를 가로막고 있어 `z-20`으로 올려 해결했다.
 - query 기반 overlay로 바꾸면서 Paste 탭 활성화는 `pathname` 대신 `sheet=paste` 기준으로 처리했다.
-- 검증 스크린샷은 `/tmp/parrotkit-paste-drawer-polished.png`, `/tmp/parrotkit-paste-direct-polished.png`, `/tmp/parrotkit-paste-sheet-refreshed.png`, `/tmp/parrotkit-paste-sheet-stable2.png`, `/tmp/parrotkit-paste-drawer-733.png`, `/tmp/parrotkit-paste-instagram-reels.png`에 생성했다.
+- 검증 스크린샷은 `/tmp/parrotkit-paste-drawer-polished.png`, `/tmp/parrotkit-paste-direct-polished.png`, `/tmp/parrotkit-paste-sheet-refreshed.png`, `/tmp/parrotkit-paste-sheet-stable2.png`, `/tmp/parrotkit-paste-drawer-733.png`, `/tmp/parrotkit-paste-instagram-reels.png`, `/tmp/parrotkit-paste-copy-natural.png`에 생성했다.
