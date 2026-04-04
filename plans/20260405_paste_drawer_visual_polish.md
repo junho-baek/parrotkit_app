@@ -65,6 +65,7 @@
 - hero 헤드라인은 중앙 정렬과 더 넓은 폭으로 조정해 모바일에서도 두 줄에 가깝게 안정되게 만들었다.
 - `Paste`는 `?sheet=paste` query 기반 overlay로 전환했고, `/paste`는 `/home?sheet=paste`로 리다이렉트되도록 바꿨다.
 - 이후 빌드 오류 대응으로 `(tabs)` layout에서 `useSearchParams()`를 쓰는 하위 클라이언트 컴포넌트를 `React.Suspense`로 감싸 배포 build를 통과시켰다.
+- drawer 본체는 `733px` 목표 높이로 조정하고, 더 작은 뷰포트에서는 `92dvh`를 상한으로 유지했다.
 
 ## 연결 Context
 - `context/context_20260405_025650_paste_drawer_visual_polish.md`
