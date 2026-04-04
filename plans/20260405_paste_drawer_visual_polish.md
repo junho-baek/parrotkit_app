@@ -68,6 +68,7 @@
 - drawer 본체는 `733px` 목표 높이로 조정하고, 더 작은 뷰포트에서는 `92dvh`를 상한으로 유지했다.
 - rotating platform copy는 `Instagram` 대신 `Instagram Reels`로 수정하고, hero 문장도 `Paste your ... link`로 맞췄다.
 - 이후 카피를 한 번 더 다듬어 `Paste a viral ... link, then turn it into your own content recipe🦜.` 형태로 정리했다.
+- optional accordion 제목은 `Optional Details`에서 `Your Context`로 조정하고, 필드 라벨은 그대로 유지했다.
 
 ## 연결 Context
 - `context/context_20260405_025650_paste_drawer_visual_polish.md`

@@ -16,6 +16,7 @@
 - drawer 본체 높이는 `733px`를 목표값으로 두고, 작은 화면에서는 `92dvh`를 넘지 않도록 조정했다.
 - rotating platform copy에서 `Instagram`을 `Instagram Reels`로 수정하고, 문장도 `Paste your ... link` 형태로 자연스럽게 다듬었다.
 - 최종 카피 보정으로 `Paste a viral ... link, then turn it into your own content recipe🦜.` 형태로 정리해 의미를 더 분명하게 맞췄다.
+- optional accordion 제목은 영어적으로 더 자연스러운 `Your Context`로 바꾸고, 내부 필드 라벨은 그대로 유지했다.
 
 ## 변경 파일
 - `package.json`

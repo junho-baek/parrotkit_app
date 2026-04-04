@@ -425,7 +425,7 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
               onClick={() => setShowOptionalDetails((current) => !current)}
               className="flex w-full items-center justify-between gap-3 rounded-[1.4rem] px-4 py-3 text-left text-sm font-semibold text-slate-700 transition-colors duration-200 hover:bg-white/80 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-fuchsia-100/90"
             >
-              <span>Optional Details</span>
+              <span>Your Context</span>
               <ChevronDown
                 className={cn('h-4 w-4 text-slate-500 transition-transform duration-200', showOptionalDetails ? 'rotate-180' : '')}
                 aria-hidden="true"
