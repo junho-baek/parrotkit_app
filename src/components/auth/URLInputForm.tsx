@@ -2,11 +2,12 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, ChevronDown } from 'lucide-react';
 import { Card, LoadingScreen } from '@/components/common';
 import { authenticatedFetch, ensureValidAccessToken } from '@/lib/auth/client-session';
 import { logClientEvent } from '@/lib/client-events';
 import { cn } from '@/lib/utils';
+import { WordRotate } from '@/components/ui/word-rotate';
 
 type URLInputFormVariant = 'page' | 'drawer';
 type FormFieldName = 'title' | 'url';
@@ -16,11 +17,6 @@ interface URLInputFormProps {
 }
 
 type FormErrors = Partial<Record<FormFieldName, string>>;
-
-const inputClassName =
-  'w-full rounded-2xl border border-slate-200/90 bg-white px-4 py-3.5 text-[15px] font-medium text-slate-900 shadow-[0_1px_2px_rgb(15_23_42_/_0.04)] placeholder:text-slate-400 focus-visible:border-fuchsia-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-fuchsia-100/90 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400';
-
-const textareaClassName = `${inputClassName} min-h-[104px] resize-none py-3.5`;
 
 const fieldMeta: Record<FormFieldName, { label: string; placeholder: string; type: string }> = {
   title: {
@@ -34,6 +30,8 @@ const fieldMeta: Record<FormFieldName, { label: string; placeholder: string; typ
     type: 'url',
   },
 };
+
+const platformWords = ['TikTok', 'Instagram', 'YouTube Shorts'];
 
 function isLikelyUrl(value: string) {
   try {
@@ -53,27 +51,46 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
   const [describe, setDescribe] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [showOptionalDetails, setShowOptionalDetails] = useState(variant !== 'drawer');
 
   const titleRef = useRef<HTMLInputElement>(null);
   const urlRef = useRef<HTMLInputElement>(null);
 
   const isDrawer = variant === 'drawer';
 
-  const brandActionClass = cn(
-    'inline-flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-[15px] font-semibold text-white shadow-[var(--shadow-brand-action-xl)]',
-    'transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:brightness-105',
-    'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-fuchsia-100/90',
-    'disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0'
-  );
-  const brandActionStyle: React.CSSProperties = {
-    backgroundImage: 'var(--gradient-brand-action)',
-  };
-
   const titleId = useMemo(() => `url-form-title-${variant}`, [variant]);
   const urlId = useMemo(() => `url-form-url-${variant}`, [variant]);
   const nicheId = useMemo(() => `url-form-niche-${variant}`, [variant]);
   const goalId = useMemo(() => `url-form-goal-${variant}`, [variant]);
   const describeId = useMemo(() => `url-form-describe-${variant}`, [variant]);
+  const optionalSectionId = useMemo(() => `url-form-optional-${variant}`, [variant]);
+
+  const inputClassName = cn(
+    'w-full rounded-2xl border border-slate-200/90 bg-white px-4 text-[15px] font-medium text-slate-900',
+    'shadow-[0_1px_2px_rgb(15_23_42_/_0.04)] placeholder:text-slate-400',
+    'transition-[border-color,box-shadow,background-color] duration-200 ease-out',
+    'focus-visible:border-fuchsia-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-fuchsia-100/90',
+    'disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400',
+    isDrawer ? 'py-3' : 'py-3.5'
+  );
+
+  const textareaClassName = cn(inputClassName, 'resize-none', isDrawer ? 'min-h-[84px]' : 'min-h-[104px]');
+
+  const labelClassName = cn('block font-semibold text-slate-900', isDrawer ? 'text-[13px]' : 'text-sm');
+  const fieldSpaceClassName = isDrawer ? 'space-y-1' : 'space-y-1.5';
+  const formSpaceClassName = isDrawer ? 'space-y-3.5' : 'space-y-4';
+
+  const brandActionClass = cn(
+    'inline-flex w-full items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white',
+    'shadow-[var(--shadow-brand-action-xl)] transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:brightness-105',
+    'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-fuchsia-100/90',
+    'disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0',
+    isDrawer ? 'px-5 py-3' : 'px-5 py-3.5'
+  );
+
+  const brandActionStyle: React.CSSProperties = {
+    backgroundImage: 'var(--gradient-brand-action)',
+  };
 
   useEffect(() => {
     void (async () => {
@@ -83,6 +100,10 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
       }
     })();
   }, [router]);
+
+  useEffect(() => {
+    setShowOptionalDetails(variant !== 'drawer');
+  }, [variant]);
 
   const focusField = (field: FormFieldName) => {
     if (field === 'title') {
@@ -238,31 +259,103 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
     return <LoadingScreen message="Creating video recipe…" />;
   }
 
-  const formInner = (
-    <div className={cn('space-y-5', isDrawer ? 'px-1 pb-1' : '')}>
-      <div className={cn('space-y-2', isDrawer ? 'text-left' : 'text-center')}>
-        <div
-          className={cn(
-            'inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-3 py-1 text-[12px] font-semibold text-slate-700 shadow-[0_8px_24px_rgb(15_23_42_/_0.06)]',
-            isDrawer ? 'mx-0' : 'mx-auto'
-          )}
-        >
-          <Sparkles className="h-3.5 w-3.5 text-fuchsia-500" aria-hidden="true" />
-          Add Reference
+  const optionalFields = (
+    <>
+      <div className={cn('grid gap-3', isDrawer ? 'grid-cols-2' : 'sm:grid-cols-2')}>
+        <div className={fieldSpaceClassName}>
+          <label htmlFor={nicheId} className={labelClassName}>
+            Niche
+          </label>
+          <input
+            id={nicheId}
+            name="niche"
+            type="text"
+            value={niche}
+            onChange={(e) => setNiche(e.target.value)}
+            placeholder="e.g., Cooking, Fitness…"
+            className={inputClassName}
+            disabled={loading}
+            autoComplete="off"
+          />
         </div>
-        <div className="space-y-1.5">
-          <h2 className="text-balance text-[28px] font-bold leading-tight text-slate-950">
-            Paste A Viral Video Link
-          </h2>
-          <p className="text-[14px] leading-6 text-slate-600">
-            Paste a TikTok, Instagram, or YouTube Shorts link, then turn it into a motion-aware recipe flow.
-          </p>
+
+        <div className={fieldSpaceClassName}>
+          <label htmlFor={goalId} className={labelClassName}>
+            Goal
+          </label>
+          <input
+            id={goalId}
+            name="goal"
+            type="text"
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+            placeholder="e.g., Better hook pacing…"
+            className={inputClassName}
+            disabled={loading}
+            autoComplete="off"
+          />
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        <div className="space-y-1.5">
-          <label htmlFor={titleId} className="block text-sm font-semibold text-slate-900">
+      <div className={fieldSpaceClassName}>
+        <label htmlFor={describeId} className={labelClassName}>
+          Notes
+        </label>
+        <textarea
+          id={describeId}
+          name="notes"
+          value={describe}
+          onChange={(e) => setDescribe(e.target.value)}
+          placeholder="Anything specific to preserve or improve…"
+          rows={isDrawer ? 2 : 4}
+          className={textareaClassName}
+          disabled={loading}
+          autoComplete="off"
+        />
+      </div>
+    </>
+  );
+
+  const formInner = (
+    <div className={cn('space-y-4', isDrawer ? 'pb-1' : 'space-y-5')}>
+      <div className="relative overflow-hidden px-1 pb-2 pt-1">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-[-0.75rem] top-0 h-32 bg-[radial-gradient(78%_62%_at_50%_0%,rgba(206,229,255,0.72)_0%,rgba(237,225,255,0.46)_42%,rgba(255,255,255,0)_78%)]"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-slate-200/70 to-transparent"
+        />
+
+        <div className="relative space-y-3">
+          <div className={cn('space-y-2', isDrawer ? 'text-left' : 'text-center')}>
+            <h2
+              className={cn(
+                'text-balance font-bold tracking-[-0.045em] text-slate-950',
+                isDrawer ? 'max-w-[11.5ch] text-[1.82rem] leading-[1.03]' : 'mx-auto max-w-[13ch] text-[2.45rem] leading-[0.98]'
+              )}
+            >
+              Paste a{' '}
+              <WordRotate
+                words={platformWords}
+                duration={2200}
+                className="bg-gradient-to-r from-sky-500 via-violet-500 to-fuchsia-500 bg-clip-text text-transparent"
+              />{' '}
+              link, then turn it into my video recipe
+              <span aria-hidden="true">🦜</span>.
+            </h2>
+
+            <p className={cn('text-slate-600', isDrawer ? 'max-w-[28ch] text-[14px] leading-6' : 'mx-auto max-w-[34ch] text-[15px] leading-7')}>
+              Pull the motion and structure into a reusable scene-by-scene recipe flow.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className={formSpaceClassName} noValidate>
+        <div className={fieldSpaceClassName}>
+          <label htmlFor={titleId} className={labelClassName}>
             {fieldMeta.title.label}
           </label>
           <input
@@ -286,8 +379,8 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
           </p>
         </div>
 
-        <div className="space-y-1.5">
-          <label htmlFor={urlId} className="block text-sm font-semibold text-slate-900">
+        <div className={fieldSpaceClassName}>
+          <label htmlFor={urlId} className={labelClassName}>
             {fieldMeta.url.label}
           </label>
           <input
@@ -313,58 +406,31 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <label htmlFor={nicheId} className="block text-sm font-semibold text-slate-900">
-              Niche
-            </label>
-            <input
-              id={nicheId}
-              name="niche"
-              type="text"
-              value={niche}
-              onChange={(e) => setNiche(e.target.value)}
-              placeholder="e.g., Cooking, Fitness…"
-              className={inputClassName}
-              disabled={loading}
-              autoComplete="off"
-            />
-          </div>
+        {isDrawer ? (
+          <div className="rounded-[1.4rem] border border-slate-200/85 bg-slate-50/75">
+            <button
+              type="button"
+              aria-expanded={showOptionalDetails}
+              aria-controls={optionalSectionId}
+              onClick={() => setShowOptionalDetails((current) => !current)}
+              className="flex w-full items-center justify-between gap-3 rounded-[1.4rem] px-4 py-3 text-left text-sm font-semibold text-slate-700 transition-colors duration-200 hover:bg-white/80 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-fuchsia-100/90"
+            >
+              <span>Optional Details</span>
+              <ChevronDown
+                className={cn('h-4 w-4 text-slate-500 transition-transform duration-200', showOptionalDetails ? 'rotate-180' : '')}
+                aria-hidden="true"
+              />
+            </button>
 
-          <div className="space-y-1.5">
-            <label htmlFor={goalId} className="block text-sm font-semibold text-slate-900">
-              Goal
-            </label>
-            <input
-              id={goalId}
-              name="goal"
-              type="text"
-              value={goal}
-              onChange={(e) => setGoal(e.target.value)}
-              placeholder="e.g., Better hook pacing…"
-              className={inputClassName}
-              disabled={loading}
-              autoComplete="off"
-            />
+            {showOptionalDetails ? (
+              <div id={optionalSectionId} className="space-y-3 px-4 pb-4 pt-1">
+                {optionalFields}
+              </div>
+            ) : null}
           </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <label htmlFor={describeId} className="block text-sm font-semibold text-slate-900">
-            Notes
-          </label>
-          <textarea
-            id={describeId}
-            name="notes"
-            value={describe}
-            onChange={(e) => setDescribe(e.target.value)}
-            placeholder="Anything specific to preserve or improve…"
-            rows={4}
-            className={textareaClassName}
-            disabled={loading}
-            autoComplete="off"
-          />
-        </div>
+        ) : (
+          optionalFields
+        )}
 
         <button type="submit" disabled={loading} className={brandActionClass} style={brandActionStyle}>
           <span>{loading ? 'Analyzing Video…' : 'Analyze Video'}</span>
@@ -372,9 +438,11 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
         </button>
       </form>
 
-      <div className="rounded-2xl border border-white/70 bg-white/70 px-4 py-3 text-sm text-slate-600 shadow-[0_14px_28px_rgb(15_23_42_/_0.05)]">
-        You will get scene-by-scene motion descriptions and a reusable recipe structure from the source video.
-      </div>
+      {!isDrawer ? (
+        <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3 text-sm text-slate-600 shadow-[0_14px_28px_rgb(15_23_42_/_0.04)]">
+          You will get scene-by-scene motion descriptions and a reusable recipe structure from the source video.
+        </div>
+      ) : null}
     </div>
   );
 
@@ -383,9 +451,7 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
   }
 
   return (
-    <Card
-      className="w-full rounded-[2rem] border border-[color:var(--brand-soft-border)] bg-[image:var(--brand-soft-surface)] p-6 shadow-[0_24px_60px_rgb(15_23_42_/_0.08)] sm:p-8"
-    >
+    <Card className="w-full rounded-[2rem] border border-slate-100 bg-white p-4 shadow-[0_24px_60px_rgb(15_23_42_/_0.06)] sm:p-6">
       {formInner}
     </Card>
   );
