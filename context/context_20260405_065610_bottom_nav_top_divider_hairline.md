@@ -23,6 +23,20 @@
     - 브라우저 CSSOM에서는 hairline border가 `borderTopWidth = 1px`로 반올림되어 보였지만, 최종 nav 높이가 `66.5px`로 계산되어 `0.5px` 상단선 적용은 반영된 것으로 확인했다.
 - 스크린샷
   - `output/playwright/20260405_bottom_nav_top_divider_hairline/home-bottom-nav-hairline.png`
+- 배포 확인
+  - 최신 production deployment:
+    - commit: `d3f802d3972cd1ea9cb864db079ae61c00b702e2`
+    - state: `READY`
+    - url: `https://parrotkit-deploy.vercel.app/home`
+  - `curl -I https://parrotkit-deploy.vercel.app/`
+    - `HTTP/2 200`
+  - 배포 브라우저 확인:
+    - `hasBottomNav = true`
+    - `borderTopStyle = solid`
+    - `borderTopWidth = 1px`
+    - `navHeight = 66.5px`
+  - 스크린샷
+    - `output/playwright/20260405_deploy_bottom_nav_top_divider_hairline/deploy-home-bottom-nav-hairline.png`
 
 ## 메모
 - 변경 범위는 `BottomTabBar` 한 파일로 제한해 최근 paste/drawer/nav 시각 수정과 충돌하지 않도록 유지했다.
