@@ -31,7 +31,7 @@ const fieldMeta: Record<FormFieldName, { label: string; placeholder: string; typ
   },
 };
 
-const platformWords = ['TikTok', 'Instagram', 'YouTube Shorts'];
+const platformWords = ['TikTok', 'Instagram Reels', 'YouTube Shorts'];
 
 function isLikelyUrl(value: string) {
   try {
@@ -332,7 +332,7 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
               {isDrawer ? (
                 <>
                   <span className="block">
-                    Paste a{' '}
+                    Paste your{' '}
                     <WordRotate
                       words={platformWords}
                       duration={2200}
@@ -348,7 +348,7 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
                 </>
               ) : (
                 <>
-                  Paste a{' '}
+                  Paste your{' '}
                   <WordRotate
                     words={platformWords}
                     duration={2200}
