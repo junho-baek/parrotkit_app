@@ -60,6 +60,10 @@ const tabs: Tab[] = [
   },
 ];
 
+const BOTTOM_NAV_HEIGHT = 66;
+const BOTTOM_NAV_SAFE_AREA = 'env(safe-area-inset-bottom, 0px)';
+const BOTTOM_NAV_BORDER_WIDTH = 1;
+
 export const BottomTabBar: React.FC = () => {
   const pathname = usePathname();
   const [isInputFocused, setIsInputFocused] = React.useState(false);
@@ -152,13 +156,17 @@ export const BottomTabBar: React.FC = () => {
     <nav
       className="z-20 flex-shrink-0 backdrop-blur-2xl"
       style={{
-        paddingBottom: 'max(env(safe-area-inset-bottom), 0.6rem)',
+        paddingBottom: BOTTOM_NAV_SAFE_AREA,
+        minHeight: `calc(${BOTTOM_NAV_HEIGHT}px + ${BOTTOM_NAV_SAFE_AREA})`,
         borderTop: '1px solid var(--border-bottom-nav)',
         background: 'var(--surface-bottom-nav)',
         boxShadow: 'var(--shadow-bottom-nav)',
       }}
     >
-      <div className="mx-auto flex max-w-[500px] items-center justify-around gap-1 px-3 pt-2">
+      <div
+        className="mx-auto flex max-w-[500px] items-center justify-around gap-1 px-3"
+        style={{ height: `${BOTTOM_NAV_HEIGHT - BOTTOM_NAV_BORDER_WIDTH}px` }}
+      >
         {tabs.map((tab) => {
           const isActive = pathname === tab.href;
           const Icon = tab.icon;

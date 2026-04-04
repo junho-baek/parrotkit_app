@@ -15,7 +15,7 @@ export default function SubmitVideoPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Mobile App Style Header */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-center">
+      <div className="flex h-12 flex-shrink-0 items-center justify-center bg-white px-4">
         <h1 className="text-xl font-bold text-gray-900">Add Reference</h1>
       </div>
       

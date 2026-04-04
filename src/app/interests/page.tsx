@@ -14,7 +14,7 @@ export default function InterestsPage() {
 
   return (
     <div className="flex h-full flex-col bg-white">
-      <div className="sticky top-0 z-10 flex-shrink-0 border-b border-gray-100 bg-white px-4 py-2.5">
+      <div className="sticky top-0 z-10 flex h-12 flex-shrink-0 items-center justify-center bg-white px-4">
         <h1 className="text-center text-lg font-bold tracking-[-0.03em] text-gray-900">Explore Interests</h1>
       </div>
 

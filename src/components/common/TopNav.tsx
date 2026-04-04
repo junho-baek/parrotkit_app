@@ -30,12 +30,12 @@ export const TopNav: React.FC<TopNavProps> = ({ showNav = true }) => {
   ];
 
   return (
-    <nav className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-40">
+    <nav className="fixed top-0 left-0 right-0 bg-white z-40">
       <div className="max-w-full px-4 md:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex h-12 items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/parrot-logo.png" alt="Parrot Kit" className="w-8 h-8" />
-            <span className="text-xl font-bold text-gray-900">Parrot Kit</span>
+            <img src="/parrot-logo.png" alt="Parrot Kit" className="w-7 h-7" />
+            <span className="text-lg font-bold text-gray-900">Parrot Kit</span>
           </Link>
 
           <div className="flex items-center gap-1 md:gap-4 overflow-x-auto">
