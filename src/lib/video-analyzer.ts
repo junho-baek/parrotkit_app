@@ -446,11 +446,11 @@ export async function analyzeYouTubeVideo(url: string): Promise<VideoAnalysisRes
     await mkdir(thumbDir, { recursive: true });
 
     // YouTube 비디오 다운로드
-    console.log('Downloading video...');
+    console.log('[유튜브 장면 분석] 비디오 다운로드를 시작합니다.');
     
     // 비디오 정보 먼저 가져오기
     const info = await ytdl.getInfo(url);
-    console.log('Video info retrieved:', info.videoDetails.title);
+    console.log('[유튜브 장면 분석] 비디오 메타데이터를 가져왔습니다.', { title: info.videoDetails.title });
     
     const videoStream = ytdl(url, {
       quality: 'lowestvideo',
@@ -470,24 +470,24 @@ export async function analyzeYouTubeVideo(url: string): Promise<VideoAnalysisRes
       
       writeStream.on('finish', () => {
         downloadComplete = true;
-        console.log('Download finished');
+        console.log('[유튜브 장면 분석] 비디오 다운로드가 완료되었습니다.');
         resolve();
       });
       
       writeStream.on('error', (err) => {
-        console.error('Write stream error:', err);
+        console.error('[유튜브 장면 분석] 다운로드 파일 쓰기 중 오류가 발생했습니다.', err);
         reject(err);
       });
       
       videoStream.on('error', (err) => {
-        console.error('Video stream error:', err);
+        console.error('[유튜브 장면 분석] 비디오 스트림 오류가 발생했습니다.', err);
         reject(err);
       });
       
       // 60초 후 타임아웃 (shorts는 보통 짧으므로 충분함)
       setTimeout(() => {
         if (!downloadComplete) {
-          console.log('Download timeout, using partial file');
+          console.log('[유튜브 장면 분석] 다운로드 시간이 길어져 부분 파일 기준으로 계속 진행합니다.');
           videoStream.destroy();
           writeStream.end();
           resolve();
@@ -495,7 +495,7 @@ export async function analyzeYouTubeVideo(url: string): Promise<VideoAnalysisRes
       }, 60000);
     });
 
-    console.log('Video downloaded, analyzing scenes...');
+    console.log('[유튜브 장면 분석] 비디오 다운로드 후 장면 분석을 시작합니다.');
 
     // 비디오 길이 확인
     const duration = await getVideoDuration(videoPath);
@@ -504,7 +504,7 @@ export async function analyzeYouTubeVideo(url: string): Promise<VideoAnalysisRes
     let sceneTimestamps = await detectSceneChanges(videoPath, 0.3);
     sceneTimestamps = normalizeDetectedSceneTimestamps(sceneTimestamps, duration);
 
-    console.log(`Found ${sceneTimestamps.length} scenes`);
+    console.log('[유튜브 장면 분석] 장면 후보를 추출했습니다.', { sceneCount: sceneTimestamps.length });
 
     // 각 장면의 썸네일 추출
     const scenes: SceneDetection[] = [];
@@ -517,7 +517,7 @@ export async function analyzeYouTubeVideo(url: string): Promise<VideoAnalysisRes
         // 임시 파일 삭제
         await unlink(thumbPath);
       } catch (err) {
-        console.error(`Failed to extract thumbnail at ${timestamp}:`, err);
+        console.error(`[유튜브 장면 분석] ${timestamp}초 썸네일 추출에 실패했습니다.`, err);
       }
     }
 
@@ -528,7 +528,7 @@ export async function analyzeYouTubeVideo(url: string): Promise<VideoAnalysisRes
     return { scenes, duration, method: 'ffmpeg_video_download' };
 
   } catch (error: unknown) {
-    console.error('Video analysis error:', error);
+    console.error('[유튜브 장면 분석] 분석 중 오류가 발생했습니다.', error);
     
     // 정리
     try {

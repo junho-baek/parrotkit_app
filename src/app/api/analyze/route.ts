@@ -32,6 +32,35 @@ type GeminiVideoScene = {
   motion_description: string;
 };
 
+type AnalyzeLogLevel = 'info' | 'warn' | 'error';
+
+function createAnalyzeRequestId() {
+  return `analyze_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function sanitizeUrlForLog(rawUrl: string) {
+  try {
+    const parsed = new URL(rawUrl);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return rawUrl.slice(0, 160);
+  }
+}
+
+function logAnalyze(level: AnalyzeLogLevel, requestId: string, message: string, meta?: Record<string, unknown>) {
+  const prefix = `[분석][${requestId}] ${message}`;
+  const normalizedMeta = meta
+    ? Object.fromEntries(Object.entries(meta).filter(([, value]) => value !== undefined))
+    : undefined;
+
+  if (!normalizedMeta || Object.keys(normalizedMeta).length === 0) {
+    console[level](prefix);
+    return;
+  }
+
+  console[level](prefix, normalizedMeta);
+}
+
 function detectPlatform(url: string): Platform {
   if (url.includes('youtube.com/shorts') || url.includes('youtu.be')) return 'youtube-shorts';
   if (url.includes('youtube.com')) return 'youtube';
@@ -112,7 +141,7 @@ async function fetchPageMedia(url: string): Promise<PageMedia> {
       fallbackReason: videoUrl ? null : 'page_meta_video_missing',
     };
   } catch (error) {
-    console.warn('Failed to fetch page media:', error);
+    console.warn('[분석][page-media] 페이지 메타 영상 정보를 가져오지 못했습니다.', error);
     return { imageUrl: null, videoUrl: null, source: 'none', fallbackReason: 'page_media_fetch_failed' };
   }
 }
@@ -223,13 +252,13 @@ async function parseJsonWithRepair<T>(text: string) {
   try {
     return JSON.parse(rawJson) as T;
   } catch (error) {
-    console.warn('Primary AI JSON parse failed, attempting repair:', error);
+    console.warn('[분석][JSON] 1차 AI JSON 파싱이 실패해 보정 수리를 시도합니다.', error);
   }
 
   try {
     return await repairJsonObject(rawJson) as T | null;
   } catch (error) {
-    console.error('AI JSON repair failed:', error);
+    console.error('[분석][JSON] AI JSON 보정 수리도 실패했습니다.', error);
     return null;
   }
 }
@@ -532,14 +561,14 @@ ${candidates
   try {
     parsed = await runConfirmation(true);
   } catch (error) {
-    console.warn('AI cut confirmation with images failed, retrying text-only:', error);
+    console.warn('[분석][컷 확인] 이미지 포함 AI 확인이 실패해 텍스트 전용으로 다시 시도합니다.', error);
   }
 
   if (!parsed) {
     try {
       parsed = await runConfirmation(false);
     } catch (error) {
-      console.warn('AI cut confirmation text-only retry failed:', error);
+      console.warn('[분석][컷 확인] 텍스트 전용 AI 확인도 실패했습니다.', error);
     }
   }
 
@@ -645,7 +674,7 @@ Requirements:
       ) as SceneScriptMap,
     };
   } catch (error) {
-    console.error('AI script generation failed:', error);
+    console.error('[분석][스크립트 생성] AI 스크립트 생성에 실패했습니다.', error);
     return null;
   }
 }
@@ -731,21 +760,48 @@ function buildSceneStructure({
 }
 
 export async function POST(request: NextRequest) {
+  const requestId = createAnalyzeRequestId();
+  let requestUrlForLog: string | null = null;
+  let requestPlatformForLog: Platform | null = null;
+
   try {
     const { url, niche = '', goal = '', description = '' } = await request.json();
 
     if (!url) {
+      logAnalyze('warn', requestId, '요청 본문에 URL이 없습니다.');
       return NextResponse.json({ error: 'URL is required' }, { status: 400 });
     }
 
     const platform = detectPlatform(url);
     const videoId = extractVideoId(url);
+    requestUrlForLog = sanitizeUrlForLog(url);
+    requestPlatformForLog = platform;
+
+    logAnalyze('info', requestId, '분석 요청을 시작합니다.', {
+      platform,
+      videoId: videoId || extractInstagramId(url) || extractTikTokId(url) || 'unknown',
+      url: requestUrlForLog,
+      hasNiche: Boolean(niche.trim()),
+      hasGoal: Boolean(goal.trim()),
+      hasDescription: Boolean(description.trim()),
+    });
 
     const [rapidMedia, pageMedia, transcriptResult] = await Promise.all([
       fetchSocialVideoDownload(url),
       fetchPageMedia(url),
       fetchSupadataTranscript(url),
     ]);
+
+    logAnalyze('info', requestId, '외부 소스 조회를 마쳤습니다.', {
+      rapidMediaSource: rapidMedia.source,
+      rapidMediaFallbackReason: rapidMedia.fallbackReason,
+      rapidMediaVariantCount: rapidMedia.variants.length,
+      pageMediaSource: pageMedia.source,
+      pageMediaFallbackReason: pageMedia.fallbackReason,
+      transcriptSource: transcriptResult.transcriptSource,
+      transcriptFallbackReason: transcriptResult.fallbackReason,
+      transcriptSegmentCount: transcriptResult.transcript.length,
+    });
 
     const resolvedMedia: PageMedia = {
       imageUrl: rapidMedia.thumbnailUrl || pageMedia.imageUrl,
@@ -758,6 +814,10 @@ export async function POST(request: NextRequest) {
     let sceneDetectionFallbackReason: string | null = null;
 
     if (resolvedMedia.videoUrl) {
+      logAnalyze('info', requestId, '직접 비디오 URL을 확보해 Gemini 비디오 분석을 시도합니다.', {
+        mediaSource: resolvedMedia.source,
+      });
+
       const geminiVideoAnalysis = await analyzeVideoMotionWithGemini(
         resolvedMedia.videoUrl,
         transcriptResult.sourceMetadata?.durationSeconds || 0
@@ -765,16 +825,37 @@ export async function POST(request: NextRequest) {
 
       if (!geminiVideoAnalysis.error && geminiVideoAnalysis.scenes.length > 0) {
         analysisResult = geminiVideoAnalysis;
+        logAnalyze('info', requestId, 'Gemini 비디오 분석에 성공했습니다.', {
+          sceneCount: geminiVideoAnalysis.scenes.length,
+          durationSeconds: geminiVideoAnalysis.duration,
+          method: geminiVideoAnalysis.method || 'gemini_video_motion',
+        });
       } else {
         sceneDetectionFallbackReason = geminiVideoAnalysis.fallbackReason || geminiVideoAnalysis.error || 'gemini_video_analysis_failed';
+        logAnalyze('warn', requestId, 'Gemini 비디오 분석이 실패해 다음 단계로 넘어갑니다.', {
+          reason: sceneDetectionFallbackReason,
+        });
       }
     }
 
     if (!analysisResult && resolvedMedia.videoUrl) {
+      logAnalyze('info', requestId, '프레임 차이 기반 후보 추출을 시도합니다.', {
+        mediaSource: resolvedMedia.source,
+      });
+
       const candidateAnalysis = await analyzeVideoFrameCandidates(resolvedMedia.videoUrl);
       if (candidateAnalysis.error) {
         sceneDetectionFallbackReason = sceneDetectionFallbackReason || candidateAnalysis.fallbackReason || candidateAnalysis.error;
+        logAnalyze('warn', requestId, '프레임 차이 기반 분석이 실패했습니다.', {
+          reason: sceneDetectionFallbackReason,
+        });
       } else if (candidateAnalysis.candidates.length > 0) {
+        logAnalyze('info', requestId, '프레임 후보를 추출했습니다. AI 컷 확인을 진행합니다.', {
+          candidateCount: candidateAnalysis.candidates.length,
+          rawSceneCount: candidateAnalysis.scenes.length,
+          durationSeconds: candidateAnalysis.duration,
+        });
+
         const aiConfirmedScenes = await confirmCandidatesWithAI(
           candidateAnalysis.candidates,
           transcriptResult.transcript,
@@ -787,6 +868,10 @@ export async function POST(request: NextRequest) {
             duration: candidateAnalysis.duration,
             method: 'frame_diff_ai_confirmed',
           };
+          logAnalyze('info', requestId, '프레임 후보 AI 확인이 성공했습니다.', {
+            sceneCount: aiConfirmedScenes.length,
+            durationSeconds: candidateAnalysis.duration,
+          });
         } else if (candidateAnalysis.scenes.length > 0) {
           analysisResult = {
             scenes: candidateAnalysis.scenes,
@@ -795,27 +880,60 @@ export async function POST(request: NextRequest) {
             fallbackReason: 'ai_cut_confirmation_failed_used_raw_candidates',
           };
           sceneDetectionFallbackReason = sceneDetectionFallbackReason || 'ai_cut_confirmation_failed_used_raw_candidates';
+          logAnalyze('warn', requestId, 'AI 컷 확인에 실패해 원본 후보 장면을 그대로 사용합니다.', {
+            sceneCount: candidateAnalysis.scenes.length,
+            reason: sceneDetectionFallbackReason,
+          });
         } else {
           sceneDetectionFallbackReason = sceneDetectionFallbackReason || candidateAnalysis.fallbackReason || 'frame_diff_candidates_empty';
+          logAnalyze('warn', requestId, '프레임 차이 분석에서 사용할 장면 후보를 만들지 못했습니다.', {
+            reason: sceneDetectionFallbackReason,
+          });
         }
+      } else {
+        sceneDetectionFallbackReason = sceneDetectionFallbackReason || candidateAnalysis.fallbackReason || 'frame_diff_candidates_empty';
+        logAnalyze('warn', requestId, '프레임 차이 분석 결과 후보가 비어 있습니다.', {
+          reason: sceneDetectionFallbackReason,
+          rawSceneCount: candidateAnalysis.scenes.length,
+        });
       }
     }
 
     if (!analysisResult && (platform === 'youtube' || platform === 'youtube-shorts')) {
-      console.log('Using YouTube scene detection pipeline...');
+      logAnalyze('warn', requestId, '직접 비디오 분석이 성립하지 않아 YouTube 전용 fallback으로 전환합니다.', {
+        reason: sceneDetectionFallbackReason || resolvedMedia.fallbackReason || 'unknown',
+      });
       const youtubeAnalysis = await analyzeYouTubeVideo(url);
       if (youtubeAnalysis.error) {
         sceneDetectionFallbackReason = sceneDetectionFallbackReason || youtubeAnalysis.fallbackReason || youtubeAnalysis.error;
+        logAnalyze('error', requestId, 'YouTube 전용 fallback도 실패했습니다.', {
+          reason: sceneDetectionFallbackReason,
+        });
       } else {
         analysisResult = youtubeAnalysis;
+        logAnalyze('info', requestId, 'YouTube 전용 fallback이 성공했습니다.', {
+          sceneCount: youtubeAnalysis.scenes.length,
+          durationSeconds: youtubeAnalysis.duration,
+          method: youtubeAnalysis.method || 'ffmpeg_video_download',
+        });
       }
     }
 
     if (!analysisResult && !resolvedMedia.videoUrl && sceneDetectionFallbackReason === null) {
       sceneDetectionFallbackReason = resolvedMedia.fallbackReason || 'direct_video_url_not_available';
+      logAnalyze('warn', requestId, '직접 사용할 비디오 URL을 확보하지 못했습니다.', {
+        reason: sceneDetectionFallbackReason,
+        mediaSource: resolvedMedia.source,
+      });
     }
 
     if (!analysisResult && transcriptResult.transcript.length > 0) {
+      logAnalyze('warn', requestId, '영상 기반 장면 감지가 실패해 대본 기반 분할을 사용합니다.', {
+        transcriptSource: transcriptResult.transcriptSource,
+        transcriptSegmentCount: transcriptResult.transcript.length,
+        reason: sceneDetectionFallbackReason || 'video_detection_unavailable_used_transcript',
+      });
+
       analysisResult = buildTranscriptGuidedDetections(
         transcriptResult.transcript,
         transcriptResult.sourceMetadata?.durationSeconds || 0
@@ -874,38 +992,56 @@ export async function POST(request: NextRequest) {
       other: 'Video',
     };
 
+    const responseMetadata = {
+      title: transcriptResult.sourceMetadata?.title || `${platformLabels[platform]} Video`,
+      duration: formatTime(detectedDuration),
+      durationSeconds: detectedDuration,
+      platform: transcriptResult.sourceMetadata?.platform || platformLabels[platform],
+      analyzedWithFFmpeg: analysisResult?.method === 'ffmpeg_video_download',
+      mediaSource: resolvedMedia.source,
+      mediaFallbackReason: resolvedMedia.fallbackReason,
+      sceneDetectionMethod: analysisResult?.method || 'fixed_5s_fallback',
+      sceneDetectionFallbackReason:
+        sceneDetectionFallbackReason
+        || analysisResult?.fallbackReason
+        || (analysisResult ? null : platform === 'youtube' || platform === 'youtube-shorts'
+          ? 'youtube_scene_detection_not_available'
+          : 'no_platform_scene_detector'),
+      transcriptSource: transcriptResult.transcriptSource as TranscriptSource,
+      transcriptLanguage: transcriptResult.language,
+      transcriptSegmentCount: transcriptResult.transcript.length,
+      transcriptFallbackReason: transcriptResult.fallbackReason,
+      scriptSource,
+      sourceMetadata: transcriptResult.sourceMetadata,
+    };
+
+    logAnalyze('info', requestId, '분석 응답을 반환합니다.', {
+      mediaSource: responseMetadata.mediaSource,
+      mediaFallbackReason: responseMetadata.mediaFallbackReason,
+      sceneDetectionMethod: responseMetadata.sceneDetectionMethod,
+      sceneDetectionFallbackReason: responseMetadata.sceneDetectionFallbackReason,
+      transcriptSource: responseMetadata.transcriptSource,
+      transcriptFallbackReason: responseMetadata.transcriptFallbackReason,
+      sceneCount: scenes.length,
+      durationSeconds: responseMetadata.durationSeconds,
+    });
+
     return NextResponse.json({
       success: true,
       videoId: videoId || extractInstagramId(url) || extractTikTokId(url) || transcriptResult.sourceMetadata?.id || 'unknown',
       url,
       scenes,
       transcript: transcriptResult.transcript,
-      metadata: {
-        title: transcriptResult.sourceMetadata?.title || `${platformLabels[platform]} Video`,
-        duration: formatTime(detectedDuration),
-        durationSeconds: detectedDuration,
-        platform: transcriptResult.sourceMetadata?.platform || platformLabels[platform],
-        analyzedWithFFmpeg: analysisResult?.method === 'ffmpeg_video_download',
-        mediaSource: resolvedMedia.source,
-        mediaFallbackReason: resolvedMedia.fallbackReason,
-        sceneDetectionMethod: analysisResult?.method || 'fixed_5s_fallback',
-        sceneDetectionFallbackReason:
-          sceneDetectionFallbackReason
-          || analysisResult?.fallbackReason
-          || (analysisResult ? null : platform === 'youtube' || platform === 'youtube-shorts'
-            ? 'youtube_scene_detection_not_available'
-            : 'no_platform_scene_detector'),
-        transcriptSource: transcriptResult.transcriptSource as TranscriptSource,
-        transcriptLanguage: transcriptResult.language,
-        transcriptSegmentCount: transcriptResult.transcript.length,
-        transcriptFallbackReason: transcriptResult.fallbackReason,
-        scriptSource,
-        sourceMetadata: transcriptResult.sourceMetadata,
-      },
+      metadata: responseMetadata,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to analyze video';
-    console.error('Analyze error:', error);
+    logAnalyze('error', requestId, '분석 요청이 예외로 종료되었습니다.', {
+      url: requestUrlForLog,
+      platform: requestPlatformForLog,
+      error: message,
+    });
+    console.error('[분석] 처리 중 예외가 발생했습니다.', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
