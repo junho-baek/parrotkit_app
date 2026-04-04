@@ -4,16 +4,13 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button, Input, Card } from '@/components/common';
+import { PASTE_DRAWER_HOME_HREF } from '@/lib/paste-drawer';
 import {
   VideoOptionsData,
   NICHES,
   GOALS,
   PLATFORMS,
   LENGTHS,
-  VideoNiche,
-  VideoGoal,
-  VideoPlatform,
-  VideoLength,
 } from '@/types/auth';
 
 export const SourceOptionsForm: React.FC = () => {
@@ -38,7 +35,7 @@ export const SourceOptionsForm: React.FC = () => {
       setSourceUrl(url);
       setFormData(prev => ({ ...prev, sourceUrl: url }));
     } else {
-      router.push('/paste');
+      router.push(PASTE_DRAWER_HOME_HREF);
     }
   }, [router]);
 
@@ -85,7 +82,7 @@ export const SourceOptionsForm: React.FC = () => {
       // 성공 메시지 표시
       // alert('Video submitted successfully! 🎉');
       // localStorage.removeItem('sourceUrl');
-    } catch (err) {
+    } catch {
       setError('Failed to submit video options. Please try again.');
     } finally {
       setLoading(false);
@@ -120,7 +117,7 @@ export const SourceOptionsForm: React.FC = () => {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label className="block text-sm font-medium text-gray-900 mb-2">
-            What's Your niche? *
+            What&apos;s Your niche? *
           </label>
           <select
             value={formData.niche || ''}
@@ -138,7 +135,7 @@ export const SourceOptionsForm: React.FC = () => {
 
         <div>
           <label className="block text-sm font-medium text-gray-900 mb-2">
-            What's Your goal? *
+            What&apos;s Your goal? *
           </label>
           <select
             value={formData.goal || ''}
@@ -156,7 +153,7 @@ export const SourceOptionsForm: React.FC = () => {
 
         <div>
           <label className="block text-sm font-medium text-gray-900 mb-2">
-            What's Your platform? *
+            What&apos;s Your platform? *
           </label>
           <select
             value={formData.platform || ''}
@@ -223,7 +220,7 @@ export const SourceOptionsForm: React.FC = () => {
       </form>
 
       <div className="text-center mt-8">
-        <Link href="/paste" className="text-gray-900 text-sm hover:text-blue-600">
+        <Link href={PASTE_DRAWER_HOME_HREF} className="text-gray-900 text-sm hover:text-blue-600">
           ← Change Video
         </Link>
       </div>

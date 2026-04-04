@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/common';
+import { PASTE_DRAWER_HOME_HREF } from '@/lib/paste-drawer';
 
 type StoredRecipe = {
   id: number | string;
@@ -109,7 +110,7 @@ export const Recipes: React.FC = () => {
               Start by pasting a video URL to create your first recipe!
             </p>
             <button
-              onClick={() => window.location.href = '/paste'}
+              onClick={() => window.location.href = PASTE_DRAWER_HOME_HREF}
               className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
             >
               + Create Recipe

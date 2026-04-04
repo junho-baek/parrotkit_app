@@ -10,6 +10,7 @@ interface WordRotateProps {
   duration?: number
   motionProps?: MotionProps
   className?: string
+  reserveSpace?: boolean
 }
 
 export function WordRotate({
@@ -22,6 +23,7 @@ export function WordRotate({
     transition: { duration: 0.22, ease: "easeOut" },
   },
   className,
+  reserveSpace = true,
 }: WordRotateProps) {
   const [index, setIndex] = useState(0)
   const shouldReduceMotion = useReducedMotion()
@@ -45,7 +47,7 @@ export function WordRotate({
   return (
     <span
       className="relative inline-flex min-h-[1.15em] overflow-hidden align-baseline"
-      style={{ minWidth: `${Math.max(widestWordLength * 0.72, 6)}ch` }}
+      style={reserveSpace ? { minWidth: `${Math.max(widestWordLength * 0.72, 6)}ch` } : undefined}
     >
       <AnimatePresence initial={false} mode="wait">
         <motion.span

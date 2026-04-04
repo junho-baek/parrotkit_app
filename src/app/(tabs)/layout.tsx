@@ -1,14 +1,13 @@
 import React from 'react';
 import Image from 'next/image';
 import NextLink from 'next/link';
+import { PasteDrawerHost } from '@/components/auth';
 import { BottomTabBar } from '@/components/common';
 
 export default function TabsLayout({
   children,
-  overlay,
 }: {
   children: React.ReactNode;
-  overlay: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col h-full bg-white">
@@ -48,7 +47,7 @@ export default function TabsLayout({
         <BottomTabBar />
       </div>
 
-      {overlay}
+      <PasteDrawerHost />
     </div>
   );
 }

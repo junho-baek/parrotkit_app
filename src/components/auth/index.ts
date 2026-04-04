@@ -3,6 +3,8 @@ export { SignInForm } from './SignInForm';
 export { OnboardingForm } from './OnboardingForm';
 export { InterestsForm } from './InterestsForm';
 export { URLInputForm } from './URLInputForm';
+export { PasteDrawer } from './PasteDrawer';
+export { PasteDrawerHost } from './PasteDrawerHost';
 export { SourceOptionsForm } from './SourceOptionsForm';
 export { PricingCard } from './PricingCard';
 export { DashboardLayout } from './DashboardLayout';

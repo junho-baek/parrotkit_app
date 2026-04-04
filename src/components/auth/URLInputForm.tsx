@@ -320,26 +320,45 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
     <div className={cn('space-y-4', isDrawer ? 'pb-1' : 'space-y-5')}>
       <div className="px-1 pb-1 pt-1">
         <div className="space-y-3">
-          <div className={cn('space-y-2', isDrawer ? 'text-left' : 'text-center')}>
+          <div className="space-y-1.5 text-center">
             <h2
               className={cn(
-                'text-balance font-bold tracking-[-0.045em] text-slate-950',
-                isDrawer ? 'max-w-[11.5ch] text-[1.82rem] leading-[1.03]' : 'mx-auto max-w-[13ch] text-[2.45rem] leading-[0.98]'
+                'font-bold tracking-[-0.045em] text-slate-950',
+                isDrawer
+                  ? 'mx-auto w-full text-[1.54rem] leading-[1.02]'
+                  : 'mx-auto max-w-[16ch] text-balance text-[2.32rem] leading-[0.96]'
               )}
             >
-              Paste a{' '}
-              <WordRotate
-                words={platformWords}
-                duration={2200}
-                className="bg-gradient-to-r from-sky-500 via-violet-500 to-fuchsia-500 bg-clip-text text-transparent"
-              />{' '}
-              link, then turn it into my video recipe
-              <span aria-hidden="true">🦜</span>.
+              {isDrawer ? (
+                <>
+                  <span className="block">
+                    Paste a{' '}
+                    <WordRotate
+                      words={platformWords}
+                      duration={2200}
+                      reserveSpace={false}
+                      className="inline-block bg-gradient-to-r from-sky-500 via-violet-500 to-fuchsia-500 bg-clip-text text-transparent"
+                    />{' '}
+                    link,
+                  </span>
+                  <span className="block">
+                    then turn it into my video recipe
+                    <span aria-hidden="true">🦜</span>.
+                  </span>
+                </>
+              ) : (
+                <>
+                  Paste a{' '}
+                  <WordRotate
+                    words={platformWords}
+                    duration={2200}
+                    className="inline-block bg-gradient-to-r from-sky-500 via-violet-500 to-fuchsia-500 bg-clip-text text-transparent"
+                  />{' '}
+                  link, then turn it into my video recipe
+                  <span aria-hidden="true">🦜</span>.
+                </>
+              )}
             </h2>
-
-            <p className={cn('text-slate-600', isDrawer ? 'max-w-[28ch] text-[14px] leading-6' : 'mx-auto max-w-[34ch] text-[15px] leading-7')}>
-              Pull the motion and structure into a reusable scene-by-scene recipe flow.
-            </p>
           </div>
         </div>
       </div>
@@ -445,7 +464,7 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
     <Card className="relative w-full overflow-hidden rounded-[2rem] border border-slate-100 bg-white p-4 shadow-[0_24px_60px_rgb(15_23_42_/_0.06)] sm:p-6">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-[-0.5rem] top-0 h-32 bg-[radial-gradient(76%_70%_at_50%_0%,rgba(212,232,255,0.68)_0%,rgba(238,229,255,0.42)_44%,rgba(255,255,255,0)_80%)]"
+        className="pointer-events-none absolute inset-x-[-0.75rem] top-0 h-48 bg-[radial-gradient(74%_62%_at_50%_0%,rgba(213,232,255,0.74)_0%,rgba(238,228,255,0.46)_40%,rgba(255,255,255,0)_80%)]"
       />
       <div
         aria-hidden="true"

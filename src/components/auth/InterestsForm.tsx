@@ -4,6 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { authenticatedFetch, ensureValidAccessToken } from '@/lib/auth/client-session';
 import { logClientEvent } from '@/lib/client-events';
+import { PASTE_DRAWER_HOME_HREF } from '@/lib/paste-drawer';
 import {
   INTEREST_CATEGORIES,
   type InterestCategory,
@@ -149,7 +150,7 @@ export const InterestsForm: React.FC = () => {
         interests: selectedInterests.join(','),
       });
 
-      router.push('/paste');
+      router.push(PASTE_DRAWER_HOME_HREF);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to save interests. Please try again.';
       setSelectionError(message);

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import NextLink from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import {
   FileText,
   House,
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { logClientEvent } from '@/lib/client-events';
 import type { ClientEventName } from '@/lib/tracking/events';
+import { getPasteDrawerHref, isPasteDrawerOpen } from '@/lib/paste-drawer';
 
 interface Tab {
   id: string;
@@ -66,9 +67,12 @@ const BOTTOM_NAV_BORDER_WIDTH = 1;
 
 export const BottomTabBar: React.FC = () => {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [isInputFocused, setIsInputFocused] = React.useState(false);
   const [isViewportCompressed, setIsViewportCompressed] = React.useState(false);
   const baselineHeightRef = React.useRef<number>(0);
+  const pasteOpen = isPasteDrawerOpen(searchParams);
+  const pasteHref = React.useMemo(() => getPasteDrawerHref(pathname), [pathname]);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') {
@@ -168,13 +172,14 @@ export const BottomTabBar: React.FC = () => {
         style={{ height: `${BOTTOM_NAV_HEIGHT - BOTTOM_NAV_BORDER_WIDTH}px` }}
       >
         {tabs.map((tab) => {
-          const isActive = pathname === tab.href;
+          const isActive = tab.id === 'paste' ? pasteOpen : !pasteOpen && pathname === tab.href;
           const Icon = tab.icon;
+          const href = tab.id === 'paste' ? pasteHref : tab.href;
 
           return (
             <NextLink
               key={tab.id}
-              href={tab.href}
+              href={href}
               onClick={() => handleTabClick(tab.gaEvent)}
               aria-current={isActive ? 'page' : undefined}
               className="group relative flex flex-1 select-none items-center justify-center rounded-[1.35rem] px-1 py-1 text-center outline-none transition-all duration-300"

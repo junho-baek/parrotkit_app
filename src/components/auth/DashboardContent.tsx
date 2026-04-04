@@ -21,6 +21,7 @@ import {
   readOnboardingProfileExtras,
   saveOnboardingProfileExtras,
 } from '@/lib/onboarding-profile';
+import { PASTE_DRAWER_HOME_HREF } from '@/lib/paste-drawer';
 import { CreatorProfileFields } from './CreatorProfileFields';
 
 type RecipeScene = {
@@ -340,7 +341,7 @@ export const Home: React.FC = () => {
             <p className="text-xs text-white/90">Turn viral videos into actionable recipes</p>
           </div>
           <Link
-            href="/paste"
+            href={PASTE_DRAWER_HOME_HREF}
             className="bg-white text-blue-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:scale-105 transition-transform shadow-lg"
           >
             + New
@@ -360,7 +361,7 @@ export const Home: React.FC = () => {
               <h3 className="text-base font-bold text-gray-900 mb-1.5">No References Yet</h3>
               <p className="text-xs text-gray-900 font-medium mb-4">Start by pasting your first viral video URL</p>
               <Link
-                href="/paste"
+                href={PASTE_DRAWER_HOME_HREF}
                 className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
               >
                 + Add Reference
@@ -658,7 +659,7 @@ export const Recipes: React.FC = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-2">No Recipes Yet</h3>
           <p className="text-gray-600 mb-4">Create your first recipe from a viral video</p>
           <Link
-            href="/paste"
+            href={PASTE_DRAWER_HOME_HREF}
             className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-bold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
           >
             Create Recipe
