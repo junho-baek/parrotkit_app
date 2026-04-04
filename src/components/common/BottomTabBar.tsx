@@ -177,60 +177,62 @@ export const BottomTabBar: React.FC = () => {
               href={tab.href}
               onClick={() => handleTabClick(tab.gaEvent)}
               aria-current={isActive ? 'page' : undefined}
-              className={`group relative flex flex-1 select-none overflow-hidden rounded-[1.35rem] px-2 py-2 text-center outline-none transition-all duration-300 ${
-                isActive
-                  ? 'border border-white/40 text-slate-900 backdrop-blur-[18px]'
-                  : 'border border-transparent text-slate-500 hover:bg-white/70 hover:text-slate-700 active:bg-white/40'
-              }`}
-              style={
-                {
-                  WebkitTapHighlightColor: 'transparent',
-                  touchAction: 'manipulation',
-                  ...(isActive
+              className="group relative flex flex-1 select-none items-center justify-center rounded-[1.35rem] px-1 py-1 text-center outline-none transition-all duration-300"
+              style={{
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'manipulation',
+              }}
+            >
+              <div
+                className={`relative z-10 flex min-w-[58px] flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[1rem] px-2 py-1 transition-all duration-300 ${
+                  isActive
+                    ? 'border border-white/40 text-slate-900 backdrop-blur-[18px]'
+                    : 'text-slate-500 group-hover:bg-white/70 group-hover:text-slate-700 group-active:bg-white/40'
+                }`}
+                style={
+                  isActive
                     ? {
                         backgroundColor: 'var(--surface-bottom-nav-active)',
                         backgroundImage: 'var(--gradient-brand-nav-glass)',
                         boxShadow: 'var(--shadow-bottom-nav-active)',
                       }
-                    : {}),
+                    : undefined
                 }
-              }
-            >
-              {isActive ? (
-                <>
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute inset-[1px] rounded-[1.28rem]"
-                    style={{ background: 'var(--surface-bottom-nav-active-overlay)' }}
-                  />
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute left-2 right-2 top-1 h-4 rounded-full blur-md"
-                    style={{ background: 'var(--surface-bottom-nav-active-highlight)' }}
-                  />
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute bottom-0 left-1/2 h-8 w-12 -translate-x-1/2 rounded-full blur-xl"
-                    style={{ background: 'var(--surface-bottom-nav-active-bloom)' }}
-                  />
-                </>
-              ) : null}
+              >
+                {isActive ? (
+                  <>
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute inset-[1px] rounded-[0.92rem]"
+                      style={{ background: 'var(--surface-bottom-nav-active-overlay)' }}
+                    />
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute left-2.5 right-2.5 top-1 h-3 rounded-full blur-md"
+                      style={{ background: 'var(--surface-bottom-nav-active-highlight)' }}
+                    />
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute bottom-0 left-1/2 h-6 w-10 -translate-x-1/2 rounded-full blur-xl"
+                      style={{ background: 'var(--surface-bottom-nav-active-bloom)' }}
+                    />
+                  </>
+                ) : null}
 
-              <div className="relative z-10 flex w-full flex-col items-center gap-1">
                 <div
-                  className={`flex h-10 w-10 items-center justify-center text-slate-500 transition-all duration-300 ${
+                  className={`relative z-10 flex h-7 w-7 items-center justify-center text-slate-500 transition-all duration-300 ${
                     isActive ? 'text-slate-950' : 'group-hover:text-slate-700 group-active:text-slate-700'
                   }`}
                 >
                   <Icon
-                    className={`h-5 w-5 transition-transform duration-300 ${
-                      isActive ? 'scale-105' : 'group-hover:scale-105'
+                    className={`h-[17px] w-[17px] transition-transform duration-300 ${
+                      isActive ? 'scale-[1.03]' : 'group-hover:scale-[1.03]'
                     }`}
                     strokeWidth={isActive ? 2.2 : 2}
                   />
                 </div>
                 <span
-                  className={`text-[11px] leading-none tracking-[0.01em] ${
+                  className={`relative z-10 text-[10px] leading-none tracking-[0.01em] ${
                     isActive ? 'font-semibold text-slate-950' : 'font-medium'
                   }`}
                 >
