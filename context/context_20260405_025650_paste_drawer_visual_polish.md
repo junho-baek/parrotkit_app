@@ -12,6 +12,7 @@
 - `Paste`는 더 이상 독립 `/paste` 페이지를 진실값으로 쓰지 않고, `?sheet=paste` query 기반 overlay로 열리도록 바꿨다.
 - `/paste` 직접 진입은 `/home?sheet=paste`로 307 리다이렉트되며, 새로고침 시에도 홈 위 drawer 상태를 유지한다.
 - drawer hero는 폭을 넓히고 중앙 정렬로 다시 잡아 모바일에서도 두 줄에 가깝게 안정되도록 조정했다.
+- 배포 빌드에서 `useSearchParams()` missing suspense 오류가 발생해 `(tabs)` layout의 `BottomTabBar`, `PasteDrawerHost`를 `React.Suspense`로 감쌌다.
 
 ## 변경 파일
 - `package.json`
@@ -35,8 +36,12 @@
 ## 검증
 - `npx eslint src/components/ui/drawer.tsx src/components/ui/word-rotate.tsx src/app/(tabs)/@overlay/(.)paste/page.tsx src/components/auth/URLInputForm.tsx`
   - 통과
+- `npx eslint src/app/(tabs)/layout.tsx`
+  - 통과
 - `npm run dev`
   - 로컬 서버 정상 실행 확인
+- `npm run build`
+  - 통과
 - headless 브라우저 확인
   - 로그인 후 `/home`에서 Paste drawer 오픈 확인
   - `/home?sheet=paste` 새로고침 후에도 drawer 유지 확인
@@ -47,9 +52,12 @@
     - `redirectedUrl: http://127.0.0.1:3000/home?sheet=paste`
     - `closeVisible: true`
     - `directCloseVisible: true`
-  - 리다이렉트 헤더 확인
+- 리다이렉트 헤더 확인
     - `curl -I http://127.0.0.1:3000/paste`
     - `location: /home?sheet=paste`
+- 빌드 확인
+  - `/(.)paste` prerender 정상 완료
+  - `useSearchParams() should be wrapped in a suspense boundary` 오류 재현되지 않음
 
 ## 메모
 - drawer close 버튼은 시각상 보였지만 scroll subtree가 pointer를 가로막고 있어 `z-20`으로 올려 해결했다.

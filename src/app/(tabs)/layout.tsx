@@ -43,11 +43,15 @@ export default function TabsLayout({
       </div>
 
       {/* Bottom Tab Navigation - Fixed */}
-      <div className="app-shell-bottom-nav">
-        <BottomTabBar />
-      </div>
+      <React.Suspense fallback={<div className="app-shell-bottom-nav" />}>
+        <div className="app-shell-bottom-nav">
+          <BottomTabBar />
+        </div>
+      </React.Suspense>
 
-      <PasteDrawerHost />
+      <React.Suspense fallback={null}>
+        <PasteDrawerHost />
+      </React.Suspense>
     </div>
   );
 }
