@@ -318,7 +318,7 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
 
   const formInner = (
     <div className={cn('space-y-4', isDrawer ? 'pb-1' : 'space-y-5')}>
-      <div className="px-1 pb-1 pt-1">
+      <div className={cn('px-1 pb-1', isDrawer ? 'pt-3' : 'pt-1')}>
         <div className="space-y-3">
           <div className="space-y-1.5 text-center">
             <h2

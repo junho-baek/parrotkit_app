@@ -71,6 +71,7 @@
 - optional accordion 제목은 `Optional Details`에서 `Your Context`로 조정하고, 필드 라벨은 그대로 유지했다.
 - 하단 네비게이션은 `Paste`만 원형 액션 버튼처럼 띄우고, 다른 탭은 플랫하게 낮춰 유튜브식 액션 중심 구조로 정리했다.
 - 마지막 보정으로 하단 바 전체 그림자는 제거하고, `Paste` 원형 버튼의 그림자만 유지해 포커스를 더 분리했다.
+- 추가 보정으로 drawer 우상단 `X` 버튼은 제거하고, 핸들 아래와 hero 상단 여백을 늘려 첫 화면 인상을 더 가볍게 정리했다.
 
 ## 연결 Context
 - `context/context_20260405_025650_paste_drawer_visual_polish.md`
