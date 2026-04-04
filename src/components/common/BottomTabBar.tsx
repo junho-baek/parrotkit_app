@@ -63,7 +63,7 @@ const tabs: Tab[] = [
 
 const BOTTOM_NAV_HEIGHT = 66;
 const BOTTOM_NAV_SAFE_AREA = 'env(safe-area-inset-bottom, 0px)';
-const BOTTOM_NAV_BORDER_WIDTH = 1;
+const BOTTOM_NAV_BORDER_WIDTH = 0.5;
 
 export const BottomTabBar: React.FC = () => {
   const pathname = usePathname();
@@ -162,7 +162,7 @@ export const BottomTabBar: React.FC = () => {
       style={{
         paddingBottom: BOTTOM_NAV_SAFE_AREA,
         minHeight: `calc(${BOTTOM_NAV_HEIGHT}px + ${BOTTOM_NAV_SAFE_AREA})`,
-        borderTop: '1px solid var(--border-bottom-nav)',
+        borderTop: `${BOTTOM_NAV_BORDER_WIDTH}px solid var(--border-bottom-nav)`,
         background: 'var(--surface-bottom-nav)',
       }}
     >
