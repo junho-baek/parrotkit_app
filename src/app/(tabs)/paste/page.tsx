@@ -14,7 +14,7 @@ export default function PastePage() {
   }, []);
 
   return (
-    <div>
+    <div className="mx-auto flex w-full max-w-[500px] flex-col justify-start">
       <URLInputForm />
     </div>
   );
