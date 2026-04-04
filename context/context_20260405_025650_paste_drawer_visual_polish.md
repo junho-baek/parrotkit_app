@@ -7,6 +7,7 @@
 - drawer에서는 optional 필드를 접도록 바꿔 첫 화면에서 제목, URL, optional toggle, CTA가 더 빨리 보이게 했다.
 - close 버튼은 z-index를 올려 실제 pointer가 가로막히던 문제를 정리했다.
 - hero 내부의 작은 badge는 제거했고, 좌우로 퍼지던 gradient를 상단 중앙의 반달형 하이라이트로 바꿨다.
+- 마지막 보정으로 hero 내부 surface를 없애고, 빛 번짐을 drawer/page 바깥 컨테이너로 올려 내부에 또 다른 카드가 있는 느낌을 줄였다.
 
 ## 변경 파일
 - `package.json`

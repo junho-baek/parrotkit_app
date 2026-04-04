@@ -46,6 +46,7 @@
 - 기본 drawer handle은 숨기고 커스텀 핸들을 내부 상단에 넣었다.
 - drawer에서는 optional 필드를 접을 수 있게 해 첫 화면에서 CTA 접근성을 높였다.
 - 이후 보정으로 hero badge를 제거했고, 좌우 그라데이션을 상단 중앙 반달형 하이라이트로 수정했다.
+- 최종 보정으로 hero 자체의 내부 surface를 제거하고, drawer 안에 또 다른 박스가 있는 듯한 인상을 줄였다.
 
 ## 연결 Context
 - `context/context_20260405_025650_paste_drawer_visual_polish.md`

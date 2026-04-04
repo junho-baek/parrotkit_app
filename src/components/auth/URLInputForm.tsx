@@ -318,17 +318,8 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
 
   const formInner = (
     <div className={cn('space-y-4', isDrawer ? 'pb-1' : 'space-y-5')}>
-      <div className="relative overflow-hidden px-1 pb-2 pt-1">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-[-0.75rem] top-0 h-32 bg-[radial-gradient(78%_62%_at_50%_0%,rgba(206,229,255,0.72)_0%,rgba(237,225,255,0.46)_42%,rgba(255,255,255,0)_78%)]"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-slate-200/70 to-transparent"
-        />
-
-        <div className="relative space-y-3">
+      <div className="px-1 pb-1 pt-1">
+        <div className="space-y-3">
           <div className={cn('space-y-2', isDrawer ? 'text-left' : 'text-center')}>
             <h2
               className={cn(
@@ -451,8 +442,16 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
   }
 
   return (
-    <Card className="w-full rounded-[2rem] border border-slate-100 bg-white p-4 shadow-[0_24px_60px_rgb(15_23_42_/_0.06)] sm:p-6">
-      {formInner}
+    <Card className="relative w-full overflow-hidden rounded-[2rem] border border-slate-100 bg-white p-4 shadow-[0_24px_60px_rgb(15_23_42_/_0.06)] sm:p-6">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-[-0.5rem] top-0 h-32 bg-[radial-gradient(76%_70%_at_50%_0%,rgba(212,232,255,0.68)_0%,rgba(238,229,255,0.42)_44%,rgba(255,255,255,0)_80%)]"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-slate-200/75 to-transparent"
+      />
+      <div className="relative z-10">{formInner}</div>
     </Card>
   );
 };
