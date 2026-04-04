@@ -164,7 +164,6 @@ export const BottomTabBar: React.FC = () => {
         minHeight: `calc(${BOTTOM_NAV_HEIGHT}px + ${BOTTOM_NAV_SAFE_AREA})`,
         borderTop: '1px solid var(--border-bottom-nav)',
         background: 'var(--surface-bottom-nav)',
-        boxShadow: 'var(--shadow-bottom-nav)',
       }}
     >
       <div
