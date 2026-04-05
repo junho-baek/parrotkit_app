@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, ChevronDown } from 'lucide-react';
+import { ArrowRight, ChevronDown, FileText } from 'lucide-react';
 import { Card, LoadingScreen } from '@/components/common';
 import { authenticatedFetch, ensureValidAccessToken } from '@/lib/auth/client-session';
 import { logClientEvent } from '@/lib/client-events';
@@ -49,12 +49,14 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
   const [niche, setNiche] = useState('');
   const [goal, setGoal] = useState('');
   const [describe, setDescribe] = useState('');
+  const [brandContextPdf, setBrandContextPdf] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [showOptionalDetails, setShowOptionalDetails] = useState(variant !== 'drawer');
 
   const titleRef = useRef<HTMLInputElement>(null);
   const urlRef = useRef<HTMLInputElement>(null);
+  const brandPdfRef = useRef<HTMLInputElement>(null);
 
   const isDrawer = variant === 'drawer';
 
@@ -178,14 +180,34 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
         return;
       }
 
+      const analyzePayload = new FormData();
+      analyzePayload.append('title', title.trim());
+      analyzePayload.append('url', url);
+      analyzePayload.append('niche', niche);
+      analyzePayload.append('goal', goal);
+      analyzePayload.append('description', describe);
+      if (brandContextPdf) {
+        analyzePayload.append('brandContextPdf', brandContextPdf);
+      }
+
       const response = await fetch('/api/analyze', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title.trim(), url, niche, goal, description: describe }),
+        body: analyzePayload,
       });
 
       if (!response.ok) {
-        throw new Error('Failed to analyze video');
+        let errorMessage = '비디오 분석에 실패했습니다. 링크를 확인하고 다시 시도해 주세요.';
+
+        try {
+          const errorData = await response.json();
+          if (typeof errorData?.error === 'string' && errorData.error.trim()) {
+            errorMessage = errorData.error.trim();
+          }
+        } catch {
+          // Ignore JSON parse failures and use the default message.
+        }
+
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -214,8 +236,12 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
             transcriptSource: data?.metadata?.transcriptSource || 'none',
             transcriptLanguage: data?.metadata?.transcriptLanguage || null,
             sourceMetadata: data?.metadata?.sourceMetadata || {},
-            analysisMetadata: data?.metadata || {},
+            analysisMetadata: {
+              ...(data?.metadata || {}),
+              ...(data?.brandBrief ? { brandBrief: data.brandBrief } : {}),
+            },
             scriptSource: data?.metadata?.scriptSource || 'default',
+            brandBrief: data?.brandBrief || null,
           }),
         });
 
@@ -240,6 +266,11 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
           recipeId,
           metadata: data.metadata || {},
           transcript: data.transcript || [],
+          brandBrief: data.brandBrief || null,
+          analysisMetadata: {
+            ...(data.metadata || {}),
+            ...(data.brandBrief ? { brandBrief: data.brandBrief } : {}),
+          },
         })
       );
 
@@ -247,7 +278,7 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
     } catch (error) {
       console.error('URL submit error:', error);
       setErrors({
-        url: '비디오 분석에 실패했습니다. 링크를 확인하고 다시 시도해 주세요.',
+        url: error instanceof Error ? error.message : '비디오 분석에 실패했습니다. 링크를 확인하고 다시 시도해 주세요.',
       });
       focusField('url');
     } finally {
@@ -312,6 +343,49 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
           disabled={loading}
           autoComplete="off"
         />
+      </div>
+
+      <div className={fieldSpaceClassName}>
+        <div className="flex items-center justify-between gap-3">
+          <label className={labelClassName}>Brand Context PDF</label>
+          <span className="text-[11px] font-semibold text-slate-400">
+            {brandContextPdf ? 'Attached' : 'Optional'}
+          </span>
+        </div>
+        <input
+          ref={brandPdfRef}
+          type="file"
+          accept="application/pdf,.pdf"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0] || null;
+            setBrandContextPdf(file);
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => brandPdfRef.current?.click()}
+          className="flex w-full items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-white/90 px-4 py-3 text-left transition-colors duration-200 hover:border-fuchsia-300 hover:bg-fuchsia-50/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-fuchsia-100/90"
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
+              <FileText className="h-4 w-4" aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-slate-900">
+                {brandContextPdf ? brandContextPdf.name : 'Upload guideline PDF, brief, or product sheet'}
+              </p>
+              <p className="truncate text-xs text-slate-500">
+                {brandContextPdf
+                  ? 'We will extract a structured brand brief for the recipe.'
+                  : 'Optional brand context used to shape cut-by-cut recommendations.'}
+              </p>
+            </div>
+          </div>
+          <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+            {brandContextPdf ? 'Replace' : 'Add PDF'}
+          </span>
+        </button>
       </div>
     </>
   );

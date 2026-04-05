@@ -22,37 +22,22 @@ import {
   saveOnboardingProfileExtras,
 } from '@/lib/onboarding-profile';
 import { PASTE_DRAWER_HOME_HREF } from '@/lib/paste-drawer';
+import { normalizeBrandBrief, normalizeRecipeScenes } from '@/lib/recipe-scene';
+import type { BrandBrief, RecipeScene, RecipeViewData } from '@/types/recipe';
 import { CreatorProfileFields } from './CreatorProfileFields';
-
-type RecipeScene = {
-  id: number;
-  title: string;
-  startTime: string;
-  endTime: string;
-  thumbnail: string;
-  description: string;
-  script?: string[];
-  progress?: number;
-};
 
 type RecipeApiItem = {
   id: string;
   title?: string | null;
   video_url: string;
   scenes: RecipeScene[];
+  brandBrief?: BrandBrief | null;
+  analysis_metadata?: Record<string, unknown> | null;
   captured_scene_ids?: number[] | null;
   match_results?: Record<string, boolean> | null;
   total_scenes?: number | null;
   captured_count?: number | null;
   created_at?: string | null;
-};
-
-type RecipeViewData = {
-  scenes: RecipeScene[];
-  videoUrl: string;
-  capturedVideos: Record<number, boolean>;
-  matchResults: Record<string, boolean>;
-  recipeId: string;
 };
 
 type RecentReference = {
@@ -98,11 +83,15 @@ function parseRecipeDataFromSession(raw: string): RecipeViewData | null {
     }
 
     return {
-      scenes: parsed.scenes,
+      scenes: normalizeRecipeScenes(parsed.scenes, normalizeBrandBrief(parsed.brandBrief)),
       videoUrl: parsed.videoUrl,
       capturedVideos: parsed.capturedVideos || {},
       matchResults: parsed.matchResults || {},
       recipeId: parsed.recipeId || '',
+      metadata: parsed.metadata || {},
+      transcript: parsed.transcript || [],
+      brandBrief: normalizeBrandBrief(parsed.brandBrief),
+      analysisMetadata: parsed.analysisMetadata || {},
     };
   } catch {
     return null;
@@ -166,14 +155,16 @@ export const Home: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [recipeData, setRecipeData] = React.useState<RecipeViewData | null>(null);
   const [playingVideo, setPlayingVideo] = React.useState<string | null>(null);
-  const shouldUseRecipeFullscreen = Boolean(recipeData) || searchParams?.get('view') === 'recipe';
+  const recipeViewMode = searchParams?.get('view') || null;
+  const recipeIdParam = searchParams?.get('recipeId') || null;
+  const shouldUseRecipeFullscreen = Boolean(recipeData) || recipeViewMode === 'recipe';
 
   // Check for recipe view
   React.useEffect(() => {
     const loadRecipeData = async () => {
       try {
-        const viewMode = searchParams?.get('view');
-        if (viewMode !== 'recipe') {
+        if (recipeViewMode !== 'recipe') {
+          setRecipeData(null);
           return;
         }
 
@@ -186,13 +177,12 @@ export const Home: React.FC = () => {
           }
         }
 
-        const recipeId = searchParams?.get('recipeId');
         const token = await ensureValidAccessToken();
-        if (!recipeId || !token) {
+        if (!recipeIdParam || !token) {
           return;
         }
 
-        const response = await authenticatedFetch(`/api/recipes/${recipeId}`);
+        const response = await authenticatedFetch(`/api/recipes/${recipeIdParam}`);
 
         if (!response.ok) {
           return;
@@ -205,11 +195,16 @@ export const Home: React.FC = () => {
         }
 
         const hydrated: RecipeViewData = {
-          scenes: recipe.scenes,
+          scenes: normalizeRecipeScenes(
+            recipe.scenes,
+            normalizeBrandBrief(recipe.brandBrief || recipe.analysis_metadata?.brandBrief)
+          ),
           videoUrl: recipe.video_url,
           capturedVideos: buildCapturedMap(recipe.captured_scene_ids),
           matchResults: recipe.match_results || {},
           recipeId: recipe.id,
+          brandBrief: normalizeBrandBrief(recipe.brandBrief || recipe.analysis_metadata?.brandBrief),
+          analysisMetadata: recipe.analysis_metadata || {},
         };
 
         setRecipeData(hydrated);
@@ -220,7 +215,7 @@ export const Home: React.FC = () => {
     };
 
     void loadRecipeData();
-  }, [searchParams]);
+  }, [recipeIdParam, recipeViewMode]);
 
   React.useEffect(() => {
     const fetchRecentReferences = async () => {
@@ -285,6 +280,8 @@ export const Home: React.FC = () => {
           recipeId={recipeData.recipeId}
           initialCapturedVideos={recipeData.capturedVideos}
           initialMatchResults={recipeData.matchResults}
+          brandBrief={recipeData.brandBrief || null}
+          analysisMetadata={recipeData.analysisMetadata || recipeData.metadata}
         />
       </div>
     );
@@ -521,11 +518,16 @@ export const Recipes: React.FC = () => {
 
     // Save recipe data to sessionStorage for viewing
     sessionStorage.setItem('recipeData', JSON.stringify({
-      scenes: recipe.scenes,
+      scenes: normalizeRecipeScenes(
+        recipe.scenes,
+        normalizeBrandBrief(recipe.brandBrief || recipe.analysis_metadata?.brandBrief)
+      ),
       videoUrl: recipe.video_url,
       capturedVideos: buildCapturedMap(recipe.captured_scene_ids),
       matchResults: recipe.match_results || {},
       recipeId: recipe.id,
+      brandBrief: normalizeBrandBrief(recipe.brandBrief || recipe.analysis_metadata?.brandBrief),
+      analysisMetadata: recipe.analysis_metadata || {},
     }));
 
     void logClientEvent('recipe_reopened', { recipe_id: recipe.id });

@@ -1,29 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuthenticatedUser } from '@/lib/auth/server-auth';
 import { createSupabaseAdminClient } from '@/lib/supabase/server';
+import { normalizeBrandBrief, normalizeRecipeScenes } from '@/lib/recipe-scene';
 
-function parseScenes(raw: unknown) {
-  if (!Array.isArray(raw)) {
-    return [];
-  }
-
-  return raw.map((scene, index) => {
-    const item = typeof scene === 'object' && scene !== null
-      ? (scene as Record<string, unknown>)
-      : {};
-
-    return {
-      id: Number(item.id ?? index + 1),
-      title: String(item.title ?? `Scene ${index + 1}`),
-      startTime: String(item.startTime ?? '00:00'),
-      endTime: String(item.endTime ?? '00:05'),
-      thumbnail: String(item.thumbnail ?? ''),
-      description: String(item.description ?? ''),
-      script: Array.isArray(item.script) ? item.script.map((s) => String(s)) : [],
-      progress: Number(item.progress ?? 0),
-      transcriptSnippet: item.transcriptSnippet == null ? null : String(item.transcriptSnippet),
-    };
-  });
+function parseScenes(raw: unknown, brandBrief = normalizeBrandBrief(null)) {
+  return normalizeRecipeScenes(raw, brandBrief);
 }
 
 const RECIPE_BASE_SELECT =
@@ -80,8 +61,14 @@ export async function GET(request: NextRequest) {
     const recipes = ((data as Array<Record<string, unknown>> | null) || []).map((item) => {
       const { reference, ...recipe } = item;
       const referenceRecord = Array.isArray(reference) ? reference[0] : reference;
+      const brandBrief = normalizeBrandBrief(
+        (recipe.analysis_metadata as Record<string, unknown> | null)?.brandBrief
+          || (referenceRecord?.source_metadata as Record<string, unknown> | null)?.brandBrief
+      );
       return {
         ...recipe,
+        scenes: parseScenes(recipe.scenes, brandBrief),
+        brandBrief,
         title: referenceRecord?.description || null,
       };
     });
@@ -104,7 +91,8 @@ export async function POST(request: NextRequest) {
     const title = String(body.title || '').trim();
 
     const videoUrl = String(body.videoUrl || body.url || '').trim();
-    const scenes = parseScenes(body.scenes);
+    const brandBrief = normalizeBrandBrief(body.brandBrief);
+    const scenes = parseScenes(body.scenes, brandBrief);
 
     if (!title) {
       return NextResponse.json({ error: 'title is required' }, { status: 400 });
@@ -131,7 +119,10 @@ export async function POST(request: NextRequest) {
       transcript: Array.isArray(body.transcript) ? body.transcript : [],
       transcript_source: body.transcriptSource || 'none',
       transcript_language: body.transcriptLanguage || null,
-      source_metadata: body.sourceMetadata && typeof body.sourceMetadata === 'object' ? body.sourceMetadata : {},
+      source_metadata: {
+        ...(body.sourceMetadata && typeof body.sourceMetadata === 'object' ? body.sourceMetadata : {}),
+        ...(brandBrief ? { brandBrief } : {}),
+      },
     };
 
     let reference;
@@ -187,7 +178,10 @@ export async function POST(request: NextRequest) {
           captured_scene_ids: [],
           match_results: {},
           captured_count: 0,
-          analysis_metadata: body.analysisMetadata && typeof body.analysisMetadata === 'object' ? body.analysisMetadata : {},
+          analysis_metadata: {
+            ...(body.analysisMetadata && typeof body.analysisMetadata === 'object' ? body.analysisMetadata : {}),
+            ...(brandBrief ? { brandBrief } : {}),
+          },
           script_source: body.scriptSource || 'default',
         })
         .select('*')

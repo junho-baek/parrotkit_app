@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import JSZip from 'jszip';
 import { useRouter } from 'next/navigation';
 import { CameraShooting } from './CameraShooting';
@@ -9,85 +9,123 @@ import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button
 import { Spinner } from '@/components/ui/spinner';
 import { authenticatedFetch, ensureValidAccessToken } from '@/lib/auth/client-session';
 import { logClientEvent } from '@/lib/client-events';
+import { buildPersistableScenes, getSceneCardSummary, getSceneScriptLines, normalizeBrandBrief, normalizeRecipeScenes } from '@/lib/recipe-scene';
+import type { BrandBrief, PrompterBlock, RecipeScene } from '@/types/recipe';
 
+type DetailTab = 'analysis' | 'recipe' | 'prompter';
 type ChatRole = 'user' | 'assistant';
+type AssistantMode = 'global' | 'scene';
 
-interface RecipeScene {
-  id: number;
-  title: string;
-  startTime: string;
-  endTime: string;
-  thumbnail: string;
-  description: string;
-  script?: string[];
-  progress?: number;
-}
+type SceneUpdate = {
+  keyLine?: string;
+  scriptLines?: string[];
+  keyMood?: string;
+  keyAction?: string;
+  mustInclude?: string[];
+  mustAvoid?: string[];
+  prompterBlocks?: Array<Partial<PrompterBlock> & { id?: string; type?: string }>;
+};
+
+type ChatMessage = {
+  role: ChatRole;
+  content: string;
+  sceneUpdate?: SceneUpdate | null;
+};
 
 interface RecipeResultProps {
   scenes: RecipeScene[];
   videoUrl: string;
   onBack?: () => void;
-  recipeId?: string; // 레시피 ID 추가
-  initialCapturedVideos?: {[key: number]: boolean}; // 초기 촬영 데이터
-  initialMatchResults?: {[key: number]: boolean}; // 초기 매칭 결과
+  recipeId?: string;
+  initialCapturedVideos?: { [key: number]: boolean };
+  initialMatchResults?: { [key: number]: boolean };
+  brandBrief?: BrandBrief | null;
+  analysisMetadata?: Record<string, unknown>;
 }
 
-type ChatMessage = {
-  role: ChatRole;
-  content: string;
-};
+function mergePrompterBlocks(existingBlocks: PrompterBlock[], updates: SceneUpdate['prompterBlocks']) {
+  if (!updates || updates.length === 0) {
+    return existingBlocks;
+  }
 
-type AssistantMode = 'global' | 'scene';
+  const nextBlocks = [...existingBlocks];
 
-export const RecipeResult: React.FC<RecipeResultProps> = ({ 
-  scenes, 
-  videoUrl, 
+  for (const update of updates) {
+    const targetIndex = nextBlocks.findIndex((block) =>
+      (update.id && block.id === update.id) || (update.type && block.type === update.type)
+    );
+
+    if (targetIndex >= 0) {
+      nextBlocks[targetIndex] = {
+        ...nextBlocks[targetIndex],
+        ...(update.id ? { id: update.id } : {}),
+        ...(update.type ? { type: update.type as PrompterBlock['type'] } : {}),
+        ...(typeof update.content === 'string' ? { content: update.content } : {}),
+        ...(typeof update.visible === 'boolean' ? { visible: update.visible } : {}),
+        ...(update.size ? { size: update.size } : {}),
+        ...(update.positionPreset ? { positionPreset: update.positionPreset } : {}),
+        ...(typeof update.order === 'number' ? { order: update.order } : {}),
+      };
+    }
+  }
+
+  return nextBlocks.sort((left, right) => left.order - right.order);
+}
+
+export const RecipeResult: React.FC<RecipeResultProps> = ({
+  scenes,
+  videoUrl,
   onBack,
   recipeId,
   initialCapturedVideos = {},
   initialMatchResults = {},
+  brandBrief = null,
+  analysisMetadata,
 }) => {
   const router = useRouter();
-  const brandActionStyle: React.CSSProperties = {
-    backgroundImage: 'linear-gradient(135deg, #ff9568 0%, #de81c1 52%, #8c67ff 100%)',
-    boxShadow: '0 10px 20px rgba(140, 103, 255, 0.2)',
-  };
-  const [recipeScenes, setRecipeScenes] = useState<RecipeScene[]>(scenes);
+  const resolvedBrandBrief = React.useMemo(
+    () => normalizeBrandBrief(brandBrief || analysisMetadata?.brandBrief) || null,
+    [analysisMetadata, brandBrief]
+  );
+  const normalizedIncomingScenes = React.useMemo(
+    () => normalizeRecipeScenes(scenes, resolvedBrandBrief),
+    [resolvedBrandBrief, scenes]
+  );
+  const [recipeScenes, setRecipeScenes] = useState<RecipeScene[]>(normalizedIncomingScenes);
   const [selectedSceneId, setSelectedSceneId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<'recipe' | 'shooting'>('recipe');
-  const [capturedVideos, setCapturedVideos] = useState<{[key: number]: Blob}>({});
+  const [activeTab, setActiveTab] = useState<DetailTab>('analysis');
+  const [capturedVideos, setCapturedVideos] = useState<{ [key: number]: Blob }>({});
   const [isExporting, setIsExporting] = useState(false);
   const [isExported, setIsExported] = useState(false);
-  const [capturedScenes, setCapturedScenes] = useState<{[key: number]: boolean}>(initialCapturedVideos);
-  const [uploadingScenes, setUploadingScenes] = useState<{[key: number]: boolean}>({});
-  const [uploadErrors, setUploadErrors] = useState<{[key: number]: string}>({});
-  const [scriptSaveError, setScriptSaveError] = useState<string | null>(null);
+  const [capturedScenes, setCapturedScenes] = useState<{ [key: number]: boolean }>(initialCapturedVideos);
+  const [uploadingScenes, setUploadingScenes] = useState<{ [key: number]: boolean }>({});
+  const [uploadErrors, setUploadErrors] = useState<{ [key: number]: string }>({});
+  const [sceneSaveError, setSceneSaveError] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessage, setChatMessage] = useState('');
   const [assistantMode, setAssistantMode] = useState<AssistantMode>('global');
   const [globalChatHistory, setGlobalChatHistory] = useState<ChatMessage[]>([]);
   const [sceneChatHistory, setSceneChatHistory] = useState<Record<number, ChatMessage[]>>({});
   const [chatLoading, setChatLoading] = useState(false);
-  const [applyingScriptMessageIndex, setApplyingScriptMessageIndex] = useState<number | null>(null);
-  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const [applyingUpdateMessageIndex, setApplyingUpdateMessageIndex] = useState<number | null>(null);
   const [sheetHeight, setSheetHeight] = useState(50);
-  const [scriptOpen, setScriptOpen] = useState(false);
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
-  const capturedScenesRef = useRef<{[key: number]: boolean}>(initialCapturedVideos);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const capturedScenesRef = useRef<{ [key: number]: boolean }>(initialCapturedVideos);
 
   React.useEffect(() => {
-    setRecipeScenes(scenes);
-  }, [scenes]);
+    setRecipeScenes(normalizedIncomingScenes);
+  }, [normalizedIncomingScenes]);
 
   React.useEffect(() => {
     setSelectedSceneId(null);
+    setActiveTab('analysis');
     setAssistantMode('global');
     setGlobalChatHistory([]);
     setSceneChatHistory({});
     setChatOpen(false);
     setChatMessage('');
-    setScriptOpen(false);
-    setScriptSaveError(null);
+    setSceneSaveError(null);
   }, [recipeId, videoUrl, scenes]);
 
   const selectedScene = React.useMemo(
@@ -98,6 +136,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     () => recipeScenes.findIndex((scene) => scene.id === selectedSceneId),
     [recipeScenes, selectedSceneId]
   );
+
   const localCapturedSceneIds = React.useMemo(
     () =>
       Object.keys(capturedVideos)
@@ -105,6 +144,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
         .filter((sceneId) => Number.isFinite(sceneId)),
     [capturedVideos]
   );
+
   const exportableSceneIds = React.useMemo(() => {
     const uniqueSceneIds = new Set<number>(localCapturedSceneIds);
     Object.keys(capturedScenes).forEach((sceneId) => {
@@ -113,6 +153,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
     return Array.from(uniqueSceneIds).filter(Number.isFinite).sort((left, right) => left - right);
   }, [capturedScenes, localCapturedSceneIds]);
+
   const exportableCaptureCount = exportableSceneIds.length;
   const localOnlyCaptureCount = React.useMemo(
     () => localCapturedSceneIds.filter((sceneId) => !capturedScenes[sceneId]).length,
@@ -121,59 +162,21 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const uploadingCount = Object.keys(uploadingScenes).length;
   const hasLocalOnlyCaptures = localOnlyCaptureCount > 0;
 
-  const defaultScripts: {[key: number]: string[]} = {
-    1: [
-      'Most people still don\'t know this... you NEED to hear this',
-      '(Look at the camera with confidence)',
-      'Slightly surprised expression + spark curiosity',
-    ],
-    2: [
-      'Hey everyone, today I\'m sharing a tip you absolutely need to know',
-      '(Start with a natural greeting)',
-      'Relaxed, friendly tone',
-    ],
-    3: [
-      'I was skeptical at first, but after trying it myself, it actually works',
-      '(Share your experience honestly)',
-      'Relatable expression + nodding',
-    ],
-    4: [
-      'Okay, here\'s the key part. Just follow this and you\'re set',
-      '(Emphasize the main point clearly)',
-      'Point with finger or gesture at screen',
-    ],
-    5: [
-      'And that\'s it! Easier than you thought, right?',
-      '(Wrap up with an upbeat tone)',
-      'Satisfied expression, nod and smile',
-    ],
-    6: [
-      'If this helped, hit like and follow!',
-      'More great tips coming soon!',
-      '(Wave and give a closing smile)',
-    ],
-  };
-
-  const getScriptForScene = (scene: RecipeScene): string[] => {
-    const currentScene = recipeScenes.find((item) => item.id === scene.id) || scene;
-    if (currentScene.script && currentScene.script.length > 0) return currentScene.script;
-    return defaultScripts[scene.id] || [scene.description];
-  };
-
-  const getSceneAssistantIntro = (scene: RecipeScene): ChatMessage => ({
+  const getSceneAssistantIntro = React.useCallback((scene: RecipeScene): ChatMessage => ({
     role: 'assistant',
-    content: `Hi! I'm editing the script for #${scene.id}: ${scene.title}. Ask me to rewrite, shorten, or change the tone while keeping the recipe flow natural.`,
-  });
+    content: `Hi! I'm refining #${scene.id}: ${scene.title}. Ask me to sharpen the key line, tighten the script, change the mood, or adjust what appears in the prompter.`,
+  }), []);
 
   const globalAssistantIntro = React.useMemo<ChatMessage>(() => ({
     role: 'assistant',
-    content: "Hi! I'm your Script Assistant. I can help with the whole recipe flow, transitions, hooks, and scene-by-scene rewrites.",
+    content: "Hi! I'm your Recipe Assistant. I can help with overall recipe flow, stronger hooks, better cut-by-cut pacing, and creator-friendly scene planning.",
   }), []);
 
   const activeChatHistory = React.useMemo(() => {
     if (assistantMode === 'scene' && selectedScene) {
       return sceneChatHistory[selectedScene.id] || [];
     }
+
     return globalChatHistory;
   }, [assistantMode, globalChatHistory, sceneChatHistory, selectedScene]);
 
@@ -184,27 +187,20 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     }
 
     return globalChatHistory.length > 0 ? globalChatHistory : [globalAssistantIntro];
-  }, [assistantMode, globalAssistantIntro, globalChatHistory, sceneChatHistory, selectedScene]);
-
-  const parseScriptLines = (text: string): string[] | null => {
-    const lines = text.split('\n');
-    const numbered: string[] = [];
-    for (const line of lines) {
-      const match = line.match(/^\s*(\d+)\.\s+(.+)/);
-      if (match) {
-        numbered.push(match[2].trim());
-      }
-    }
-    return numbered.length >= 2 ? numbered : null;
-  };
+  }, [assistantMode, getSceneAssistantIntro, globalAssistantIntro, globalChatHistory, sceneChatHistory, selectedScene]);
 
   const buildRecipeSessionData = React.useCallback((nextScenes: RecipeScene[]) => ({
-    scenes: nextScenes,
+    scenes: buildPersistableScenes(nextScenes),
     videoUrl,
     capturedVideos: capturedScenesRef.current,
     matchResults: initialMatchResults,
     recipeId: recipeId || '',
-  }), [initialMatchResults, recipeId, videoUrl]);
+    brandBrief: resolvedBrandBrief,
+    analysisMetadata: {
+      ...(analysisMetadata || {}),
+      ...(resolvedBrandBrief ? { brandBrief: resolvedBrandBrief } : {}),
+    },
+  }), [analysisMetadata, initialMatchResults, recipeId, resolvedBrandBrief, videoUrl]);
 
   const syncRecipeSessionStorage = React.useCallback((nextScenes: RecipeScene[]) => {
     if (typeof window === 'undefined') {
@@ -214,7 +210,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     sessionStorage.setItem('recipeData', JSON.stringify(buildRecipeSessionData(nextScenes)));
   }, [buildRecipeSessionData]);
 
-  const persistSceneScripts = React.useCallback(async (nextScenes: RecipeScene[]) => {
+  const persistRecipeScenes = React.useCallback(async (nextScenes: RecipeScene[]) => {
     if (!recipeId) {
       syncRecipeSessionStorage(nextScenes);
       return true;
@@ -222,7 +218,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
     const token = await ensureValidAccessToken();
     if (!token) {
-      setScriptSaveError('Login required to save this script.');
+      setSceneSaveError('Login required to save this recipe.');
       return false;
     }
 
@@ -232,19 +228,23 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        scenes: nextScenes,
+        scenes: buildPersistableScenes(nextScenes),
+        analysisMetadata: {
+          ...(analysisMetadata || {}),
+          ...(resolvedBrandBrief ? { brandBrief: resolvedBrandBrief } : {}),
+        },
       }),
     });
 
     if (!response.ok) {
-      setScriptSaveError('Could not save the script yet. Your local change is still visible.');
+      setSceneSaveError('Could not save the recipe yet. Your local change is still visible.');
       return false;
     }
 
     syncRecipeSessionStorage(nextScenes);
-    setScriptSaveError(null);
+    setSceneSaveError(null);
     return true;
-  }, [recipeId, syncRecipeSessionStorage]);
+  }, [analysisMetadata, recipeId, resolvedBrandBrief, syncRecipeSessionStorage]);
 
   const setActiveThread = React.useCallback((messages: ChatMessage[]) => {
     if (assistantMode === 'scene' && selectedScene) {
@@ -264,99 +264,115 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   }, []);
 
   const openChatAssistant = (mode?: AssistantMode) => {
-    setScriptOpen(false);
     setAssistantMode(mode || (selectedScene ? 'scene' : 'global'));
     setChatOpen(true);
   };
 
-  const handleScriptOpenChange = (open: boolean) => {
-    setScriptOpen(open);
-    if (open) {
-      closeChatAssistant();
+  const applySceneUpdate = async (sceneUpdate: SceneUpdate, messageIndex: number) => {
+    if (!selectedScene || assistantMode !== 'scene') {
+      return;
     }
-  };
 
-  const applyScript = async (messageContent: string, messageIndex: number) => {
-    if (!selectedScene || assistantMode !== 'scene') return;
-    setApplyingScriptMessageIndex(messageIndex);
-    await new Promise((resolve) => setTimeout(resolve, 900));
-    const lines = parseScriptLines(messageContent);
-    if (lines) {
-      const nextScenes = recipeScenes.map((scene) =>
-        scene.id === selectedScene.id
-          ? {
-              ...scene,
-              script: lines,
-            }
-          : scene
-      );
-      setRecipeScenes(nextScenes);
-      setScriptSaveError(null);
-      setScriptOpen(true);
-      closeChatAssistant();
-      void persistSceneScripts(nextScenes);
-    }
-    setApplyingScriptMessageIndex(null);
+    setApplyingUpdateMessageIndex(messageIndex);
+    await new Promise((resolve) => setTimeout(resolve, 700));
+
+    const nextScenes = recipeScenes.map((scene) => {
+      if (scene.id !== selectedScene.id) {
+        return scene;
+      }
+
+      const nextScene: RecipeScene = {
+        ...scene,
+        recipe: {
+          ...scene.recipe,
+          ...(sceneUpdate.keyLine ? { keyLine: sceneUpdate.keyLine } : {}),
+          ...(sceneUpdate.scriptLines && sceneUpdate.scriptLines.length > 0 ? { scriptLines: sceneUpdate.scriptLines } : {}),
+          ...(sceneUpdate.keyMood ? { keyMood: sceneUpdate.keyMood } : {}),
+          ...(sceneUpdate.keyAction ? { keyAction: sceneUpdate.keyAction } : {}),
+          ...(sceneUpdate.mustInclude ? { mustInclude: sceneUpdate.mustInclude } : {}),
+          ...(sceneUpdate.mustAvoid ? { mustAvoid: sceneUpdate.mustAvoid } : {}),
+        },
+      };
+
+      nextScene.script = nextScene.recipe.scriptLines;
+      nextScene.description = nextScene.analysis.motionDescription || nextScene.recipe.appealPoint || nextScene.recipe.keyLine;
+      nextScene.prompter = {
+        blocks: mergePrompterBlocks(nextScene.prompter.blocks, sceneUpdate.prompterBlocks),
+      };
+
+      return nextScene;
+    });
+
+    setRecipeScenes(nextScenes);
+    setSceneSaveError(null);
+    closeChatAssistant();
+    void persistRecipeScenes(nextScenes);
+    setApplyingUpdateMessageIndex(null);
   };
 
   const sendChatMessage = async () => {
-    if (!chatMessage.trim() || chatLoading) return;
+    if (!chatMessage.trim() || chatLoading) {
+      return;
+    }
+
     const userMsg = chatMessage.trim();
     setChatMessage('');
     const newHistory = [...activeChatHistory, { role: 'user' as const, content: userMsg }];
     setActiveThread(newHistory);
     setChatLoading(true);
 
-    setTimeout(() => chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: 'smooth' }), 50);
+    setTimeout(() => {
+      chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: 'smooth' });
+    }, 50);
 
-    const currentScript = selectedScene ? getScriptForScene(selectedScene) : [];
     const payload = {
       messages: newHistory,
       mode: assistantMode,
-      allScenes: recipeScenes.map(s => ({
-        id: s.id,
-        title: s.title,
-        startTime: s.startTime,
-        endTime: s.endTime,
-        description: s.description,
-        script: getScriptForScene(s),
-      })),
-      targetScene: selectedScene ? {
-        id: selectedScene.id,
-        title: selectedScene.title,
-        description: selectedScene.description,
-        script: currentScript,
-      } : null,
+      allScenes: recipeScenes,
+      targetScene: selectedScene,
     };
 
     try {
-      const res = await fetch('/api/chat', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+
+      const data = await response.json();
       if (data.message) {
-        setActiveThread([...newHistory, { role: 'assistant', content: data.message }]);
+        setActiveThread([
+          ...newHistory,
+          {
+            role: 'assistant',
+            content: data.message,
+            sceneUpdate: data.sceneUpdate || null,
+          },
+        ]);
       } else {
-        setActiveThread([...newHistory, { role: 'assistant', content: 'Error: ' + (data.error || 'Failed to get response') }]);
+        setActiveThread([...newHistory, { role: 'assistant', content: `Error: ${data.error || 'Failed to get response'}` }]);
       }
     } catch {
       setActiveThread([...newHistory, { role: 'assistant', content: 'Network error. Please try again.' }]);
     } finally {
       setChatLoading(false);
-      setTimeout(() => chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: 'smooth' }), 50);
+      setTimeout(() => {
+        chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: 'smooth' });
+      }, 50);
     }
   };
 
-  const handleDragStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+  const handleDragStart = useCallback((event: React.TouchEvent | React.MouseEvent) => {
+    const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY;
     dragRef.current = { startY: clientY, startHeight: sheetHeight };
   }, [sheetHeight]);
 
-  const handleDragMove = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    if (!dragRef.current) return;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+  const handleDragMove = useCallback((event: React.TouchEvent | React.MouseEvent) => {
+    if (!dragRef.current) {
+      return;
+    }
+
+    const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY;
     const deltaY = dragRef.current.startY - clientY;
     const deltaPercent = (deltaY / window.innerHeight) * 100;
     const newHeight = Math.min(90, Math.max(20, dragRef.current.startHeight + deltaPercent));
@@ -364,20 +380,22 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   }, []);
 
   const handleDragEnd = useCallback(() => {
-    if (!dragRef.current) return;
-    // Snap to close if dragged below 15%
+    if (!dragRef.current) {
+      return;
+    }
+
     if (sheetHeight < 15) {
       setChatOpen(false);
       setSheetHeight(50);
     }
+
     dragRef.current = null;
   }, [sheetHeight]);
 
   const handleSceneClick = (scene: RecipeScene) => {
     setSelectedSceneId(scene.id);
-    setActiveTab('recipe'); // 기본으로 Recipe 탭 표시
+    setActiveTab('analysis');
     setAssistantMode('scene');
-    setScriptOpen(false);
     closeChatAssistant();
   };
 
@@ -392,7 +410,6 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     }
 
     setSelectedSceneId(nextScene.id);
-    setScriptOpen(false);
     closeChatAssistant();
     setAssistantMode('scene');
   }, [closeChatAssistant, recipeScenes, selectedSceneIndex]);
@@ -492,24 +509,21 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   };
 
   const handleVideoCapture = async (videoBlob: Blob) => {
-    if (!selectedScene) return;
+    if (!selectedScene) {
+      return;
+    }
 
     const capturedSceneId = selectedScene.id;
 
-    console.log('Video captured:', videoBlob);
-
-    // 촬영한 비디오 저장
-    setCapturedVideos(prev => ({
+    setCapturedVideos((prev) => ({
       ...prev,
       [capturedSceneId]: videoBlob,
     }));
 
-    // 이전 업로드 오류는 새 촬영 시 초기화
     setSceneUploadError(capturedSceneId);
 
     if (recipeId) {
       const hadUploadedCapture = Boolean(capturedScenesRef.current[capturedSceneId]);
-      // 업로드 중 상태를 씬 단위로 표시하고, 업로드 성공 시에만 captured로 확정
       setSceneUploadingState(capturedSceneId, true);
 
       void (async () => {
@@ -538,7 +552,6 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
         }
       })();
     } else {
-      // 로컬 모드에서는 즉시 캡처 완료 처리
       markSceneCaptured(capturedSceneId);
       void logClientEvent('capture_uploaded', {
         recipe_id: 'local',
@@ -546,21 +559,34 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
       });
     }
 
-    setScriptSaveError(null);
+    setSceneSaveError(null);
   };
 
-  const handleCameraBack = () => {
+  const handleSceneBlocksChange = (sceneId: number, blocks: PrompterBlock[]) => {
+    const nextScenes = recipeScenes.map((scene) =>
+      scene.id === sceneId
+        ? {
+            ...scene,
+            prompter: {
+              blocks,
+            },
+          }
+        : scene
+    );
+
+    setRecipeScenes(nextScenes);
+    syncRecipeSessionStorage(nextScenes);
+    void persistRecipeScenes(nextScenes);
+  };
+
+  const handleDetailBack = () => {
     setSelectedSceneId(null);
-    setActiveTab('recipe');
-    setScriptOpen(false);
+    setActiveTab('analysis');
     closeChatAssistant();
   };
 
-  // 모든 촬영한 비디오를 ZIP으로 다운로드
   const handleExportVideos = async () => {
-    const capturedCount = exportableCaptureCount;
-    
-    if (capturedCount === 0) {
+    if (exportableCaptureCount === 0) {
       alert('아직 촬영된 비디오가 없습니다.');
       return;
     }
@@ -621,7 +647,6 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
         const archiveBlob = await zip.generateAsync({ type: 'blob' });
         downloadBlob(archiveBlob, `recipe-${recipeId}.zip`);
-
         await logClientEvent('export_zip_success', { recipe_id: recipeId });
         setIsExported(true);
         return;
@@ -640,7 +665,6 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     }
   };
 
-  // 레시피 저장하고 Recipes 탭으로 이동
   const handleSaveAndGoToDashboard = async () => {
     await logClientEvent('recipe_saved', {
       recipe_id: recipeId || 'local',
@@ -650,88 +674,153 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     router.push('/recipes');
   };
 
-  // Validate props after hooks are initialized to keep hook order stable.
+  const renderRecipeDetail = (scene: RecipeScene) => (
+    <div className="mx-auto flex h-full w-full max-w-[500px] flex-col overflow-y-auto bg-[#0b0d12] px-4 pb-10 pt-4 text-white">
+      <div className="rounded-[2rem] border border-white/10 bg-white/5 p-4 shadow-[0_22px_50px_rgb(0_0_0_/_0.28)]">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-sky-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-100">
+            Appeal Point
+          </span>
+          {resolvedBrandBrief?.productName ? (
+            <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/70">
+              {resolvedBrandBrief.productName}
+            </span>
+          ) : null}
+        </div>
+        <p className="text-sm font-semibold leading-relaxed text-white/70">{scene.recipe.appealPoint}</p>
+        <h2 className="mt-4 text-[1.85rem] font-bold tracking-[-0.04em] text-white">
+          {scene.recipe.keyLine}
+        </h2>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="rounded-2xl border border-white/10 bg-black/25 p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Mood</p>
+            <p className="mt-2 text-sm font-semibold text-white">{scene.recipe.keyMood}</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-black/25 p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Action</p>
+            <p className="mt-2 text-sm font-semibold text-white">{scene.recipe.keyAction}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-4">
+        <section className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Recommended Script</p>
+          <div className="mt-3 space-y-3">
+            {getSceneScriptLines(scene).map((line, index) => (
+              <div key={`${scene.id}-script-${index}`} className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-slate-950">
+                  {index + 1}
+                </span>
+                <p className="text-base font-semibold leading-relaxed text-white">{line}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Must Include</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(scene.recipe.mustInclude.length > 0 ? scene.recipe.mustInclude : ['No required cue captured']).map((item, index) => (
+              <span key={`${scene.id}-include-${index}`} className="rounded-full border border-emerald-300/20 bg-emerald-500/12 px-3 py-1.5 text-xs font-semibold text-emerald-100">
+                {item}
+              </span>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Must Avoid</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(scene.recipe.mustAvoid.length > 0 ? scene.recipe.mustAvoid : ['No avoid cue captured']).map((item, index) => (
+              <span key={`${scene.id}-avoid-${index}`} className="rounded-full border border-rose-300/20 bg-rose-500/12 px-3 py-1.5 text-xs font-semibold text-rose-100">
+                {item}
+              </span>
+            ))}
+          </div>
+        </section>
+
+        {scene.recipe.cta ? (
+          <section className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">CTA</p>
+            <p className="mt-3 text-sm font-semibold leading-relaxed text-white">{scene.recipe.cta}</p>
+          </section>
+        ) : null}
+      </div>
+    </div>
+  );
+
   if (!recipeScenes || !Array.isArray(recipeScenes) || recipeScenes.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="text-6xl mb-4">⚠️</div>
-        <h3 className="text-lg font-bold text-gray-900 mb-2">Invalid Recipe Data</h3>
-        <p className="text-gray-600 mb-4">Unable to load recipe scenes</p>
-        {onBack && (
+      <div className="py-12 text-center">
+        <div className="mb-4 text-6xl">⚠️</div>
+        <h3 className="mb-2 text-lg font-bold text-gray-900">Invalid Recipe Data</h3>
+        <p className="mb-4 text-gray-600">Unable to load recipe scenes</p>
+        {onBack ? (
           <button
             onClick={onBack}
-            className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition"
+            className="rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-700"
           >
             Go Back
           </button>
-        )}
+        ) : null}
       </div>
     );
   }
 
-  // 선택된 씨에서 디테일 화면
   if (selectedScene) {
     return (
-      <div className="fixed inset-0 flex flex-col bg-black overflow-hidden z-[9999]">
-        {activeTab === 'recipe' ? (
-          <div className="bg-black border-b border-gray-800 flex-shrink-0">
-            <div className="flex items-center justify-between px-4 py-3 text-white max-w-[500px] mx-auto">
-              <button
-                onClick={handleCameraBack}
-                className="flex items-center gap-2 font-bold text-blue-400 text-base"
-              >
-                ← Back
-              </button>
-              <span className="text-sm font-medium truncate">#{selectedScene.id}: {selectedScene.title}</span>
-              <div className="text-xs text-gray-400">slow mode</div>
+      <div className="fixed inset-0 z-[9999] flex flex-col overflow-hidden bg-black">
+        <div className="border-b border-white/10 bg-black/90 backdrop-blur-sm">
+          <div className="mx-auto flex max-w-[500px] items-center justify-between px-4 py-3 text-white">
+            <button
+              onClick={handleDetailBack}
+              className="flex items-center gap-2 text-base font-bold text-blue-400"
+            >
+              ← Back
+            </button>
+            <div className="min-w-0 text-center">
+              <span className="block truncate text-sm font-medium">
+                #{selectedScene.id}: {selectedScene.title}
+              </span>
+              {resolvedBrandBrief?.brandName ? (
+                <span className="truncate text-[11px] font-semibold text-white/45">
+                  {resolvedBrandBrief.brandName} context active
+                </span>
+              ) : null}
             </div>
+            <div className="text-xs text-white/35">{activeTab}</div>
           </div>
-        ) : null}
-
-        {/* Tab Bar */}
-        <div className="flex items-center justify-center gap-4 py-2 bg-black flex-shrink-0">
-          <button
-            onClick={() => setActiveTab('recipe')}
-            className={`px-6 py-1.5 rounded-full font-medium transition-all text-sm ${
-              activeTab === 'recipe'
-                ? 'bg-white text-black'
-                : 'bg-gray-800 text-gray-400'
-            }`}
-          >
-            Recipe
-          </button>
-          <button
-            onClick={() => setActiveTab('shooting')}
-            className={`px-6 py-1.5 rounded-full font-medium transition-all text-sm ${
-              activeTab === 'shooting'
-                ? 'bg-white text-black'
-                : 'bg-gray-800 text-gray-400'
-            }`}
-          >
-            Shooting
-          </button>
         </div>
 
-        {/* Content - fills remaining space */}
-        <div className="flex-1 relative overflow-hidden max-w-[500px] mx-auto w-full">
-          {activeTab === 'recipe' ? (
-            <RecipeVideoPlayer
-              videoUrl={videoUrl}
-              scene={selectedScene}
-              scriptLines={getScriptForScene(selectedScene)}
-              onSwitchToShooting={() => setActiveTab('shooting')}
-              onBack={handleCameraBack}
-              scriptOpen={scriptOpen}
-              onScriptOpenChange={handleScriptOpenChange}
-            />
+        <div className="flex items-center justify-center gap-3 bg-black py-2.5">
+          {(['analysis', 'recipe', 'prompter'] as DetailTab[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`rounded-full px-5 py-1.5 text-sm font-semibold capitalize transition ${
+                activeTab === tab ? 'bg-white text-black' : 'bg-white/10 text-white/55'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative flex-1 overflow-hidden">
+          {activeTab === 'analysis' ? (
+            <RecipeVideoPlayer videoUrl={videoUrl} scene={selectedScene} />
+          ) : activeTab === 'recipe' ? (
+            renderRecipeDetail(selectedScene)
           ) : (
             <CameraShooting
-              key={selectedScene.id}
+              key={`prompter-${selectedScene.id}`}
               sceneId={selectedScene.id}
               sceneTitle={selectedScene.title}
-              instructions={getScriptForScene(selectedScene)}
+              prompterBlocks={selectedScene.prompter.blocks}
+              onPrompterBlocksChange={(blocks) => handleSceneBlocksChange(selectedScene.id, blocks)}
               onCapture={handleVideoCapture}
-              onBack={handleCameraBack}
+              onBack={handleDetailBack}
               existingCapture={capturedVideos[selectedScene.id] || null}
               embedded={true}
             />
@@ -741,7 +830,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
             type="button"
             onClick={() => navigateScene(-1)}
             disabled={selectedSceneIndex <= 0}
-            className="absolute left-3 top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-xl font-semibold text-white backdrop-blur-sm transition disabled:opacity-25 disabled:cursor-not-allowed"
+            className="absolute left-3 top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-xl font-semibold text-white backdrop-blur-sm transition disabled:cursor-not-allowed disabled:opacity-25"
             aria-label="Previous segment"
           >
             ←
@@ -750,39 +839,35 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
             type="button"
             onClick={() => navigateScene(1)}
             disabled={selectedSceneIndex >= recipeScenes.length - 1}
-            className="absolute right-3 top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-xl font-semibold text-white backdrop-blur-sm transition disabled:opacity-25 disabled:cursor-not-allowed"
+            className="absolute right-3 top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-xl font-semibold text-white backdrop-blur-sm transition disabled:cursor-not-allowed disabled:opacity-25"
             aria-label="Next segment"
           >
             →
           </button>
         </div>
 
-        {/* Floating Chatbot Button - More Visible */}
-        {!chatOpen && (
+        {!chatOpen ? (
           <button
             onClick={() => openChatAssistant('scene')}
-            className="absolute bottom-8 right-6 w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all transform hover:scale-110 active:scale-95 flex items-center justify-center z-50 border-4 border-white"
+            className="absolute bottom-8 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-2xl transition-all hover:scale-110 hover:shadow-blue-500/50 active:scale-95"
           >
-            <img src="/parrot-logo.png" alt="Chat" className="w-9 h-9" />
+            <img src="/parrot-logo.png" alt="Chat" className="h-9 w-9" />
           </button>
-        )}
+        ) : null}
 
-        {/* Chatbot Bottom Sheet */}
         <div
           className={`absolute bottom-0 left-0 right-0 z-50 transition-transform duration-300 ease-out ${
             chatOpen ? 'translate-y-0' : 'translate-y-full'
           }`}
           style={{ height: `${sheetHeight}vh` }}
         >
-          {chatOpen && (
+          {chatOpen ? (
+            <div className="absolute inset-0 -z-10 bg-black/30" onClick={closeChatAssistant} />
+          ) : null}
+
+          <div className="flex h-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl">
             <div
-              className="absolute inset-0 bg-black/30 -z-10"
-              onClick={closeChatAssistant}
-            />
-          )}
-          <div className="h-full bg-white rounded-t-3xl shadow-2xl flex flex-col overflow-hidden">
-            <div
-              className="flex-shrink-0 cursor-grab active:cursor-grabbing select-none"
+              className="flex-shrink-0 cursor-grab select-none active:cursor-grabbing"
               onMouseDown={handleDragStart}
               onMouseMove={handleDragMove}
               onMouseUp={handleDragEnd}
@@ -791,29 +876,29 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
               onTouchMove={handleDragMove}
               onTouchEnd={handleDragEnd}
             >
-              <div className="flex justify-center pt-3 pb-2">
-                <div className="w-10 h-1.5 bg-gray-300 rounded-full" />
+              <div className="flex justify-center pb-2 pt-3">
+                <div className="h-1.5 w-10 rounded-full bg-gray-300" />
               </div>
             </div>
-            <div className="flex items-center justify-between px-5 pb-3 border-b border-gray-100 flex-shrink-0">
+
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 pb-3">
               <div className="flex items-center gap-2">
-                <img src="/parrot-logo.png" alt="Parrot Kit" className="w-7 h-7" />
-                <span className="font-bold text-gray-900 text-lg">Script Assistant</span>
+                <img src="/parrot-logo.png" alt="Parrot Kit" className="h-7 w-7" />
+                <span className="text-lg font-bold text-gray-900">Scene Planner</span>
               </div>
               <button
                 onClick={closeChatAssistant}
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
               </button>
             </div>
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+
+            <div className="flex items-center gap-2 border-b border-gray-100 px-5 py-3">
               <button
                 onClick={() => setAssistantMode('global')}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  assistantMode === 'global'
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-gray-100 text-gray-600'
+                  assistantMode === 'global' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'
                 }`}
               >
                 Global
@@ -821,73 +906,78 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
               <button
                 onClick={() => setAssistantMode('scene')}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  assistantMode === 'scene'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-blue-50 text-blue-700'
+                  assistantMode === 'scene' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700'
                 }`}
               >
                 Scene #{selectedScene.id}
               </button>
             </div>
-            <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
-              {scriptSaveError ? (
+
+            <div ref={chatScrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
+              {sceneSaveError ? (
                 <div className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
-                  {scriptSaveError}
+                  {sceneSaveError}
                 </div>
               ) : null}
-              {activeThreadMessages.map((msg, i) => (
-                <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                  <div className={`p-3 rounded-2xl max-w-[85%] ${
-                    msg.role === 'user'
-                      ? 'bg-blue-500 text-white rounded-br-sm'
-                      : 'bg-gray-100 text-gray-900 rounded-tl-sm'
+
+              {activeThreadMessages.map((message, index) => (
+                <div key={index} className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
+                  <div className={`max-w-[88%] rounded-2xl p-3 ${
+                    message.role === 'user' ? 'rounded-br-sm bg-blue-500 text-white' : 'rounded-tl-sm bg-gray-100 text-gray-900'
                   }`}>
-                    <p className="text-sm font-semibold whitespace-pre-wrap">{msg.content}</p>
+                    <p className="whitespace-pre-wrap text-sm font-semibold">{message.content}</p>
                   </div>
-                  {assistantMode === 'scene' && msg.role === 'assistant' && parseScriptLines(msg.content) && (
-                    applyingScriptMessageIndex === i ? (
+                  {assistantMode === 'scene' && message.sceneUpdate ? (
+                    applyingUpdateMessageIndex === index ? (
                       <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground">
                         <Spinner className="size-3.5" />
-                        Applying magic...
+                        Applying scene update...
                       </div>
                     ) : (
                       <InteractiveHoverButton
-                        onClick={() => void applyScript(msg.content, i)}
+                        onClick={() => void applySceneUpdate(message.sceneUpdate!, index)}
                         className="mt-2 self-start"
-                        aria-label="Apply to script"
+                        aria-label="Apply scene update"
                       >
-                        Apply to Script
+                        Apply Scene Update
                       </InteractiveHoverButton>
                     )
-                  )}
+                  ) : null}
                 </div>
               ))}
-              {chatLoading && (
+
+              {chatLoading ? (
                 <div className="flex justify-start">
-                  <div className="bg-gray-100 p-3 rounded-2xl rounded-tl-sm">
+                  <div className="rounded-2xl rounded-tl-sm bg-gray-100 p-3">
                     <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '0ms' }} />
+                      <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '150ms' }} />
+                      <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '300ms' }} />
                     </div>
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
-            <div className="border-t border-gray-100 p-4 flex gap-2 flex-shrink-0">
+
+            <div className="flex gap-2 border-t border-gray-100 p-4">
               <input
                 type="text"
                 value={chatMessage}
-                onChange={(e) => setChatMessage(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } }}
-                placeholder={assistantMode === 'scene' ? `Ask about Scene #${selectedScene.id}...` : 'Ask about the whole recipe...'}
+                onChange={(event) => setChatMessage(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    void sendChatMessage();
+                  }
+                }}
+                placeholder={assistantMode === 'scene' ? `Refine Scene #${selectedScene.id}...` : 'Ask about the whole recipe...'}
                 disabled={chatLoading}
-                className="flex-1 px-4 py-3 bg-gray-100 rounded-full text-base text-gray-900 placeholder:text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all disabled:opacity-50"
+                className="flex-1 rounded-full bg-gray-100 px-4 py-3 text-sm font-medium text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-50"
               />
               <button
-                onClick={sendChatMessage}
+                onClick={() => void sendChatMessage()}
                 disabled={chatLoading || !chatMessage.trim()}
-                className="w-11 h-11 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600 active:scale-95 transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-500 text-white shadow-lg transition-all hover:bg-blue-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </button>
@@ -899,58 +989,62 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   }
 
   return (
-    <div className="absolute inset-0 bg-gray-50 flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="bg-white border-b-2 border-gray-200 z-10 shadow-sm flex-shrink-0">
-        <div className="max-w-[500px] mx-auto px-4 py-3 flex items-center justify-between">
+    <div className="absolute inset-0 flex flex-col overflow-hidden bg-gray-50">
+      <div className="z-10 flex-shrink-0 border-b border-gray-200 bg-white">
+        <div className="mx-auto flex max-w-[500px] items-center justify-between px-4 py-3">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-blue-600 font-bold hover:text-blue-700 transition-colors text-base"
+            className="flex items-center gap-2 text-base font-bold text-blue-600 transition-colors hover:text-blue-700"
           >
             <span className="text-xl">←</span> Back
           </button>
-          <div className="flex items-center gap-2 text-sm text-gray-900 font-semibold">
-            {exportableCaptureCount > 0 && (
-              <span>{exportableCaptureCount}/{recipeScenes.length} captured</span>
-            )}
-            {uploadingCount > 0 && (
-              <span className="text-amber-600">• {uploadingCount} uploading</span>
-            )}
+          <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+            {exportableCaptureCount > 0 ? <span>{exportableCaptureCount}/{recipeScenes.length} captured</span> : null}
+            {uploadingCount > 0 ? <span className="text-amber-600">• {uploadingCount} uploading</span> : null}
           </div>
         </div>
       </div>
 
-      {/* Recipe Content - fits in one viewport */}
       <div className="flex-1 overflow-y-auto px-3 pb-2 pt-2">
-        <div className="max-w-[500px] mx-auto h-full flex flex-col">
-          <div className="flex items-center justify-between mb-3 flex-shrink-0">
-            <h2 className="text-lg font-bold text-gray-900">Recipe</h2>
+        <div className="mx-auto flex h-full max-w-[500px] flex-col">
+          <div className="mb-3 flex flex-shrink-0 items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Recipe</h2>
+              <p className="text-xs font-medium text-gray-500">
+                Reference analysis, creator recipe, and prompter cues
+              </p>
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={handleExportVideos}
                 disabled={isExporting || exportableCaptureCount === 0}
-                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
-                style={brandActionStyle}
+                className="rounded-lg bg-gradient-to-r from-[#ff9568] via-[#de81c1] to-[#8c67ff] px-3 py-1.5 text-xs font-semibold text-white transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isExporting ? 'Exporting...' : `Download (${exportableCaptureCount})`}
               </button>
-              {isExported && (
+              {isExported ? (
                 <button
                   onClick={handleSaveAndGoToDashboard}
-                  className="px-3 py-1.5 bg-green-500 text-white rounded-lg text-xs font-semibold hover:bg-green-600 transition-all"
+                  className="rounded-lg bg-green-500 px-3 py-1.5 text-xs font-semibold text-white transition-all hover:bg-green-600"
                 >
                   Save & Dashboard
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
+
+          {resolvedBrandBrief ? (
+            <div className="mb-3 rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-3 py-2 text-xs font-medium text-fuchsia-800">
+              Brand context active: {resolvedBrandBrief.brandName || 'Brand'} {resolvedBrandBrief.productName ? `· ${resolvedBrandBrief.productName}` : ''}
+            </div>
+          ) : null}
+
           {hasLocalOnlyCaptures ? (
             <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
               {localOnlyCaptureCount} take(s) are saved locally right now. Download still works even before sync finishes.
             </div>
           ) : null}
 
-          {/* Scenes Grid - compact, fits in one screen */}
           <div className="grid grid-cols-2 gap-3 pb-20">
             {recipeScenes.map((scene) => {
               const isCaptured = capturedScenes[scene.id];
@@ -958,94 +1052,91 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
               const isUploading = Boolean(uploadingScenes[scene.id]);
               const uploadError = uploadErrors[scene.id];
               const hasUploadError = Boolean(uploadError);
-              const scriptLines = getScriptForScene(scene);
+              const summary = getSceneCardSummary(scene);
 
               return (
                 <div
                   key={scene.id}
                   onClick={() => handleSceneClick(scene)}
-                  className={`bg-white rounded-xl overflow-hidden hover:shadow-md transition-all cursor-pointer flex flex-col ${
+                  className={`cursor-pointer overflow-hidden rounded-2xl bg-white transition-all ${
                     isUploading
                       ? 'ring-2 ring-amber-400'
                       : hasUploadError && hasLocalCapture
                         ? 'ring-2 ring-fuchsia-300'
                       : hasUploadError
                         ? 'ring-2 ring-red-400'
-                        : hasLocalCapture
-                      ? 'ring-2 ring-green-500'
-                      : 'border border-gray-200 hover:border-blue-300'
+                      : hasLocalCapture
+                        ? 'ring-2 ring-green-500'
+                        : 'border border-gray-200 hover:border-blue-300 hover:shadow-md'
                   }`}
                 >
-                  {/* Thumbnail */}
-                  <div className="relative aspect-video overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100">
+                  <div className="relative aspect-[9/10] overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100">
                     <img
                       src={scene.thumbnail}
                       alt={scene.title}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        // Fallback to gradient background with scene number
-                        const target = e.target as HTMLImageElement;
+                      className="h-full w-full object-cover"
+                      onError={(event) => {
+                        const target = event.target as HTMLImageElement;
                         target.style.display = 'none';
                       }}
                     />
                     {isUploading ? (
-                      <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center">
-                        <div className="bg-white text-amber-600 rounded-full w-6 h-6 flex items-center justify-center shadow-sm">
-                          <div className="w-3.5 h-3.5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-amber-500/20">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-amber-600 shadow-sm">
+                          <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
                         </div>
                       </div>
                     ) : hasLocalCapture ? (
-                      <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
-                        <div className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                      <div className="absolute inset-0 flex items-center justify-center bg-green-500/20">
+                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-xs text-white">
                           ✓
                         </div>
                       </div>
                     ) : hasUploadError ? (
-                      <div className="absolute inset-0 bg-red-500/15 flex items-center justify-center">
-                        <div className="bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                      <div className="absolute inset-0 flex items-center justify-center bg-red-500/15">
+                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
                           !
                         </div>
                       </div>
                     ) : null}
-                    {/* Scene Number Badge */}
-                    <div className="absolute top-1 left-1 bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                    <div className="absolute left-2 top-2 rounded bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
                       #{scene.id}
                     </div>
-                    {/* Time Badge */}
-                    <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[10px] px-1 py-0.5 rounded">
+                    <div className="absolute bottom-2 right-2 rounded bg-black/75 px-1.5 py-0.5 text-[10px] text-white">
                       {scene.startTime}
                     </div>
                   </div>
 
-                  {/* Scene Info */}
-                  <div className="px-3 py-2.5 flex flex-col gap-1.5 flex-shrink-0">
-                    <h3 className="font-bold text-xs text-gray-900 truncate">
-                      {scene.title}
-                    </h3>
-                    <p className="text-[10px] text-gray-600 line-clamp-2 leading-tight">
-                      {scene.description || scriptLines[0]}
+                  <div className="flex flex-col gap-2 px-3 py-3">
+                    <div>
+                      <p className="line-clamp-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8c67ff]">
+                        {summary.eyebrow}
+                      </p>
+                      <h3 className="mt-1 line-clamp-2 text-sm font-bold leading-tight text-gray-900">
+                        {summary.title}
+                      </h3>
+                    </div>
+                    <p className="line-clamp-2 text-[11px] leading-tight text-gray-600">
+                      {summary.detail}
                     </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-semibold text-gray-700">Analysis</span>
+                      <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-semibold text-gray-700">Recipe</span>
+                      <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-semibold text-gray-700">Prompter</span>
+                    </div>
                     {isUploading ? (
-                      <span className="text-xs text-amber-600 font-medium flex items-center gap-1">
-                        <span className="inline-block w-2 h-2 border border-amber-600 border-t-transparent rounded-full animate-spin" />
+                      <span className="flex items-center gap-1 text-xs font-medium text-amber-600">
+                        <span className="inline-block h-2 w-2 animate-spin rounded-full border border-amber-600 border-t-transparent" />
                         Uploading...
                       </span>
                     ) : hasUploadError && hasLocalCapture ? (
-                      <span className="text-xs text-fuchsia-600 font-medium flex items-center gap-1">
-                        <span>⬇️</span> Saved locally
-                      </span>
+                      <span className="text-xs font-medium text-fuchsia-600">Saved locally</span>
                     ) : hasUploadError ? (
-                      <span className="text-xs text-red-600 font-medium flex items-center gap-1">
-                        <span>⚠️</span> Retry Shoot
-                      </span>
+                      <span className="text-xs font-medium text-red-600">Retry Shoot</span>
                     ) : isCaptured ? (
-                      <span className="text-xs text-green-600 font-medium flex items-center gap-1">
-                        <span>✓</span> Done
-                      </span>
+                      <span className="text-xs font-medium text-green-600">Done</span>
                     ) : (
-                      <span className="text-xs font-medium flex items-center gap-1 text-[#8c67ff]">
-                        <span>📹</span> Shoot
-                      </span>
+                      <span className="text-xs font-medium text-[#8c67ff]">Open recipe</span>
                     )}
                   </div>
                 </div>
@@ -1055,35 +1146,28 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
         </div>
       </div>
 
-      {/* Floating Chatbot Button */}
-      {!chatOpen && (
+      {!chatOpen ? (
         <button
           onClick={() => openChatAssistant('global')}
-          className="absolute bottom-6 right-6 w-14 h-14 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-all transform hover:scale-110 flex items-center justify-center z-40"
+          className="absolute bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-500 text-white shadow-lg transition-all hover:bg-blue-600 hover:scale-110"
         >
-          <img src="/parrot-logo.png" alt="Chat" className="w-8 h-8" />
+          <img src="/parrot-logo.png" alt="Chat" className="h-8 w-8" />
         </button>
-      )}
+      ) : null}
 
-      {/* Chatbot Bottom Sheet */}
       <div
         className={`absolute bottom-0 left-0 right-0 z-50 transition-transform duration-300 ease-out ${
           chatOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
         style={{ height: `${sheetHeight}vh` }}
       >
-        {/* Backdrop */}
-        {chatOpen && (
-          <div
-            className="absolute inset-0 bg-black/30 -z-10"
-            onClick={closeChatAssistant}
-          />
-        )}
+        {chatOpen ? (
+          <div className="absolute inset-0 -z-10 bg-black/30" onClick={closeChatAssistant} />
+        ) : null}
 
-        <div className="h-full bg-white rounded-t-3xl shadow-2xl flex flex-col overflow-hidden">
-          {/* Drag Handle */}
+        <div className="flex h-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl">
           <div
-            className="flex-shrink-0 cursor-grab active:cursor-grabbing select-none"
+            className="flex-shrink-0 cursor-grab select-none active:cursor-grabbing"
             onMouseDown={handleDragStart}
             onMouseMove={handleDragMove}
             onMouseUp={handleDragEnd}
@@ -1092,85 +1176,66 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
             onTouchMove={handleDragMove}
             onTouchEnd={handleDragEnd}
           >
-            <div className="flex justify-center pt-3 pb-2">
-              <div className="w-10 h-1.5 bg-gray-300 rounded-full" />
+            <div className="flex justify-center pb-2 pt-3">
+              <div className="h-1.5 w-10 rounded-full bg-gray-300" />
             </div>
           </div>
 
-          {/* Chat Header */}
-          <div className="flex items-center justify-between px-5 pb-3 border-b border-gray-100 flex-shrink-0">
+          <div className="flex items-center justify-between border-b border-gray-100 px-5 pb-3">
             <div className="flex items-center gap-2">
-              <img src="/parrot-logo.png" alt="Parrot Kit" className="w-7 h-7" />
-              <span className="font-bold text-gray-900 text-lg">Script Assistant</span>
+              <img src="/parrot-logo.png" alt="Parrot Kit" className="h-7 w-7" />
+              <span className="text-lg font-bold text-gray-900">Recipe Assistant</span>
             </div>
             <button
               onClick={closeChatAssistant}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
             </button>
           </div>
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
-            <button
-              onClick={() => setAssistantMode('global')}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                assistantMode === 'global'
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-600'
-              }`}
-            >
-              Global
-            </button>
-          </div>
 
-          {/* Chat Messages - scrollable */}
-          <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
-            {scriptSaveError ? (
+          <div ref={chatScrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
+            {sceneSaveError ? (
               <div className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
-                {scriptSaveError}
+                {sceneSaveError}
               </div>
             ) : null}
-            {activeThreadMessages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`p-3 rounded-2xl max-w-[85%] ${
-                  msg.role === 'user'
-                    ? 'bg-blue-500 text-white rounded-br-sm'
-                    : 'bg-gray-100 text-gray-700 rounded-tl-sm'
+            {activeThreadMessages.map((message, index) => (
+              <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] rounded-2xl p-3 ${
+                  message.role === 'user' ? 'rounded-br-sm bg-blue-500 text-white' : 'rounded-tl-sm bg-gray-100 text-gray-700'
                 }`}>
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  <p className="whitespace-pre-wrap text-sm">{message.content}</p>
                 </div>
               </div>
             ))}
-
-            {/* Loading indicator */}
-            {chatLoading && (
+            {chatLoading ? (
               <div className="flex justify-start">
-                <div className="bg-gray-100 p-3 rounded-2xl rounded-tl-sm">
+                <div className="rounded-2xl rounded-tl-sm bg-gray-100 p-3">
                   <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '0ms' }} />
+                    <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '150ms' }} />
+                    <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '300ms' }} />
                   </div>
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
 
-          {/* Chat Input */}
-          <div className="border-t border-gray-100 p-4 flex gap-2 flex-shrink-0">
+          <div className="flex gap-2 border-t border-gray-100 p-4">
             <input
               type="text"
               value={chatMessage}
-              onChange={(e) => setChatMessage(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } }}
+              onChange={(event) => setChatMessage(event.target.value)}
+              onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendChatMessage(); } }}
               placeholder="Ask about the whole recipe..."
               disabled={chatLoading}
-              className="flex-1 px-4 py-2.5 bg-gray-100 rounded-full text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all disabled:opacity-50"
+              className="flex-1 rounded-full bg-gray-100 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-50"
             />
             <button
-              onClick={sendChatMessage}
+              onClick={() => void sendChatMessage()}
               disabled={chatLoading || !chatMessage.trim()}
-              className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600 transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500 text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </button>

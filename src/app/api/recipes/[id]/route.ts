@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuthenticatedUser } from '@/lib/auth/server-auth';
 import { createSupabaseAdminClient } from '@/lib/supabase/server';
+import { normalizeBrandBrief, normalizeRecipeScenes } from '@/lib/recipe-scene';
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -28,7 +29,14 @@ export async function GET(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'Recipe not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ recipe: data });
+    const brandBrief = normalizeBrandBrief((data.analysis_metadata as Record<string, unknown> | null)?.brandBrief);
+    const hydratedRecipe = {
+      ...data,
+      scenes: normalizeRecipeScenes(data.scenes, brandBrief),
+      brandBrief,
+    };
+
+    return NextResponse.json({ recipe: hydratedRecipe });
   } catch (error: unknown) {
     if (error instanceof Error && error.message === 'UNAUTHORIZED') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -72,7 +80,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const { id } = await params;
     const body = await request.json();
     const title = typeof body.title === 'string' ? body.title.trim() : '';
-    const nextScenes = Array.isArray(body.scenes) ? body.scenes : null;
+    const nextScenes = Array.isArray(body.scenes)
+      ? normalizeRecipeScenes(body.scenes, normalizeBrandBrief((body.analysisMetadata as Record<string, unknown> | null)?.brandBrief))
+      : null;
 
     if (!title && !nextScenes) {
       return NextResponse.json({ error: 'title or scenes is required' }, { status: 400 });
@@ -99,7 +109,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (nextScenes) {
       const { error: updateScenesError } = await supabase
         .from('recipes')
-        .update({ scenes: nextScenes })
+        .update({
+          scenes: nextScenes,
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', recipe.id)
         .eq('user_id', authUser.id);
 

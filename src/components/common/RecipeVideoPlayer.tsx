@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import type { RecipeScene } from '@/types/recipe';
 
 type YouTubePlayerEvent = {
   target: {
@@ -47,19 +48,7 @@ declare global {
 
 interface RecipeVideoPlayerProps {
   videoUrl: string;
-  scene: {
-    id: number;
-    title: string;
-    startTime: string;
-    endTime: string;
-    thumbnail?: string;
-    description?: string;
-  };
-  scriptLines?: string[];
-  onSwitchToShooting: () => void;
-  onBack?: () => void;
-  scriptOpen: boolean;
-  onScriptOpenChange: (open: boolean) => void;
+  scene: RecipeScene;
 }
 
 type SupportedPlatform = 'youtube' | 'instagram' | 'tiktok' | 'direct-video' | 'other';
@@ -80,6 +69,7 @@ function extractYouTubeVideoId(url: string): string {
     const match = url.match(pattern);
     if (match) return match[1];
   }
+
   return '';
 }
 
@@ -107,36 +97,29 @@ function getPlatform(url: string): SupportedPlatform {
   return 'other';
 }
 
-function getOpenLabel(platform: SupportedPlatform): string {
-  switch (platform) {
-    case 'instagram':
-      return 'Open on Instagram';
-    case 'tiktok':
-      return 'Open on TikTok';
-    case 'youtube':
-      return 'Watch on YouTube';
-    case 'direct-video':
-      return 'Open video source';
+function getSignalTone(type: string) {
+  switch (type) {
+    case 'hook':
+      return 'bg-violet-500/15 text-violet-200 border-violet-400/30';
+    case 'cta':
+      return 'bg-amber-500/15 text-amber-100 border-amber-400/30';
+    case 'motion':
+      return 'bg-sky-500/15 text-sky-100 border-sky-400/30';
+    case 'product':
+      return 'bg-emerald-500/15 text-emerald-100 border-emerald-400/30';
     default:
-      return 'Open source video';
+      return 'bg-white/10 text-white/80 border-white/15';
   }
 }
 
 export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
   videoUrl,
   scene,
-  scriptLines,
-  onSwitchToShooting,
-  onBack: _onBack,
-  scriptOpen,
-  onScriptOpenChange,
 }) => {
-  void onSwitchToShooting;
-  void _onBack;
   const playerRef = useRef<YouTubePlayerInstance | null>(null);
   const htmlVideoRef = useRef<HTMLVideoElement | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const [failedVideoId, setFailedVideoId] = useState<string | null>(null);
+
   const platform = getPlatform(videoUrl);
   const videoId = extractYouTubeVideoId(videoUrl);
   const isYouTube = platform === 'youtube';
@@ -147,7 +130,6 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
   const playerError = isYouTube ? failedVideoId === videoId : platform === 'other';
   const startSeconds = timeToSeconds(scene.startTime);
   const endSeconds = timeToSeconds(scene.endTime);
-  const openLabel = getOpenLabel(platform);
 
   useEffect(() => {
     if (!isYouTube) {
@@ -159,8 +141,7 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
     let mounted = true;
 
     const initPlayer = () => {
-      if (!mounted) return;
-      if (!window.YT || !window.YT.Player) {
+      if (!mounted || !window.YT?.Player) {
         return;
       }
 
@@ -172,7 +153,7 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
 
       try {
         player = new window.YT.Player('youtube-player', {
-          videoId: videoId,
+          videoId,
           playerVars: {
             autoplay: 1,
             controls: 1,
@@ -191,25 +172,22 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
               event.target.playVideo();
             },
             onStateChange: (event: YouTubePlayerEvent) => {
-              if (!mounted) return;
-              if (event.data === window.YT?.PlayerState.PLAYING) {
-                if (checkInterval) clearInterval(checkInterval);
-                checkInterval = setInterval(() => {
-                  if (!mounted || !player || !player.getCurrentTime) return;
-                  try {
-                    const current = player.getCurrentTime();
-                    if (current >= endSeconds) {
-                      player.pauseVideo();
-                      player.seekTo(startSeconds);
-                      if (checkInterval) {
-                        clearInterval(checkInterval);
-                      }
-                    }
-                  } catch {
-                    // ignore
-                  }
-                }, 100);
+              if (!mounted || event.data !== window.YT?.PlayerState.PLAYING) {
+                return;
               }
+
+              if (checkInterval) clearInterval(checkInterval);
+              checkInterval = setInterval(() => {
+                if (!mounted || !player) return;
+                try {
+                  if (player.getCurrentTime() >= endSeconds) {
+                    player.pauseVideo();
+                    player.seekTo(startSeconds);
+                  }
+                } catch {
+                  // ignore
+                }
+              }, 120);
             },
             onError: () => {
               if (!mounted) return;
@@ -217,6 +195,7 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
             },
           },
         });
+
         playerRef.current = player;
       } catch (error) {
         console.error('Error initializing YouTube player:', error);
@@ -229,7 +208,7 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
       tag.src = 'https://www.youtube.com/iframe_api';
       tag.async = true;
       const firstScriptTag = document.getElementsByTagName('script')[0];
-      if (firstScriptTag && firstScriptTag.parentNode) {
+      if (firstScriptTag?.parentNode) {
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
       }
 
@@ -243,7 +222,7 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
     return () => {
       mounted = false;
       if (checkInterval) clearInterval(checkInterval);
-      if (player && player.destroy) {
+      if (player?.destroy) {
         try {
           player.destroy();
         } catch {
@@ -264,18 +243,16 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
     }
 
     const syncSegment = () => {
-      if (Number.isFinite(startSeconds)) {
-        try {
-          if (Math.abs(videoElement.currentTime - startSeconds) > 0.35) {
-            videoElement.currentTime = startSeconds;
-          }
-        } catch {
-          // ignore seek issues until metadata is ready
+      try {
+        if (Math.abs(videoElement.currentTime - startSeconds) > 0.35) {
+          videoElement.currentTime = startSeconds;
         }
+      } catch {
+        // metadata not ready
       }
 
       void videoElement.play().catch(() => {
-        // Browsers may block autoplay with sound.
+        // autoplay may be blocked
       });
     };
 
@@ -287,7 +264,7 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
       if (videoElement.currentTime >= endSeconds) {
         videoElement.currentTime = startSeconds;
         void videoElement.play().catch(() => {
-          // ignore autoplay rejection while looping
+          // ignore autoplay rejection
         });
       }
     };
@@ -303,119 +280,122 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
   }, [isDirectVideo, startSeconds, endSeconds, videoUrl]);
 
   const thumbnailUrl = scene.thumbnail || (isYouTube ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : '');
-  const badgeLabel = isYouTube || isDirectVideo ? 'Segment' : 'Source video';
 
   return (
-    <div className="relative w-full h-full bg-black flex items-center justify-center">
-      <div className="relative w-full h-full max-w-[500px] mx-auto" ref={containerRef}>
-        {isYouTube && !playerError ? (
-          <div id="youtube-player" className="absolute inset-0 w-full h-full" />
-        ) : isDirectVideo ? (
-          <video
-            ref={htmlVideoRef}
-            src={videoUrl}
-            className="absolute inset-0 h-full w-full object-contain"
-            playsInline
-            controls
-            preload="metadata"
-          />
-        ) : embedUrl ? (
-          <iframe
-            src={embedUrl}
-            title={scene.title}
-            className="absolute inset-0 h-full w-full"
-            allow="autoplay; encrypted-media; picture-in-picture; clipboard-write"
-            allowFullScreen
-          />
-        ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black">
-            {thumbnailUrl ? (
-              <img
-                src={thumbnailUrl}
-                alt={scene.title}
-                className="absolute inset-0 w-full h-full object-cover opacity-60"
-              />
-            ) : null}
-            <div className="relative z-10 text-center p-6">
-              <div className="w-16 h-16 mx-auto mb-4 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                <div className="w-0 h-0 border-l-[24px] border-l-white border-t-[14px] border-t-transparent border-b-[14px] border-b-transparent ml-1" />
+    <div className="relative h-full w-full overflow-hidden bg-black">
+      <div className="relative mx-auto h-full w-full max-w-[500px]">
+        <div className="relative h-[48%] min-h-[280px] overflow-hidden bg-black">
+          {isYouTube && !playerError ? (
+            <div id="youtube-player" className="absolute inset-0 h-full w-full" />
+          ) : isDirectVideo ? (
+            <video
+              ref={htmlVideoRef}
+              src={videoUrl}
+              className="absolute inset-0 h-full w-full object-contain"
+              playsInline
+              controls
+              preload="metadata"
+            />
+          ) : embedUrl ? (
+            <iframe
+              src={embedUrl}
+              title={scene.title}
+              className="absolute inset-0 h-full w-full"
+              allow="autoplay; encrypted-media; picture-in-picture; clipboard-write"
+              allowFullScreen
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-black">
+              {thumbnailUrl ? (
+                <img
+                  src={thumbnailUrl}
+                  alt={scene.title}
+                  className="absolute inset-0 h-full w-full object-cover opacity-60"
+                />
+              ) : null}
+              <div className="relative z-10 max-w-[260px] rounded-3xl bg-white/10 px-5 py-4 text-center backdrop-blur-sm">
+                <p className="text-sm font-semibold text-white/90">
+                  This reference source cannot be embedded inline.
+                </p>
+                <a
+                  href={videoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex rounded-full border border-white/20 bg-white px-4 py-2 text-sm font-semibold text-slate-900"
+                >
+                  Open source video
+                </a>
               </div>
-              <p className="text-white text-sm mb-2">
-                {isYouTube ? 'This video cannot be embedded.' : 'Inline preview is not available for this source.'}
-              </p>
-              <a
-                href={videoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
-              >
-                {openLabel}
-              </a>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Loop indicator */}
-        <div className="absolute top-4 right-4 z-10">
-          <div className="bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-2">
-            <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
-            <span className="text-white text-sm font-medium">{badgeLabel}</span>
+          <div className="absolute left-4 top-4 rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white/75 backdrop-blur-sm">
+            Analysis
+          </div>
+          <div className="absolute right-4 top-4 rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
+            {scene.startTime} - {scene.endTime}
           </div>
         </div>
 
-        {/* View Script Button - More Visible */}
-        {!scriptOpen ? (
-          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30">
-            <button
-              onClick={() => onScriptOpenChange(true)}
-              className="px-6 py-3.5 bg-white text-gray-900 rounded-2xl font-bold shadow-2xl text-base flex items-center gap-2 hover:scale-105 active:scale-95 transition-transform border-2 border-gray-200"
-            >
-              <img src="/parrot-logo.png" alt="" className="w-6 h-6" />
-              View Script
-            </button>
-          </div>
-        ) : null}
+        <div className="relative -mt-5 h-[calc(52%+20px)] overflow-y-auto rounded-t-[2rem] border-t border-white/10 bg-[#0b0d12] px-4 pb-8 pt-6 text-white shadow-[0_-18px_40px_rgb(0_0_0_/_0.25)]">
+          <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-white/20" />
 
-        {/* Script Bottom Sheet */}
-        {scriptOpen && (
-          <div className="absolute inset-0 z-20" onClick={() => onScriptOpenChange(false)}>
-            <div className="absolute inset-0 bg-black/40" />
-            <div
-              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl animate-slide-up"
-              onClick={(e) => e.stopPropagation()}
-              style={{ maxHeight: '70%' }}
-            >
-              {/* Drag Handle */}
-              <div className="flex justify-center pt-3 pb-2">
-                <div className="w-10 h-1.5 bg-gray-300 rounded-full" />
+          <div className="space-y-5">
+            <section className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-white/55">Original Transcript</h3>
+                <span className="text-[11px] font-semibold text-white/35">reference evidence</span>
               </div>
-
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 pb-3 border-b-2 border-gray-200">
-                <div className="flex items-center gap-2">
-                  <img src="/parrot-logo.png" alt="Parrot Kit" className="w-7 h-7" />
-                  <span className="font-bold text-gray-900 text-base">Script - #{scene.id}: {scene.title}</span>
-                </div>
-                <button
-                  onClick={() => onScriptOpenChange(false)}
-                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-                </button>
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+                {scene.analysis.transcriptOriginal && scene.analysis.transcriptOriginal.length > 0 ? (
+                  <div className="space-y-2">
+                    {scene.analysis.transcriptOriginal.map((line, index) => (
+                      <p key={`${scene.id}-transcript-${index}`} className="text-sm font-medium leading-relaxed text-white/82">
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-white/45">No transcript was captured for this cut.</p>
+                )}
               </div>
+            </section>
 
-              {/* Script Content */}
-              <div className="overflow-y-auto p-5 space-y-4" style={{ maxHeight: 'calc(70vh - 80px)' }}>
-                {(scriptLines || [scene.description || 'Follow the reference video']).map((line, idx) => (
-                  <div key={idx} className="flex items-start gap-3">
-                    <span className="bg-blue-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm flex-shrink-0 mt-0.5 font-bold">{idx + 1}</span>
-                    <p className="text-gray-900 text-base font-semibold leading-relaxed">{line}</p>
+            <section className="space-y-2">
+              <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-white/55">Motion View</h3>
+              <div className="rounded-3xl border border-sky-400/15 bg-sky-500/10 p-4">
+                <p className="text-sm font-medium leading-relaxed text-sky-50">
+                  {scene.analysis.motionDescription || 'No motion-specific description was extracted for this cut.'}
+                </p>
+              </div>
+            </section>
+
+            <section className="space-y-2">
+              <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-white/55">Why It Works</h3>
+              <div className="space-y-2">
+                {scene.analysis.whyItWorks.map((item, index) => (
+                  <div key={`${scene.id}-why-${index}`} className="rounded-3xl border border-white/10 bg-white/5 px-4 py-3">
+                    <p className="text-sm font-medium leading-relaxed text-white/82">{item}</p>
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
+
+            <section className="space-y-2">
+              <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-white/55">Reference Signals</h3>
+              <div className="flex flex-wrap gap-2">
+                {scene.analysis.referenceSignals.map((signal, index) => (
+                  <div
+                    key={`${scene.id}-signal-${index}`}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${getSignalTone(signal.type)}`}
+                  >
+                    {signal.type}: {signal.text}
+                  </div>
+                ))}
+              </div>
+            </section>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -1,26 +1,65 @@
 'use client';
 
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { PrompterBlock } from '@/types/recipe';
 
 interface CameraShootingProps {
   sceneId: number;
   sceneTitle: string;
-  instructions: string[];
+  prompterBlocks: PrompterBlock[];
+  onPrompterBlocksChange: (blocks: PrompterBlock[]) => void;
   onCapture: (videoBlob: Blob) => void;
   onBack: () => void;
   embedded?: boolean;
   existingCapture?: Blob | null;
 }
 
+type DragState = {
+  blockId: string;
+  pointerId: number;
+};
+
+const sizeClassMap: Record<PrompterBlock['size'], string> = {
+  sm: 'text-[11px] px-2.5 py-1.5',
+  md: 'text-sm px-3 py-2',
+  lg: 'text-xl px-4 py-2.5',
+  xl: 'text-[2rem] px-5 py-3',
+};
+
+const presetOffsetMap: Record<PrompterBlock['positionPreset'], { x: number; y: number }> = {
+  top: { x: 0.5, y: 0.12 },
+  upperThird: { x: 0.5, y: 0.24 },
+  center: { x: 0.5, y: 0.42 },
+  lowerThird: { x: 0.5, y: 0.68 },
+  bottom: { x: 0.5, y: 0.84 },
+};
+
+function getBlockTone(block: PrompterBlock) {
+  switch (block.type) {
+    case 'warning':
+      return 'bg-rose-500/20 text-rose-50 border-rose-300/30';
+    case 'keyword':
+      return 'bg-sky-500/18 text-sky-50 border-sky-300/30';
+    case 'key_line':
+      return 'bg-white/95 text-slate-950 border-white/50';
+    case 'cta':
+      return 'bg-amber-400/20 text-amber-50 border-amber-300/35';
+    default:
+      return 'bg-black/45 text-white border-white/15';
+  }
+}
+
 export const CameraShooting: React.FC<CameraShootingProps> = ({
   sceneId,
   sceneTitle,
-  instructions,
+  prompterBlocks,
+  onPrompterBlocksChange,
   onCapture,
   onBack,
   embedded = false,
   existingCapture = null,
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const reviewVideoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -28,14 +67,18 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   const recordingStreamRef = useRef<MediaStream | null>(null);
   const skipCaptureRef = useRef(false);
   const isActiveRef = useRef(false);
+  const dragStateRef = useRef<DragState | null>(null);
+
   const [isRecording, setIsRecording] = useState(false);
-  const [scriptOpen, setScriptOpen] = useState(false);
+  const [layoutOpen, setLayoutOpen] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [reviewUrl, setReviewUrl] = useState<string | null>(null);
   const [reviewVisible, setReviewVisible] = useState(false);
   const [audioStatus, setAudioStatus] = useState<'idle' | 'ready' | 'missing' | 'denied'>('idle');
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const existingCaptureUrl = React.useMemo(
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
+  const existingCaptureUrl = useMemo(
     () => (existingCapture ? URL.createObjectURL(existingCapture) : null),
     [existingCapture]
   );
@@ -47,6 +90,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
       if (reviewUrl) {
         URL.revokeObjectURL(reviewUrl);
       }
+
       if (existingCaptureUrl) {
         URL.revokeObjectURL(existingCaptureUrl);
       }
@@ -71,9 +115,9 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
 
   const startCamera = useCallback(async () => {
     try {
+      setCameraError(null);
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user' },
-        // Keep mic off on entry. We request audio only when user taps Shoot.
         audio: false,
       });
 
@@ -85,8 +129,8 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
       previewStreamRef.current = stream;
       videoRef.current.srcObject = stream;
     } catch (error) {
-      console.error('Camera access error:', error);
-      alert('카메라 접근 권한이 필요합니다.');
+      console.warn('Camera access unavailable:', error);
+      setCameraError('카메라 접근 권한이 필요합니다.');
     }
   }, []);
 
@@ -102,6 +146,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
       previewStreamRef.current.getTracks().forEach((track) => track.stop());
       previewStreamRef.current = null;
     }
+
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
@@ -112,6 +157,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
     if (recorder && recorder.state !== 'inactive') {
       recorder.stop();
     }
+
     setIsRecording(false);
     stopRecordingStream();
     stopPreviewStream();
@@ -120,22 +166,66 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   useEffect(() => {
     isActiveRef.current = true;
     skipCaptureRef.current = false;
-    void startCamera();
+    const startTimer = window.setTimeout(() => {
+      void startCamera();
+    }, 0);
+
     return () => {
+      window.clearTimeout(startTimer);
       isActiveRef.current = false;
       skipCaptureRef.current = true;
       stopCamera();
     };
   }, [startCamera, stopCamera]);
 
+  const updateBlock = useCallback((blockId: string, updater: (block: PrompterBlock) => PrompterBlock) => {
+    onPrompterBlocksChange(
+      prompterBlocks.map((block) => (block.id === blockId ? updater(block) : block))
+    );
+  }, [onPrompterBlocksChange, prompterBlocks]);
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      const active = dragStateRef.current;
+      const container = containerRef.current;
+      if (!active || !container) {
+        return;
+      }
+
+      const rect = container.getBoundingClientRect();
+      const x = Math.min(0.92, Math.max(0.08, (event.clientX - rect.left) / rect.width));
+      const y = Math.min(0.9, Math.max(0.08, (event.clientY - rect.top) / rect.height));
+
+      updateBlock(active.blockId, (block) => ({
+        ...block,
+        x,
+        y,
+      }));
+    };
+
+    const handlePointerUp = () => {
+      dragStateRef.current = null;
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [updateBlock]);
+
   const startRecording = async () => {
     const previewStream = previewStreamRef.current;
-    if (!previewStream) return;
-    if (isRecording) return;
-    if (!isActiveRef.current) return;
+    if (!previewStream || isRecording || !isActiveRef.current) {
+      return;
+    }
 
     const previewVideoTrack = previewStream.getVideoTracks()[0];
-    if (!previewVideoTrack) return;
+    if (!previewVideoTrack) {
+      return;
+    }
 
     const recordingTracks: MediaStreamTrack[] = [previewVideoTrack.clone()];
     setSaveMessage(null);
@@ -188,9 +278,9 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
         const nextUrl = URL.createObjectURL(blob);
         setRecordedBlob(blob);
         setReviewVisible(true);
-        setReviewUrl((prev) => {
-          if (prev) {
-            URL.revokeObjectURL(prev);
+        setReviewUrl((previousUrl) => {
+          if (previousUrl) {
+            URL.revokeObjectURL(previousUrl);
           }
           return nextUrl;
         });
@@ -213,14 +303,11 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   const handleShootButton = () => {
     if (isRecording) {
       stopRecording();
-    } else {
-      void startRecording();
+      return;
     }
-  };
 
-  const containerClass = embedded
-    ? 'relative w-full h-full bg-black'
-    : 'fixed inset-0 bg-black z-50';
+    void startRecording();
+  };
 
   const handleRetry = () => {
     setReviewVisible(false);
@@ -242,224 +329,274 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
     setSaveMessage('Take saved');
   };
 
+  const visibleBlocks = prompterBlocks
+    .filter((block) => block.visible)
+    .sort((left, right) => left.order - right.order);
+
+  const containerClass = embedded
+    ? 'relative h-full w-full bg-black'
+    : 'fixed inset-0 z-50 bg-black';
+
   return (
     <div className={containerClass}>
-      {/* Video Preview */}
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ transform: 'scaleX(-1)' }}
-      />
+      <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-black">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="absolute inset-0 h-full w-full object-cover"
+          style={{ transform: 'scaleX(-1)' }}
+        />
 
-      {/* Back Button */}
-      <div className="absolute top-4 left-4 z-20">
-        <button
-          onClick={onBack}
-          className="px-3.5 py-2 bg-black/65 backdrop-blur-sm text-white rounded-xl font-semibold text-sm border border-white/20 active:scale-95 transition-transform"
-        >
-          ← Back
-        </button>
-      </div>
-
-      {/* Guidelines Overlay */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-0">
-          {[...Array(9)].map((_, i) => (
-            <div key={i} className="border border-white/20" />
-          ))}
+        <div className="absolute top-4 left-4 z-20">
+          <button
+            onClick={onBack}
+            className="rounded-xl border border-white/15 bg-black/65 px-3.5 py-2 text-sm font-semibold text-white backdrop-blur-sm transition-transform active:scale-95"
+          >
+            ← Back
+          </button>
         </div>
 
-        <div className="relative">
-          <div className="w-48 h-48 rounded-full border-4 border-white/50 flex items-center justify-center">
-            <div className="w-36 h-44 rounded-full border-2 border-white/30" />
-          </div>
+        <div className="absolute right-4 top-4 z-20 rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-white/75 backdrop-blur-sm">
+          Prompter
         </div>
-      </div>
 
-      {/* Recording Indicator */}
-      {isRecording && (
-        <div className="absolute top-4 right-4 z-20">
-          <div className="flex items-center gap-2 bg-red-500 px-3 py-1.5 rounded-full">
-            <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
-            <span className="text-white text-sm font-bold">REC</span>
-          </div>
-        </div>
-      )}
-
-      {/* Passive Script Prompt */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-32 z-10 flex justify-center px-5">
-        <div className="max-w-sm rounded-2xl bg-black/18 px-4 py-3 backdrop-blur-[2px]">
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/45">
-            Scene #{sceneId}
-          </div>
-          <div className="space-y-1.5">
-            {instructions.slice(0, 3).map((instruction, idx) => (
-              <p key={idx} className="text-sm font-medium leading-snug text-white/42">
-                {instruction}
-              </p>
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 grid grid-cols-3 grid-rows-3">
+            {Array.from({ length: 9 }).map((_, index) => (
+              <div key={index} className="border border-white/18" />
             ))}
           </div>
+
+          <div className="relative">
+            <div className="h-48 w-48 rounded-full border-4 border-white/45" />
+            <div className="absolute inset-5 rounded-full border-2 border-white/25" />
+          </div>
         </div>
-      </div>
 
-      {/* Bottom Controls */}
-      <div className="absolute bottom-8 left-0 right-0 z-20">
-        <div className="flex items-center justify-center gap-6">
-          {/* Script Button */}
-          <button
-            onClick={() => setScriptOpen(true)}
-            className="px-4 py-2.5 bg-white/95 backdrop-blur-sm text-gray-900 rounded-xl font-semibold shadow-lg text-sm flex items-center gap-2"
-          >
-            <img src="/parrot-logo.png" alt="" className="w-5 h-5" />
-            Script
-          </button>
+        {visibleBlocks.map((block) => {
+          const position = {
+            left: `${((block.x ?? presetOffsetMap[block.positionPreset].x) * 100).toFixed(2)}%`,
+            top: `${((block.y ?? presetOffsetMap[block.positionPreset].y) * 100).toFixed(2)}%`,
+          };
 
-          {/* Record Button */}
-          <button
-            onClick={handleShootButton}
-            disabled={Boolean(effectiveReviewUrl)}
-            className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all ${
-              isRecording
-                ? 'bg-red-500 scale-90'
-                : 'bg-white border-4 border-red-500'
-            }`}
-          >
-            {isRecording && (
-              <div className="absolute inset-0 rounded-full border-4 border-red-500 animate-ping" />
-            )}
-            {!isRecording && <div className="w-16 h-16 rounded-full bg-red-500" />}
-          </button>
+          return (
+            <button
+              key={block.id}
+              type="button"
+              onPointerDown={(event) => {
+                dragStateRef.current = {
+                  blockId: block.id,
+                  pointerId: event.pointerId,
+                };
+                (event.currentTarget as HTMLButtonElement).setPointerCapture?.(event.pointerId);
+              }}
+              className={`absolute z-10 max-w-[82%] -translate-x-1/2 -translate-y-1/2 rounded-[1.75rem] border font-semibold tracking-[-0.02em] shadow-[0_16px_40px_rgb(0_0_0_/_0.25)] backdrop-blur-sm ${sizeClassMap[block.size]} ${getBlockTone(block)}`}
+              style={position}
+            >
+              {block.content}
+            </button>
+          );
+        })}
 
-          <button
-            type="button"
-            onClick={() => {
-              setReviewVisible(true);
-              if (reviewVideoRef.current) {
-                reviewVideoRef.current.currentTime = 0;
-                void reviewVideoRef.current.play().catch(() => {
-                  // ignore replay failures
-                });
-              }
-            }}
-            disabled={!effectiveReviewUrl}
-            className="w-[72px] rounded-xl bg-white/95 px-3 py-2.5 text-xs font-semibold text-gray-900 shadow-lg disabled:opacity-45 disabled:cursor-not-allowed"
-          >
-            Review
-          </button>
+        {isRecording ? (
+          <div className="absolute right-4 top-16 z-20">
+            <div className="flex items-center gap-2 rounded-full bg-red-500 px-3 py-1.5">
+              <div className="h-3 w-3 animate-pulse rounded-full bg-white" />
+              <span className="text-sm font-bold text-white">REC</span>
+            </div>
+          </div>
+        ) : null}
+
+        {cameraError ? (
+          <div className="absolute left-1/2 top-24 z-20 w-[min(88%,22rem)] -translate-x-1/2 rounded-3xl border border-amber-300/25 bg-amber-500/18 px-4 py-3 text-center text-sm font-medium text-amber-50 shadow-[0_18px_40px_rgb(0_0_0_/_0.28)] backdrop-blur-sm">
+            {cameraError}
+          </div>
+        ) : null}
+
+        <div className="absolute bottom-8 left-0 right-0 z-20">
+          <div className="flex items-center justify-center gap-5">
+            <button
+              type="button"
+              onClick={() => setLayoutOpen((current) => !current)}
+              className="rounded-xl bg-white/95 px-4 py-2.5 text-sm font-semibold text-gray-900 shadow-lg"
+            >
+              Layout
+            </button>
+
+            <button
+              onClick={handleShootButton}
+              disabled={Boolean(effectiveReviewUrl)}
+              className={`relative flex h-20 w-20 items-center justify-center rounded-full transition-all ${
+                isRecording ? 'scale-90 bg-red-500' : 'border-4 border-red-500 bg-white'
+              }`}
+            >
+              {isRecording ? (
+                <div className="absolute inset-0 rounded-full border-4 border-red-500 animate-ping" />
+              ) : (
+                <div className="h-16 w-16 rounded-full bg-red-500" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setReviewVisible(true);
+                if (reviewVideoRef.current) {
+                  reviewVideoRef.current.currentTime = 0;
+                  void reviewVideoRef.current.play().catch(() => {
+                    // ignore replay failures
+                  });
+                }
+              }}
+              disabled={!effectiveReviewUrl}
+              className="w-[72px] rounded-xl bg-white/95 px-3 py-2.5 text-xs font-semibold text-gray-900 shadow-lg disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              Review
+            </button>
+          </div>
+
+          <div className="mt-3 flex items-center justify-center gap-2 text-center">
+            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/75">
+              Scene #{sceneId}: {sceneTitle}
+            </span>
+            {audioStatus === 'ready' ? (
+              <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-100">Mic ready</span>
+            ) : audioStatus === 'denied' ? (
+              <span className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-100">Mic denied</span>
+            ) : null}
+            {saveMessage ? (
+              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80">{saveMessage}</span>
+            ) : null}
+          </div>
         </div>
-        <div className="mt-3 text-center">
-          {audioStatus === 'ready' ? (
-            <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-100">
-              Mic ready
-            </span>
-          ) : audioStatus === 'denied' ? (
-            <span className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-100">
-              Mic denied, video only
-            </span>
-          ) : audioStatus === 'missing' && isRecording ? (
-            <span className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-100">
-              Recording without microphone
-            </span>
-          ) : null}
-          {saveMessage ? (
-            <span className="ml-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80">
-              {saveMessage}
-            </span>
-          ) : null}
-        </div>
-      </div>
 
-      {reviewVisible && effectiveReviewUrl ? (
-        <div className="absolute inset-0 z-20 bg-black/82 px-5 py-6 backdrop-blur-sm">
-          <div className="mx-auto flex h-full max-w-sm flex-col">
+        {layoutOpen ? (
+          <div className="absolute inset-x-0 bottom-0 z-30 max-h-[46%] overflow-hidden rounded-t-[2rem] border-t border-white/15 bg-[#0f1218]/96 px-4 pb-6 pt-3 text-white backdrop-blur-xl">
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/50">Review Take</p>
-                <h3 className="text-lg font-bold text-white">Scene #{sceneId}</h3>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/45">Prompter Layout</p>
+                <h3 className="text-lg font-bold text-white">Choose what you want to see while shooting</h3>
               </div>
               <button
                 type="button"
-                onClick={handleRetry}
-                className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white"
+                onClick={() => setLayoutOpen(false)}
+                className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white"
               >
                 Close
               </button>
             </div>
-            <div className="relative flex-1 overflow-hidden rounded-3xl border border-white/10 bg-black">
-              <video
-                ref={reviewVideoRef}
-                src={effectiveReviewUrl}
-                controls
-                playsInline
-                className="h-full w-full object-contain"
-              />
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={handleRetry}
-                className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white"
-              >
-                Retry
-              </button>
-              <button
-                type="button"
-                onClick={handleUseTake}
-                className="rounded-2xl bg-white px-4 py-3 text-sm font-bold text-black"
-              >
-                Use Take
-              </button>
-            </div>
-            <p className="mt-3 text-center text-xs text-white/55">
-              Play the clip here to confirm video and microphone audio before saving.
-            </p>
-          </div>
-        </div>
-      ) : null}
 
-      {/* Script Bottom Sheet */}
-      {scriptOpen && (
-        <div className="absolute inset-0 z-30" onClick={() => setScriptOpen(false)}>
-          <div className="absolute inset-0 bg-black/40" />
-          <div
-            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-            style={{ maxHeight: '60%' }}
-          >
-            {/* Drag Handle */}
-            <div className="flex justify-center pt-3 pb-2">
-              <div className="w-10 h-1.5 bg-gray-300 rounded-full" />
-            </div>
+            <div className="space-y-3 overflow-y-auto pr-1">
+              {prompterBlocks.map((block) => (
+                <div key={block.id} className="rounded-3xl border border-white/10 bg-white/5 p-3">
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-white">{block.type.replace(/_/g, ' ')}</p>
+                      <p className="mt-1 text-xs text-white/60">{block.content}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => updateBlock(block.id, (current) => ({ ...current, visible: !current.visible }))}
+                      className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                        block.visible ? 'bg-white text-slate-900' : 'bg-white/10 text-white/70'
+                      }`}
+                    >
+                      {block.visible ? 'Visible' : 'Hidden'}
+                    </button>
+                  </div>
 
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 pb-3 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <img src="/parrot-logo.png" alt="Parrot Kit" className="w-6 h-6" />
-                <span className="font-bold text-gray-900 text-base">Script - #{sceneId}: {sceneTitle}</span>
-              </div>
-              <button
-                onClick={() => setScriptOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-              </button>
-            </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="space-y-1 text-xs font-medium text-white/60">
+                      <span>Size</span>
+                      <select
+                        value={block.size}
+                        onChange={(event) => updateBlock(block.id, (current) => ({ ...current, size: event.target.value as PrompterBlock['size'] }))}
+                        className="w-full rounded-2xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white"
+                      >
+                        <option value="sm">Small</option>
+                        <option value="md">Medium</option>
+                        <option value="lg">Large</option>
+                        <option value="xl">XL</option>
+                      </select>
+                    </label>
 
-            {/* Script Content */}
-            <div className="overflow-y-auto p-5 space-y-3" style={{ maxHeight: 'calc(60vh - 80px)' }}>
-              {instructions.map((instruction, idx) => (
-                <div key={idx} className="flex items-start gap-3">
-                  <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs flex-shrink-0 mt-0.5 font-bold">{idx + 1}</span>
-                  <p className="text-gray-800 text-sm font-medium leading-relaxed">{instruction}</p>
+                    <label className="space-y-1 text-xs font-medium text-white/60">
+                      <span>Preset</span>
+                      <select
+                        value={block.positionPreset}
+                        onChange={(event) =>
+                          updateBlock(block.id, (current) => ({
+                            ...current,
+                            positionPreset: event.target.value as PrompterBlock['positionPreset'],
+                            x: undefined,
+                            y: undefined,
+                          }))
+                        }
+                        className="w-full rounded-2xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white"
+                      >
+                        <option value="top">Top</option>
+                        <option value="upperThird">Upper third</option>
+                        <option value="center">Center</option>
+                        <option value="lowerThird">Lower third</option>
+                        <option value="bottom">Bottom</option>
+                      </select>
+                    </label>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      )}
+        ) : null}
+
+        {reviewVisible && effectiveReviewUrl ? (
+          <div className="absolute inset-0 z-40 bg-black/82 px-5 py-6 backdrop-blur-sm">
+            <div className="mx-auto flex h-full max-w-sm flex-col">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/50">Review Take</p>
+                  <h3 className="text-lg font-bold text-white">Scene #{sceneId}</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="relative flex-1 overflow-hidden rounded-3xl border border-white/10 bg-black">
+                <video
+                  ref={reviewVideoRef}
+                  src={effectiveReviewUrl}
+                  controls
+                  playsInline
+                  className="h-full w-full object-contain"
+                />
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white"
+                >
+                  Retry
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUseTake}
+                  className="rounded-2xl bg-white px-4 py-3 text-sm font-bold text-black"
+                >
+                  Use Take
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 };

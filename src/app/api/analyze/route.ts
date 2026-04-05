@@ -3,15 +3,11 @@ import { analyzeVideoFrameCandidates, analyzeYouTubeVideo, type SceneCandidate, 
 import { generateReplicateGeminiFlashText, generateReplicateGeminiProText } from '@/lib/replicate';
 import { fetchSupadataTranscript, type TranscriptSegment, type TranscriptSource } from '@/lib/supadata';
 import { fetchSocialVideoDownload, type DownloadSource } from '@/lib/social-video-downloader';
+import { extractBrandBriefFromPdf } from '@/lib/brand-brief';
+import { normalizeRecipeScene } from '@/lib/recipe-scene';
+import type { BrandBrief, PrompterBlock, ReferenceSignalType } from '@/types/recipe';
 
 type Platform = 'youtube' | 'youtube-shorts' | 'instagram' | 'tiktok' | 'other';
-
-type SceneScriptMap = { [key: number]: string[] };
-
-type ScriptGenerationResult = {
-  descriptions: string[];
-  scripts: SceneScriptMap;
-};
 
 type PageMedia = {
   imageUrl: string | null;
@@ -30,6 +26,44 @@ type GeminiVideoScene = {
   start_time: string;
   end_time: string;
   motion_description: string;
+};
+
+type ReferenceSignalDraft = {
+  type: ReferenceSignalType;
+  text: string;
+};
+
+type PrompterBlockDraft = Omit<PrompterBlock, 'id'> & {
+  id?: string;
+};
+
+type GeneratedScenePlan = {
+  scene_id: number;
+  why_it_works?: string[];
+  reference_signals?: ReferenceSignalDraft[];
+  objective?: string;
+  appeal_point?: string;
+  key_line?: string;
+  script_lines?: string[];
+  key_mood?: string;
+  key_action?: string;
+  must_include?: string[];
+  must_avoid?: string[];
+  cta?: string;
+  prompter_blocks?: PrompterBlockDraft[];
+};
+
+type ScenePlanGenerationResult = {
+  scenes: GeneratedScenePlan[];
+};
+
+type ParsedAnalyzeInput = {
+  url: string;
+  niche: string;
+  goal: string;
+  description: string;
+  brandBrief: BrandBrief | null;
+  brandContextFileName: string | null;
 };
 
 type AnalyzeLogLevel = 'info' | 'warn' | 'error';
@@ -183,7 +217,7 @@ const defaultSceneDescriptions = [
   'If this helped, hit like and follow! More great tips coming soon!',
 ];
 
-const defaultSceneScripts: SceneScriptMap = {
+const defaultSceneScripts: Record<number, string[]> = {
   1: [
     'Most people still don\'t know this... you NEED to hear this',
     '(Look at the camera with confidence)',
@@ -261,6 +295,61 @@ async function parseJsonWithRepair<T>(text: string) {
     console.error('[분석][JSON] AI JSON 보정 수리도 실패했습니다.', error);
     return null;
   }
+}
+
+async function parseAnalyzeInput(request: NextRequest): Promise<ParsedAnalyzeInput> {
+  const contentType = request.headers.get('content-type') || '';
+
+  if (contentType.includes('multipart/form-data')) {
+    const formData = await request.formData();
+    const brandContextPdf = formData.get('brandContextPdf');
+    const url = String(formData.get('url') || '').trim();
+    const niche = String(formData.get('niche') || '').trim();
+    const goal = String(formData.get('goal') || '').trim();
+    const description = String(formData.get('description') || '').trim();
+
+    let brandBrief: BrandBrief | null = null;
+    let brandContextFileName: string | null = null;
+
+    if (brandContextPdf instanceof File && brandContextPdf.size > 0) {
+      brandContextFileName = brandContextPdf.name || 'brand-context.pdf';
+
+      const isPdf =
+        brandContextPdf.type === 'application/pdf'
+        || brandContextFileName.toLowerCase().endsWith('.pdf');
+
+      if (!isPdf) {
+        throw new Error('brand_context_pdf_must_be_pdf');
+      }
+
+      brandBrief = await extractBrandBriefFromPdf({
+        fileName: brandContextFileName,
+        fileBuffer: Buffer.from(await brandContextPdf.arrayBuffer()),
+        niche,
+        goal,
+        notes: description,
+      });
+    }
+
+    return {
+      url,
+      niche,
+      goal,
+      description,
+      brandBrief,
+      brandContextFileName,
+    };
+  }
+
+  const payload = await request.json();
+  return {
+    url: String(payload.url || '').trim(),
+    niche: String(payload.niche || '').trim(),
+    goal: String(payload.goal || '').trim(),
+    description: String(payload.description || '').trim(),
+    brandBrief: null,
+    brandContextFileName: null,
+  };
 }
 
 function getTranscriptSummary(segments: TranscriptSegment[], limit: number = 14) {
@@ -598,83 +687,117 @@ ${candidates
     }));
 }
 
-async function generateScriptsWithAI({
+async function generateScenePlansWithAI({
   scenes,
   transcript,
   niche,
   goal,
   description,
   sourceTitle,
+  brandBrief,
 }: {
-  scenes: Array<{ id: number; title: string; startTime: string; endTime: string; transcriptSnippet: string; motionDescription: string }>;
+  scenes: Array<{
+    id: number;
+    title: string;
+    startTime: string;
+    endTime: string;
+    transcriptOriginal: string[];
+    transcriptSnippet: string;
+    motionDescription: string;
+  }>;
   transcript: TranscriptSegment[];
   niche: string;
   goal: string;
   description: string;
   sourceTitle: string | null;
-}): Promise<ScriptGenerationResult | null> {
+  brandBrief: BrandBrief | null;
+}): Promise<ScenePlanGenerationResult | null> {
   try {
-    const prompt = `Write scripts for ${scenes.length} scenes of a short-form video recipe.
+    const prompt = `Design ${scenes.length} short-form creator recipe scenes from a reference video.
 
-User info:
-- Niche: ${niche || '(not provided)'}
-- Goal: ${goal || '(not provided)'}
-- Description: ${description || '(not provided)'}
-- Source title: ${sourceTitle || '(not provided)'}
+Creator context:
+- niche: ${niche || '(not provided)'}
+- goal: ${goal || '(not provided)'}
+- notes: ${description || '(not provided)'}
+- source title: ${sourceTitle || '(not provided)'}
+
+Brand brief:
+${brandBrief ? JSON.stringify(brandBrief, null, 2) : '(none)'}
 
 Transcript summary:
 ${getTranscriptSummary(transcript) || '(no transcript available)'}
 
-Scene windows:
+Reference scenes:
 ${scenes
   .map(
     (scene) =>
-      `${scene.id}. ${scene.title} (${scene.startTime}-${scene.endTime}) | transcript snippet: ${scene.transcriptSnippet || '(none)'} | motion description: ${scene.motionDescription || '(none)'}`
+      `${scene.id}. ${scene.title} (${scene.startTime}-${scene.endTime}) | transcript original: ${scene.transcriptOriginal.join(' / ') || '(none)'} | transcript snippet: ${scene.transcriptSnippet || '(none)'} | motion description: ${scene.motionDescription || '(none)'}`
   )
   .join('\n')}
 
-Respond ONLY in valid JSON:
+Return valid JSON only in this exact shape:
 {
-  "descriptions": ["scene1 one-line summary", "..."],
-  "scripts": {
-    "1": ["dialogue line", "acting direction", "expression/gesture"]
-  }
+  "scenes": [
+    {
+      "scene_id": 1,
+      "why_it_works": ["", ""],
+      "reference_signals": [
+        { "type": "hook", "text": "" }
+      ],
+      "objective": "",
+      "appeal_point": "",
+      "key_line": "",
+      "script_lines": ["", "", ""],
+      "key_mood": "",
+      "key_action": "",
+      "must_include": [""],
+      "must_avoid": [""],
+      "cta": "",
+      "prompter_blocks": [
+        {
+          "type": "key_line",
+          "content": "",
+          "visible": true,
+          "size": "xl",
+          "positionPreset": "lowerThird",
+          "order": 1
+        }
+      ]
+    }
+  ]
 }
 
 Requirements:
-- Keep the response aligned with the transcript when transcript exists.
-- Each script entry must have exactly 3 lines.
-- Dialogue should be natural, conversational English.
-- Acting direction must be in parentheses.
-- The descriptions array length must equal ${scenes.length}.`;
+- Return exactly ${scenes.length} scenes in order.
+- why_it_works should explain why the reference performs well in 1 to 3 short bullets.
+- reference_signals type must be one of: hook, pacing, motion, caption, emotion, product, cta.
+- script_lines must be 2 to 4 short lines that a creator can actually say or act on.
+- key_line should be the single most important line for this cut.
+- key_mood should be a short performance cue.
+- key_action should describe the main behavior or filming beat for the cut.
+- must_include and must_avoid must reflect the brand brief when available.
+- prompter_blocks should prioritize key_line, keyword-style cues, warnings, and CTA.
+- Keep outputs concrete and creator-friendly, not abstract marketing language.`;
 
     const text = await generateReplicateGeminiFlashText({
       systemInstruction:
-        'You are a short-form video script writer for UGC creators. Return valid JSON only with no markdown fences or extra commentary.',
+        'You are a creator recipe designer for ParrotKit. Return valid JSON only with no markdown fences or extra commentary.',
       prompt,
-      maxOutputTokens: 2048,
-      temperature: 0.4,
+      maxOutputTokens: 4096,
+      temperature: 0.35,
       topP: 0.95,
       thinkingBudget: 0,
     });
 
-    const parsed = await parseJsonWithRepair<{
-      descriptions?: string[];
-      scripts?: Record<string, string[]>;
-    }>(text);
+    const parsed = await parseJsonWithRepair<ScenePlanGenerationResult>(text);
 
-    if (!parsed || !Array.isArray(parsed.descriptions) || !parsed.scripts) {
+    if (!parsed || !Array.isArray(parsed.scenes) || parsed.scenes.length !== scenes.length) {
       return null;
     }
 
-    return {
-      descriptions: parsed.descriptions,
-      scripts: Object.fromEntries(
-        Object.entries(parsed.scripts).map(([key, value]) => [parseInt(key, 10), Array.isArray(value) ? value.map(String) : []])
-      ) as SceneScriptMap,
-    };
+    return parsed;
   } catch (error) {
-    console.error('[분석][스크립트 생성] AI 스크립트 생성에 실패했습니다.', error);
+    console.error('[분석][컷 설계] AI 컷 설계 생성에 실패했습니다.', error);
     return null;
   }
 }
@@ -701,6 +824,7 @@ function buildSceneStructure({
     startTime: string;
     endTime: string;
     thumbnail: string;
+    transcriptOriginal: string[];
     transcriptSnippet: string;
     motionDescription: string;
   }> = [];
@@ -723,6 +847,10 @@ function buildSceneStructure({
         startTime: formatTime(startSeconds),
         endTime: formatTime(endSeconds),
         thumbnail,
+        transcriptOriginal: transcript
+          .filter((segment) => segment.end >= startSeconds && segment.start <= endSeconds)
+          .map((segment) => segment.text)
+          .filter(Boolean),
         transcriptSnippet: getTranscriptSnippet(transcript, startSeconds, endSeconds),
         motionDescription: detections.motionDescriptions?.[index] || '',
       });
@@ -751,6 +879,10 @@ function buildSceneStructure({
       startTime: formatTime(startSeconds),
       endTime: formatTime(endSeconds),
       thumbnail,
+      transcriptOriginal: transcript
+        .filter((segment) => segment.end >= startSeconds && segment.start <= endSeconds)
+        .map((segment) => segment.text)
+        .filter(Boolean),
       transcriptSnippet: getTranscriptSnippet(transcript, startSeconds, endSeconds),
       motionDescription: '',
     });
@@ -765,7 +897,14 @@ export async function POST(request: NextRequest) {
   let requestPlatformForLog: Platform | null = null;
 
   try {
-    const { url, niche = '', goal = '', description = '' } = await request.json();
+    const {
+      url,
+      niche = '',
+      goal = '',
+      description = '',
+      brandBrief,
+      brandContextFileName,
+    } = await parseAnalyzeInput(request);
 
     if (!url) {
       logAnalyze('warn', requestId, '요청 본문에 URL이 없습니다.');
@@ -784,6 +923,8 @@ export async function POST(request: NextRequest) {
       hasNiche: Boolean(niche.trim()),
       hasGoal: Boolean(goal.trim()),
       hasDescription: Boolean(description.trim()),
+      hasBrandBrief: Boolean(brandBrief),
+      brandContextFileName: brandContextFileName || null,
     });
 
     const [rapidMedia, pageMedia, transcriptResult] = await Promise.all([
@@ -961,28 +1102,54 @@ export async function POST(request: NextRequest) {
       transcript: transcriptResult.transcript,
     });
 
-    const aiResult = await generateScriptsWithAI({
+    const aiResult = await generateScenePlansWithAI({
       scenes: provisionalScenes,
       transcript: transcriptResult.transcript,
       niche,
       goal,
       description,
       sourceTitle: transcriptResult.sourceMetadata?.title || rapidMedia.title || null,
+      brandBrief,
     });
 
-    const scriptSource = aiResult ? 'ai_generated' : 'default';
+    const scriptSource = aiResult ? 'scene_designer_ai_generated' : 'default';
 
-    const scenes = provisionalScenes.map((scene, index) => ({
-      id: scene.id,
-      title: scene.title,
-      startTime: scene.startTime,
-      endTime: scene.endTime,
-      thumbnail: scene.thumbnail,
-      description: scene.motionDescription || aiResult?.descriptions?.[index] || getDefaultDescription(index),
-      script: aiResult?.scripts?.[scene.id] || getDefaultScript(scene.id, scene.motionDescription || aiResult?.descriptions?.[index] || getDefaultDescription(index)),
-      progress: 0,
-      transcriptSnippet: scene.transcriptSnippet || null,
-    }));
+    const scenes = provisionalScenes.map((scene, index) => {
+      const generatedScene = aiResult?.scenes.find((item) => Number(item.scene_id) === scene.id);
+
+      return normalizeRecipeScene({
+        id: scene.id,
+        title: scene.title,
+        startTime: scene.startTime,
+        endTime: scene.endTime,
+        thumbnail: scene.thumbnail,
+        analysis: {
+          transcriptOriginal: scene.transcriptOriginal,
+          transcriptSnippet: scene.transcriptSnippet || null,
+          motionDescription: scene.motionDescription,
+          whyItWorks: generatedScene?.why_it_works || [],
+          referenceSignals: generatedScene?.reference_signals || [],
+        },
+        recipe: {
+          objective: generatedScene?.objective || '',
+          appealPoint: generatedScene?.appeal_point || scene.motionDescription || getDefaultDescription(index),
+          keyLine: generatedScene?.key_line || getDefaultScript(scene.id, scene.motionDescription || getDefaultDescription(index))[0],
+          scriptLines: generatedScene?.script_lines || getDefaultScript(scene.id, scene.motionDescription || getDefaultDescription(index)),
+          keyMood: generatedScene?.key_mood || '',
+          keyAction: generatedScene?.key_action || scene.motionDescription,
+          mustInclude: generatedScene?.must_include || [],
+          mustAvoid: generatedScene?.must_avoid || [],
+          cta: generatedScene?.cta || '',
+        },
+        prompter: {
+          blocks: generatedScene?.prompter_blocks || [],
+        },
+        progress: 0,
+        description: scene.motionDescription || generatedScene?.appeal_point || getDefaultDescription(index),
+        script: generatedScene?.script_lines || getDefaultScript(scene.id, scene.motionDescription || getDefaultDescription(index)),
+        transcriptSnippet: scene.transcriptSnippet || null,
+      }, index, brandBrief);
+    });
 
     const platformLabels: Record<Platform, string> = {
       youtube: 'YouTube',
@@ -1012,6 +1179,8 @@ export async function POST(request: NextRequest) {
       transcriptSegmentCount: transcriptResult.transcript.length,
       transcriptFallbackReason: transcriptResult.fallbackReason,
       scriptSource,
+      brandContextFileName,
+      brandBriefStatus: brandBrief?.extractionStatus || 'none',
       sourceMetadata: transcriptResult.sourceMetadata,
     };
 
@@ -1032,10 +1201,23 @@ export async function POST(request: NextRequest) {
       url,
       scenes,
       transcript: transcriptResult.transcript,
+      brandBrief,
       metadata: responseMetadata,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to analyze video';
+
+    if (message === 'brand_context_pdf_must_be_pdf') {
+      logAnalyze('warn', requestId, '브랜드 컨텍스트 PDF 형식이 올바르지 않습니다.', {
+        url: requestUrlForLog,
+        platform: requestPlatformForLog,
+      });
+      return NextResponse.json(
+        { error: '브랜드 컨텍스트 파일은 PDF만 업로드할 수 있습니다.' },
+        { status: 400 }
+      );
+    }
+
     logAnalyze('error', requestId, '분석 요청이 예외로 종료되었습니다.', {
       url: requestUrlForLog,
       platform: requestPlatformForLog,

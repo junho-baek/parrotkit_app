@@ -1,25 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateReplicateGeminiFlashText } from '@/lib/replicate';
+import type { PrompterBlock, RecipeScene } from '@/types/recipe';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
 }
 
-interface Scene {
-  id: number;
-  title: string;
-  startTime: string;
-  endTime: string;
-  description: string;
-  script?: string[];
+type SceneUpdate = {
+  keyLine?: string;
+  scriptLines?: string[];
+  keyMood?: string;
+  keyAction?: string;
+  mustInclude?: string[];
+  mustAvoid?: string[];
+  prompterBlocks?: Array<Partial<PrompterBlock> & { id?: string; type?: string }>;
+};
+
+function extractJsonObject(text: string) {
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  return jsonMatch?.[0] || null;
 }
 
-interface TargetScene {
-  id: number;
-  title: string;
-  description: string;
-  script: string[];
+async function parseSceneUpdate(text: string) {
+  const json = extractJsonObject(text);
+  if (!json) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(json) as {
+      assistant_message?: string;
+      scene_update?: SceneUpdate | null;
+    };
+
+    return {
+      message: String(parsed.assistant_message || '').trim(),
+      sceneUpdate: parsed.scene_update || null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function summarizeScene(scene: RecipeScene) {
+  return [
+    `Scene #${scene.id} "${scene.title}" (${scene.startTime}~${scene.endTime})`,
+    `analysis.motion: ${scene.analysis.motionDescription || '(none)'}`,
+    `analysis.transcript: ${scene.analysis.transcriptSnippet || '(none)'}`,
+    `recipe.appealPoint: ${scene.recipe.appealPoint || '(none)'}`,
+    `recipe.keyLine: ${scene.recipe.keyLine || '(none)'}`,
+    `recipe.scriptLines: ${scene.recipe.scriptLines.join(' | ') || '(none)'}`,
+    `recipe.keyMood: ${scene.recipe.keyMood || '(none)'}`,
+    `recipe.keyAction: ${scene.recipe.keyAction || '(none)'}`,
+    `recipe.mustInclude: ${scene.recipe.mustInclude.join(' | ') || '(none)'}`,
+    `recipe.mustAvoid: ${scene.recipe.mustAvoid.join(' | ') || '(none)'}`,
+    `prompter.blocks: ${
+      scene.prompter.blocks.map((block) => `${block.id}:${block.type}:${block.visible ? 'visible' : 'hidden'}:${block.content}`).join(' | ') || '(none)'
+    }`,
+  ].join('\n');
 }
 
 export async function POST(request: NextRequest) {
@@ -32,100 +71,90 @@ export async function POST(request: NextRequest) {
     } = (await request.json()) as {
       mode?: 'global' | 'scene';
       messages: ChatMessage[];
-      allScenes?: Scene[];
-      targetScene?: TargetScene | null;
+      allScenes?: RecipeScene[];
+      targetScene?: RecipeScene | null;
     };
 
     if (!messages || messages.length === 0) {
       return NextResponse.json({ error: 'Messages are required' }, { status: 400 });
     }
 
-    console.log('[Chat API] mode:', mode, '| scenes count:', allScenes.length, '| targetScene:', targetScene?.id ?? 'none');
-
     const scenesContext = allScenes.length > 0
-      ? allScenes
-          .map((scene) =>
-            [
-              `Scene #${scene.id} "${scene.title}" (${scene.startTime}~${scene.endTime})`,
-              `description: ${scene.description}`,
-              Array.isArray(scene.script) && scene.script.length > 0
-                ? `current script: ${scene.script.map((line, index) => `${index + 1}. ${line}`).join(' | ')}`
-                : 'current script: (none)',
-            ].join('\n')
-          )
-          .join('\n\n')
+      ? allScenes.map((scene) => summarizeScene(scene)).join('\n\n')
       : 'No scenes available.';
 
-    const targetSceneIndex = targetScene
-      ? allScenes.findIndex((scene) => scene.id === targetScene.id)
-      : -1;
-    const previousScene = targetSceneIndex > 0 ? allScenes[targetSceneIndex - 1] : null;
-    const nextScene = targetSceneIndex >= 0 && targetSceneIndex < allScenes.length - 1
-      ? allScenes[targetSceneIndex + 1]
-      : null;
-
     const targetSceneContext = targetScene
-      ? `\n\nThe user is currently focused on Scene #${targetScene.id} "${targetScene.title}".
-Target scene script on screen:
-${targetScene.script.map((line, i) => `  ${i + 1}. ${line}`).join('\n')}
-
-Previous scene context:
-${previousScene ? `Scene #${previousScene.id} "${previousScene.title}" script: ${(previousScene.script || []).join(' | ') || '(none)'}` : 'None'}
-
-Next scene context:
-${nextScene ? `Scene #${nextScene.id} "${nextScene.title}" script: ${(nextScene.script || []).join(' | ') || '(none)'}` : 'None'}`
-      : '';
-
-    const modeInstruction = mode === 'scene'
-      ? `You are in SCENE mode.
-- Focus on only the target scene unless the user explicitly asks for a broader change.
-- Use the full recipe as background context.
-- Preserve continuity with the previous and next scenes.
-- If the user says "rewrite this" or "change this script", they mean the target scene only.
-- When rewriting, return the FULL revised target-scene script as a numbered list.`
-      : `You are in GLOBAL mode.
-- Help with the overall recipe flow, hooks, transitions, and multi-scene direction.
-- You may discuss multiple scenes together.
-- If the user asks for a full recipe rewrite, you may suggest scene-by-scene changes, but stay concise.`;
-
-    const systemPrompt = `You are a Script Assistant for ParrotKit, a tool that helps UGC/short-form video creators replicate viral video recipes.
-
-You help users write and refine scripts for their video scenes. You have context about the current video recipe scenes:
-
-${scenesContext}${targetSceneContext}
-
-Your capabilities:
-- Generate scripts for individual scenes or the entire video
-- Suggest hooks, transitions, and call-to-actions
-- Rewrite scripts in different tones (funny, serious, educational, etc.)
-- Provide voiceover prompts and narration text
-- Suggest camera directions and movements
-- Modify existing scripts based on user feedback
-
-${modeInstruction}
-
-When the user asks to change or modify the script, always output the FULL revised script as a numbered list (1. xxx, 2. xxx, etc.) so they can directly apply it. The user has an "Apply to Script" button that will parse these numbered lines and update the on-screen script.
-Keep responses concise and actionable. Use Korean if the user writes in Korean, English if they write in English.`;
+      ? `Current target scene:\n${summarizeScene(targetScene)}`
+      : 'No target scene selected.';
 
     const conversationTranscript = messages
       .map((message) => `${message.role === 'assistant' ? 'Assistant' : 'User'}:\n${message.content}`)
       .join('\n\n');
 
+    if (mode === 'scene' && targetScene) {
+      const response = await generateReplicateGeminiFlashText({
+        systemInstruction: `You are ParrotKit's Scene Planner Assistant.
+
+You help creators refine one scene at a time.
+- Focus on the target scene only.
+- Keep edits aligned with the rest of the recipe.
+- You may change key line, script lines, mood, action, must-include/must-avoid, and prompter blocks.
+- Return valid JSON only, no markdown fences.
+
+Use this exact schema:
+{
+  "assistant_message": "",
+  "scene_update": {
+    "keyLine": "",
+    "scriptLines": ["", ""],
+    "keyMood": "",
+    "keyAction": "",
+    "mustInclude": [""],
+    "mustAvoid": [""],
+    "prompterBlocks": [
+      {
+        "id": "key-line",
+        "type": "key_line",
+        "content": "",
+        "visible": true,
+        "size": "xl",
+        "positionPreset": "lowerThird",
+        "order": 1
+      }
+    ]
+  }
+}`,
+        prompt: `All scenes:\n${scenesContext}\n\n${targetSceneContext}\n\nConversation so far:\n\n${conversationTranscript}\n\nRespond to the latest user message only.`,
+        maxOutputTokens: 2048,
+        temperature: 0.6,
+        topP: 0.95,
+        thinkingBudget: 0,
+      });
+
+      const parsed = await parseSceneUpdate(response);
+
+      return NextResponse.json({
+        message: parsed?.message || 'I prepared a scene update you can apply.',
+        sceneUpdate: parsed?.sceneUpdate || null,
+      });
+    }
+
     const assistantMessage = await generateReplicateGeminiFlashText({
-      systemInstruction: systemPrompt,
-      prompt: `Conversation so far:
+      systemInstruction: `You are ParrotKit's Recipe Assistant for UGC creators.
 
-${conversationTranscript}
-
-Respond as the assistant to the latest user message only.`,
+You help with overall flow, hooks, transitions, and recipe structure.
+Use Korean if the user writes in Korean, English if the user writes in English.
+Stay concise and actionable.`,
+      prompt: `All scenes:\n${scenesContext}\n\nConversation so far:\n\n${conversationTranscript}\n\nRespond as the assistant to the latest user message only.`,
       maxOutputTokens: 2048,
-      temperature: 0.9,
+      temperature: 0.8,
       topP: 0.95,
       thinkingBudget: 0,
     });
 
     return NextResponse.json({
       message: assistantMessage,
+      sceneUpdate: null,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to get response';
