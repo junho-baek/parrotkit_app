@@ -88,7 +88,7 @@ ${nextScene ? `Scene #${nextScene.id} "${nextScene.title}" script: ${(nextScene.
 - You may discuss multiple scenes together.
 - If the user asks for a full recipe rewrite, you may suggest scene-by-scene changes, but stay concise.`;
 
-    const systemPrompt = `You are a Script Assistant for ParrotKit, a tool that helps UCC/short-form video creators replicate viral video recipes.
+    const systemPrompt = `You are a Script Assistant for ParrotKit, a tool that helps UGC/short-form video creators replicate viral video recipes.
 
 You help users write and refine scripts for their video scenes. You have context about the current video recipe scenes:
 
