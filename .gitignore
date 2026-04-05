@@ -29,6 +29,7 @@
 *.pem
 AGENT.md
 AGENTS.md
+!src/AGENTS.md
 
 # debug
 npm-debug.log*
