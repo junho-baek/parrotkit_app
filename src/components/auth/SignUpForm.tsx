@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Button, Input, Card } from '@/components/common';
+import { Button, Input } from '@/components/common';
 import { SignUpFormData } from '@/types/auth';
 import { logClientEvent } from '@/lib/client-events';
 import { persistClientSession } from '@/lib/auth/client-session';
@@ -115,21 +115,9 @@ export const SignUpForm: React.FC = () => {
   };
 
   return (
-    <Card className="w-full max-w-[500px] card-luxury">
-      <div className="text-center mb-8">
-        <div className="mb-4">
-          <div className="w-16 h-16 mx-auto bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg animate-pulse-glow">
-            <span className="text-3xl">✨</span>
-          </div>
-        </div>
-        <h1 className="text-3xl font-bold mb-2">
-          <span className="gradient-text">Create Account</span>
-        </h1>
-        <p className="text-gray-900 font-medium">Join ParrotKit today!</p>
-      </div>
-
+    <div className="w-full">
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border-2 border-red-200 rounded-xl text-red-700 text-sm animate-fade-in">
+        <div className="mb-5 rounded-[1.25rem] border border-red-200 bg-red-50/95 px-4 py-3 text-left text-sm font-semibold text-red-700 animate-fade-in">
           <div className="flex items-center gap-2">
             <span>⚠️</span>
             <span>{error}</span>
@@ -137,97 +125,91 @@ export const SignUpForm: React.FC = () => {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-900">
-              Email Address
-            </label>
-            <Input
-              type="email"
-              placeholder="Enter your email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-900">
-              Username
-            </label>
-            <Input
-              type="text"
-              placeholder="Choose a username"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-900">
-              Password
-            </label>
-            <Input
-              type="password"
-              placeholder="Create a password (min. 6 characters)"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-900">
-              Confirm Password
-            </label>
-            <Input
-              type="password"
-              placeholder="Re-type your password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          <Button 
-            type="submit" 
-            disabled={loading}
-            className="w-full btn-primary mt-6"
-          >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                </svg>
-                Creating account...
-              </span>
-            ) : (
-              'Create Account'
-            )}
-          </Button>
-        </form>
-
-        <div className="mt-6">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t-2 border-gray-200"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-gray-900 font-bold">Already have an account?</span>
-            </div>
-          </div>
-          <Link href="/signin" className="block mt-4">
-            <button type="button" className="w-full btn-secondary">
-              Sign In
-            </button>
-          </Link>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2 text-left">
+          <label className="text-sm font-semibold tracking-[-0.01em] text-slate-900">
+            Email Address
+          </label>
+          <Input
+            type="email"
+            placeholder="Enter your email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            className="brand-form-field"
+            required
+          />
         </div>
-      </Card>
+
+        <div className="flex flex-col gap-2 text-left">
+          <label className="text-sm font-semibold tracking-[-0.01em] text-slate-900">
+            Username
+          </label>
+          <Input
+            type="text"
+            placeholder="Choose a username"
+            name="username"
+            value={formData.username}
+            onChange={handleChange}
+            className="brand-form-field"
+            required
+          />
+        </div>
+
+        <div className="flex flex-col gap-2 text-left">
+          <label className="text-sm font-semibold tracking-[-0.01em] text-slate-900">
+            Password
+          </label>
+          <Input
+            type="password"
+            placeholder="Create a password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            className="brand-form-field"
+            required
+          />
+        </div>
+
+        <div className="flex flex-col gap-2 text-left">
+          <label className="text-sm font-semibold tracking-[-0.01em] text-slate-900">
+            Confirm Password
+          </label>
+          <Input
+            type="password"
+            placeholder="Re-type your password"
+            name="confirmPassword"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            className="brand-form-field"
+            required
+          />
+        </div>
+
+        <Button
+          type="submit"
+          disabled={loading}
+          className="brand-primary-button mt-3 rounded-[1.35rem] py-4 text-lg font-semibold"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="size-5 animate-spin" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Creating account...
+            </span>
+          ) : (
+            'Create Account'
+          )}
+        </Button>
+      </form>
+
+      <div className="mt-4 flex flex-col gap-3">
+        <Link href="/signin" className="rounded-[1.35rem] border border-slate-200 bg-transparent py-4 text-center text-lg font-semibold text-slate-800 transition-colors duration-200 hover:bg-white/70">
+          Sign In
+        </Link>
+      </div>
+    </div>
   );
 };

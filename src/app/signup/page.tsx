@@ -1,9 +1,9 @@
-import { SignUpForm } from '@/components/auth';
+import { AuthEntryShell, SignUpForm } from '@/components/auth';
 
 export default function SignUpPage() {
   return (
-    <div className="flex flex-1 items-center justify-center overflow-y-auto p-4">
+    <AuthEntryShell title="Create Account">
       <SignUpForm />
-    </div>
+    </AuthEntryShell>
   );
 }

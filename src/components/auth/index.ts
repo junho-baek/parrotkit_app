@@ -1,5 +1,6 @@
 export { SignUpForm } from './SignUpForm';
 export { SignInForm } from './SignInForm';
+export { AuthEntryShell } from './AuthEntryShell';
 export { OnboardingForm } from './OnboardingForm';
 export { InterestsForm } from './InterestsForm';
 export { URLInputForm } from './URLInputForm';
