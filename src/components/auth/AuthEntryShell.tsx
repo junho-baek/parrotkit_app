@@ -38,7 +38,7 @@ export const AuthEntryShell = ({ title, children }: AuthEntryShellProps) => {
                 priority
               />
             </div>
-            <h1 className="gradient-text text-[2.35rem] leading-none font-bold tracking-[-0.04em] sm:text-[2.7rem]">
+            <h1 className="gradient-text pb-1 text-[2.35rem] leading-[1.08] font-bold tracking-[-0.04em] sm:text-[2.7rem]">
               {title}
             </h1>
           </div>
