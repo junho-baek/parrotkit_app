@@ -125,8 +125,8 @@ export const SignUpForm: React.FC = () => {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2 text-left">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5 text-left">
           <label className="text-sm font-semibold tracking-[-0.01em] text-slate-900">
             Email Address
           </label>
@@ -136,12 +136,12 @@ export const SignUpForm: React.FC = () => {
             name="email"
             value={formData.email}
             onChange={handleChange}
-            className="brand-form-field"
+            className="brand-form-field py-3"
             required
           />
         </div>
 
-        <div className="flex flex-col gap-2 text-left">
+        <div className="flex flex-col gap-1.5 text-left">
           <label className="text-sm font-semibold tracking-[-0.01em] text-slate-900">
             Username
           </label>
@@ -151,12 +151,12 @@ export const SignUpForm: React.FC = () => {
             name="username"
             value={formData.username}
             onChange={handleChange}
-            className="brand-form-field"
+            className="brand-form-field py-3"
             required
           />
         </div>
 
-        <div className="flex flex-col gap-2 text-left">
+        <div className="flex flex-col gap-1.5 text-left">
           <label className="text-sm font-semibold tracking-[-0.01em] text-slate-900">
             Password
           </label>
@@ -166,12 +166,12 @@ export const SignUpForm: React.FC = () => {
             name="password"
             value={formData.password}
             onChange={handleChange}
-            className="brand-form-field"
+            className="brand-form-field py-3"
             required
           />
         </div>
 
-        <div className="flex flex-col gap-2 text-left">
+        <div className="flex flex-col gap-1.5 text-left">
           <label className="text-sm font-semibold tracking-[-0.01em] text-slate-900">
             Confirm Password
           </label>
@@ -181,7 +181,7 @@ export const SignUpForm: React.FC = () => {
             name="confirmPassword"
             value={formData.confirmPassword}
             onChange={handleChange}
-            className="brand-form-field"
+            className="brand-form-field py-3"
             required
           />
         </div>
@@ -189,7 +189,7 @@ export const SignUpForm: React.FC = () => {
         <Button
           type="submit"
           disabled={loading}
-          className="brand-primary-button mt-3 rounded-[1.35rem] py-4 text-lg font-semibold"
+          className="brand-primary-button mt-2 rounded-[1.35rem] py-3.5 text-lg font-semibold"
         >
           {loading ? (
             <span className="flex items-center justify-center gap-2">
@@ -205,8 +205,8 @@ export const SignUpForm: React.FC = () => {
         </Button>
       </form>
 
-      <div className="mt-4 flex flex-col gap-3">
-        <Link href="/signin" className="rounded-[1.35rem] border border-slate-200 bg-transparent py-4 text-center text-lg font-semibold text-slate-800 transition-colors duration-200 hover:bg-white/70">
+      <div className="mt-3 flex flex-col gap-3">
+        <Link href="/signin" className="rounded-[1.35rem] border border-slate-200 bg-transparent py-3.5 text-center text-lg font-semibold text-slate-800 transition-colors duration-200 hover:bg-white/70">
           Sign In
         </Link>
       </div>

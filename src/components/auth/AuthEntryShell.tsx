@@ -11,34 +11,34 @@ interface AuthEntryShellProps {
 
 export const AuthEntryShell = ({ title, children }: AuthEntryShellProps) => {
   return (
-    <div className="relative flex flex-1 overflow-y-auto bg-[#fbfaf7]">
+    <div className="relative flex flex-1 overflow-y-auto bg-[#f7f8fc]">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgb(140_103_255/0.11),transparent_34%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_14%,rgb(140_103_255/0.07),transparent_34%)]" />
         <FlickeringGrid
-          className="absolute inset-0 opacity-45 [mask-image:radial-gradient(circle_at_50%_30%,black_0%,black_22%,transparent_62%)]"
+          className="absolute inset-0 opacity-24 [mask-image:radial-gradient(circle_at_50%_22%,black_0%,black_18%,transparent_56%)]"
           squareSize={6}
           gridGap={12}
           color="rgb(140, 103, 255)"
-          maxOpacity={0.09}
-          flickerChance={0.08}
+          maxOpacity={0.06}
+          flickerChance={0.06}
         />
       </div>
 
-      <div className="relative flex min-h-full w-full items-center justify-center px-6 pb-[calc(env(safe-area-inset-bottom)+2rem)] pt-[calc(env(safe-area-inset-top)+1.75rem)]">
-        <div className="animate-fade-in flex w-full max-w-[22rem] flex-col items-center gap-8 text-center">
-          <div className="flex flex-col items-center gap-5">
+      <div className="relative flex min-h-full w-full items-center justify-center px-6 py-[calc(env(safe-area-inset-top)+1rem)]">
+        <div className="animate-fade-in flex w-full max-w-[24rem] flex-col items-center gap-5 text-center">
+          <div className="flex flex-col items-center gap-4">
             <div className="relative flex items-center justify-center">
-              <div className="absolute inset-0 scale-[1.2] rounded-full bg-[radial-gradient(circle,_rgb(140_103_255/0.18)_0%,_transparent_68%)] blur-2xl" />
+              <div className="absolute inset-0 scale-[1.08] rounded-full bg-[radial-gradient(circle,_rgb(140_103_255/0.12)_0%,_transparent_72%)] blur-2xl" />
               <Image
                 src="/parrot-logo.png"
                 alt="ParrotKit"
-                width={120}
-                height={120}
-                className="relative size-[7.5rem]"
+                width={88}
+                height={88}
+                className="relative size-[5.5rem] sm:size-[5.75rem]"
                 priority
               />
             </div>
-            <h1 className="text-[3rem] font-black tracking-[-0.05em] text-slate-950 sm:text-[3.35rem]">
+            <h1 className="gradient-text text-[2.35rem] leading-none font-bold tracking-[-0.04em] sm:text-[2.7rem]">
               {title}
             </h1>
           </div>
