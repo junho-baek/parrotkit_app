@@ -69,7 +69,7 @@ export default function Home() {
           <Link href="/signin" onClick={handleSignInClick} className="block">
             <Button
               variant="primary"
-              className="rounded-[1.35rem] border border-[rgb(140_103_255/0.2)] bg-[color:var(--brand-electric-violet)] py-4 text-lg font-semibold text-white shadow-[0_18px_40px_rgb(140_103_255/0.24)] transition-transform duration-200 hover:-translate-y-0.5 hover:bg-[rgb(123_90_246)] active:translate-y-0"
+              className="brand-primary-button rounded-[1.35rem] py-4 text-lg font-semibold"
             >
               <span className="flex items-center justify-center gap-2">
                 Sign In
