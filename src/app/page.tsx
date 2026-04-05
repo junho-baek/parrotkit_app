@@ -79,7 +79,7 @@ export default function Home() {
               </p>
             </div>
           </div>
-        </div>
+        </section>
 
         <div className="flex flex-col gap-3">
           <Link href="/signin" onClick={handleSignInClick} className="block">
