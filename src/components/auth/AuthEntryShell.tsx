@@ -11,16 +11,16 @@ interface AuthEntryShellProps {
 
 export const AuthEntryShell = ({ title, children }: AuthEntryShellProps) => {
   return (
-    <div className="relative flex flex-1 overflow-y-auto bg-[#f7f8fc]">
+    <div className="relative flex flex-1 overflow-y-auto bg-white">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_14%,rgb(140_103_255/0.07),transparent_34%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_14%,rgb(140_103_255/0.04),transparent_32%)]" />
         <FlickeringGrid
-          className="absolute inset-0 opacity-24 [mask-image:radial-gradient(circle_at_50%_22%,black_0%,black_18%,transparent_56%)]"
+          className="absolute inset-0 opacity-14 [mask-image:radial-gradient(circle_at_50%_20%,black_0%,black_16%,transparent_52%)]"
           squareSize={6}
           gridGap={12}
           color="rgb(140, 103, 255)"
-          maxOpacity={0.06}
-          flickerChance={0.06}
+          maxOpacity={0.04}
+          flickerChance={0.05}
         />
       </div>
 
