@@ -15,8 +15,18 @@ interface CameraShootingProps {
 }
 
 type DragState = {
+  mode: 'drag' | 'resize';
   blockId: string;
   pointerId: number;
+  startX?: number;
+  startY?: number;
+  startScale?: number;
+};
+
+type PinchState = {
+  blockId: string;
+  startDistance: number;
+  startScale: number;
 };
 
 const sizeClassMap: Record<PrompterBlock['size'], string> = {
@@ -68,6 +78,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   const skipCaptureRef = useRef(false);
   const isActiveRef = useRef(false);
   const dragStateRef = useRef<DragState | null>(null);
+  const pinchStateRef = useRef<PinchState | null>(null);
 
   const [isRecording, setIsRecording] = useState(false);
   const [layoutOpen, setLayoutOpen] = useState(false);
@@ -184,11 +195,33 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
     );
   }, [onPrompterBlocksChange, prompterBlocks]);
 
+  const updateBlockScale = useCallback((blockId: string, nextScale: number) => {
+    updateBlock(blockId, (block) => ({
+      ...block,
+      scale: Math.min(2.5, Math.max(0.65, nextScale)),
+    }));
+  }, [updateBlock]);
+
+  const getTouchDistance = useCallback((touches: ArrayLike<{ clientX: number; clientY: number }>) => {
+    if (touches.length < 2) {
+      return 0;
+    }
+
+    const [first, second] = [touches[0], touches[1]];
+    return Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
+  }, []);
+
   useEffect(() => {
     const handlePointerMove = (event: PointerEvent) => {
       const active = dragStateRef.current;
       const container = containerRef.current;
-      if (!active || !container) {
+      if (!active || !container || pinchStateRef.current || event.pointerId !== active.pointerId) {
+        return;
+      }
+
+      if (active.mode === 'resize') {
+        const delta = Math.max(event.clientX - (active.startX || 0), event.clientY - (active.startY || 0));
+        updateBlockScale(active.blockId, (active.startScale || 1) + delta / 180);
         return;
       }
 
@@ -214,7 +247,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
     };
-  }, [updateBlock]);
+  }, [updateBlock, updateBlockScale]);
 
   const startRecording = async () => {
     const previewStream = previewStreamRef.current;
@@ -376,6 +409,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
         </div>
 
         {visibleBlocks.map((block) => {
+          const scale = block.scale ?? 1;
           const position = {
             left: `${((block.x ?? presetOffsetMap[block.positionPreset].x) * 100).toFixed(2)}%`,
             top: `${((block.y ?? presetOffsetMap[block.positionPreset].y) * 100).toFixed(2)}%`,
@@ -387,15 +421,72 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
               type="button"
               onPointerDown={(event) => {
                 dragStateRef.current = {
+                  mode: 'drag',
                   blockId: block.id,
                   pointerId: event.pointerId,
                 };
                 (event.currentTarget as HTMLButtonElement).setPointerCapture?.(event.pointerId);
               }}
-              className={`absolute z-10 max-w-[82%] -translate-x-1/2 -translate-y-1/2 rounded-[1.75rem] border font-semibold tracking-[-0.02em] shadow-[0_16px_40px_rgb(0_0_0_/_0.25)] backdrop-blur-sm ${sizeClassMap[block.size]} ${getBlockTone(block)}`}
-              style={position}
+              onTouchStart={(event) => {
+                if (event.touches.length !== 2) {
+                  return;
+                }
+
+                dragStateRef.current = null;
+                pinchStateRef.current = {
+                  blockId: block.id,
+                  startDistance: getTouchDistance(event.touches),
+                  startScale: block.scale ?? 1,
+                };
+              }}
+              onTouchMove={(event) => {
+                const pinch = pinchStateRef.current;
+                if (!pinch || pinch.blockId !== block.id || event.touches.length !== 2) {
+                  return;
+                }
+
+                event.preventDefault();
+                const nextDistance = getTouchDistance(event.touches);
+                if (!nextDistance || !pinch.startDistance) {
+                  return;
+                }
+
+                updateBlockScale(block.id, pinch.startScale * (nextDistance / pinch.startDistance));
+              }}
+              onTouchEnd={(event) => {
+                if (event.touches.length < 2) {
+                  dragStateRef.current = null;
+                  pinchStateRef.current = null;
+                }
+              }}
+              className={`absolute z-10 max-w-[82%] select-none rounded-[1.75rem] border font-semibold tracking-[-0.02em] shadow-[0_16px_40px_rgb(0_0_0_/_0.25)] backdrop-blur-sm touch-none ${sizeClassMap[block.size]} ${getBlockTone(block)}`}
+              style={{
+                ...position,
+                transform: `translate(-50%, -50%) scale(${scale})`,
+                transformOrigin: 'center center',
+              }}
             >
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.18em] opacity-55">
+                {block.label || block.type.replace(/_/g, ' ')}
+              </span>
               {block.content}
+              <span
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  dragStateRef.current = {
+                    mode: 'resize',
+                    blockId: block.id,
+                    pointerId: event.pointerId,
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    startScale: block.scale ?? 1,
+                  };
+                }}
+                className="absolute -bottom-2 -right-2 hidden h-5 w-5 items-center justify-center rounded-full border border-white/25 bg-black/70 text-[10px] text-white shadow-lg md:flex"
+                aria-hidden="true"
+              >
+                ↘
+              </span>
             </button>
           );
         })}
@@ -478,6 +569,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/45">Prompter Layout</p>
                 <h3 className="text-lg font-bold text-white">Choose what you want to see while shooting</h3>
+                <p className="mt-1 text-xs font-medium text-white/45">Drag blocks on the camera, pinch to zoom on touch, or use the corner handle on web.</p>
               </div>
               <button
                 type="button"
@@ -493,7 +585,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                 <div key={block.id} className="rounded-3xl border border-white/10 bg-white/5 p-3">
                   <div className="mb-3 flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-white">{block.type.replace(/_/g, ' ')}</p>
+                      <p className="text-sm font-semibold text-white">{block.label || block.type.replace(/_/g, ' ')}</p>
                       <p className="mt-1 text-xs text-white/60">{block.content}</p>
                     </div>
                     <button
@@ -507,7 +599,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                     <label className="space-y-1 text-xs font-medium text-white/60">
                       <span>Size</span>
                       <select
@@ -542,6 +634,19 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                         <option value="lowerThird">Lower third</option>
                         <option value="bottom">Bottom</option>
                       </select>
+                    </label>
+
+                    <label className="space-y-1 text-xs font-medium text-white/60">
+                      <span>Scale</span>
+                      <input
+                        type="range"
+                        min="0.65"
+                        max="2.5"
+                        step="0.05"
+                        value={block.scale ?? 1}
+                        onChange={(event) => updateBlockScale(block.id, Number(event.target.value))}
+                        className="w-full accent-white"
+                      />
                     </label>
                   </div>
                 </div>

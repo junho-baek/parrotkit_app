@@ -17,6 +17,7 @@ type ChatRole = 'user' | 'assistant';
 type AssistantMode = 'global' | 'scene';
 
 type SceneUpdate = {
+  appealPoint?: string;
   keyLine?: string;
   scriptLines?: string[];
   keyMood?: string;
@@ -60,9 +61,11 @@ function mergePrompterBlocks(existingBlocks: PrompterBlock[], updates: SceneUpda
         ...nextBlocks[targetIndex],
         ...(update.id ? { id: update.id } : {}),
         ...(update.type ? { type: update.type as PrompterBlock['type'] } : {}),
+        ...(typeof update.label === 'string' ? { label: update.label } : {}),
         ...(typeof update.content === 'string' ? { content: update.content } : {}),
         ...(typeof update.visible === 'boolean' ? { visible: update.visible } : {}),
         ...(update.size ? { size: update.size } : {}),
+        ...(typeof update.scale === 'number' ? { scale: update.scale } : {}),
         ...(update.positionPreset ? { positionPreset: update.positionPreset } : {}),
         ...(typeof update.order === 'number' ? { order: update.order } : {}),
       };
@@ -70,6 +73,29 @@ function mergePrompterBlocks(existingBlocks: PrompterBlock[], updates: SceneUpda
   }
 
   return nextBlocks.sort((left, right) => left.order - right.order);
+}
+
+function getPrompterBlockLabel(block: PrompterBlock) {
+  if (block.label) {
+    return block.label;
+  }
+
+  switch (block.type) {
+    case 'key_line':
+      return 'Main Script';
+    case 'appeal_point':
+      return 'Cut Goal';
+    case 'action':
+      return 'Action';
+    case 'mood':
+      return 'Mood';
+    case 'warning':
+      return 'Avoid Cue';
+    case 'cta':
+      return 'CTA';
+    default:
+      return 'Cue';
+  }
 }
 
 export const RecipeResult: React.FC<RecipeResultProps> = ({
@@ -164,7 +190,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
   const getSceneAssistantIntro = React.useCallback((scene: RecipeScene): ChatMessage => ({
     role: 'assistant',
-    content: `Hi! I'm refining #${scene.id}: ${scene.title}. Ask me to sharpen the key line, tighten the script, change the mood, or adjust what appears in the prompter.`,
+    content: `Hi! I'm refining #${scene.id}: ${scene.title}. Ask me to sharpen the cut goal, tighten the script, change the mood, or adjust what appears in the prompter.`,
   }), []);
 
   const globalAssistantIntro = React.useMemo<ChatMessage>(() => ({
@@ -285,6 +311,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
         ...scene,
         recipe: {
           ...scene.recipe,
+          ...(sceneUpdate.appealPoint ? { appealPoint: sceneUpdate.appealPoint } : {}),
           ...(sceneUpdate.keyLine ? { keyLine: sceneUpdate.keyLine } : {}),
           ...(sceneUpdate.scriptLines && sceneUpdate.scriptLines.length > 0 ? { scriptLines: sceneUpdate.scriptLines } : {}),
           ...(sceneUpdate.keyMood ? { keyMood: sceneUpdate.keyMood } : {}),
@@ -579,6 +606,25 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     void persistRecipeScenes(nextScenes);
   };
 
+  const toggleScenePrompterBlock = (sceneId: number, blockId: string) => {
+    const scene = recipeScenes.find((item) => item.id === sceneId);
+    if (!scene) {
+      return;
+    }
+
+    handleSceneBlocksChange(
+      sceneId,
+      scene.prompter.blocks.map((block) =>
+        block.id === blockId
+          ? {
+              ...block,
+              visible: !block.visible,
+            }
+          : block
+      )
+    );
+  };
+
   const handleDetailBack = () => {
     setSelectedSceneId(null);
     setActiveTab('analysis');
@@ -679,7 +725,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
       <div className="rounded-[2rem] border border-white/10 bg-white/5 p-4 shadow-[0_22px_50px_rgb(0_0_0_/_0.28)]">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-sky-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-100">
-            Appeal Point
+            Cut Goal
           </span>
           {resolvedBrandBrief?.productName ? (
             <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/70">
@@ -704,6 +750,47 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
       </div>
 
       <div className="mt-4 space-y-4">
+        <section className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Prompter Picks</p>
+              <p className="mt-1 text-xs font-medium text-white/50">Check the cues you want to see while shooting.</p>
+            </div>
+            <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/70">
+              {scene.prompter.blocks.filter((block) => block.visible).length} visible
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {scene.prompter.blocks
+              .slice()
+              .sort((left, right) => left.order - right.order)
+              .map((block) => (
+                <button
+                  key={`${scene.id}-${block.id}`}
+                  type="button"
+                  onClick={() => toggleScenePrompterBlock(scene.id, block.id)}
+                  className={`max-w-full rounded-[1.4rem] border px-3 py-2 text-left transition ${
+                    block.visible
+                      ? 'border-sky-300/35 bg-sky-500/14 text-sky-50 shadow-[0_10px_24px_rgb(14_165_233_/_0.12)]'
+                      : 'border-white/10 bg-black/20 text-white/72'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] ${
+                      block.visible ? 'border-sky-200 bg-sky-100 text-slate-950' : 'border-white/20 text-transparent'
+                    }`}>
+                      ✓
+                    </span>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">
+                      {getPrompterBlockLabel(block)}
+                    </span>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-sm font-semibold leading-snug">{block.content}</p>
+                </button>
+              ))}
+          </div>
+        </section>
+
         <section className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Recommended Script</p>
           <div className="mt-3 space-y-3">

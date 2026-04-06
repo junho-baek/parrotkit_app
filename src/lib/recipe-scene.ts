@@ -46,16 +46,53 @@ function normalizePrompterPosition(value: unknown): PrompterPositionPreset {
   return supported.includes(normalized) ? normalized : 'lowerThird';
 }
 
+function normalizePrompterScale(value: unknown) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return 1;
+  }
+
+  return Math.min(2.5, Math.max(0.65, numeric));
+}
+
 function compactText(value: unknown) {
   return String(value ?? '').replace(/\s+/g, ' ').trim();
 }
 
-function splitKeywords(text: string) {
-  return text
-    .split(/[,.|/]/)
-    .map((part) => compactText(part))
-    .filter(Boolean)
-    .slice(0, 3);
+function toShortCue(text: string, maxWords: number = 4, maxChars: number = 26) {
+  const compact = compactText(text);
+  if (!compact) {
+    return '';
+  }
+
+  const words = compact.split(/\s+/).filter(Boolean);
+  const shortText = words.length > 1 ? words.slice(0, maxWords).join(' ') : compact;
+
+  if (shortText.length <= maxChars) {
+    return shortText;
+  }
+
+  return `${shortText.slice(0, maxChars - 1).trim()}…`;
+}
+
+function appendBlock(
+  blocks: PrompterBlock[],
+  block: Omit<PrompterBlock, 'order'> & { order?: number }
+) {
+  const content = compactText(block.content);
+  if (!content) {
+    return;
+  }
+
+  if (blocks.some((item) => item.id === block.id || item.content === content)) {
+    return;
+  }
+
+  blocks.push({
+    ...block,
+    content,
+    order: block.order ?? blocks.length + 1,
+  });
 }
 
 function createFallbackWhyItWorks(title: string, motionDescription: string, transcriptSnippet: string) {
@@ -142,100 +179,157 @@ export function normalizeBrandBrief(raw: unknown, sourceFileName?: string | null
   };
 }
 
-export function createDefaultPrompterBlocks(recipe: SceneRecipePlan): PrompterBlock[] {
+export function createDefaultPrompterBlocks(
+  recipe: SceneRecipePlan,
+  analysis?: Partial<SceneAnalysis>,
+  brandBrief?: BrandBrief | null,
+  sceneTitle?: string
+): PrompterBlock[] {
   const blocks: PrompterBlock[] = [];
-  let order = 0;
 
-  if (recipe.keyLine) {
-    blocks.push({
-      id: 'key-line',
-      type: 'key_line',
-      content: recipe.keyLine,
-      visible: true,
-      size: 'xl',
-      positionPreset: 'lowerThird',
-      order: order += 1,
-    });
-  }
+  appendBlock(blocks, {
+    id: 'key-line',
+    type: 'key_line',
+    label: 'Main Script',
+    content: recipe.keyLine,
+    visible: true,
+    size: 'xl',
+    scale: 1,
+    positionPreset: 'lowerThird',
+  });
 
-  const keywordSource = recipe.mustInclude[0] || splitKeywords(recipe.appealPoint)[0] || splitKeywords(recipe.keyAction)[0] || '';
-  if (keywordSource) {
-    blocks.push({
-      id: 'keyword',
-      type: 'keyword',
-      content: keywordSource,
-      visible: true,
-      size: 'lg',
-      positionPreset: 'upperThird',
-      order: order += 1,
-    });
-  }
+  appendBlock(blocks, {
+    id: 'script-focus',
+    type: 'keyword',
+    label: 'Script Point',
+    content: toShortCue(recipe.keyLine || recipe.scriptLines[0] || ''),
+    visible: false,
+    size: 'lg',
+    scale: 1,
+    positionPreset: 'upperThird',
+  });
 
-  if (recipe.appealPoint) {
-    blocks.push({
-      id: 'appeal-point',
-      type: 'appeal_point',
-      content: recipe.appealPoint,
-      visible: false,
-      size: 'md',
-      positionPreset: 'center',
-      order: order += 1,
-    });
-  }
+  appendBlock(blocks, {
+    id: 'motion-focus',
+    type: 'keyword',
+    label: 'Motion Point',
+    content: toShortCue(analysis?.motionDescription || ''),
+    visible: false,
+    size: 'md',
+    scale: 1,
+    positionPreset: 'upperThird',
+  });
 
-  if (recipe.keyMood) {
-    blocks.push({
-      id: 'mood',
-      type: 'mood',
-      content: recipe.keyMood,
-      visible: false,
-      size: 'sm',
-      positionPreset: 'upperThird',
-      order: order += 1,
-    });
-  }
+  appendBlock(blocks, {
+    id: 'product-focus',
+    type: 'keyword',
+    label: 'Product Point',
+    content: toShortCue(brandBrief?.productName || brandBrief?.keyMessages[0] || ''),
+    visible: false,
+    size: 'md',
+    scale: 1,
+    positionPreset: 'top',
+  });
 
-  if (recipe.keyAction) {
-    blocks.push({
-      id: 'action',
-      type: 'action',
-      content: recipe.keyAction,
-      visible: true,
-      size: 'md',
-      positionPreset: 'bottom',
-      order: order += 1,
-    });
-  }
+  appendBlock(blocks, {
+    id: 'problem-focus',
+    type: 'keyword',
+    label: 'Problem Point',
+    content: toShortCue(analysis?.transcriptSnippet || recipe.objective || ''),
+    visible: false,
+    size: 'md',
+    scale: 1,
+    positionPreset: 'upperThird',
+  });
 
-  if (recipe.mustAvoid[0]) {
-    blocks.push({
-      id: 'warning',
-      type: 'warning',
-      content: `Avoid: ${recipe.mustAvoid[0]}`,
-      visible: true,
-      size: 'sm',
-      positionPreset: 'top',
-      order: order += 1,
-    });
-  }
+  appendBlock(blocks, {
+    id: 'scene-role',
+    type: 'keyword',
+    label: 'Scene Role',
+    content: toShortCue(sceneTitle || ''),
+    visible: false,
+    size: 'sm',
+    scale: 1,
+    positionPreset: 'top',
+  });
 
-  if (recipe.cta) {
-    blocks.push({
-      id: 'cta',
-      type: 'cta',
-      content: recipe.cta,
-      visible: false,
-      size: 'md',
-      positionPreset: 'bottom',
-      order: order += 1,
-    });
-  }
+  appendBlock(blocks, {
+    id: 'cut-goal',
+    type: 'appeal_point',
+    label: 'Cut Goal',
+    content: recipe.appealPoint,
+    visible: false,
+    size: 'md',
+    scale: 1,
+    positionPreset: 'center',
+  });
+
+  appendBlock(blocks, {
+    id: 'required-cue',
+    type: 'keyword',
+    label: 'Required Cue',
+    content: toShortCue(recipe.mustInclude[0] || ''),
+    visible: false,
+    size: 'md',
+    scale: 1,
+    positionPreset: 'upperThird',
+  });
+
+  appendBlock(blocks, {
+    id: 'mood',
+    type: 'mood',
+    label: 'Mood',
+    content: recipe.keyMood,
+    visible: false,
+    size: 'sm',
+    scale: 1,
+    positionPreset: 'upperThird',
+  });
+
+  appendBlock(blocks, {
+    id: 'action',
+    type: 'action',
+    label: 'Action',
+    content: recipe.keyAction,
+    visible: false,
+    size: 'md',
+    scale: 1,
+    positionPreset: 'bottom',
+  });
+
+  appendBlock(blocks, {
+    id: 'warning',
+    type: 'warning',
+    label: 'Avoid Cue',
+    content: recipe.mustAvoid[0] ? `Avoid: ${recipe.mustAvoid[0]}` : '',
+    visible: true,
+    size: 'sm',
+    scale: 1,
+    positionPreset: 'top',
+  });
+
+  appendBlock(blocks, {
+    id: 'cta',
+    type: 'cta',
+    label: 'CTA',
+    content: recipe.cta || '',
+    visible: false,
+    size: 'md',
+    scale: 1,
+    positionPreset: 'bottom',
+  });
 
   return blocks;
 }
 
-export function normalizePrompterBlocks(raw: unknown, recipe: SceneRecipePlan): PrompterBlock[] {
-  const fallback = createDefaultPrompterBlocks(recipe);
+export function normalizePrompterBlocks(
+  raw: unknown,
+  recipe: SceneRecipePlan,
+  analysis?: Partial<SceneAnalysis>,
+  brandBrief?: BrandBrief | null,
+  sceneTitle?: string
+): PrompterBlock[] {
+  const fallback = createDefaultPrompterBlocks(recipe, analysis, brandBrief, sceneTitle);
   if (!Array.isArray(raw)) {
     return fallback;
   }
@@ -253,10 +347,12 @@ export function normalizePrompterBlocks(raw: unknown, recipe: SceneRecipePlan): 
     acc.push({
       id: compactText(item.id) || `block-${index + 1}`,
       type: (compactText(item.type) as PrompterBlock['type']) || 'keyword',
+      label: compactText(item.label) || undefined,
       content,
       visible: item.visible !== false,
       size: normalizePrompterSize(item.size),
       positionPreset: normalizePrompterPosition(item.positionPreset),
+      scale: normalizePrompterScale(item.scale),
       ...(Number.isFinite(Number(item.x)) ? { x: Number(item.x) } : {}),
       ...(Number.isFinite(Number(item.y)) ? { y: Number(item.y) } : {}),
       order: Number.isFinite(Number(item.order)) ? Number(item.order) : index + 1,
@@ -265,7 +361,23 @@ export function normalizePrompterBlocks(raw: unknown, recipe: SceneRecipePlan): 
     return acc;
   }, []).sort((left, right) => left.order - right.order);
 
-  return blocks.length > 0 ? blocks : fallback;
+  if (blocks.length === 0) {
+    return fallback;
+  }
+
+  const merged = [...blocks];
+  for (const fallbackBlock of fallback) {
+    if (merged.some((block) => block.id === fallbackBlock.id)) {
+      continue;
+    }
+
+    merged.push({
+      ...fallbackBlock,
+      order: merged.length + 1,
+    });
+  }
+
+  return merged.sort((left, right) => left.order - right.order);
 }
 
 function normalizeSceneRecipe(item: JsonRecord, title: string, description: string, brandBrief?: BrandBrief | null): SceneRecipePlan {
@@ -279,7 +391,11 @@ function normalizeSceneRecipe(item: JsonRecord, title: string, description: stri
     ? normalizeStringArray(recipe.scriptLines)
     : legacyScript;
   const keyLine = compactText(recipe.keyLine) || scriptLines[0] || description || `Recreate the ${title.toLowerCase()} beat in your own words.`;
-  const appealPoint = compactText(recipe.appealPoint) || brandMessages[0] || description || keyLine;
+  const appealPoint =
+    compactText(recipe.appealPoint) ||
+    brandMessages[0] ||
+    (description && description !== keyLine ? description : '') ||
+    `Use this ${title.toLowerCase()} cut to move the viewer into the next beat.`;
 
   return {
     objective: compactText(recipe.objective) || `Turn the reference ${title.toLowerCase()} into a reusable creator beat.`,
@@ -345,7 +461,13 @@ export function normalizeRecipeScene(raw: unknown, index: number, brandBrief?: B
     analysis,
     recipe,
     prompter: {
-      blocks: normalizePrompterBlocks(isRecord(item.prompter) ? item.prompter.blocks : undefined, recipe),
+      blocks: normalizePrompterBlocks(
+        isRecord(item.prompter) ? item.prompter.blocks : undefined,
+        recipe,
+        analysis,
+        brandBrief,
+        title
+      ),
     },
     progress: Number(item.progress ?? 0),
     description: analysis.motionDescription || recipe.appealPoint || recipe.keyLine,

@@ -53,10 +53,12 @@ export interface SceneRecipePlan {
 export interface PrompterBlock {
   id: string;
   type: PrompterBlockType;
+  label?: string;
   content: string;
   visible: boolean;
   size: PrompterBlockSize;
   positionPreset: PrompterPositionPreset;
+  scale?: number;
   x?: number;
   y?: number;
   order: number;

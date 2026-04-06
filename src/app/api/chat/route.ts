@@ -8,6 +8,7 @@ interface ChatMessage {
 }
 
 type SceneUpdate = {
+  appealPoint?: string;
   keyLine?: string;
   scriptLines?: string[];
   keyMood?: string;
@@ -48,7 +49,7 @@ function summarizeScene(scene: RecipeScene) {
     `Scene #${scene.id} "${scene.title}" (${scene.startTime}~${scene.endTime})`,
     `analysis.motion: ${scene.analysis.motionDescription || '(none)'}`,
     `analysis.transcript: ${scene.analysis.transcriptSnippet || '(none)'}`,
-    `recipe.appealPoint: ${scene.recipe.appealPoint || '(none)'}`,
+    `recipe.cutGoal: ${scene.recipe.appealPoint || '(none)'}`,
     `recipe.keyLine: ${scene.recipe.keyLine || '(none)'}`,
     `recipe.scriptLines: ${scene.recipe.scriptLines.join(' | ') || '(none)'}`,
     `recipe.keyMood: ${scene.recipe.keyMood || '(none)'}`,
@@ -59,6 +60,44 @@ function summarizeScene(scene: RecipeScene) {
       scene.prompter.blocks.map((block) => `${block.id}:${block.type}:${block.visible ? 'visible' : 'hidden'}:${block.content}`).join(' | ') || '(none)'
     }`,
   ].join('\n');
+}
+
+function buildSceneUpdateSummary(sceneUpdate: SceneUpdate | null) {
+  if (!sceneUpdate) {
+    return '장면 업데이트 초안을 준비했습니다.';
+  }
+
+  const changes: string[] = [];
+
+  if (sceneUpdate.appealPoint) {
+    changes.push('cut goal을 더 분명하게 정리했습니다.');
+  }
+
+  if (sceneUpdate.keyLine) {
+    changes.push('메인 한 줄 대사를 다듬었습니다.');
+  }
+
+  if (sceneUpdate.scriptLines?.length) {
+    changes.push(`스크립트 ${sceneUpdate.scriptLines.length}줄을 장면 톤에 맞게 업데이트했습니다.`);
+  }
+
+  if (sceneUpdate.keyAction) {
+    changes.push('촬영 행동 포인트를 다시 잡았습니다.');
+  }
+
+  if (sceneUpdate.keyMood) {
+    changes.push('퍼포먼스 무드를 조정했습니다.');
+  }
+
+  if (sceneUpdate.mustInclude || sceneUpdate.mustAvoid) {
+    changes.push('필수/주의 포인트도 함께 반영했습니다.');
+  }
+
+  if (sceneUpdate.prompterBlocks?.length) {
+    changes.push('프롬프터에 띄울 cue도 같이 손봤습니다.');
+  }
+
+  return changes.length > 0 ? changes.join(' ') : '장면 업데이트 초안을 준비했습니다.';
 }
 
 export async function POST(request: NextRequest) {
@@ -98,13 +137,16 @@ export async function POST(request: NextRequest) {
 You help creators refine one scene at a time.
 - Focus on the target scene only.
 - Keep edits aligned with the rest of the recipe.
-- You may change key line, script lines, mood, action, must-include/must-avoid, and prompter blocks.
+- Treat appealPoint as the cut goal. It must explain the scene's role, not repeat spoken dialogue.
+- You may change cut goal, key line, script lines, mood, action, must-include/must-avoid, and prompter blocks.
+- assistant_message should be 2 to 4 short Korean sentences when the user writes in Korean, and must explicitly say what changed.
 - Return valid JSON only, no markdown fences.
 
 Use this exact schema:
 {
   "assistant_message": "",
   "scene_update": {
+    "appealPoint": "",
     "keyLine": "",
     "scriptLines": ["", ""],
     "keyMood": "",
@@ -115,9 +157,11 @@ Use this exact schema:
       {
         "id": "key-line",
         "type": "key_line",
+        "label": "Main Script",
         "content": "",
         "visible": true,
         "size": "xl",
+        "scale": 1,
         "positionPreset": "lowerThird",
         "order": 1
       }
@@ -134,7 +178,7 @@ Use this exact schema:
       const parsed = await parseSceneUpdate(response);
 
       return NextResponse.json({
-        message: parsed?.message || 'I prepared a scene update you can apply.',
+        message: parsed?.message || buildSceneUpdateSummary(parsed?.sceneUpdate || null),
         sceneUpdate: parsed?.sceneUpdate || null,
       });
     }
