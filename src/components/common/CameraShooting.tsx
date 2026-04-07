@@ -444,37 +444,29 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
           style={{ transform: 'scaleX(-1)' }}
         />
 
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.08),_transparent_28%),linear-gradient(180deg,rgba(0,0,0,0.34),rgba(0,0,0,0.12),rgba(0,0,0,0.7))]" />
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/78 to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/88 via-black/48 to-transparent" />
+        <div className="absolute top-4 left-4 z-20">
+          <button
+            onClick={onBack}
+            className="rounded-xl border border-white/15 bg-black/65 px-3.5 py-2 text-sm font-semibold text-white backdrop-blur-sm transition-transform active:scale-95"
+          >
+            ← Back
+          </button>
+        </div>
 
-        {!embedded ? (
-          <>
-            <div className="absolute left-4 top-4 z-20">
-              <button
-                onClick={onBack}
-                className="rounded-full border border-white/15 bg-black/55 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition-transform active:scale-95"
-              >
-                ← Back
-              </button>
-            </div>
-
-            <div className="absolute right-4 top-4 z-20 rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-white/75 backdrop-blur-sm">
-              Live Prompter
-            </div>
-          </>
-        ) : null}
+        <div className="absolute right-4 top-4 z-20 rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-white/75 backdrop-blur-sm">
+          Prompter
+        </div>
 
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="absolute inset-0 grid grid-cols-3 grid-rows-3">
             {Array.from({ length: 9 }).map((_, index) => (
-              <div key={index} className="border border-white/10" />
+              <div key={index} className="border border-white/18" />
             ))}
           </div>
 
           <div className="relative">
-            <div className="h-48 w-48 rounded-full border-4 border-white/28" />
-            <div className="absolute inset-5 rounded-full border-2 border-white/16" />
+            <div className="h-48 w-48 rounded-full border-4 border-white/45" />
+            <div className="absolute inset-5 rounded-full border-2 border-white/25" />
           </div>
         </div>
 
@@ -576,68 +568,64 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
           </div>
         ) : null}
 
-        <div className="absolute inset-x-0 bottom-5 z-20 px-4">
-          <div className="mx-auto w-full max-w-[360px] rounded-[1.85rem] border border-white/10 bg-black/48 p-3 shadow-[0_24px_60px_rgb(0_0_0_/_0.35)] backdrop-blur-xl">
-            <div className="flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => setLayoutOpen((current) => !current)}
-                className={`rounded-full px-4 py-2.5 text-sm font-semibold transition ${
-                  layoutOpen ? 'bg-white text-slate-950' : 'border border-white/15 bg-white/10 text-white'
-                }`}
-              >
-                Layout
-              </button>
+        <div className="absolute bottom-8 left-0 right-0 z-20">
+          <div className="flex items-center justify-center gap-5">
+            <button
+              type="button"
+              onClick={() => setLayoutOpen((current) => !current)}
+              className="rounded-xl bg-white/95 px-4 py-2.5 text-sm font-semibold text-gray-900 shadow-lg"
+            >
+              Layout
+            </button>
 
-              <button
-                onClick={handleShootButton}
-                className={`relative flex h-20 w-20 items-center justify-center rounded-full transition-all ${
-                  isRecording ? 'scale-90 bg-red-500' : 'border-4 border-red-500 bg-white'
-                }`}
-              >
-                {isRecording ? (
-                  <div className="absolute inset-0 rounded-full border-4 border-red-500 animate-ping" />
-                ) : (
-                  <div className="h-16 w-16 rounded-full bg-red-500" />
-                )}
-              </button>
+            <button
+              onClick={handleShootButton}
+              className={`relative flex h-20 w-20 items-center justify-center rounded-full transition-all ${
+                isRecording ? 'scale-90 bg-red-500' : 'border-4 border-red-500 bg-white'
+              }`}
+            >
+              {isRecording ? (
+                <div className="absolute inset-0 rounded-full border-4 border-red-500 animate-ping" />
+              ) : (
+                <div className="h-16 w-16 rounded-full bg-red-500" />
+              )}
+            </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setReviewVisible(true);
-                  if (reviewVideoRef.current) {
-                    reviewVideoRef.current.currentTime = 0;
-                    void reviewVideoRef.current.play().catch(() => {
-                      // ignore replay failures
-                    });
-                  }
-                }}
-                disabled={!effectiveReviewUrl}
-                className="rounded-full border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                Review
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setReviewVisible(true);
+                if (reviewVideoRef.current) {
+                  reviewVideoRef.current.currentTime = 0;
+                  void reviewVideoRef.current.play().catch(() => {
+                    // ignore replay failures
+                  });
+                }
+              }}
+              disabled={!effectiveReviewUrl}
+              className="w-[72px] rounded-xl bg-white/95 px-3 py-2.5 text-xs font-semibold text-gray-900 shadow-lg disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              Review
+            </button>
+          </div>
 
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-center">
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/75">
-                Scene #{sceneId}: {sceneTitle}
-              </span>
-              {audioStatus === 'ready' ? (
-                <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-100">Mic ready</span>
-              ) : audioStatus === 'denied' ? (
-                <span className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-100">Mic denied</span>
-              ) : null}
-              {saveMessage ? (
-                <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80">{saveMessage}</span>
-              ) : null}
-            </div>
+          <div className="mt-3 flex items-center justify-center gap-2 text-center">
+            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/75">
+              Scene #{sceneId}: {sceneTitle}
+            </span>
+            {audioStatus === 'ready' ? (
+              <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-100">Mic ready</span>
+            ) : audioStatus === 'denied' ? (
+              <span className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-100">Mic denied</span>
+            ) : null}
+            {saveMessage ? (
+              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80">{saveMessage}</span>
+            ) : null}
           </div>
         </div>
 
         {layoutOpen ? (
-          <div className="absolute inset-x-3 bottom-3 z-30 max-h-[52%] overflow-hidden rounded-[2rem] border border-white/12 bg-[#0f1218]/96 px-4 pb-6 pt-3 text-white shadow-[0_28px_60px_rgb(0_0_0_/_0.42)] backdrop-blur-xl">
+          <div className="absolute inset-x-0 bottom-0 z-30 max-h-[46%] overflow-hidden rounded-t-[2rem] border-t border-white/15 bg-[#0f1218]/96 px-4 pb-6 pt-3 text-white backdrop-blur-xl">
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/45">Prompter Layout</p>
@@ -645,9 +633,6 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                 <p className="mt-1 text-xs font-medium text-white/45">Drag blocks on the camera, pinch to zoom on touch, edit the text you want, and add your own cue when needed.</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1.5 text-[11px] font-semibold text-white/70">
-                  {visibleBlocks.length} on screen
-                </span>
                 <button
                   type="button"
                   onClick={addCustomBlock}

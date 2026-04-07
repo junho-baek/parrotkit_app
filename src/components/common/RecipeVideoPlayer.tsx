@@ -119,7 +119,6 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
   const playerRef = useRef<YouTubePlayerInstance | null>(null);
   const htmlVideoRef = useRef<HTMLVideoElement | null>(null);
   const [failedVideoId, setFailedVideoId] = useState<string | null>(null);
-  const [isMediaReady, setIsMediaReady] = useState(false);
 
   const platform = getPlatform(videoUrl);
   const videoId = extractYouTubeVideoId(videoUrl);
@@ -131,21 +130,6 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
   const playerError = isYouTube ? failedVideoId === videoId : platform === 'other';
   const startSeconds = timeToSeconds(scene.startTime);
   const endSeconds = timeToSeconds(scene.endTime);
-  const mediaReady = platform === 'other' || isMediaReady;
-
-  useEffect(() => {
-    if (!embedUrl) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setIsMediaReady(true);
-    }, 700);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [embedUrl]);
 
   useEffect(() => {
     if (!isYouTube) {
@@ -183,7 +167,6 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
           events: {
             onReady: (event: YouTubePlayerEvent) => {
               if (!mounted) return;
-              setIsMediaReady(true);
               event.target.unMute?.();
               event.target.seekTo(startSeconds);
               event.target.playVideo();
@@ -209,7 +192,6 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
             onError: () => {
               if (!mounted) return;
               setFailedVideoId(videoId);
-              setIsMediaReady(false);
             },
           },
         });
@@ -275,7 +257,6 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
     };
 
     const handleLoadedMetadata = () => {
-      setIsMediaReady(true);
       syncSegment();
     };
 
@@ -301,28 +282,16 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
   const thumbnailUrl = scene.thumbnail || (isYouTube ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : '');
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[#05070b]">
+    <div className="relative h-full w-full overflow-hidden bg-black">
       <div className="relative mx-auto h-full w-full max-w-[500px]">
-        <div className="relative h-[46%] min-h-[280px] overflow-hidden bg-black">
-          {thumbnailUrl ? (
-            <img
-              src={thumbnailUrl}
-              alt={scene.title}
-              className="absolute inset-0 h-full w-full scale-105 object-cover opacity-35 blur-sm"
-            />
-          ) : null}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),_transparent_38%),linear-gradient(180deg,rgba(5,7,11,0.28),rgba(5,7,11,0.72))]" />
-
+        <div className="relative h-[48%] min-h-[280px] overflow-hidden bg-black">
           {isYouTube && !playerError ? (
-            <div
-              id="youtube-player"
-              className={`absolute inset-0 h-full w-full transition-opacity duration-300 ${mediaReady ? 'opacity-100' : 'opacity-0'}`}
-            />
+            <div id="youtube-player" className="absolute inset-0 h-full w-full" />
           ) : isDirectVideo ? (
             <video
               ref={htmlVideoRef}
               src={videoUrl}
-              className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${mediaReady ? 'opacity-100' : 'opacity-0'}`}
+              className="absolute inset-0 h-full w-full object-contain"
               playsInline
               controls
               preload="metadata"
@@ -331,7 +300,7 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
             <iframe
               src={embedUrl}
               title={scene.title}
-              className={`absolute inset-0 h-full w-full transition-opacity duration-300 ${mediaReady ? 'opacity-100' : 'opacity-0'}`}
+              className="absolute inset-0 h-full w-full"
               allow="autoplay; encrypted-media; picture-in-picture; clipboard-write"
               allowFullScreen
             />
@@ -360,61 +329,18 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
             </div>
           )}
 
-          {!playerError && !mediaReady ? (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="rounded-full border border-white/10 bg-black/45 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/72 backdrop-blur-sm">
-                Loading reference clip
-              </div>
-            </div>
-          ) : null}
-
-          <div className="absolute left-4 top-4 rounded-full border border-white/15 bg-black/50 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white/75 backdrop-blur-sm">
-            Reference Clip
+          <div className="absolute left-4 top-4 rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white/75 backdrop-blur-sm">
+            Analysis
           </div>
-          <div className="absolute right-4 top-4 rounded-full border border-white/15 bg-black/50 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
+          <div className="absolute right-4 top-4 rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
             {scene.startTime} - {scene.endTime}
-          </div>
-
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/70 to-transparent px-4 pb-5 pt-10">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Study the beat</p>
-            <h2 className="mt-2 text-[1.55rem] font-bold tracking-[-0.04em] text-white">
-              {scene.title}
-            </h2>
-            <p className="mt-2 max-w-[22rem] text-sm font-medium leading-relaxed text-white/70">
-              {scene.analysis.motionDescription || scene.recipe.appealPoint}
-            </p>
           </div>
         </div>
 
-        <div className="relative -mt-8 h-[calc(54%+32px)] overflow-y-auto rounded-t-[2.2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(12,16,24,0.98),rgba(9,12,18,0.98))] px-4 pb-8 pt-6 text-white shadow-[0_-18px_40px_rgb(0_0_0_/_0.28)]">
+        <div className="relative -mt-5 h-[calc(52%+20px)] overflow-y-auto rounded-t-[2rem] border-t border-white/10 bg-[#0b0d12] px-4 pb-8 pt-6 text-white shadow-[0_-18px_40px_rgb(0_0_0_/_0.25)]">
           <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-white/20" />
 
           <div className="space-y-5">
-            <section className="rounded-[1.9rem] border border-sky-300/12 bg-sky-500/[0.08] p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-white/55">Motion Read</h3>
-                  <p className="mt-3 text-base font-semibold leading-relaxed text-white">
-                    {scene.analysis.motionDescription || 'No motion-specific description was extracted for this cut.'}
-                  </p>
-                </div>
-                <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/50">
-                  First watch
-                </span>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                {scene.analysis.referenceSignals.map((signal, index) => (
-                  <div
-                    key={`${scene.id}-signal-${index}`}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${getSignalTone(signal.type)}`}
-                  >
-                    {signal.type}: {signal.text}
-                  </div>
-                ))}
-              </div>
-            </section>
-
             <section className="space-y-2">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-white/55">Original Transcript</h3>
@@ -436,7 +362,16 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
             </section>
 
             <section className="space-y-2">
-              <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-white/55">Why This Cut Lands</h3>
+              <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-white/55">Motion View</h3>
+              <div className="rounded-3xl border border-sky-400/15 bg-sky-500/10 p-4">
+                <p className="text-sm font-medium leading-relaxed text-sky-50">
+                  {scene.analysis.motionDescription || 'No motion-specific description was extracted for this cut.'}
+                </p>
+              </div>
+            </section>
+
+            <section className="space-y-2">
+              <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-white/55">Why It Works</h3>
               <div className="space-y-2">
                 {scene.analysis.whyItWorks.map((item, index) => (
                   <div key={`${scene.id}-why-${index}`} className="rounded-3xl border border-white/10 bg-white/5 px-4 py-3">
@@ -446,6 +381,19 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
               </div>
             </section>
 
+            <section className="space-y-2">
+              <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-white/55">Reference Signals</h3>
+              <div className="flex flex-wrap gap-2">
+                {scene.analysis.referenceSignals.map((signal, index) => (
+                  <div
+                    key={`${scene.id}-signal-${index}`}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${getSignalTone(signal.type)}`}
+                  >
+                    {signal.type}: {signal.text}
+                  </div>
+                ))}
+              </div>
+            </section>
           </div>
         </div>
       </div>
