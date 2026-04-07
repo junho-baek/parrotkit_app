@@ -108,6 +108,19 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
     };
   }, [existingCaptureUrl, reviewUrl]);
 
+  const clearDraftReview = useCallback(() => {
+    setReviewVisible(false);
+    setRecordedBlob(null);
+    setReviewUrl((previousUrl) => {
+      if (previousUrl) {
+        URL.revokeObjectURL(previousUrl);
+      }
+
+      return null;
+    });
+    setSaveMessage(null);
+  }, []);
+
   const getRecordingMimeType = useCallback(() => {
     const candidates = [
       'video/webm;codecs=vp9,opus',
@@ -260,6 +273,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
       return;
     }
 
+    clearDraftReview();
     const recordingTracks: MediaStreamTrack[] = [previewVideoTrack.clone()];
     setSaveMessage(null);
     setAudioStatus('missing');
@@ -343,13 +357,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   };
 
   const handleRetry = () => {
-    setReviewVisible(false);
-    if (reviewUrl) {
-      URL.revokeObjectURL(reviewUrl);
-    }
-    setRecordedBlob(null);
-    setReviewUrl(null);
-    setSaveMessage(null);
+    clearDraftReview();
   };
 
   const handleUseTake = () => {
@@ -518,7 +526,6 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
 
             <button
               onClick={handleShootButton}
-              disabled={Boolean(effectiveReviewUrl)}
               className={`relative flex h-20 w-20 items-center justify-center rounded-full transition-all ${
                 isRecording ? 'scale-90 bg-red-500' : 'border-4 border-red-500 bg-white'
               }`}

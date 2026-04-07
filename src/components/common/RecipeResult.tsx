@@ -33,6 +33,8 @@ type ChatMessage = {
   sceneUpdate?: SceneUpdate | null;
 };
 
+const PROMPTER_PERSIST_DEBOUNCE_MS = 275;
+
 interface RecipeResultProps {
   scenes: RecipeScene[];
   videoUrl: string;
@@ -138,6 +140,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const capturedScenesRef = useRef<{ [key: number]: boolean }>(initialCapturedVideos);
+  const prompterPersistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
     setRecipeScenes(normalizedIncomingScenes);
@@ -272,6 +275,29 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     return true;
   }, [analysisMetadata, recipeId, resolvedBrandBrief, syncRecipeSessionStorage]);
 
+  const clearPrompterPersistTimeout = React.useCallback(() => {
+    if (!prompterPersistTimeoutRef.current) {
+      return;
+    }
+
+    clearTimeout(prompterPersistTimeoutRef.current);
+    prompterPersistTimeoutRef.current = null;
+  }, []);
+
+  const schedulePrompterPersistence = React.useCallback((nextScenes: RecipeScene[]) => {
+    clearPrompterPersistTimeout();
+
+    prompterPersistTimeoutRef.current = setTimeout(() => {
+      syncRecipeSessionStorage(nextScenes);
+      void persistRecipeScenes(nextScenes);
+      prompterPersistTimeoutRef.current = null;
+    }, PROMPTER_PERSIST_DEBOUNCE_MS);
+  }, [clearPrompterPersistTimeout, persistRecipeScenes, syncRecipeSessionStorage]);
+
+  React.useEffect(() => () => {
+    clearPrompterPersistTimeout();
+  }, [clearPrompterPersistTimeout, recipeId, videoUrl]);
+
   const setActiveThread = React.useCallback((messages: ChatMessage[]) => {
     if (assistantMode === 'scene' && selectedScene) {
       setSceneChatHistory((prev) => ({
@@ -330,6 +356,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
       return nextScene;
     });
 
+    clearPrompterPersistTimeout();
     setRecipeScenes(nextScenes);
     setSceneSaveError(null);
     closeChatAssistant();
@@ -602,8 +629,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     );
 
     setRecipeScenes(nextScenes);
-    syncRecipeSessionStorage(nextScenes);
-    void persistRecipeScenes(nextScenes);
+    schedulePrompterPersistence(nextScenes);
   };
 
   const toggleScenePrompterBlock = (sceneId: number, blockId: string) => {
