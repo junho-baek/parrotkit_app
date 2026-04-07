@@ -39,6 +39,11 @@
       - `output/playwright/20260408_recipe_detail_after_prompter_layout.png`
   - desktop `1440x900`
     - `output/playwright/20260408_recipe_detail_after_analysis_desktop.png`
+- 배포 smoke
+  - `git push origin dev`
+  - `https://parrotkit-deploy.vercel.app/` `200`
+  - browse snapshot에서 landing page title / CTA(`ParrotKit`, `Sign In`, `Sign Up`) 확인
+  - screenshot: `output/playwright/20260408_recipe_detail_deploy_home_smoke.png`
 
 ## 남은 리스크
 - prompter 탭의 카메라 permission error banner는 권한이 없는 QA 환경에서는 still cue 위를 가로지른다. 실사용에서는 permission granted 흐름으로 보는 것이 진실값이지만, error 상태 시각도 후속 polish 여지가 있다.
