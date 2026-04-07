@@ -34,6 +34,23 @@ type ChatMessage = {
 };
 
 const PROMPTER_PERSIST_DEBOUNCE_MS = 275;
+const DETAIL_TAB_META: Record<DetailTab, { kicker: string; title: string; summary: string }> = {
+  analysis: {
+    kicker: 'Study',
+    title: 'Analysis',
+    summary: 'Study the original timing, motion, and proof points before you remake the cut.',
+  },
+  recipe: {
+    kicker: 'Build',
+    title: 'Recipe',
+    summary: 'Lock the creator line, on-camera beat, and cue stack for this scene.',
+  },
+  prompter: {
+    kicker: 'Shoot',
+    title: 'Prompter',
+    summary: 'Keep only the cues you need on screen, then rehearse and record the take.',
+  },
+};
 
 interface RecipeResultProps {
   scenes: RecipeScene[];
@@ -97,6 +114,31 @@ function getPrompterBlockLabel(block: PrompterBlock) {
       return 'CTA';
     default:
       return 'Cue';
+  }
+}
+
+function getVisiblePrompterTone(block: PrompterBlock) {
+  switch (block.type) {
+    case 'warning':
+      return {
+        surface: 'border-rose-300/22 bg-rose-500/[0.13]',
+        badge: 'border-rose-300/18 bg-rose-500/16 text-rose-100',
+      };
+    case 'cta':
+      return {
+        surface: 'border-amber-300/24 bg-amber-400/[0.14]',
+        badge: 'border-amber-300/18 bg-amber-400/16 text-amber-50',
+      };
+    case 'key_line':
+      return {
+        surface: 'border-sky-300/28 bg-sky-500/[0.14]',
+        badge: 'border-sky-300/18 bg-sky-500/16 text-sky-50',
+      };
+    default:
+      return {
+        surface: 'border-white/12 bg-white/[0.05]',
+        badge: 'border-white/10 bg-white/10 text-white/70',
+      };
   }
 }
 
@@ -781,122 +823,165 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     router.push('/recipes');
   };
 
-  const renderRecipeDetail = (scene: RecipeScene) => (
-    <div className="mx-auto flex h-full w-full max-w-[500px] flex-col overflow-y-auto bg-[#0b0d12] px-4 pb-10 pt-4 text-white">
-      <div className="rounded-[2rem] border border-white/10 bg-white/5 p-4 shadow-[0_22px_50px_rgb(0_0_0_/_0.28)]">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-sky-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-100">
-            Cut Goal
-          </span>
-          {resolvedBrandBrief?.productName ? (
-            <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/70">
-              {resolvedBrandBrief.productName}
+  const renderRecipeDetail = (scene: RecipeScene) => {
+    const sortedBlocks = scene.prompter.blocks
+      .slice()
+      .sort((left, right) => left.order - right.order);
+    const visibleBlocks = sortedBlocks.filter((block) => block.visible);
+    const hiddenBlocks = sortedBlocks.filter((block) => !block.visible);
+
+    return (
+      <div className="mx-auto flex h-full w-full max-w-[500px] flex-col overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.14),_transparent_28%),#081019] px-4 pb-10 pt-4 text-white">
+        <div className="rounded-[2.15rem] border border-white/10 bg-[linear-gradient(160deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-[0_28px_60px_rgb(0_0_0_/_0.32)]">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-sky-300/18 bg-sky-500/14 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-100">
+              Creator Recipe
             </span>
+            {resolvedBrandBrief?.productName ? (
+              <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/72">
+                {resolvedBrandBrief.productName}
+              </span>
+            ) : null}
+            <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[11px] font-semibold text-white/58">
+              {visibleBlocks.length} cues on screen
+            </span>
+          </div>
+
+          <p className="mt-4 max-w-[22rem] text-sm font-medium leading-relaxed text-white/66">
+            {scene.recipe.appealPoint}
+          </p>
+          <h2 className="mt-4 text-[1.95rem] font-bold tracking-[-0.05em] text-white">
+            {scene.recipe.keyLine}
+          </h2>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-[1.65rem] border border-white/10 bg-black/25 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">Mood</p>
+              <p className="mt-2 text-sm font-semibold leading-relaxed text-white">{scene.recipe.keyMood}</p>
+            </div>
+            <div className="rounded-[1.65rem] border border-white/10 bg-black/25 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">On-camera action</p>
+              <p className="mt-2 text-sm font-semibold leading-relaxed text-white">{scene.recipe.keyAction}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-4">
+          <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-4 shadow-[0_18px_40px_rgb(0_0_0_/_0.18)]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Prompter Setup</p>
+                <p className="mt-1 text-xs font-medium text-white/50">Keep the live cues lean. Turn on only what helps during the take.</p>
+              </div>
+              <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[11px] font-semibold text-white/72">
+                {visibleBlocks.length} visible
+              </span>
+            </div>
+
+            <div className="mt-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">On-screen now</p>
+              <div className="mt-3 space-y-3">
+                {visibleBlocks.map((block) => {
+                  const tone = getVisiblePrompterTone(block);
+                  return (
+                    <button
+                      key={`${scene.id}-${block.id}`}
+                      type="button"
+                      onClick={() => toggleScenePrompterBlock(scene.id, block.id)}
+                      className={`w-full rounded-[1.6rem] border px-4 py-3 text-left transition hover:brightness-105 ${tone.surface}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${tone.badge}`}>
+                            {getPrompterBlockLabel(block)}
+                          </span>
+                          <p className="mt-3 text-base font-semibold leading-snug text-white">{block.content}</p>
+                        </div>
+                        <span className="rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/55">
+                          Visible
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {hiddenBlocks.length > 0 ? (
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">Optional cues</p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {hiddenBlocks.map((block) => (
+                    <button
+                      key={`${scene.id}-${block.id}`}
+                      type="button"
+                      onClick={() => toggleScenePrompterBlock(scene.id, block.id)}
+                      className="rounded-[1.2rem] border border-white/10 bg-black/20 px-3 py-3 text-left text-white/72 transition hover:border-white/20 hover:bg-white/[0.05]"
+                    >
+                      <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                        {getPrompterBlockLabel(block)}
+                      </span>
+                      <span className="mt-1.5 block line-clamp-2 text-sm font-medium leading-snug">
+                        {block.content}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </section>
+
+          <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Recommended Script</p>
+              <span className="text-[11px] font-semibold text-white/30">{getSceneScriptLines(scene).length} beats</span>
+            </div>
+            <div className="mt-4 space-y-3">
+              {getSceneScriptLines(scene).map((line, index) => (
+                <div key={`${scene.id}-script-${index}`} className="flex items-start gap-3 rounded-[1.5rem] border border-white/8 bg-black/20 px-3 py-3">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-slate-950">
+                    {index + 1}
+                  </span>
+                  <p className="text-base font-semibold leading-relaxed text-white">{line}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Must Include</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(scene.recipe.mustInclude.length > 0 ? scene.recipe.mustInclude : ['No required cue captured']).map((item, index) => (
+                  <span key={`${scene.id}-include-${index}`} className="rounded-full border border-emerald-300/20 bg-emerald-500/12 px-3 py-1.5 text-xs font-semibold text-emerald-100">
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Must Avoid</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(scene.recipe.mustAvoid.length > 0 ? scene.recipe.mustAvoid : ['No avoid cue captured']).map((item, index) => (
+                  <span key={`${scene.id}-avoid-${index}`} className="rounded-full border border-rose-300/20 bg-rose-500/12 px-3 py-1.5 text-xs font-semibold text-rose-100">
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          {scene.recipe.cta ? (
+            <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">CTA</p>
+              <p className="mt-3 text-sm font-semibold leading-relaxed text-white">{scene.recipe.cta}</p>
+            </section>
           ) : null}
         </div>
-        <p className="text-sm font-semibold leading-relaxed text-white/70">{scene.recipe.appealPoint}</p>
-        <h2 className="mt-4 text-[1.85rem] font-bold tracking-[-0.04em] text-white">
-          {scene.recipe.keyLine}
-        </h2>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-white/10 bg-black/25 p-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Mood</p>
-            <p className="mt-2 text-sm font-semibold text-white">{scene.recipe.keyMood}</p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-black/25 p-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Action</p>
-            <p className="mt-2 text-sm font-semibold text-white">{scene.recipe.keyAction}</p>
-          </div>
-        </div>
       </div>
-
-      <div className="mt-4 space-y-4">
-        <section className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Prompter Picks</p>
-              <p className="mt-1 text-xs font-medium text-white/50">Check the cues you want to see while shooting.</p>
-            </div>
-            <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/70">
-              {scene.prompter.blocks.filter((block) => block.visible).length} visible
-            </span>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {scene.prompter.blocks
-              .slice()
-              .sort((left, right) => left.order - right.order)
-              .map((block) => (
-                <button
-                  key={`${scene.id}-${block.id}`}
-                  type="button"
-                  onClick={() => toggleScenePrompterBlock(scene.id, block.id)}
-                  className={`max-w-full rounded-[1.4rem] border px-3 py-2 text-left transition ${
-                    block.visible
-                      ? 'border-sky-300/35 bg-sky-500/14 text-sky-50 shadow-[0_10px_24px_rgb(14_165_233_/_0.12)]'
-                      : 'border-white/10 bg-black/20 text-white/72'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] ${
-                      block.visible ? 'border-sky-200 bg-sky-100 text-slate-950' : 'border-white/20 text-transparent'
-                    }`}>
-                      ✓
-                    </span>
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">
-                      {getPrompterBlockLabel(block)}
-                    </span>
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-sm font-semibold leading-snug">{block.content}</p>
-                </button>
-              ))}
-          </div>
-        </section>
-
-        <section className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Recommended Script</p>
-          <div className="mt-3 space-y-3">
-            {getSceneScriptLines(scene).map((line, index) => (
-              <div key={`${scene.id}-script-${index}`} className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-slate-950">
-                  {index + 1}
-                </span>
-                <p className="text-base font-semibold leading-relaxed text-white">{line}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Must Include</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {(scene.recipe.mustInclude.length > 0 ? scene.recipe.mustInclude : ['No required cue captured']).map((item, index) => (
-              <span key={`${scene.id}-include-${index}`} className="rounded-full border border-emerald-300/20 bg-emerald-500/12 px-3 py-1.5 text-xs font-semibold text-emerald-100">
-                {item}
-              </span>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Must Avoid</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {(scene.recipe.mustAvoid.length > 0 ? scene.recipe.mustAvoid : ['No avoid cue captured']).map((item, index) => (
-              <span key={`${scene.id}-avoid-${index}`} className="rounded-full border border-rose-300/20 bg-rose-500/12 px-3 py-1.5 text-xs font-semibold text-rose-100">
-                {item}
-              </span>
-            ))}
-          </div>
-        </section>
-
-        {scene.recipe.cta ? (
-          <section className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">CTA</p>
-            <p className="mt-3 text-sm font-semibold leading-relaxed text-white">{scene.recipe.cta}</p>
-          </section>
-        ) : null}
-      </div>
-    </div>
-  );
+    );
+  };
 
   if (!recipeScenes || !Array.isArray(recipeScenes) || recipeScenes.length === 0) {
     return (
@@ -917,47 +1002,123 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   }
 
   if (selectedScene) {
-    return (
-      <div className="fixed inset-0 z-[9999] flex flex-col overflow-hidden bg-black">
-        <div className="border-b border-white/10 bg-black/90 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-[500px] items-center justify-between px-4 py-3 text-white">
-            <button
-              onClick={handleDetailBack}
-              className="flex items-center gap-2 text-base font-bold text-blue-400"
-            >
-              ← Back
-            </button>
-            <div className="min-w-0 text-center">
-              <span className="block truncate text-sm font-medium">
-                #{selectedScene.id}: {selectedScene.title}
-              </span>
-              {resolvedBrandBrief?.brandName ? (
-                <span className="truncate text-[11px] font-semibold text-white/45">
-                  {resolvedBrandBrief.brandName} context active
-                </span>
-              ) : null}
-            </div>
-            <div className="text-xs text-white/35">{activeTab}</div>
-          </div>
-        </div>
+    const activeTabMeta = DETAIL_TAB_META[activeTab];
+    const selectedSceneSummary =
+      activeTab === 'analysis'
+        ? selectedScene.analysis.motionDescription || selectedScene.recipe.appealPoint || activeTabMeta.summary
+        : activeTab === 'recipe'
+          ? selectedScene.recipe.appealPoint || selectedScene.recipe.keyLine || activeTabMeta.summary
+          : 'Arrange the cue blocks you want live, rehearse the line, and record the remake take.';
 
-        <div className="flex items-center justify-center gap-3 bg-black py-2.5">
-          {(['analysis', 'recipe', 'prompter'] as DetailTab[]).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`rounded-full px-5 py-1.5 text-sm font-semibold capitalize transition ${
-                activeTab === tab ? 'bg-white text-black' : 'bg-white/10 text-white/55'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
+    return (
+      <div className="fixed inset-0 z-[9999] flex flex-col overflow-hidden bg-[#05070b]">
+        <div className="border-b border-white/10 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.22),_transparent_40%),radial-gradient(circle_at_top_right,_rgba(251,191,36,0.18),_transparent_28%),#05070b]">
+          <div className="mx-auto max-w-[500px] px-4 pb-4 pt-4 text-white">
+            <div className="flex items-center justify-between gap-3">
+              <button
+                onClick={handleDetailBack}
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+              >
+                ← Back
+              </button>
+              <div className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/30 p-1.5 backdrop-blur-sm">
+                <button
+                  type="button"
+                  onClick={() => navigateScene(-1)}
+                  disabled={selectedSceneIndex <= 0}
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-25"
+                  aria-label="Previous segment"
+                >
+                  ←
+                </button>
+                <span className="min-w-[4.75rem] px-2 text-center text-xs font-semibold text-white/55">
+                  {selectedSceneIndex + 1} / {recipeScenes.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => navigateScene(1)}
+                  disabled={selectedSceneIndex >= recipeScenes.length - 1}
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-25"
+                  aria-label="Next segment"
+                >
+                  →
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-[2.15rem] border border-white/10 bg-[linear-gradient(160deg,rgba(255,255,255,0.10),rgba(255,255,255,0.04))] p-5 shadow-[0_24px_60px_rgb(0_0_0_/_0.3)]">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-sky-300/18 bg-sky-500/14 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-100">
+                  Scene #{selectedScene.id}
+                </span>
+                <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[11px] font-semibold text-white/65">
+                  {selectedScene.startTime} - {selectedScene.endTime}
+                </span>
+                {resolvedBrandBrief?.productName ? (
+                  <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/72">
+                    {resolvedBrandBrief.productName}
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="mt-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/42">
+                  {activeTabMeta.kicker}
+                </p>
+                <h1 className="mt-2 text-[2rem] font-bold tracking-[-0.05em] text-white">
+                  {selectedScene.title}
+                </h1>
+                <p className="mt-3 max-w-[24rem] text-sm font-medium leading-relaxed text-white/65">
+                  {selectedSceneSummary}
+                </p>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between gap-3 rounded-[1.4rem] border border-white/8 bg-black/20 px-4 py-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/38">Scene Planner</p>
+                  <p className="mt-1 text-xs font-medium text-white/55">Refine the script, cut goal, or on-screen cues before you shoot.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => (chatOpen ? closeChatAssistant() : openChatAssistant('scene'))}
+                  className="shrink-0 rounded-full border border-white/10 bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:brightness-105"
+                >
+                  {chatOpen ? 'Close' : 'Open'}
+                </button>
+              </div>
+
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                {(['analysis', 'recipe', 'prompter'] as DetailTab[]).map((tab) => {
+                  const meta = DETAIL_TAB_META[tab];
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={`rounded-[1.35rem] border px-3 py-3 text-left transition ${
+                        activeTab === tab
+                          ? 'border-white/20 bg-white text-slate-950 shadow-[0_14px_32px_rgb(255_255_255_/_0.12)]'
+                          : 'border-white/10 bg-black/20 text-white/72 hover:bg-white/10'
+                      }`}
+                    >
+                      <span className={`block text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                        activeTab === tab ? 'text-slate-500' : 'text-white/40'
+                      }`}>
+                        {meta.kicker}
+                      </span>
+                      <span className="mt-1 block text-sm font-semibold">
+                        {meta.title}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="relative flex-1 overflow-hidden">
           {activeTab === 'analysis' ? (
-            <RecipeVideoPlayer videoUrl={videoUrl} scene={selectedScene} />
+            <RecipeVideoPlayer key={`analysis-${selectedScene.id}-${videoUrl}`} videoUrl={videoUrl} scene={selectedScene} />
           ) : activeTab === 'recipe' ? (
             renderRecipeDetail(selectedScene)
           ) : (
@@ -973,35 +1134,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
               embedded={true}
             />
           )}
-
-          <button
-            type="button"
-            onClick={() => navigateScene(-1)}
-            disabled={selectedSceneIndex <= 0}
-            className="absolute left-3 top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-xl font-semibold text-white backdrop-blur-sm transition disabled:cursor-not-allowed disabled:opacity-25"
-            aria-label="Previous segment"
-          >
-            ←
-          </button>
-          <button
-            type="button"
-            onClick={() => navigateScene(1)}
-            disabled={selectedSceneIndex >= recipeScenes.length - 1}
-            className="absolute right-3 top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-xl font-semibold text-white backdrop-blur-sm transition disabled:cursor-not-allowed disabled:opacity-25"
-            aria-label="Next segment"
-          >
-            →
-          </button>
         </div>
-
-        {!chatOpen ? (
-          <button
-            onClick={() => openChatAssistant('scene')}
-            className="absolute bottom-8 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-2xl transition-all hover:scale-110 hover:shadow-blue-500/50 active:scale-95"
-          >
-            <img src="/parrot-logo.png" alt="Chat" className="h-9 w-9" />
-          </button>
-        ) : null}
 
         <div
           className={`absolute bottom-0 left-0 right-0 z-50 transition-transform duration-300 ease-out ${
@@ -1013,7 +1146,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
             <div className="absolute inset-0 -z-10 bg-black/30" onClick={closeChatAssistant} />
           ) : null}
 
-          <div className="flex h-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl">
+          <div className="flex h-full flex-col overflow-hidden rounded-t-[2rem] border border-white/10 bg-[#f7f4ee] shadow-2xl">
             <div
               className="flex-shrink-0 cursor-grab select-none active:cursor-grabbing"
               onMouseDown={handleDragStart}
@@ -1025,28 +1158,31 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
               onTouchEnd={handleDragEnd}
             >
               <div className="flex justify-center pb-2 pt-3">
-                <div className="h-1.5 w-10 rounded-full bg-gray-300" />
+                <div className="h-1.5 w-10 rounded-full bg-stone-300" />
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-b border-gray-100 px-5 pb-3">
+            <div className="flex items-center justify-between border-b border-stone-200 px-5 pb-3">
               <div className="flex items-center gap-2">
                 <img src="/parrot-logo.png" alt="Parrot Kit" className="h-7 w-7" />
-                <span className="text-lg font-bold text-gray-900">Scene Planner</span>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-400">Recipe Assistant</p>
+                  <span className="text-lg font-bold text-stone-900">Scene Planner</span>
+                </div>
               </div>
               <button
                 onClick={closeChatAssistant}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
               </button>
             </div>
 
-            <div className="flex items-center gap-2 border-b border-gray-100 px-5 py-3">
+            <div className="flex items-center gap-2 border-b border-stone-200 px-5 py-3">
               <button
                 onClick={() => setAssistantMode('global')}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  assistantMode === 'global' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'
+                  assistantMode === 'global' ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600'
                 }`}
               >
                 Global
@@ -1054,7 +1190,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
               <button
                 onClick={() => setAssistantMode('scene')}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  assistantMode === 'scene' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700'
+                  assistantMode === 'scene' ? 'bg-sky-600 text-white' : 'bg-sky-100 text-sky-800'
                 }`}
               >
                 Scene #{selectedScene.id}
@@ -1071,7 +1207,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
               {activeThreadMessages.map((message, index) => (
                 <div key={index} className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
                   <div className={`max-w-[88%] rounded-2xl p-3 ${
-                    message.role === 'user' ? 'rounded-br-sm bg-blue-500 text-white' : 'rounded-tl-sm bg-gray-100 text-gray-900'
+                    message.role === 'user' ? 'rounded-br-sm bg-sky-600 text-white' : 'rounded-tl-sm bg-white text-stone-900 shadow-[0_8px_24px_rgb(15_23_42_/_0.06)]'
                   }`}>
                     <p className="whitespace-pre-wrap text-sm font-semibold">{message.content}</p>
                   </div>
@@ -1096,18 +1232,18 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
               {chatLoading ? (
                 <div className="flex justify-start">
-                  <div className="rounded-2xl rounded-tl-sm bg-gray-100 p-3">
+                  <div className="rounded-2xl rounded-tl-sm bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.06)]">
                     <div className="flex items-center gap-1">
-                      <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '0ms' }} />
-                      <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '150ms' }} />
-                      <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '300ms' }} />
+                      <div className="h-2 w-2 animate-bounce rounded-full bg-stone-400" style={{ animationDelay: '0ms' }} />
+                      <div className="h-2 w-2 animate-bounce rounded-full bg-stone-400" style={{ animationDelay: '150ms' }} />
+                      <div className="h-2 w-2 animate-bounce rounded-full bg-stone-400" style={{ animationDelay: '300ms' }} />
                     </div>
                   </div>
                 </div>
               ) : null}
             </div>
 
-            <div className="flex gap-2 border-t border-gray-100 p-4">
+            <div className="flex gap-2 border-t border-stone-200 p-4">
               <input
                 type="text"
                 value={chatMessage}
@@ -1120,12 +1256,12 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                 }}
                 placeholder={assistantMode === 'scene' ? `Refine Scene #${selectedScene.id}...` : 'Ask about the whole recipe...'}
                 disabled={chatLoading}
-                className="flex-1 rounded-full bg-gray-100 px-4 py-3 text-sm font-medium text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-50"
+                className="flex-1 rounded-full bg-white px-4 py-3 text-sm font-medium text-stone-900 placeholder:text-stone-500 focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:opacity-50"
               />
               <button
                 onClick={() => void sendChatMessage()}
                 disabled={chatLoading || !chatMessage.trim()}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-500 text-white shadow-lg transition-all hover:bg-blue-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sky-600 text-white shadow-lg transition-all hover:bg-sky-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </button>
