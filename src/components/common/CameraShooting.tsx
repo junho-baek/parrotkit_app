@@ -44,6 +44,39 @@ const presetOffsetMap: Record<PrompterBlock['positionPreset'], { x: number; y: n
   bottom: { x: 0.5, y: 0.84 },
 };
 
+const prompterTypeOptions: Array<{ value: PrompterBlock['type']; label: string }> = [
+  { value: 'key_line', label: 'Main Script' },
+  { value: 'keyword', label: 'Keyword' },
+  { value: 'appeal_point', label: 'Cut Goal' },
+  { value: 'mood', label: 'Mood' },
+  { value: 'action', label: 'Action' },
+  { value: 'warning', label: 'Warning' },
+  { value: 'cta', label: 'CTA' },
+];
+
+function normalizeBlockOrder(blocks: PrompterBlock[]) {
+  return blocks.map((block, index) => ({
+    ...block,
+    order: index + 1,
+  }));
+}
+
+function createCustomPrompterBlock(order: number): PrompterBlock {
+  const uniqueId = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  return {
+    id: uniqueId,
+    type: 'keyword',
+    label: 'Custom Cue',
+    content: 'Your custom cue',
+    visible: true,
+    size: 'md',
+    positionPreset: 'upperThird',
+    scale: 1,
+    order,
+  };
+}
+
 function getBlockTone(block: PrompterBlock) {
   switch (block.type) {
     case 'warning':
@@ -202,11 +235,32 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
     };
   }, [startCamera, stopCamera]);
 
-  const updateBlock = useCallback((blockId: string, updater: (block: PrompterBlock) => PrompterBlock) => {
-    onPrompterBlocksChange(
-      prompterBlocks.map((block) => (block.id === blockId ? updater(block) : block))
+  const applyBlocks = useCallback((updater: (blocks: PrompterBlock[]) => PrompterBlock[]) => {
+    const nextBlocks = normalizeBlockOrder(
+      updater(
+        prompterBlocks
+          .slice()
+          .sort((left, right) => left.order - right.order)
+      )
     );
+
+    onPrompterBlocksChange(nextBlocks);
   }, [onPrompterBlocksChange, prompterBlocks]);
+
+  const updateBlock = useCallback((blockId: string, updater: (block: PrompterBlock) => PrompterBlock) => {
+    applyBlocks((blocks) => blocks.map((block) => (block.id === blockId ? updater(block) : block)));
+  }, [applyBlocks]);
+
+  const addCustomBlock = useCallback(() => {
+    applyBlocks((blocks) => [
+      ...blocks,
+      createCustomPrompterBlock(blocks.length + 1),
+    ]);
+  }, [applyBlocks]);
+
+  const removeCustomBlock = useCallback((blockId: string) => {
+    applyBlocks((blocks) => blocks.filter((block) => block.id !== blockId));
+  }, [applyBlocks]);
 
   const updateBlockScale = useCallback((blockId: string, nextScale: number) => {
     updateBlock(blockId, (block) => ({
@@ -576,37 +630,91 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/45">Prompter Layout</p>
                 <h3 className="text-lg font-bold text-white">Choose what you want to see while shooting</h3>
-                <p className="mt-1 text-xs font-medium text-white/45">Drag blocks on the camera, pinch to zoom on touch, or use the corner handle on web.</p>
+                <p className="mt-1 text-xs font-medium text-white/45">Drag blocks on the camera, pinch to zoom on touch, edit the text you want, and add your own cue when needed.</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setLayoutOpen(false)}
-                className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white"
-              >
-                Close
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={addCustomBlock}
+                  className="rounded-full border border-sky-300/20 bg-sky-500/18 px-3 py-1.5 text-xs font-semibold text-sky-50"
+                >
+                  + Add cue
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLayoutOpen(false)}
+                  className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white"
+                >
+                  Close
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3 overflow-y-auto pr-1">
               {prompterBlocks.map((block) => (
                 <div key={block.id} className="rounded-3xl border border-white/10 bg-white/5 p-3">
                   <div className="mb-3 flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-white">{block.label || block.type.replace(/_/g, ' ')}</p>
-                      <p className="mt-1 text-xs text-white/60">{block.content}</p>
+                    <div className="flex-1 space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="text"
+                          value={block.label || ''}
+                          onChange={(event) => updateBlock(block.id, (current) => ({ ...current, label: event.target.value }))}
+                          placeholder="Block label"
+                          className="min-w-[10rem] flex-1 rounded-2xl border border-white/10 bg-black/25 px-3 py-2 text-sm font-semibold text-white placeholder:text-white/30"
+                        />
+                        {block.id.startsWith('custom-') ? (
+                          <span className="rounded-full border border-emerald-300/20 bg-emerald-500/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-100">
+                            Custom
+                          </span>
+                        ) : null}
+                      </div>
+                      <textarea
+                        value={block.content}
+                        onChange={(event) => updateBlock(block.id, (current) => ({ ...current, content: event.target.value }))}
+                        rows={3}
+                        placeholder="Cue text"
+                        className="w-full rounded-2xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white placeholder:text-white/30"
+                      />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => updateBlock(block.id, (current) => ({ ...current, visible: !current.visible }))}
-                      className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                        block.visible ? 'bg-white text-slate-900' : 'bg-white/10 text-white/70'
-                      }`}
-                    >
-                      {block.visible ? 'Visible' : 'Hidden'}
-                    </button>
+                    <div className="flex shrink-0 flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => updateBlock(block.id, (current) => ({ ...current, visible: !current.visible }))}
+                        className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                          block.visible ? 'bg-white text-slate-900' : 'bg-white/10 text-white/70'
+                        }`}
+                      >
+                        {block.visible ? 'Visible' : 'Hidden'}
+                      </button>
+                      {block.id.startsWith('custom-') ? (
+                        <button
+                          type="button"
+                          onClick={() => removeCustomBlock(block.id)}
+                          className="rounded-full border border-rose-300/20 bg-rose-500/12 px-3 py-1.5 text-xs font-semibold text-rose-100"
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <label className="space-y-1 text-xs font-medium text-white/60">
+                      <span>Tone</span>
+                      <select
+                        value={block.type}
+                        onChange={(event) => updateBlock(block.id, (current) => ({ ...current, type: event.target.value as PrompterBlock['type'] }))}
+                        className="w-full rounded-2xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white"
+                      >
+                        {prompterTypeOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
                     <label className="space-y-1 text-xs font-medium text-white/60">
                       <span>Size</span>
                       <select

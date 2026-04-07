@@ -141,6 +141,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const capturedScenesRef = useRef<{ [key: number]: boolean }>(initialCapturedVideos);
   const prompterPersistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingPrompterScenesRef = useRef<RecipeScene[] | null>(null);
 
   React.useEffect(() => {
     setRecipeScenes(normalizedIncomingScenes);
@@ -284,19 +285,51 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     prompterPersistTimeoutRef.current = null;
   }, []);
 
+  const cancelPendingPrompterPersistence = React.useCallback(() => {
+    pendingPrompterScenesRef.current = null;
+    clearPrompterPersistTimeout();
+  }, [clearPrompterPersistTimeout]);
+
+  const flushPendingPrompterPersistence = React.useCallback(() => {
+    const pendingScenes = pendingPrompterScenesRef.current;
+    if (!pendingScenes) {
+      return;
+    }
+
+    pendingPrompterScenesRef.current = null;
+    clearPrompterPersistTimeout();
+    syncRecipeSessionStorage(pendingScenes);
+    void persistRecipeScenes(pendingScenes);
+  }, [clearPrompterPersistTimeout, persistRecipeScenes, syncRecipeSessionStorage]);
+
   const schedulePrompterPersistence = React.useCallback((nextScenes: RecipeScene[]) => {
+    syncRecipeSessionStorage(nextScenes);
+
+    if (!recipeId) {
+      pendingPrompterScenesRef.current = null;
+      clearPrompterPersistTimeout();
+      return;
+    }
+
+    pendingPrompterScenesRef.current = nextScenes;
     clearPrompterPersistTimeout();
 
     prompterPersistTimeoutRef.current = setTimeout(() => {
-      syncRecipeSessionStorage(nextScenes);
-      void persistRecipeScenes(nextScenes);
-      prompterPersistTimeoutRef.current = null;
+      const pendingScenes = pendingPrompterScenesRef.current;
+      pendingPrompterScenesRef.current = null;
+      clearPrompterPersistTimeout();
+
+      if (!pendingScenes) {
+        return;
+      }
+
+      void persistRecipeScenes(pendingScenes);
     }, PROMPTER_PERSIST_DEBOUNCE_MS);
-  }, [clearPrompterPersistTimeout, persistRecipeScenes, syncRecipeSessionStorage]);
+  }, [clearPrompterPersistTimeout, persistRecipeScenes, recipeId, syncRecipeSessionStorage]);
 
   React.useEffect(() => () => {
-    clearPrompterPersistTimeout();
-  }, [clearPrompterPersistTimeout, recipeId, videoUrl]);
+    flushPendingPrompterPersistence();
+  }, [flushPendingPrompterPersistence, recipeId, videoUrl]);
 
   const setActiveThread = React.useCallback((messages: ChatMessage[]) => {
     if (assistantMode === 'scene' && selectedScene) {
@@ -320,7 +353,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     setChatOpen(true);
   };
 
-  const applySceneUpdate = async (sceneUpdate: SceneUpdate, messageIndex: number) => {
+  const applySceneUpdate = React.useCallback(async (sceneUpdate: SceneUpdate, messageIndex: number) => {
     if (!selectedScene || assistantMode !== 'scene') {
       return;
     }
@@ -356,13 +389,14 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
       return nextScene;
     });
 
-    clearPrompterPersistTimeout();
+    cancelPendingPrompterPersistence();
     setRecipeScenes(nextScenes);
     setSceneSaveError(null);
     closeChatAssistant();
+    syncRecipeSessionStorage(nextScenes);
     void persistRecipeScenes(nextScenes);
     setApplyingUpdateMessageIndex(null);
-  };
+  }, [assistantMode, cancelPendingPrompterPersistence, closeChatAssistant, persistRecipeScenes, recipeScenes, selectedScene, syncRecipeSessionStorage]);
 
   const sendChatMessage = async () => {
     if (!chatMessage.trim() || chatLoading) {
@@ -629,6 +663,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     );
 
     setRecipeScenes(nextScenes);
+    setSceneSaveError(null);
     schedulePrompterPersistence(nextScenes);
   };
 
