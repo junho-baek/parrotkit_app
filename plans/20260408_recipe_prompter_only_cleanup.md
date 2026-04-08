@@ -30,4 +30,5 @@ creator가 보는 `Recipe` 탭에서 `Must Include / Must Avoid`와 `Prompter Pi
 ## 결과
 - `Recipe` 탭에서 `Must Include / Must Avoid`를 제거하고 cue 카드만 남겼습니다.
 - `Prompter Picks` 계열 시스템 용어를 제거했고, cue 카드는 더블클릭으로 inline 수정할 수 있게 했습니다.
+- legacy/system block이 현재 세션에 남아 있어도 UI에서 다시 보이지 않도록 필터 가드를 추가했습니다.
 - 연결 context는 `context/context_20260408_recipe_prompter_only_cleanup.md`에 기록했습니다.

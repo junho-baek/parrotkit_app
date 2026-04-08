@@ -13,6 +13,26 @@ type JsonRecord = Record<string, unknown>;
 
 const DEFAULT_KEY_MOOD = 'Clear and conversational';
 const DEFAULT_KEY_ACTION = 'Match the reference beat with one clear action';
+const LEGACY_HIDDEN_PROMPTER_IDS = new Set([
+  'script-focus',
+  'motion-focus',
+  'product-focus',
+  'problem-focus',
+  'scene-role',
+  'cut-goal',
+  'required-cue',
+  'warning',
+]);
+const LEGACY_HIDDEN_PROMPTER_LABELS = new Set([
+  'Script Point',
+  'Motion Point',
+  'Product Point',
+  'Problem Point',
+  'Scene Role',
+  'Cut Goal',
+  'Required Cue',
+  'Avoid Cue',
+]);
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -155,9 +175,9 @@ export function normalizeBrandBrief(raw: unknown, sourceFileName?: string | null
 
 export function createDefaultPrompterBlocks(
   recipe: SceneRecipePlan,
-  analysis?: Partial<SceneAnalysis>,
-  brandBrief?: BrandBrief | null,
-  sceneTitle?: string
+  _analysis?: Partial<SceneAnalysis>,
+  _brandBrief?: BrandBrief | null,
+  _sceneTitle?: string
 ): PrompterBlock[] {
   const blocks: PrompterBlock[] = [];
 
@@ -170,83 +190,6 @@ export function createDefaultPrompterBlocks(
     size: 'xl',
     scale: 1,
     positionPreset: 'lowerThird',
-  });
-
-  appendBlock(blocks, {
-    id: 'script-focus',
-    type: 'keyword',
-    label: 'Script Point',
-    content: toShortCue(recipe.keyLine || recipe.scriptLines[0] || ''),
-    visible: false,
-    size: 'lg',
-    scale: 1,
-    positionPreset: 'upperThird',
-  });
-
-  appendBlock(blocks, {
-    id: 'motion-focus',
-    type: 'keyword',
-    label: 'Motion Point',
-    content: toShortCue(analysis?.motionDescription || ''),
-    visible: false,
-    size: 'md',
-    scale: 1,
-    positionPreset: 'upperThird',
-  });
-
-  appendBlock(blocks, {
-    id: 'product-focus',
-    type: 'keyword',
-    label: 'Product Point',
-    content: toShortCue(brandBrief?.productName || brandBrief?.keyMessages[0] || ''),
-    visible: false,
-    size: 'md',
-    scale: 1,
-    positionPreset: 'top',
-  });
-
-  appendBlock(blocks, {
-    id: 'problem-focus',
-    type: 'keyword',
-    label: 'Problem Point',
-    content: toShortCue(analysis?.transcriptSnippet || recipe.objective || ''),
-    visible: false,
-    size: 'md',
-    scale: 1,
-    positionPreset: 'upperThird',
-  });
-
-  appendBlock(blocks, {
-    id: 'scene-role',
-    type: 'keyword',
-    label: 'Scene Role',
-    content: toShortCue(sceneTitle || ''),
-    visible: false,
-    size: 'sm',
-    scale: 1,
-    positionPreset: 'top',
-  });
-
-  appendBlock(blocks, {
-    id: 'cut-goal',
-    type: 'appeal_point',
-    label: 'Cut Goal',
-    content: recipe.appealPoint,
-    visible: false,
-    size: 'md',
-    scale: 1,
-    positionPreset: 'center',
-  });
-
-  appendBlock(blocks, {
-    id: 'required-cue',
-    type: 'keyword',
-    label: 'Required Cue',
-    content: toShortCue(recipe.mustInclude[0] || ''),
-    visible: false,
-    size: 'md',
-    scale: 1,
-    positionPreset: 'upperThird',
   });
 
   appendBlock(blocks, {
@@ -272,17 +215,6 @@ export function createDefaultPrompterBlocks(
   });
 
   appendBlock(blocks, {
-    id: 'warning',
-    type: 'warning',
-    label: 'Avoid Cue',
-    content: recipe.mustAvoid[0] ? `Avoid: ${recipe.mustAvoid[0]}` : '',
-    visible: true,
-    size: 'sm',
-    scale: 1,
-    positionPreset: 'top',
-  });
-
-  appendBlock(blocks, {
     id: 'cta',
     type: 'cta',
     label: 'CTA',
@@ -294,6 +226,19 @@ export function createDefaultPrompterBlocks(
   });
 
   return blocks;
+}
+
+function shouldHideLegacyPrompterBlock(
+  id: string,
+  type: PrompterBlock['type'],
+  label?: string
+) {
+  return (
+    LEGACY_HIDDEN_PROMPTER_IDS.has(id)
+    || LEGACY_HIDDEN_PROMPTER_LABELS.has(label || '')
+    || type === 'appeal_point'
+    || type === 'warning'
+  );
 }
 
 export function normalizePrompterBlocks(
@@ -313,15 +258,26 @@ export function normalizePrompterBlocks(
       return acc;
     }
 
+    const id = compactText(item.id) || `block-${index + 1}`;
+    const type = (compactText(item.type) as PrompterBlock['type']) || 'keyword';
+    const label = compactText(item.label) || undefined;
+    if (shouldHideLegacyPrompterBlock(id, type, label)) {
+      return acc;
+    }
+
     const content = compactText(item.content);
     if (!content) {
       return acc;
     }
 
+    if (acc.some((block) => block.id === id || block.content.toLowerCase() === content.toLowerCase())) {
+      return acc;
+    }
+
     acc.push({
-      id: compactText(item.id) || `block-${index + 1}`,
-      type: (compactText(item.type) as PrompterBlock['type']) || 'keyword',
-      label: compactText(item.label) || undefined,
+      id,
+      type,
+      label,
       content,
       visible: item.visible !== false,
       size: normalizePrompterSize(item.size),
@@ -341,7 +297,12 @@ export function normalizePrompterBlocks(
 
   const merged = [...blocks];
   for (const fallbackBlock of fallback) {
-    if (merged.some((block) => block.id === fallbackBlock.id)) {
+    if (
+      merged.some((block) =>
+        block.id === fallbackBlock.id
+        || block.content.toLowerCase() === fallbackBlock.content.toLowerCase()
+      )
+    ) {
       continue;
     }
 

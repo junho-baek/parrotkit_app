@@ -4,6 +4,7 @@
 - `Recipe` 탭에서 creator에게 불필요한 `Must Include / Must Avoid` 섹션을 제거하고, prompter cue 카드 중심으로 단순화했습니다.
 - `Prompter Picks`, helper copy, `2 visible` 같은 시스템 용어도 걷어내고, cue 카드 자체만 보이도록 정리했습니다.
 - cue 카드 더블클릭 시 내용을 바로 수정할 수 있는 inline edit를 추가했습니다.
+- 중복 cue가 보이던 원인은 legacy fallback block과 느슨한 merge 규칙이 겹친 영향이 커서, UI 레벨에서도 legacy/system block을 한 번 더 숨기도록 가드했습니다.
 
 ## 변경 파일
 - `src/components/common/RecipeResult.tsx`

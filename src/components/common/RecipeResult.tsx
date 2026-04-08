@@ -86,27 +86,110 @@ function mergePrompterBlocks(existingBlocks: PrompterBlock[], updates: SceneUpda
   return nextBlocks.sort((left, right) => left.order - right.order);
 }
 
-function getPrompterBlockLabel(block: PrompterBlock) {
-  if (block.label) {
-    return block.label;
-  }
-
-  switch (block.type) {
+function getPrompterBlockTone(type: PrompterBlock['type']) {
+  switch (type) {
     case 'key_line':
-      return 'Main Script';
-    case 'appeal_point':
-      return 'Cut Goal';
+      return {
+        active: 'border-[#2f6bff]/30 bg-[#eef4ff] text-slate-950 shadow-[0_12px_28px_rgb(47_107_255_/_0.14)]',
+        inactive: 'border-[#d6e3ff] bg-white text-slate-600',
+        dot: 'bg-[#2f6bff]',
+        check: 'border-[#2f6bff] bg-[#2f6bff] text-white',
+      };
     case 'action':
-      return 'Action';
+      return {
+        active: 'border-[#ff8b61]/30 bg-[#fff1eb] text-slate-950 shadow-[0_12px_28px_rgb(255_139_97_/_0.14)]',
+        inactive: 'border-[#ffd7ca] bg-white text-slate-600',
+        dot: 'bg-[#ff8b61]',
+        check: 'border-[#ff8b61] bg-[#ff8b61] text-white',
+      };
     case 'mood':
-      return 'Mood';
-    case 'warning':
-      return 'Avoid Cue';
+      return {
+        active: 'border-[#f2c94c]/35 bg-[#fff8db] text-slate-950 shadow-[0_12px_28px_rgb(242_201_76_/_0.16)]',
+        inactive: 'border-[#f5e6ab] bg-white text-slate-600',
+        dot: 'bg-[#f2c94c]',
+        check: 'border-[#d0a514] bg-[#f2c94c] text-slate-950',
+      };
     case 'cta':
-      return 'CTA';
+      return {
+        active: 'border-[#28c76f]/30 bg-[#ebfff3] text-slate-950 shadow-[0_12px_28px_rgb(40_199_111_/_0.14)]',
+        inactive: 'border-[#c5f1d7] bg-white text-slate-600',
+        dot: 'bg-[#28c76f]',
+        check: 'border-[#28c76f] bg-[#28c76f] text-white',
+      };
     default:
-      return 'Cue';
+      return {
+        active: 'border-[#57b5ff]/28 bg-[#eef8ff] text-slate-950 shadow-[0_12px_28px_rgb(87_181_255_/_0.14)]',
+        inactive: 'border-[#d4eaf9] bg-white text-slate-600',
+        dot: 'bg-[#57b5ff]',
+        check: 'border-[#57b5ff] bg-[#57b5ff] text-white',
+      };
   }
+}
+
+function getRecipeEditorPrompterBlocks(blocks: PrompterBlock[]) {
+  const seenContent = new Set<string>();
+  const hiddenIds = new Set([
+    'script-focus',
+    'motion-focus',
+    'product-focus',
+    'problem-focus',
+    'scene-role',
+    'cut-goal',
+    'required-cue',
+    'warning',
+  ]);
+  const hiddenLabels = new Set([
+    'Script Point',
+    'Motion Point',
+    'Product Point',
+    'Problem Point',
+    'Scene Role',
+    'Cut Goal',
+    'Required Cue',
+    'Avoid Cue',
+  ]);
+
+  return blocks
+    .slice()
+    .sort((left, right) => left.order - right.order)
+    .filter((block) => {
+      if (
+        hiddenIds.has(block.id)
+        || hiddenLabels.has(block.label || '')
+        || block.type === 'appeal_point'
+        || block.type === 'warning'
+      ) {
+        return false;
+      }
+
+      const content = block.content.trim();
+      if (!content) {
+        return false;
+      }
+
+      const key = content.toLowerCase();
+      if (seenContent.has(key)) {
+        return false;
+      }
+
+      seenContent.add(key);
+      return true;
+    });
+}
+
+function createRecipeCueBlock(existingBlocks: PrompterBlock[]) {
+  const nextOrder = existingBlocks.reduce((max, block) => Math.max(max, block.order), 0) + 1;
+  return {
+    id: `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+    type: 'keyword' as const,
+    label: undefined,
+    content: 'New cue',
+    visible: true,
+    size: 'md' as const,
+    positionPreset: 'upperThird' as const,
+    scale: 1,
+    order: nextOrder,
+  };
 }
 
 function getScriptSheetButtonLabel(tab: ScriptSheetTab) {
@@ -854,6 +937,18 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     cancelPrompterBlockEdit();
   }, [cancelPrompterBlockEdit, editingPrompterValue, handleSceneBlocksChange, recipeScenes]);
 
+  const addScenePrompterBlock = useCallback((sceneId: number) => {
+    const scene = recipeScenes.find((item) => item.id === sceneId);
+    if (!scene) {
+      return;
+    }
+
+    const nextBlock = createRecipeCueBlock(scene.prompter.blocks);
+    handleSceneBlocksChange(sceneId, [...scene.prompter.blocks, nextBlock]);
+    setEditingPrompterBlock({ sceneId, blockId: nextBlock.id });
+    setEditingPrompterValue(nextBlock.content);
+  }, [handleSceneBlocksChange, recipeScenes]);
+
   const schedulePrompterBlockToggle = useCallback((sceneId: number, blockId: string) => {
     clearPrompterToggleTimeout();
     prompterToggleTimeoutRef.current = setTimeout(() => {
@@ -967,77 +1062,71 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   };
 
   const renderRecipeDetail = (scene: RecipeScene) => (
-    <div className="mx-auto flex h-full w-full max-w-[500px] flex-col overflow-y-auto bg-[#0b0d12] px-4 pb-10 pt-4 text-white">
-      <div className="space-y-4">
-        <section className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
-          <div className="flex flex-wrap gap-2">
-            {scene.prompter.blocks
-              .slice()
-              .sort((left, right) => left.order - right.order)
-              .map((block) => {
-                const isEditing =
-                  editingPrompterBlock?.sceneId === scene.id
-                  && editingPrompterBlock.blockId === block.id;
+    <div className="mx-auto flex h-full w-full max-w-[500px] flex-col overflow-y-auto bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_55%,#eef3fb_100%)] px-4 pb-28 pt-5 text-slate-950">
+      <div className="mb-4 flex justify-end">
+        <button
+          type="button"
+          onClick={() => addScenePrompterBlock(scene.id)}
+          className="inline-flex items-center gap-2 rounded-full bg-[#2f6bff] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_14px_30px_rgb(47_107_255_/_0.24)] transition hover:brightness-105 active:scale-[0.98]"
+        >
+          <span className="text-base leading-none">+</span>
+          <span>Add cue</span>
+        </button>
+      </div>
 
-                return (
-                <button
-                  key={`${scene.id}-${block.id}`}
-                  type="button"
-                  onClick={() => schedulePrompterBlockToggle(scene.id, block.id)}
-                  onDoubleClick={() => startPrompterBlockEdit(scene.id, block.id, block.content)}
-                  className={`max-w-full rounded-[1.4rem] border px-3 py-2 text-left transition ${
-                    block.visible
-                      ? 'border-sky-300/35 bg-sky-500/14 text-sky-50 shadow-[0_10px_24px_rgb(14_165_233_/_0.12)]'
-                      : 'border-white/10 bg-black/20 text-white/72'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] ${
-                      block.visible ? 'border-sky-200 bg-sky-100 text-slate-950' : 'border-white/20 text-transparent'
-                    }`}>
-                      ✓
-                    </span>
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">
-                      {getPrompterBlockLabel(block)}
-                    </span>
-                  </div>
-                  {isEditing ? (
-                    <input
-                      autoFocus
-                      type="text"
-                      value={editingPrompterValue}
-                      onChange={(event) => setEditingPrompterValue(event.target.value)}
-                      onClick={(event) => event.stopPropagation()}
-                      onDoubleClick={(event) => event.stopPropagation()}
-                      onBlur={() => commitPrompterBlockEdit(scene.id, block.id)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault();
-                          commitPrompterBlockEdit(scene.id, block.id);
-                        }
+      <div className="flex flex-wrap content-start gap-3">
+        {getRecipeEditorPrompterBlocks(scene.prompter.blocks).map((block) => {
+          const isEditing =
+            editingPrompterBlock?.sceneId === scene.id
+            && editingPrompterBlock.blockId === block.id;
+          const tone = getPrompterBlockTone(block.type);
 
-                        if (event.key === 'Escape') {
-                          event.preventDefault();
-                          cancelPrompterBlockEdit();
-                        }
-                      }}
-                      className="mt-2 w-full rounded-xl border border-white/15 bg-black/20 px-3 py-2 text-sm font-semibold text-white outline-none ring-0 placeholder:text-white/30"
-                    />
-                  ) : (
-                    <p className="mt-1 line-clamp-2 text-sm font-semibold leading-snug">{block.content}</p>
-                  )}
-                </button>
-                );
-              })}
-          </div>
-        </section>
+          return (
+            <button
+              key={`${scene.id}-${block.id}`}
+              type="button"
+              onClick={() => schedulePrompterBlockToggle(scene.id, block.id)}
+              onDoubleClick={() => startPrompterBlockEdit(scene.id, block.id, block.content)}
+              className={`min-h-[96px] min-w-[148px] max-w-full flex-1 rounded-[1.6rem] border p-4 text-left transition ${
+                block.visible ? tone.active : tone.inactive
+              }`}
+            >
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${tone.dot}`} />
+                <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold ${
+                  block.visible ? tone.check : 'border-slate-200 bg-white text-transparent'
+                }`}>
+                  ✓
+                </span>
+              </div>
+              {isEditing ? (
+                <input
+                  autoFocus
+                  type="text"
+                  value={editingPrompterValue}
+                  onChange={(event) => setEditingPrompterValue(event.target.value)}
+                  onClick={(event) => event.stopPropagation()}
+                  onDoubleClick={(event) => event.stopPropagation()}
+                  onBlur={() => commitPrompterBlockEdit(scene.id, block.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      commitPrompterBlockEdit(scene.id, block.id);
+                    }
 
-        {scene.recipe.cta ? (
-          <section className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">CTA</p>
-            <p className="mt-3 text-sm font-semibold leading-relaxed text-white">{scene.recipe.cta}</p>
-          </section>
-        ) : null}
+                    if (event.key === 'Escape') {
+                      event.preventDefault();
+                      cancelPrompterBlockEdit();
+                    }
+                  }}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-950 outline-none ring-0 placeholder:text-slate-400"
+                />
+              ) : (
+                <p className="text-[15px] font-semibold leading-6">{block.content}</p>
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

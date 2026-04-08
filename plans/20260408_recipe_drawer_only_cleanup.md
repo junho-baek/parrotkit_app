@@ -28,4 +28,6 @@
 ## 결과
 - `Cut Goal` 상단 카드와 `Recommended Script` 섹션을 제거했습니다.
 - `Recipe` 탭 본문은 cue 카드 중심으로 단순화됐고, script는 drawer에서만 확인하도록 정리했습니다.
+- recipe 배경을 밝은 톤으로 전환하고, 큰 내부 박스를 제거했습니다.
+- `+ Add cue` 추가와 legacy/system block dedupe 가드까지 포함해 cue board 중심 구조로 정리했습니다.
 - 연결 context는 `context/context_20260408_recipe_drawer_only_cleanup.md`에 기록했습니다.
