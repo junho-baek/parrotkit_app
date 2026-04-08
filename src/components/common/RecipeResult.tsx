@@ -1458,18 +1458,14 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                   className={`pointer-events-auto absolute inset-0 ${activeScriptTab === 'analysis' ? 'bg-transparent' : 'bg-black/38'}`}
                   aria-label="Close script sheet"
                 />
-                <div
-                  className={`absolute inset-x-0 bottom-0 mx-auto w-full max-w-[500px] ${
-                    activeScriptTab === 'analysis' ? 'pointer-events-none top-0' : 'pointer-events-auto px-3 pb-5'
-                  }`}
-                >
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 top-0 mx-auto w-full max-w-[500px]">
                   <div
                     className={`border border-gray-200 bg-white text-gray-900 shadow-[0_24px_60px_rgb(0_0_0_/_0.24)] ${
                       activeScriptTab === 'analysis'
                         ? 'pointer-events-auto absolute inset-x-0 bottom-0 flex flex-col rounded-t-[2rem] border-b-0'
-                        : 'pointer-events-auto rounded-[2rem]'
+                        : 'pointer-events-auto absolute inset-x-0 bottom-0 flex w-full flex-col rounded-t-[2rem] border-b-0'
                     }`}
-                    style={activeScriptTab === 'analysis' ? { height: 'min(50%, 50svh)', maxHeight: 'min(50%, 50svh)' } : undefined}
+                    style={activeScriptTab === 'analysis' ? { height: 'min(50%, 50svh)', maxHeight: 'min(50%, 50svh)' } : { maxHeight: '42vh' }}
                   >
                     <div className="flex justify-center pt-3">
                       <div className="h-1.5 w-11 rounded-full bg-gray-300" />
@@ -1496,10 +1492,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                       </button>
                     </div>
 
-                    <div
-                      className={`overflow-y-auto px-4 pb-4 ${activeScriptTab === 'analysis' ? 'min-h-0 flex-1' : ''}`}
-                      style={{ maxHeight: activeScriptTab === 'analysis' ? undefined : '42vh' }}
-                    >
+                    <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
                       {activeScriptTab === 'analysis' ? (
                         renderAnalysisSheetContent(selectedScene, activeScriptLines)
                       ) : activeScriptLines.length > 0 ? (
