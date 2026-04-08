@@ -29,6 +29,10 @@ type PinchState = {
   startScale: number;
 };
 
+const PROMPTER_CUE_ACCENT_ORDER = ['blue', 'yellow', 'coral', 'green', 'pink'] as const;
+
+type PrompterCueAccent = typeof PROMPTER_CUE_ACCENT_ORDER[number];
+
 const sizeClassMap: Record<PrompterBlock['size'], string> = {
   sm: 'text-[11px] px-2.5 py-1.5',
   md: 'text-sm px-3 py-2',
@@ -67,8 +71,9 @@ function createCustomPrompterBlock(order: number): PrompterBlock {
   return {
     id: uniqueId,
     type: 'keyword',
-    label: 'Custom Cue',
-    content: 'Your custom cue',
+    label: undefined,
+    content: 'New cue',
+    accentColor: 'blue',
     visible: true,
     size: 'md',
     positionPreset: 'upperThird',
@@ -77,18 +82,40 @@ function createCustomPrompterBlock(order: number): PrompterBlock {
   };
 }
 
-function getBlockTone(block: PrompterBlock) {
-  switch (block.type) {
-    case 'warning':
-      return 'bg-rose-500/20 text-rose-50 border-rose-300/30';
-    case 'keyword':
-      return 'bg-sky-500/18 text-sky-50 border-sky-300/30';
-    case 'key_line':
-      return 'bg-white/95 text-slate-950 border-white/50';
+function isPrompterCueAccent(value?: string): value is PrompterCueAccent {
+  return Boolean(value) && PROMPTER_CUE_ACCENT_ORDER.includes(value as PrompterCueAccent);
+}
+
+function getDefaultPrompterAccent(type: PrompterBlock['type']): PrompterCueAccent {
+  switch (type) {
+    case 'mood':
+      return 'yellow';
+    case 'action':
+      return 'coral';
     case 'cta':
-      return 'bg-amber-400/20 text-amber-50 border-amber-300/35';
+      return 'green';
+    case 'key_line':
+      return 'blue';
     default:
-      return 'bg-black/45 text-white border-white/15';
+      return 'pink';
+  }
+}
+
+function getBlockTone(block: PrompterBlock) {
+  const accent = isPrompterCueAccent(block.accentColor) ? block.accentColor : getDefaultPrompterAccent(block.type);
+
+  switch (accent) {
+    case 'yellow':
+      return 'border-[#f4d774] bg-[#fff9e7] text-slate-950';
+    case 'coral':
+      return 'border-[#ffb299] bg-[#fff1eb] text-slate-950';
+    case 'green':
+      return 'border-[#9be4b6] bg-[#effcf4] text-slate-950';
+    case 'pink':
+      return 'border-[#ffb6d9] bg-[#fff0f8] text-slate-950';
+    case 'blue':
+    default:
+      return 'border-[#a8d1ff] bg-[#eef6ff] text-slate-950';
   }
 }
 
@@ -121,6 +148,8 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   const [audioStatus, setAudioStatus] = useState<'idle' | 'ready' | 'missing' | 'denied'>('idle');
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState('');
 
   const existingCaptureUrl = useMemo(
     () => (existingCapture ? URL.createObjectURL(existingCapture) : null),
@@ -252,11 +281,20 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   }, [applyBlocks]);
 
   const addCustomBlock = useCallback(() => {
+    const nextBlock = createCustomPrompterBlock(prompterBlocks.length + 1);
     applyBlocks((blocks) => [
       ...blocks,
-      createCustomPrompterBlock(blocks.length + 1),
+      nextBlock,
     ]);
-  }, [applyBlocks]);
+    setEditingBlockId(nextBlock.id);
+    setEditingValue(nextBlock.content);
+    setLayoutOpen(false);
+  }, [applyBlocks, prompterBlocks.length]);
+
+  const cancelInlineEdit = useCallback(() => {
+    setEditingBlockId(null);
+    setEditingValue('');
+  }, []);
 
   const removeCustomBlock = useCallback((blockId: string) => {
     applyBlocks((blocks) => blocks.filter((block) => block.id !== blockId));
@@ -276,6 +314,31 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
 
     const [first, second] = [touches[0], touches[1]];
     return Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
+  }, []);
+
+  const commitInlineEdit = useCallback((blockId: string) => {
+    const target = prompterBlocks.find((block) => block.id === blockId);
+    if (!target) {
+      cancelInlineEdit();
+      return;
+    }
+
+    const nextContent = editingValue.trim() || target.content;
+    if (nextContent !== target.content) {
+      updateBlock(blockId, (block) => ({
+        ...block,
+        content: nextContent,
+      }));
+    }
+
+    cancelInlineEdit();
+  }, [cancelInlineEdit, editingValue, prompterBlocks, updateBlock]);
+
+  const startInlineEdit = useCallback((blockId: string, content: string) => {
+    dragStateRef.current = null;
+    pinchStateRef.current = null;
+    setEditingBlockId(blockId);
+    setEditingValue(content);
   }, []);
 
   useEffect(() => {
@@ -472,24 +535,35 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
 
         {visibleBlocks.map((block) => {
           const scale = block.scale ?? 1;
+          const isEditing = editingBlockId === block.id;
           const position = {
             left: `${((block.x ?? presetOffsetMap[block.positionPreset].x) * 100).toFixed(2)}%`,
             top: `${((block.y ?? presetOffsetMap[block.positionPreset].y) * 100).toFixed(2)}%`,
           };
 
           return (
-            <button
+            <div
               key={block.id}
-              type="button"
               onPointerDown={(event) => {
+                if (isEditing) {
+                  return;
+                }
                 dragStateRef.current = {
                   mode: 'drag',
                   blockId: block.id,
                   pointerId: event.pointerId,
                 };
-                (event.currentTarget as HTMLButtonElement).setPointerCapture?.(event.pointerId);
+                (event.currentTarget as HTMLDivElement).setPointerCapture?.(event.pointerId);
+              }}
+              onDoubleClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                startInlineEdit(block.id, block.content);
               }}
               onTouchStart={(event) => {
+                if (isEditing) {
+                  return;
+                }
                 if (event.touches.length !== 2) {
                   return;
                 }
@@ -502,6 +576,9 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                 };
               }}
               onTouchMove={(event) => {
+                if (isEditing) {
+                  return;
+                }
                 const pinch = pinchStateRef.current;
                 if (!pinch || pinch.blockId !== block.id || event.touches.length !== 2) {
                   return;
@@ -521,35 +598,58 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                   pinchStateRef.current = null;
                 }
               }}
-              className={`absolute z-10 max-w-[82%] select-none rounded-[1.75rem] border font-semibold tracking-[-0.02em] shadow-[0_16px_40px_rgb(0_0_0_/_0.25)] backdrop-blur-sm touch-none ${sizeClassMap[block.size]} ${getBlockTone(block)}`}
+              className={`absolute z-10 max-w-[82%] select-none rounded-[1.75rem] border font-semibold tracking-[-0.02em] shadow-[0_16px_40px_rgb(0_0_0_/_0.25)] touch-none ${sizeClassMap[block.size]} ${getBlockTone(block)} ${isEditing ? 'cursor-text' : 'cursor-move'}`}
               style={{
                 ...position,
                 transform: `translate(-50%, -50%) scale(${scale})`,
                 transformOrigin: 'center center',
               }}
             >
-              <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.18em] opacity-55">
-                {block.label || block.type.replace(/_/g, ' ')}
-              </span>
-              {block.content}
-              <span
-                onPointerDown={(event) => {
-                  event.stopPropagation();
-                  dragStateRef.current = {
-                    mode: 'resize',
-                    blockId: block.id,
-                    pointerId: event.pointerId,
-                    startX: event.clientX,
-                    startY: event.clientY,
-                    startScale: block.scale ?? 1,
-                  };
-                }}
-                className="absolute -bottom-2 -right-2 hidden h-5 w-5 items-center justify-center rounded-full border border-white/25 bg-black/70 text-[10px] text-white shadow-lg md:flex"
-                aria-hidden="true"
-              >
-                ↘
-              </span>
-            </button>
+              {isEditing ? (
+                <textarea
+                  autoFocus
+                  rows={Math.max(1, editingValue.split('\n').length)}
+                  value={editingValue}
+                  onChange={(event) => setEditingValue(event.target.value)}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onDoubleClick={(event) => event.stopPropagation()}
+                  onBlur={() => commitInlineEdit(block.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                      event.preventDefault();
+                      commitInlineEdit(block.id);
+                    }
+
+                    if (event.key === 'Escape') {
+                      event.preventDefault();
+                      cancelInlineEdit();
+                    }
+                  }}
+                  className="w-full resize-none overflow-hidden bg-transparent p-0 font-semibold tracking-[-0.02em] text-inherit outline-none"
+                />
+              ) : (
+                <span>{block.content}</span>
+              )}
+              {!isEditing ? (
+                <span
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    dragStateRef.current = {
+                      mode: 'resize',
+                      blockId: block.id,
+                      pointerId: event.pointerId,
+                      startX: event.clientX,
+                      startY: event.clientY,
+                      startScale: block.scale ?? 1,
+                    };
+                  }}
+                  className="absolute -bottom-2 -right-2 hidden h-5 w-5 items-center justify-center rounded-full border border-white/25 bg-black/70 text-[10px] text-white shadow-lg md:flex"
+                  aria-hidden="true"
+                >
+                  ↘
+                </span>
+              ) : null}
+            </div>
           );
         })}
 
@@ -572,10 +672,11 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
           <div className="flex items-center justify-center gap-5">
             <button
               type="button"
-              onClick={() => setLayoutOpen((current) => !current)}
-              className="rounded-xl bg-white/95 px-4 py-2.5 text-sm font-semibold text-gray-900 shadow-lg"
+              onClick={addCustomBlock}
+              className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[linear-gradient(135deg,#2f6bff_0%,#5f8bff_55%,#ff7a59_100%)] text-[1.65rem] font-semibold leading-none text-white shadow-[0_18px_34px_rgb(47_107_255_/_0.22)] transition hover:brightness-105 active:scale-[0.98]"
+              aria-label="Add cue"
             >
-              Layout
+              +
             </button>
 
             <button
@@ -610,9 +711,6 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
           </div>
 
           <div className="mt-3 flex items-center justify-center gap-2 text-center">
-            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/75">
-              Scene #{sceneId}: {sceneTitle}
-            </span>
             {audioStatus === 'ready' ? (
               <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-100">Mic ready</span>
             ) : audioStatus === 'denied' ? (

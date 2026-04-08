@@ -1201,9 +1201,9 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                 />
               </div>
               {isEditing ? (
-                <input
+                <textarea
                   autoFocus
-                  type="text"
+                  rows={Math.max(2, editingPrompterValue.split('\n').length)}
                   value={editingPrompterValue}
                   onChange={(event) => setEditingPrompterValue(event.target.value)}
                   onClick={(event) => event.stopPropagation()}
@@ -1220,7 +1220,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                       cancelPrompterBlockEdit();
                     }
                   }}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-950 outline-none ring-0 placeholder:text-slate-400"
+                  className="w-full resize-none overflow-hidden bg-transparent p-0 text-[15px] font-semibold leading-8 text-inherit outline-none placeholder:text-slate-400"
                 />
               ) : (
                 <p className="text-[15px] font-semibold leading-8 text-inherit">{block.content}</p>
