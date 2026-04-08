@@ -44,6 +44,9 @@ type ChatMessage = {
 
 const PROMPTER_PERSIST_DEBOUNCE_MS = 275;
 const LEGACY_YOUTUBE_THUMBNAIL_VARIANTS = ['1.jpg', '2.jpg', '3.jpg', '0.jpg', '1.jpg', '2.jpg', '3.jpg'];
+const RECIPE_CUE_ACCENT_ORDER = ['blue', 'yellow', 'coral', 'green', 'pink'] as const;
+
+type RecipeCueAccent = typeof RECIPE_CUE_ACCENT_ORDER[number];
 
 interface RecipeResultProps {
   scenes: RecipeScene[];
@@ -95,6 +98,7 @@ function mergePrompterBlocks(existingBlocks: PrompterBlock[], updates: SceneUpda
         ...(update.type ? { type: update.type as PrompterBlock['type'] } : {}),
         ...(typeof update.label === 'string' ? { label: update.label } : {}),
         ...(typeof update.content === 'string' ? { content: update.content } : {}),
+        ...(typeof update.accentColor === 'string' ? { accentColor: update.accentColor } : {}),
         ...(typeof update.visible === 'boolean' ? { visible: update.visible } : {}),
         ...(update.size ? { size: update.size } : {}),
         ...(typeof update.scale === 'number' ? { scale: update.scale } : {}),
@@ -107,42 +111,65 @@ function mergePrompterBlocks(existingBlocks: PrompterBlock[], updates: SceneUpda
   return nextBlocks.sort((left, right) => left.order - right.order);
 }
 
-function getPrompterBlockTone(type: PrompterBlock['type']) {
+function isRecipeCueAccent(value?: string): value is RecipeCueAccent {
+  return Boolean(value) && RECIPE_CUE_ACCENT_ORDER.includes(value as RecipeCueAccent);
+}
+
+function getDefaultCueAccent(type: PrompterBlock['type']): RecipeCueAccent {
   switch (type) {
-    case 'key_line':
-      return {
-        active: 'border-[#2f6bff]/30 bg-[#eef4ff] text-slate-950 shadow-[0_12px_28px_rgb(47_107_255_/_0.14)]',
-        inactive: 'border-[#d6e3ff] bg-white text-slate-600',
-        dot: 'bg-[#2f6bff]',
-        check: 'border-[#2f6bff] bg-[#2f6bff] text-white',
-      };
-    case 'action':
-      return {
-        active: 'border-[#ff8b61]/30 bg-[#fff1eb] text-slate-950 shadow-[0_12px_28px_rgb(255_139_97_/_0.14)]',
-        inactive: 'border-[#ffd7ca] bg-white text-slate-600',
-        dot: 'bg-[#ff8b61]',
-        check: 'border-[#ff8b61] bg-[#ff8b61] text-white',
-      };
     case 'mood':
-      return {
-        active: 'border-[#f2c94c]/35 bg-[#fff8db] text-slate-950 shadow-[0_12px_28px_rgb(242_201_76_/_0.16)]',
-        inactive: 'border-[#f5e6ab] bg-white text-slate-600',
-        dot: 'bg-[#f2c94c]',
-        check: 'border-[#d0a514] bg-[#f2c94c] text-slate-950',
-      };
+      return 'yellow';
+    case 'action':
+      return 'coral';
     case 'cta':
+      return 'green';
+    case 'key_line':
+      return 'blue';
+    default:
+      return 'pink';
+  }
+}
+
+function getNextRecipeCueAccent(currentAccent: string | undefined, type: PrompterBlock['type']) {
+  const accent = isRecipeCueAccent(currentAccent) ? currentAccent : getDefaultCueAccent(type);
+  const currentIndex = RECIPE_CUE_ACCENT_ORDER.indexOf(accent);
+  return RECIPE_CUE_ACCENT_ORDER[(currentIndex + 1) % RECIPE_CUE_ACCENT_ORDER.length];
+}
+
+function getPrompterBlockTone(type: PrompterBlock['type'], accentColor?: string) {
+  const accent = isRecipeCueAccent(accentColor) ? accentColor : getDefaultCueAccent(type);
+
+  switch (accent) {
+    case 'yellow':
       return {
-        active: 'border-[#28c76f]/30 bg-[#ebfff3] text-slate-950 shadow-[0_12px_28px_rgb(40_199_111_/_0.14)]',
-        inactive: 'border-[#c5f1d7] bg-white text-slate-600',
-        dot: 'bg-[#28c76f]',
-        check: 'border-[#28c76f] bg-[#28c76f] text-white',
+        active: 'border-[#f4d774] bg-[#fff9e7] text-slate-950 shadow-[0_18px_36px_rgb(244_215_116_/_0.22)]',
+        inactive: 'border-[#f6e6aa] bg-white text-slate-600',
+        dot: 'bg-[#f3c84f]',
       };
+    case 'coral':
+      return {
+        active: 'border-[#ffb299] bg-[#fff1eb] text-slate-950 shadow-[0_18px_36px_rgb(255_122_89_/_0.18)]',
+        inactive: 'border-[#ffd7ca] bg-white text-slate-600',
+        dot: 'bg-[#ff7a59]',
+      };
+    case 'green':
+      return {
+        active: 'border-[#9be4b6] bg-[#effcf4] text-slate-950 shadow-[0_18px_36px_rgb(71_199_135_/_0.18)]',
+        inactive: 'border-[#cfeeda] bg-white text-slate-600',
+        dot: 'bg-[#47c787]',
+      };
+    case 'pink':
+      return {
+        active: 'border-[#ffb6d9] bg-[#fff0f8] text-slate-950 shadow-[0_18px_36px_rgb(255_95_162_/_0.18)]',
+        inactive: 'border-[#ffd8e9] bg-white text-slate-600',
+        dot: 'bg-[#ff5fa2]',
+      };
+    case 'blue':
     default:
       return {
-        active: 'border-[#57b5ff]/28 bg-[#eef8ff] text-slate-950 shadow-[0_12px_28px_rgb(87_181_255_/_0.14)]',
-        inactive: 'border-[#d4eaf9] bg-white text-slate-600',
-        dot: 'bg-[#57b5ff]',
-        check: 'border-[#57b5ff] bg-[#57b5ff] text-white',
+        active: 'border-[#a8d1ff] bg-[#eef6ff] text-slate-950 shadow-[0_18px_36px_rgb(47_107_255_/_0.18)]',
+        inactive: 'border-[#d7e9ff] bg-white text-slate-600',
+        dot: 'bg-[#58a9ff]',
       };
   }
 }
@@ -205,6 +232,7 @@ function createRecipeCueBlock(existingBlocks: PrompterBlock[]) {
     type: 'keyword' as const,
     label: undefined,
     content: 'New cue',
+    accentColor: 'blue',
     visible: true,
     size: 'md' as const,
     positionPreset: 'upperThird' as const,
@@ -401,6 +429,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     [recipeScenes, selectedSceneId]
   );
   const activeScriptTab: ScriptSheetTab | null = activeTab === 'analysis' || activeTab === 'recipe' ? activeTab : null;
+  const sceneChromeDark = activeTab === 'prompter';
   const activeScriptLines = selectedScene
     ? activeScriptTab === 'analysis'
       ? getSceneOriginalScriptLines(selectedScene)
@@ -984,6 +1013,28 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     setEditingPrompterValue(nextBlock.content);
   }, [handleSceneBlocksChange, recipeScenes]);
 
+  const cycleScenePrompterBlockColor = useCallback((sceneId: number, blockId: string) => {
+    clearPrompterToggleTimeout();
+
+    const scene = recipeScenes.find((item) => item.id === sceneId);
+    const block = scene?.prompter.blocks.find((item) => item.id === blockId);
+    if (!scene || !block) {
+      return;
+    }
+
+    handleSceneBlocksChange(
+      sceneId,
+      scene.prompter.blocks.map((item) =>
+        item.id === blockId
+          ? {
+              ...item,
+              accentColor: getNextRecipeCueAccent(item.accentColor, item.type),
+            }
+          : item
+      )
+    );
+  }, [clearPrompterToggleTimeout, handleSceneBlocksChange, recipeScenes]);
+
   const schedulePrompterBlockToggle = useCallback((sceneId: number, blockId: string) => {
     clearPrompterToggleTimeout();
     prompterToggleTimeoutRef.current = setTimeout(() => {
@@ -1097,42 +1148,57 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   };
 
   const renderRecipeDetail = (scene: RecipeScene) => (
-    <div className="mx-auto flex h-full w-full max-w-[500px] flex-col overflow-y-auto bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_55%,#eef3fb_100%)] px-4 pb-28 pt-5 text-slate-950">
-      <div className="mb-4 flex justify-end">
+    <div className="mx-auto flex h-full w-full max-w-[500px] flex-col overflow-y-auto bg-white px-4 pb-28 pt-5 text-slate-950">
+      <div className="mb-5 flex justify-end">
         <button
           type="button"
           onClick={() => addScenePrompterBlock(scene.id)}
-          className="inline-flex items-center gap-2 rounded-full bg-[#2f6bff] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_14px_30px_rgb(47_107_255_/_0.24)] transition hover:brightness-105 active:scale-[0.98]"
+          className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[linear-gradient(135deg,#2f6bff_0%,#5f8bff_55%,#ff7a59_100%)] text-[1.65rem] font-semibold leading-none text-white shadow-[0_18px_34px_rgb(47_107_255_/_0.22)] transition hover:brightness-105 active:scale-[0.98]"
+          aria-label="Add cue"
         >
-          <span className="text-base leading-none">+</span>
-          <span>Add cue</span>
+          +
         </button>
       </div>
 
-      <div className="flex flex-wrap content-start gap-3">
+      <div className="grid grid-cols-2 gap-3 pb-3">
         {getRecipeEditorPrompterBlocks(scene.prompter.blocks).map((block) => {
           const isEditing =
             editingPrompterBlock?.sceneId === scene.id
             && editingPrompterBlock.blockId === block.id;
-          const tone = getPrompterBlockTone(block.type);
+          const tone = getPrompterBlockTone(block.type, block.accentColor);
 
           return (
-            <button
+            <div
               key={`${scene.id}-${block.id}`}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => schedulePrompterBlockToggle(scene.id, block.id)}
               onDoubleClick={() => startPrompterBlockEdit(scene.id, block.id, block.content)}
-              className={`min-h-[96px] min-w-[148px] max-w-full flex-1 rounded-[1.6rem] border p-4 text-left transition ${
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  schedulePrompterBlockToggle(scene.id, block.id);
+                }
+              }}
+              className={`min-h-[148px] rounded-[2rem] border px-4 py-4 text-left transition duration-150 ${
                 block.visible ? tone.active : tone.inactive
               }`}
             >
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${tone.dot}`} />
-                <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold ${
-                  block.visible ? tone.check : 'border-slate-200 bg-white text-transparent'
-                }`}>
-                  ✓
-                </span>
+              <div className="mb-5 flex items-center">
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    cycleScenePrompterBlockColor(scene.id, block.id);
+                  }}
+                  onDoubleClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                  className={`h-4 w-4 rounded-full ${tone.dot} shadow-[0_0_0_4px_rgba(255,255,255,0.95)] transition hover:scale-110`}
+                  aria-label={`Change cue color for ${block.content}`}
+                />
               </div>
               {isEditing ? (
                 <input
@@ -1154,12 +1220,12 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                       cancelPrompterBlockEdit();
                     }
                   }}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-950 outline-none ring-0 placeholder:text-slate-400"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-950 outline-none ring-0 placeholder:text-slate-400"
                 />
               ) : (
-                <p className="text-[15px] font-semibold leading-6">{block.content}</p>
+                <p className="text-[15px] font-semibold leading-8 text-inherit">{block.content}</p>
               )}
-            </button>
+            </div>
           );
         })}
       </div>
@@ -1186,12 +1252,12 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
   if (selectedScene) {
     return (
-      <div className="fixed inset-0 z-[9999] flex flex-col overflow-hidden bg-black">
-        <div className="border-b border-white/10 bg-black/90 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-[500px] items-center justify-between px-4 py-3 text-white">
+      <div className={`fixed inset-0 z-[9999] flex flex-col overflow-hidden ${sceneChromeDark ? 'bg-black' : 'bg-white'}`}>
+        <div className={`backdrop-blur-sm ${sceneChromeDark ? 'border-b border-white/10 bg-black/90' : 'border-b border-slate-200 bg-white/95'}`}>
+          <div className={`mx-auto flex max-w-[500px] items-center justify-between px-4 py-3 ${sceneChromeDark ? 'text-white' : 'text-slate-950'}`}>
             <button
               onClick={handleDetailBack}
-              className="flex items-center gap-2 text-base font-bold text-blue-400"
+              className={`flex items-center gap-2 text-base font-bold ${sceneChromeDark ? 'text-blue-400' : 'text-[#2f6bff]'}`}
             >
               ← Back
             </button>
@@ -1200,22 +1266,28 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                 #{selectedScene.id}: {selectedScene.title}
               </span>
               {resolvedBrandBrief?.brandName ? (
-                <span className="truncate text-[11px] font-semibold text-white/45">
+                <span className={`truncate text-[11px] font-semibold ${sceneChromeDark ? 'text-white/45' : 'text-slate-400'}`}>
                   {resolvedBrandBrief.brandName} context active
                 </span>
               ) : null}
             </div>
-            <div className="text-xs text-white/35">{activeTab}</div>
+            <div className={`text-xs ${sceneChromeDark ? 'text-white/35' : 'text-slate-400'}`}>{activeTab}</div>
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-3 bg-black py-2.5">
+        <div className={`flex items-center justify-center gap-3 py-2.5 ${sceneChromeDark ? 'bg-black' : 'bg-white'}`}>
           {(['analysis', 'recipe', 'prompter'] as DetailTab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`rounded-full px-5 py-1.5 text-sm font-semibold capitalize transition ${
-                activeTab === tab ? 'bg-white text-black' : 'bg-white/10 text-white/55'
+                sceneChromeDark
+                  ? activeTab === tab
+                    ? 'bg-white text-black'
+                    : 'bg-white/10 text-white/55'
+                  : activeTab === tab
+                    ? 'bg-[#121826] text-white shadow-[0_10px_24px_rgb(15_23_42_/_0.12)]'
+                    : 'border border-slate-200 bg-[#f7f8fb] text-slate-500'
               }`}
             >
               {tab}
@@ -1246,7 +1318,11 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
             type="button"
             onClick={() => navigateScene(-1)}
             disabled={selectedSceneIndex <= 0}
-            className="absolute left-3 top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-xl font-semibold text-white backdrop-blur-sm transition disabled:cursor-not-allowed disabled:opacity-25"
+            className={`absolute left-3 top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full text-xl font-semibold backdrop-blur-sm transition disabled:cursor-not-allowed disabled:opacity-25 ${
+              sceneChromeDark
+                ? 'border border-white/15 bg-black/55 text-white'
+                : 'border border-slate-200 bg-white/92 text-slate-700 shadow-[0_14px_28px_rgb(15_23_42_/_0.12)]'
+            }`}
             aria-label="Previous segment"
           >
             ←
@@ -1255,7 +1331,11 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
             type="button"
             onClick={() => navigateScene(1)}
             disabled={selectedSceneIndex >= recipeScenes.length - 1}
-            className="absolute right-3 top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-xl font-semibold text-white backdrop-blur-sm transition disabled:cursor-not-allowed disabled:opacity-25"
+            className={`absolute right-3 top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full text-xl font-semibold backdrop-blur-sm transition disabled:cursor-not-allowed disabled:opacity-25 ${
+              sceneChromeDark
+                ? 'border border-white/15 bg-black/55 text-white'
+                : 'border border-slate-200 bg-white/92 text-slate-700 shadow-[0_14px_28px_rgb(15_23_42_/_0.12)]'
+            }`}
             aria-label="Next segment"
           >
             →
@@ -1265,7 +1345,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
             <button
               type="button"
               onClick={openScriptSheet}
-              className="absolute bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/15 bg-white px-4 py-3 text-sm font-semibold text-slate-950 shadow-[0_18px_40px_rgb(0_0_0_/_0.28)] transition hover:scale-[1.02] active:scale-[0.98]"
+              className="absolute bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-950 shadow-[0_18px_40px_rgb(15_23_42_/_0.14)] transition hover:scale-[1.02] active:scale-[0.98]"
             >
               <img src="/parrot-logo.png" alt="" className="h-5 w-5" aria-hidden="true" />
               <span>{getScriptSheetButtonLabel(activeScriptTab)}</span>

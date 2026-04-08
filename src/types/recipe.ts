@@ -58,6 +58,8 @@ export interface PrompterBlock {
   type: PrompterBlockType;
   label?: string;
   content: string;
+  // Optional creator-selected accent used by the light recipe cue board.
+  accentColor?: string;
   visible: boolean;
   size: PrompterBlockSize;
   positionPreset: PrompterPositionPreset;
