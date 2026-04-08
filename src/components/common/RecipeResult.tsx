@@ -130,6 +130,73 @@ function getScriptSheetEmptyMessage(tab: ScriptSheetTab) {
   return tab === 'analysis'
     ? 'No original transcript was captured for this cut.'
     : 'No creator script is available for this cut yet.';
+
+function containsKeyword(text: string, keywords: string[]) {
+  return keywords.some((keyword) => text.includes(keyword));
+}
+
+function getSceneStrategyMeta(scene: RecipeScene, sceneIndex: number, totalScenes: number) {
+  const searchableText = [
+    scene.title,
+    scene.recipe.objective,
+    scene.recipe.appealPoint,
+    scene.recipe.keyLine,
+    scene.recipe.keyAction,
+    scene.recipe.cta || '',
+    scene.analysis.motionDescription || '',
+    scene.analysis.transcriptSnippet || '',
+  ]
+    .join(' ')
+    .toLowerCase();
+
+  const getHookPattern = () => {
+    if (containsKeyword(searchableText, ['myth', 'actually', 'the truth', 'instead', 'secret', '속지', '몰랐', '반전'])) {
+      return 'Myth-Busting';
+    }
+
+    if (containsKeyword(searchableText, ['problem', 'mistake', 'avoid', 'stop', 'warning', 'wrong', '실수', '문제', '조심', '피하', '절대'])) {
+      return 'Problem-Led';
+    }
+
+    return 'Outcome-First';
+  };
+
+  const getBasePattern = () => {
+    if (containsKeyword(searchableText, ['?', 'why', 'how', 'what', '여러분', '아세요'])) {
+      return 'Question Lead';
+    }
+
+    if (containsKeyword(searchableText, ['kitchen', 'store', 'shop', 'cafe', 'room', 'desk', 'table', 'outside', 'inside', '가서', '에서'])) {
+      return 'Scene Change';
+    }
+
+    if (containsKeyword(searchableText, ['expert', 'doctor', 'founder', 'coach', 'chef', 'specialist', 'authority', '전문가', '현직', '추천'])) {
+      return 'Authority Cue';
+    }
+
+    return 'Real Example';
+  };
+
+  const getCtaPattern = () => {
+    if (containsKeyword(searchableText, ['now', 'today', 'must', 'save this', 'follow', 'click', 'buy', 'join', 'download', '지금', '바로', '꼭', '무조건'])) {
+      return 'Hard CTA';
+    }
+
+    return 'Soft CTA';
+  };
+
+  if (sceneIndex === 0) {
+    return { stageLabel: 'HOOK', patternLabel: getHookPattern() };
+  }
+
+  if (sceneIndex === totalScenes - 1) {
+    return { stageLabel: 'CTA', patternLabel: getCtaPattern() };
+  }
+
+  return {
+    stageLabel: `BASE #${sceneIndex}`,
+    patternLabel: getBasePattern(),
+  };
 }
 
 export const RecipeResult: React.FC<RecipeResultProps> = ({
@@ -1293,7 +1360,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 pb-2 pt-2">
+      <div data-recipe-scroll-container="true" className="flex-1 overflow-y-auto px-3 pb-2 pt-2">
         <div className="mx-auto flex h-full max-w-[500px] flex-col">
           <div className="mb-3 flex flex-shrink-0 items-center justify-between">
             <div>
@@ -1333,20 +1400,49 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
             </div>
           ) : null}
 
-          <div className="grid grid-cols-2 gap-3 pb-20">
-            {recipeScenes.map((scene) => {
+          <div className="flex flex-col gap-3 pb-20">
+            {recipeScenes.map((scene, sceneIndex) => {
               const isCaptured = capturedScenes[scene.id];
               const hasLocalCapture = Boolean(capturedVideos[scene.id]) || isCaptured;
               const isUploading = Boolean(uploadingScenes[scene.id]);
               const uploadError = uploadErrors[scene.id];
               const hasUploadError = Boolean(uploadError);
               const summary = getSceneCardSummary(scene);
+              const strategyMeta = getSceneStrategyMeta(scene, sceneIndex, recipeScenes.length);
+              const statusLabel = isUploading
+                ? 'Uploading'
+                : hasUploadError && hasLocalCapture
+                  ? 'Saved locally'
+                  : hasUploadError
+                    ? 'Retry shoot'
+                    : isCaptured
+                      ? 'Captured'
+                      : 'Ready';
+              const statusClassName = isUploading
+                ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'
+                : hasUploadError && hasLocalCapture
+                  ? 'bg-slate-100 text-slate-700 ring-1 ring-slate-200'
+                  : hasUploadError
+                    ? 'bg-red-50 text-red-700 ring-1 ring-red-200'
+                    : isCaptured
+                      ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+                      : 'bg-slate-100 text-slate-700 ring-1 ring-slate-200';
+              const showStatusBadge = statusLabel !== 'Ready';
 
               return (
                 <div
                   key={scene.id}
                   onClick={() => handleSceneClick(scene)}
-                  className={`cursor-pointer overflow-hidden rounded-2xl bg-white transition-all ${
+                  onWheelCapture={(event) => {
+                    const scrollContainer = event.currentTarget.closest('[data-recipe-scroll-container="true"]');
+                    if (!(scrollContainer instanceof HTMLDivElement)) {
+                      return;
+                    }
+
+                    scrollContainer.scrollTop += event.deltaY;
+                    event.preventDefault();
+                  }}
+                  className={`cursor-pointer select-none overflow-hidden rounded-2xl bg-white transition-all ${
                     isUploading
                       ? 'ring-2 ring-amber-400'
                       : hasUploadError && hasLocalCapture
@@ -1355,77 +1451,82 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                         ? 'ring-2 ring-red-400'
                       : hasLocalCapture
                         ? 'ring-2 ring-green-500'
-                        : 'border border-gray-200 hover:border-blue-300 hover:shadow-md'
+                        : 'border border-gray-200 hover:border-gray-300 hover:shadow-md'
                   }`}
+                  style={{ touchAction: 'pan-y' }}
                 >
-                  <div className="relative aspect-[9/10] overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100">
-                    <img
-                      src={scene.thumbnail}
-                      alt={scene.title}
-                      className="h-full w-full object-cover"
-                      onError={(event) => {
-                        const target = event.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
-                    />
-                    {isUploading ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-amber-500/20">
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-amber-600 shadow-sm">
-                          <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
-                        </div>
+                  <div className="flex items-start gap-3 p-3">
+                    <div className="pointer-events-none relative w-[108px] flex-shrink-0 overflow-hidden rounded-[22px] bg-gradient-to-br from-purple-100 to-pink-100">
+                      <div className="aspect-[9/16] w-full">
+                        <img
+                          src={scene.thumbnail}
+                          alt={scene.title}
+                          draggable={false}
+                          className="pointer-events-none h-full w-full object-cover"
+                          onError={(event) => {
+                            const target = event.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
+                        />
                       </div>
-                    ) : hasLocalCapture ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-green-500/20">
-                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-xs text-white">
-                          ✓
+                      {isUploading ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-amber-500/20">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-amber-600 shadow-sm">
+                            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
+                          </div>
                         </div>
-                      </div>
-                    ) : hasUploadError ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-red-500/15">
-                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
-                          !
+                      ) : hasLocalCapture ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-green-500/20">
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-xs text-white">
+                            ✓
+                          </div>
                         </div>
+                      ) : hasUploadError ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-red-500/15">
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+                            !
+                          </div>
+                        </div>
+                      ) : null}
+                      <div className="absolute left-2 top-2 rounded-full bg-gray-900 px-2 py-1 text-[10px] font-bold text-white shadow-sm">
+                        #{scene.id}
                       </div>
-                    ) : null}
-                    <div className="absolute left-2 top-2 rounded bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                      #{scene.id}
                     </div>
-                    <div className="absolute bottom-2 right-2 rounded bg-black/75 px-1.5 py-0.5 text-[10px] text-white">
-                      {scene.startTime}
-                    </div>
-                  </div>
 
-                  <div className="flex flex-col gap-2 px-3 py-3">
-                    <div>
-                      <p className="line-clamp-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8c67ff]">
-                        {summary.eyebrow}
+                    <div className="pointer-events-none flex min-w-0 flex-1 flex-col justify-between gap-2 py-0.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h3 className="line-clamp-1 text-sm font-bold uppercase tracking-[0.08em] text-gray-900">
+                            {strategyMeta.stageLabel}: {strategyMeta.patternLabel}
+                          </h3>
+                        </div>
+                        {showStatusBadge ? (
+                          <span className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${statusClassName}`}>
+                            {statusLabel}
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-400">
+                        Scene {scene.id} · {scene.startTime} → {scene.endTime}
                       </p>
-                      <h3 className="mt-1 line-clamp-2 text-sm font-bold leading-tight text-gray-900">
+
+                      <p className="line-clamp-2 text-[14px] leading-[1.45] text-gray-700">
                         {summary.title}
-                      </h3>
+                      </p>
+
+                      {summary.detail && summary.detail !== summary.title ? (
+                        <p className="line-clamp-1 text-[12px] leading-[1.4] text-gray-500">
+                          {summary.detail}
+                        </p>
+                      ) : null}
+
+                      <div className="flex items-center justify-end pt-1">
+                        <span className="text-xs font-semibold text-gray-500">
+                          Open →
+                        </span>
+                      </div>
                     </div>
-                    <p className="line-clamp-2 text-[11px] leading-tight text-gray-600">
-                      {summary.detail}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-semibold text-gray-700">Analysis</span>
-                      <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-semibold text-gray-700">Recipe</span>
-                      <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-semibold text-gray-700">Prompter</span>
-                    </div>
-                    {isUploading ? (
-                      <span className="flex items-center gap-1 text-xs font-medium text-amber-600">
-                        <span className="inline-block h-2 w-2 animate-spin rounded-full border border-amber-600 border-t-transparent" />
-                        Uploading...
-                      </span>
-                    ) : hasUploadError && hasLocalCapture ? (
-                      <span className="text-xs font-medium text-fuchsia-600">Saved locally</span>
-                    ) : hasUploadError ? (
-                      <span className="text-xs font-medium text-red-600">Retry Shoot</span>
-                    ) : isCaptured ? (
-                      <span className="text-xs font-medium text-green-600">Done</span>
-                    ) : (
-                      <span className="text-xs font-medium text-[#8c67ff]">Open recipe</span>
-                    )}
                   </div>
                 </div>
               );
