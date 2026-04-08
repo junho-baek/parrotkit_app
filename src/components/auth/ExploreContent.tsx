@@ -19,6 +19,52 @@ interface TrendingReference {
   isLiked: boolean;
 }
 
+interface PartnerCreator {
+  id: number;
+  name: string;
+  handle: string;
+  avatar: string;
+}
+
+const partnerCreators: PartnerCreator[] = [
+  {
+    id: 1,
+    name: 'Minho Eats',
+    handle: '@minhoeats',
+    avatar: 'https://img.youtube.com/vi/JhBOUaCkltg/mqdefault.jpg',
+  },
+  {
+    id: 2,
+    name: 'Ava Beauty',
+    handle: '@avabeauty',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80',
+  },
+  {
+    id: 3,
+    name: 'Coach Leon',
+    handle: '@coachleon',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
+  },
+  {
+    id: 4,
+    name: 'Lena Builds',
+    handle: '@lenabuilds',
+    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=300&q=80',
+  },
+  {
+    id: 5,
+    name: 'Miles Away',
+    handle: '@milesaway',
+    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=300&q=80',
+  },
+  {
+    id: 6,
+    name: 'Nia Laughs',
+    handle: '@nialaughs',
+    avatar: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=300&q=80',
+  },
+];
+
 export const ExploreContent: React.FC = () => {
   const [trendingReferences, setTrendingReferences] = useState<TrendingReference[]>([]);
   const [loading, setLoading] = useState(true);
@@ -174,6 +220,39 @@ export const ExploreContent: React.FC = () => {
           Explore <span className="text-2xl">🔥</span>
         </h2>
         <p className="text-sm text-gray-600">Most popular viral references</p>
+      </div>
+
+      <div className="rounded-[26px] border border-rose-100 bg-gradient-to-r from-rose-50 via-white to-orange-50 p-3.5 shadow-[0_10px_28px_rgba(253,164,175,0.14)]">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900">
+              Partner Creators <span className="text-base">🤍</span>
+            </h3>
+            <p className="text-xs font-medium text-gray-500">Reference makers we keep close</p>
+          </div>
+          <div className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-rose-500 ring-1 ring-rose-100">
+            curated
+          </div>
+        </div>
+
+        <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+          {partnerCreators.map((creator) => (
+            <div key={creator.id} className="min-w-[84px] flex-shrink-0 text-center">
+              <div className="mx-auto mb-2 h-[74px] w-[74px] rounded-full bg-gradient-to-br from-rose-300 via-pink-200 to-orange-200 p-[2px] shadow-sm">
+                <div className="h-full w-full overflow-hidden rounded-full bg-white p-[3px]">
+                  <img
+                    src={creator.avatar}
+                    alt={creator.name}
+                    className="h-full w-full rounded-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+              <p className="truncate text-[13px] font-semibold text-gray-900">{creator.name}</p>
+              <p className="truncate text-[11px] font-medium text-gray-500">{creator.handle}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Category Filter Pills */}
