@@ -97,21 +97,6 @@ function getPlatform(url: string): SupportedPlatform {
   return 'other';
 }
 
-function getSignalTone(type: string) {
-  switch (type) {
-    case 'hook':
-      return 'bg-violet-500/15 text-violet-200 border-violet-400/30';
-    case 'cta':
-      return 'bg-amber-500/15 text-amber-100 border-amber-400/30';
-    case 'motion':
-      return 'bg-sky-500/15 text-sky-100 border-sky-400/30';
-    case 'product':
-      return 'bg-emerald-500/15 text-emerald-100 border-emerald-400/30';
-    default:
-      return 'bg-white/10 text-white/80 border-white/15';
-  }
-}
-
 export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
   videoUrl,
   scene,
@@ -342,26 +327,6 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
 
           <div className="space-y-5">
             <section className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-white/55">Original Transcript</h3>
-                <span className="text-[11px] font-semibold text-white/35">reference evidence</span>
-              </div>
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-                {scene.analysis.transcriptOriginal && scene.analysis.transcriptOriginal.length > 0 ? (
-                  <div className="space-y-2">
-                    {scene.analysis.transcriptOriginal.map((line, index) => (
-                      <p key={`${scene.id}-transcript-${index}`} className="text-sm font-medium leading-relaxed text-white/82">
-                        {line}
-                      </p>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-white/45">No transcript was captured for this cut.</p>
-                )}
-              </div>
-            </section>
-
-            <section className="space-y-2">
               <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-white/55">Motion View</h3>
               <div className="rounded-3xl border border-sky-400/15 bg-sky-500/10 p-4">
                 <p className="text-sm font-medium leading-relaxed text-sky-50">
@@ -376,20 +341,6 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
                 {scene.analysis.whyItWorks.map((item, index) => (
                   <div key={`${scene.id}-why-${index}`} className="rounded-3xl border border-white/10 bg-white/5 px-4 py-3">
                     <p className="text-sm font-medium leading-relaxed text-white/82">{item}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="space-y-2">
-              <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-white/55">Reference Signals</h3>
-              <div className="flex flex-wrap gap-2">
-                {scene.analysis.referenceSignals.map((signal, index) => (
-                  <div
-                    key={`${scene.id}-signal-${index}`}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${getSignalTone(signal.type)}`}
-                  >
-                    {signal.type}: {signal.text}
                   </div>
                 ))}
               </div>
