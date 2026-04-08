@@ -13,6 +13,7 @@ import { buildPersistableScenes, getSceneCardSummary, getSceneScriptLines, norma
 import type { BrandBrief, PrompterBlock, RecipeScene } from '@/types/recipe';
 
 type DetailTab = 'analysis' | 'recipe' | 'prompter';
+type ScriptSheetTab = Exclude<DetailTab, 'prompter'>;
 type ChatRole = 'user' | 'assistant';
 type AssistantMode = 'global' | 'scene';
 
@@ -100,6 +101,37 @@ function getPrompterBlockLabel(block: PrompterBlock) {
   }
 }
 
+function getSceneTranscriptLines(scene: RecipeScene) {
+  const originalLines = (scene.analysis.transcriptOriginal || [])
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (originalLines.length > 0) {
+    return originalLines;
+  }
+
+  const fallbackSnippet = (scene.analysis.transcriptSnippet || scene.transcriptSnippet || '').trim();
+  return fallbackSnippet ? [fallbackSnippet] : [];
+}
+
+function getScriptSheetButtonLabel(tab: ScriptSheetTab) {
+  return tab === 'analysis' ? 'View Original Script' : 'View Your Script';
+}
+
+function getScriptSheetTitle(tab: ScriptSheetTab) {
+  return tab === 'analysis' ? 'Original Script' : 'Your Script';
+}
+
+function getScriptSheetDescription(tab: ScriptSheetTab) {
+  return tab === 'analysis' ? 'Reference transcript only' : 'Creator-ready lines only';
+}
+
+function getScriptSheetEmptyMessage(tab: ScriptSheetTab) {
+  return tab === 'analysis'
+    ? 'No original transcript was captured for this cut.'
+    : 'No creator script is available for this cut yet.';
+}
+
 export const RecipeResult: React.FC<RecipeResultProps> = ({
   scenes,
   videoUrl,
@@ -137,6 +169,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const [chatLoading, setChatLoading] = useState(false);
   const [applyingUpdateMessageIndex, setApplyingUpdateMessageIndex] = useState<number | null>(null);
   const [sheetHeight, setSheetHeight] = useState(50);
+  const [scriptSheetOpen, setScriptSheetOpen] = useState(false);
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const capturedScenesRef = useRef<{ [key: number]: boolean }>(initialCapturedVideos);
@@ -158,6 +191,10 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     setSceneSaveError(null);
   }, [recipeId, videoUrl, scenes]);
 
+  React.useEffect(() => {
+    setScriptSheetOpen(false);
+  }, [activeTab, selectedSceneId]);
+
   const selectedScene = React.useMemo(
     () => recipeScenes.find((scene) => scene.id === selectedSceneId) || null,
     [recipeScenes, selectedSceneId]
@@ -166,6 +203,14 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     () => recipeScenes.findIndex((scene) => scene.id === selectedSceneId),
     [recipeScenes, selectedSceneId]
   );
+  const activeScriptTab: ScriptSheetTab | null = activeTab === 'analysis' || activeTab === 'recipe' ? activeTab : null;
+  const activeScriptLines = selectedScene
+    ? activeScriptTab === 'analysis'
+      ? getSceneTranscriptLines(selectedScene)
+      : activeScriptTab === 'recipe'
+        ? getSceneScriptLines(selectedScene)
+        : []
+    : [];
 
   const localCapturedSceneIds = React.useMemo(
     () =>
@@ -348,10 +393,20 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     setSheetHeight(50);
   }, []);
 
-  const openChatAssistant = (mode?: AssistantMode) => {
+  const closeScriptSheet = React.useCallback(() => {
+    setScriptSheetOpen(false);
+  }, []);
+
+  const openScriptSheet = React.useCallback(() => {
+    closeChatAssistant();
+    setScriptSheetOpen(true);
+  }, [closeChatAssistant]);
+
+  const openChatAssistant = React.useCallback((mode?: AssistantMode) => {
+    setScriptSheetOpen(false);
     setAssistantMode(mode || (selectedScene ? 'scene' : 'global'));
     setChatOpen(true);
-  };
+  }, [selectedScene]);
 
   const applySceneUpdate = React.useCallback(async (sceneUpdate: SceneUpdate, messageIndex: number) => {
     if (!selectedScene || assistantMode !== 'scene') {
@@ -689,6 +744,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const handleDetailBack = () => {
     setSelectedSceneId(null);
     setActiveTab('analysis');
+    setScriptSheetOpen(false);
     closeChatAssistant();
   };
 
@@ -992,9 +1048,91 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
           >
             →
           </button>
+
+          {selectedScene && activeScriptTab && !chatOpen && !scriptSheetOpen ? (
+            <button
+              type="button"
+              onClick={openScriptSheet}
+              className="absolute bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/15 bg-white px-4 py-3 text-sm font-semibold text-slate-950 shadow-[0_18px_40px_rgb(0_0_0_/_0.28)] transition hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <img src="/parrot-logo.png" alt="" className="h-5 w-5" aria-hidden="true" />
+              <span>{getScriptSheetButtonLabel(activeScriptTab)}</span>
+            </button>
+          ) : null}
         </div>
 
-        {!chatOpen ? (
+        {selectedScene && activeScriptTab ? (
+          <div
+            className={`pointer-events-none absolute inset-0 z-40 transition-opacity duration-200 ${
+              scriptSheetOpen ? 'opacity-100' : 'opacity-0'
+            }`}
+          >
+            {scriptSheetOpen ? (
+              <>
+                <button
+                  type="button"
+                  onClick={closeScriptSheet}
+                  className="pointer-events-auto absolute inset-0 bg-black/38"
+                  aria-label="Close script sheet"
+                />
+                <div className="pointer-events-auto absolute inset-x-0 bottom-0 mx-auto w-full max-w-[500px] px-3 pb-5">
+                  <div className="rounded-[2rem] border border-white/12 bg-[#11141a]/98 text-white shadow-[0_24px_60px_rgb(0_0_0_/_0.4)] backdrop-blur-xl">
+                    <div className="flex justify-center pt-3">
+                      <div className="h-1.5 w-11 rounded-full bg-white/20" />
+                    </div>
+                    <div className="flex items-start justify-between gap-3 px-4 pb-3 pt-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <img src="/parrot-logo.png" alt="" className="h-7 w-7 shrink-0" aria-hidden="true" />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-white">
+                            {getScriptSheetTitle(activeScriptTab)} - #{selectedScene.id}: {selectedScene.title}
+                          </p>
+                          <p className="text-[11px] font-medium text-white/48">
+                            {getScriptSheetDescription(activeScriptTab)}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={closeScriptSheet}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/55 transition hover:bg-white/10 hover:text-white"
+                        aria-label="Close script sheet"
+                      >
+                        ×
+                      </button>
+                    </div>
+
+                    <div className="max-h-[42vh] overflow-y-auto px-4 pb-4">
+                      {activeScriptLines.length > 0 ? (
+                        <div className="space-y-2">
+                          {activeScriptLines.map((line, index) => (
+                            <div
+                              key={`${selectedScene.id}-script-sheet-${activeScriptTab}-${index}`}
+                              className="rounded-[1.4rem] border border-white/10 bg-white/5 px-3 py-3"
+                            >
+                              <div className="flex items-start gap-3">
+                                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-slate-950">
+                                  {index + 1}
+                                </span>
+                                <p className="text-sm font-medium leading-relaxed text-white/86">{line}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="rounded-[1.4rem] border border-white/10 bg-white/5 px-4 py-4 text-sm font-medium leading-relaxed text-white/58">
+                          {getScriptSheetEmptyMessage(activeScriptTab)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : null}
+          </div>
+        ) : null}
+
+        {!chatOpen && !scriptSheetOpen ? (
           <button
             onClick={() => openChatAssistant('scene')}
             className="absolute bottom-8 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-2xl transition-all hover:scale-110 hover:shadow-blue-500/50 active:scale-95"
