@@ -255,8 +255,8 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">
-      <div className="relative mx-auto h-full w-full max-w-[500px]">
-        <div className="relative h-[48%] min-h-[280px] overflow-hidden bg-black">
+      <div className="relative mx-auto h-full w-full max-w-[500px] bg-black">
+        <div className="relative h-full min-h-[280px] overflow-hidden bg-black">
           {isYouTube && !playerError ? (
             <div id="youtube-player" className="absolute inset-0 h-full w-full" />
           ) : isDirectVideo ? (
@@ -298,32 +298,6 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
           </div>
           <div className="absolute right-4 top-4 rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
             {scene.startTime} - {scene.endTime}
-          </div>
-        </div>
-
-        <div className="relative -mt-5 h-[calc(52%+20px)] overflow-y-auto rounded-t-[2rem] border-t border-white/10 bg-[#0b0d12] px-4 pb-8 pt-6 text-white shadow-[0_-18px_40px_rgb(0_0_0_/_0.25)]">
-          <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-white/20" />
-
-          <div className="space-y-5">
-            <section className="space-y-2">
-              <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-white/55">Motion View</h3>
-              <div className="rounded-3xl border border-sky-400/15 bg-sky-500/10 p-4">
-                <p className="text-sm font-medium leading-relaxed text-sky-50">
-                  {scene.analysis.motionDescription || 'No motion-specific description was extracted for this cut.'}
-                </p>
-              </div>
-            </section>
-
-            <section className="space-y-2">
-              <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-white/55">Why It Works</h3>
-              <div className="space-y-2">
-                {scene.analysis.whyItWorks.map((item, index) => (
-                  <div key={`${scene.id}-why-${index}`} className="rounded-3xl border border-white/10 bg-white/5 px-4 py-3">
-                    <p className="text-sm font-medium leading-relaxed text-white/82">{item}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
           </div>
         </div>
       </div>

@@ -242,20 +242,20 @@ function createRecipeCueBlock(existingBlocks: PrompterBlock[]) {
 }
 
 function getScriptSheetButtonLabel(tab: ScriptSheetTab) {
-  return tab === 'analysis' ? 'View Original Script' : 'View Your Script';
+  return tab === 'analysis' ? 'View Original Analysis' : 'View Your Script';
 }
 
 function getScriptSheetTitle(tab: ScriptSheetTab) {
-  return tab === 'analysis' ? 'Original Script' : 'Your Script';
+  return tab === 'analysis' ? 'Original Analysis' : 'Your Script';
 }
 
 function getScriptSheetDescription(tab: ScriptSheetTab) {
-  return tab === 'analysis' ? 'Reference transcript only' : 'Creator-ready lines only';
+  return tab === 'analysis' ? 'Reference motion + reasoning' : 'Creator-ready lines only';
 }
 
 function getScriptSheetEmptyMessage(tab: ScriptSheetTab) {
   return tab === 'analysis'
-    ? 'No original transcript was captured for this cut.'
+    ? 'No original analysis is available for this cut yet.'
     : 'No creator script is available for this cut yet.';
 }
 
@@ -333,6 +333,43 @@ function getSceneStrategyMeta(scene: RecipeScene, sceneIndex: number, totalScene
     stageLabel: `BASE #${sceneIndex}`,
     patternLabel: getBasePattern(),
   };
+}
+
+function renderAnalysisSheetContent(scene: RecipeScene) {
+  const whyItWorks = scene.analysis.whyItWorks.filter((item) => item.trim().length > 0);
+
+  return (
+    <div className="space-y-5">
+      <section className="space-y-2">
+        <h3 className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Motion View</h3>
+        <div className="rounded-[1.6rem] border border-sky-200 bg-sky-50 px-4 py-4">
+          <p className="text-sm font-medium leading-relaxed text-slate-900">
+            {scene.analysis.motionDescription || 'No motion-specific description was extracted for this cut.'}
+          </p>
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <h3 className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Why It Works</h3>
+        {whyItWorks.length > 0 ? (
+          <div className="space-y-2">
+            {whyItWorks.map((item, index) => (
+              <div
+                key={`${scene.id}-analysis-sheet-why-${index}`}
+                className="rounded-[1.6rem] border border-slate-200 bg-slate-50 px-4 py-4"
+              >
+                <p className="text-sm font-medium leading-relaxed text-slate-800">{item}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-[1.6rem] border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-medium leading-relaxed text-slate-500">
+            No reasoning notes were captured for this cut yet.
+          </div>
+        )}
+      </section>
+    </div>
+  );
 }
 
 export const RecipeResult: React.FC<RecipeResultProps> = ({
@@ -1406,7 +1443,9 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                     </div>
 
                     <div className="max-h-[42vh] overflow-y-auto px-4 pb-4">
-                      {activeScriptLines.length > 0 ? (
+                      {activeScriptTab === 'analysis' ? (
+                        renderAnalysisSheetContent(selectedScene)
+                      ) : activeScriptLines.length > 0 ? (
                         <div className="space-y-2">
                           {activeScriptLines.map((line, index) => (
                             <div
