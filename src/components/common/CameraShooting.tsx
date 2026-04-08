@@ -119,6 +119,22 @@ function getBlockTone(block: PrompterBlock) {
   }
 }
 
+function getAccentSwatchClass(accent: PrompterCueAccent) {
+  switch (accent) {
+    case 'yellow':
+      return 'bg-[#f3c84f]';
+    case 'coral':
+      return 'bg-[#ff7a59]';
+    case 'green':
+      return 'bg-[#47c787]';
+    case 'pink':
+      return 'bg-[#ff5fa2]';
+    case 'blue':
+    default:
+      return 'bg-[#58a9ff]';
+  }
+}
+
 export const CameraShooting: React.FC<CameraShootingProps> = ({
   sceneId,
   sceneTitle,
@@ -156,6 +172,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   const [editingValue, setEditingValue] = useState('');
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
   const [trashHovering, setTrashHovering] = useState(false);
+  const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
 
   const existingCaptureUrl = useMemo(
     () => (existingCapture ? URL.createObjectURL(existingCapture) : null),
@@ -314,6 +331,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
     ]);
     setEditingBlockId(nextBlock.id);
     setEditingValue(nextBlock.content);
+    setFocusedBlockId(nextBlock.id);
     setLayoutOpen(false);
   }, [applyBlocks, prompterBlocks.length]);
 
@@ -339,6 +357,10 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
       return;
     }
 
+    if (focusedBlockId === blockId) {
+      setFocusedBlockId(null);
+    }
+
     if (target.id.startsWith('custom-')) {
       removeCustomBlock(blockId);
       return;
@@ -348,7 +370,14 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
       ...block,
       visible: false,
     }));
-  }, [prompterBlocks, removeCustomBlock, updateBlock]);
+  }, [focusedBlockId, prompterBlocks, removeCustomBlock, updateBlock]);
+
+  const updateBlockAccentColor = useCallback((blockId: string, accentColor: PrompterCueAccent) => {
+    updateBlock(blockId, (block) => ({
+      ...block,
+      accentColor,
+    }));
+  }, [updateBlock]);
 
   const getTouchDistance = useCallback((touches: ArrayLike<{ clientX: number; clientY: number }>) => {
     if (touches.length < 2) {
@@ -382,6 +411,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
     pinchStateRef.current = null;
     setEditingBlockId(blockId);
     setEditingValue(content);
+    setFocusedBlockId(blockId);
   }, []);
 
   useEffect(() => {
@@ -556,6 +586,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   const visibleBlocks = prompterBlocks
     .filter((block) => block.visible)
     .sort((left, right) => left.order - right.order);
+  const focusedBlock = visibleBlocks.find((block) => block.id === focusedBlockId) || null;
 
   const containerClass = embedded
     ? 'relative h-full w-full bg-black'
@@ -588,6 +619,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                 if (isEditing) {
                   return;
                 }
+                setFocusedBlockId(block.id);
                 dragStateRef.current = {
                   mode: 'drag',
                   blockId: block.id,
@@ -727,6 +759,30 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                 }`}
               >
                 🗑
+              </div>
+            </div>
+          ) : null}
+
+          {focusedBlock && !draggingBlockId ? (
+            <div className="mb-4 flex justify-center">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-black/66 px-3 py-2 shadow-[0_12px_28px_rgb(0_0_0_/_0.24)] backdrop-blur-sm">
+                {PROMPTER_CUE_ACCENT_ORDER.map((accent) => {
+                  const currentAccent = isPrompterCueAccent(focusedBlock.accentColor)
+                    ? focusedBlock.accentColor
+                    : getDefaultPrompterAccent(focusedBlock.type);
+
+                  return (
+                    <button
+                      key={accent}
+                      type="button"
+                      onClick={() => updateBlockAccentColor(focusedBlock.id, accent)}
+                      className={`h-7 w-7 rounded-full border-2 transition ${
+                        currentAccent === accent ? 'scale-110 border-white' : 'border-transparent opacity-80'
+                      } ${getAccentSwatchClass(accent)}`}
+                      aria-label={`Set cue color to ${accent}`}
+                    />
+                  );
+                })}
               </div>
             </div>
           ) : null}
