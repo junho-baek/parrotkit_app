@@ -72,7 +72,7 @@ function normalizePrompterScale(value: unknown) {
     return 1;
   }
 
-  return Math.min(2.5, Math.max(0.65, numeric));
+  return Math.min(2.5, Math.max(0.35, numeric));
 }
 
 function compactText(value: unknown) {

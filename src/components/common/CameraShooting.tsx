@@ -139,6 +139,9 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   const isActiveRef = useRef(false);
   const dragStateRef = useRef<DragState | null>(null);
   const pinchStateRef = useRef<PinchState | null>(null);
+  const trashZoneRef = useRef<HTMLDivElement>(null);
+  const trashHoverRef = useRef(false);
+  const draggingBlockIdRef = useRef<string | null>(null);
 
   const [isRecording, setIsRecording] = useState(false);
   const [layoutOpen, setLayoutOpen] = useState(false);
@@ -150,6 +153,8 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
+  const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
+  const [trashHovering, setTrashHovering] = useState(false);
 
   const existingCaptureUrl = useMemo(
     () => (existingCapture ? URL.createObjectURL(existingCapture) : null),
@@ -303,9 +308,26 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   const updateBlockScale = useCallback((blockId: string, nextScale: number) => {
     updateBlock(blockId, (block) => ({
       ...block,
-      scale: Math.min(2.5, Math.max(0.65, nextScale)),
+      scale: Math.min(2.5, Math.max(0.35, nextScale)),
     }));
   }, [updateBlock]);
+
+  const discardBlock = useCallback((blockId: string) => {
+    const target = prompterBlocks.find((block) => block.id === blockId);
+    if (!target) {
+      return;
+    }
+
+    if (target.id.startsWith('custom-')) {
+      removeCustomBlock(blockId);
+      return;
+    }
+
+    updateBlock(blockId, (block) => ({
+      ...block,
+      visible: false,
+    }));
+  }, [prompterBlocks, removeCustomBlock, updateBlock]);
 
   const getTouchDistance = useCallback((touches: ArrayLike<{ clientX: number; clientY: number }>) => {
     if (touches.length < 2) {
@@ -364,10 +386,33 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
         x,
         y,
       }));
+
+      const trashRect = trashZoneRef.current?.getBoundingClientRect();
+      const isHoveringTrash = Boolean(
+        trashRect
+        && event.clientX >= trashRect.left
+        && event.clientX <= trashRect.right
+        && event.clientY >= trashRect.top
+        && event.clientY <= trashRect.bottom
+      );
+
+      if (trashHoverRef.current !== isHoveringTrash) {
+        trashHoverRef.current = isHoveringTrash;
+        setTrashHovering(isHoveringTrash);
+      }
     };
 
     const handlePointerUp = () => {
+      const active = dragStateRef.current;
+      if (active?.mode === 'drag' && trashHoverRef.current) {
+        discardBlock(active.blockId);
+      }
+
       dragStateRef.current = null;
+      trashHoverRef.current = false;
+      draggingBlockIdRef.current = null;
+      setDraggingBlockId(null);
+      setTrashHovering(false);
     };
 
     window.addEventListener('pointermove', handlePointerMove);
@@ -377,7 +422,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
     };
-  }, [updateBlock, updateBlockScale]);
+  }, [discardBlock, updateBlock, updateBlockScale]);
 
   const startRecording = async () => {
     const previewStream = previewStreamRef.current;
@@ -507,19 +552,6 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
           style={{ transform: 'scaleX(-1)' }}
         />
 
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="absolute inset-0 grid grid-cols-3 grid-rows-3">
-            {Array.from({ length: 9 }).map((_, index) => (
-              <div key={index} className="border border-white/18" />
-            ))}
-          </div>
-
-          <div className="relative">
-            <div className="h-48 w-48 rounded-full border-4 border-white/45" />
-            <div className="absolute inset-5 rounded-full border-2 border-white/25" />
-          </div>
-        </div>
-
         {visibleBlocks.map((block) => {
           const scale = block.scale ?? 1;
           const isEditing = editingBlockId === block.id;
@@ -540,6 +572,10 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                   blockId: block.id,
                   pointerId: event.pointerId,
                 };
+                draggingBlockIdRef.current = block.id;
+                trashHoverRef.current = false;
+                setDraggingBlockId(block.id);
+                setTrashHovering(false);
                 (event.currentTarget as HTMLDivElement).setPointerCapture?.(event.pointerId);
               }}
               onDoubleClick={(event) => {
@@ -655,6 +691,21 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
         ) : null}
 
         <div className="absolute bottom-8 left-0 right-0 z-20">
+          {draggingBlockId ? (
+            <div className="pointer-events-none absolute left-1/2 top-[-5.5rem] -translate-x-1/2">
+              <div
+                ref={trashZoneRef}
+                className={`flex h-16 w-16 items-center justify-center rounded-full border text-2xl shadow-[0_18px_40px_rgb(0_0_0_/_0.28)] transition ${
+                  trashHovering
+                    ? 'border-rose-300 bg-rose-500 text-white scale-110'
+                    : 'border-white/18 bg-black/72 text-white/85'
+                }`}
+              >
+                🗑
+              </div>
+            </div>
+          ) : null}
+
           <div className="flex items-center justify-center gap-5">
             <button
               type="button"
