@@ -293,12 +293,6 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
             </div>
           )}
 
-          <div className="absolute left-4 top-4 rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white/75 backdrop-blur-sm">
-            Analysis
-          </div>
-          <div className="absolute right-4 top-4 rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
-            {scene.startTime} - {scene.endTime}
-          </div>
         </div>
       </div>
     </div>

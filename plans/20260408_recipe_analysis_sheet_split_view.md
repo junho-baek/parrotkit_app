@@ -27,3 +27,12 @@
 
 ## 리스크
 - 화면 높이가 작은 기기에서는 50% split이 다소 타이트하게 느껴질 수 있음
+
+## 결과
+- 완료
+- analysis drawer를 더 drawer처럼 하단에 붙는 구조로 조정했습니다.
+- 영상 오버레이 뱃지를 제거했습니다.
+- recipe sheet에서는 괄호형 동작 지시 라인을 숨기고 말하는 스크립트만 보이도록 정리했습니다.
+
+## 연결 context
+- `context/context_20260408_recipe_analysis_sheet_split_view.md`

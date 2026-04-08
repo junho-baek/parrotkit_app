@@ -11,8 +11,9 @@
 
 ## 주요 변경
 - analysis sheet 안에 `Original Script` 섹션을 다시 추가했습니다.
-- analysis 탭에서 sheet 오픈 시 비디오 래퍼 높이를 50%로 줄이도록 변경했습니다.
-- analysis 탭의 sheet backdrop은 더 가볍게 유지해 영상과 sheet를 함께 볼 수 있도록 정리했습니다.
+- analysis 탭에서 sheet 오픈 시 비디오 래퍼 높이를 drawer 높이와 맞물리도록 조정했습니다.
+- analysis 탭의 sheet는 하단에 붙는 drawer 형태로 바꾸고, overlay 뱃지는 제거했습니다.
+- recipe 탭에서는 괄호형 stage direction 라인을 숨기고 말하는 스크립트만 보이도록 정리했습니다.
 
 ## 검증
 - 별도 build/test는 수행하지 않았습니다.

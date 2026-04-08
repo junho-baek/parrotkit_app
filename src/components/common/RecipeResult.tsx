@@ -250,13 +250,22 @@ function getScriptSheetTitle(tab: ScriptSheetTab) {
 }
 
 function getScriptSheetDescription(tab: ScriptSheetTab) {
-  return tab === 'analysis' ? 'Reference motion + reasoning' : 'Creator-ready lines only';
+  return tab === 'analysis' ? 'Reference transcript + benchmarking points' : 'Creator-ready lines only';
 }
 
 function getScriptSheetEmptyMessage(tab: ScriptSheetTab) {
   return tab === 'analysis'
     ? 'No original analysis is available for this cut yet.'
     : 'No creator script is available for this cut yet.';
+}
+
+function filterRecipeScriptLines(lines: string[]) {
+  const filtered = lines
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !/^[\(\[\{（].*[\)\]\}）]$/.test(line));
+
+  return filtered.length > 0 ? filtered : lines;
 }
 
 function getDetailTabLabel(tab: DetailTab) {
@@ -375,7 +384,7 @@ function renderAnalysisSheetContent(scene: RecipeScene, originalScriptLines: str
       </section>
 
       <section className="space-y-2">
-        <h3 className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Why It Works</h3>
+        <h3 className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Benchmarking Points</h3>
         {whyItWorks.length > 0 ? (
           <div className="space-y-2">
             {whyItWorks.map((item, index) => (
@@ -504,7 +513,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     ? activeScriptTab === 'analysis'
       ? getSceneOriginalScriptLines(selectedScene)
       : activeScriptTab === 'recipe'
-        ? getSceneScriptLines(selectedScene)
+        ? filterRecipeScriptLines(getSceneScriptLines(selectedScene))
         : []
     : [];
 
@@ -1374,7 +1383,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
           {activeTab === 'analysis' ? (
             <div
               className="transition-[height] duration-300 ease-out"
-              style={{ height: isAnalysisSheetOpen ? '50%' : '100%' }}
+              style={{ height: isAnalysisSheetOpen ? 'calc(100% - min(50%, 50svh))' : '100%' }}
             >
               <RecipeVideoPlayer videoUrl={videoUrl} scene={selectedScene} />
             </div>
@@ -1449,10 +1458,18 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                   className={`pointer-events-auto absolute inset-0 ${activeScriptTab === 'analysis' ? 'bg-transparent' : 'bg-black/38'}`}
                   aria-label="Close script sheet"
                 />
-                <div className="pointer-events-auto absolute inset-x-0 bottom-0 mx-auto w-full max-w-[500px] px-3 pb-5">
+                <div
+                  className={`absolute inset-x-0 bottom-0 mx-auto w-full max-w-[500px] ${
+                    activeScriptTab === 'analysis' ? 'pointer-events-none top-0' : 'pointer-events-auto px-3 pb-5'
+                  }`}
+                >
                   <div
-                    className="rounded-[2rem] border border-gray-200 bg-white text-gray-900 shadow-[0_24px_60px_rgb(0_0_0_/_0.24)]"
-                    style={{ maxHeight: activeScriptTab === 'analysis' ? '50vh' : undefined, height: activeScriptTab === 'analysis' ? '50vh' : undefined }}
+                    className={`border border-gray-200 bg-white text-gray-900 shadow-[0_24px_60px_rgb(0_0_0_/_0.24)] ${
+                      activeScriptTab === 'analysis'
+                        ? 'pointer-events-auto absolute inset-x-0 bottom-0 flex flex-col rounded-t-[2rem] border-b-0'
+                        : 'pointer-events-auto rounded-[2rem]'
+                    }`}
+                    style={activeScriptTab === 'analysis' ? { height: 'min(50%, 50svh)', maxHeight: 'min(50%, 50svh)' } : undefined}
                   >
                     <div className="flex justify-center pt-3">
                       <div className="h-1.5 w-11 rounded-full bg-gray-300" />
@@ -1479,7 +1496,10 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                       </button>
                     </div>
 
-                    <div className="overflow-y-auto px-4 pb-4" style={{ maxHeight: activeScriptTab === 'analysis' ? 'calc(50vh - 84px)' : '42vh' }}>
+                    <div
+                      className={`overflow-y-auto px-4 pb-4 ${activeScriptTab === 'analysis' ? 'min-h-0 flex-1' : ''}`}
+                      style={{ maxHeight: activeScriptTab === 'analysis' ? undefined : '42vh' }}
+                    >
                       {activeScriptTab === 'analysis' ? (
                         renderAnalysisSheetContent(selectedScene, activeScriptLines)
                       ) : activeScriptLines.length > 0 ? (
