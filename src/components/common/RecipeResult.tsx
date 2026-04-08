@@ -245,14 +245,6 @@ function getScriptSheetButtonLabel(tab: ScriptSheetTab) {
   return tab === 'analysis' ? 'View Original Analysis' : 'View Your Script';
 }
 
-function getScriptSheetTitle(tab: ScriptSheetTab) {
-  return tab === 'analysis' ? 'Original Analysis' : 'Your Script';
-}
-
-function getScriptSheetDescription(tab: ScriptSheetTab) {
-  return tab === 'analysis' ? 'Reference transcript + benchmarking points' : 'Creator-ready lines only';
-}
-
 function getScriptSheetEmptyMessage(tab: ScriptSheetTab) {
   return tab === 'analysis'
     ? 'No original analysis is available for this cut yet.'
@@ -707,11 +699,22 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     setScriptSheetOpen(true);
   }, [closeChatAssistant]);
 
+  const switchScriptSheetTab = React.useCallback((nextTab: ScriptSheetTab) => {
+    closeChatAssistant();
+    setActiveTab(nextTab);
+    setScriptSheetOpen(true);
+  }, [closeChatAssistant]);
+
   const openChatAssistant = React.useCallback((mode?: AssistantMode) => {
     setScriptSheetOpen(false);
     setAssistantMode(mode || (selectedScene ? 'scene' : 'global'));
     setChatOpen(true);
   }, [selectedScene]);
+
+  const openParrotAiFromSheet = React.useCallback(() => {
+    setActiveTab('recipe');
+    openChatAssistant('scene');
+  }, [openChatAssistant]);
 
   const applySceneUpdate = React.useCallback(async (sceneUpdate: SceneUpdate, messageIndex: number) => {
     if (!selectedScene || assistantMode !== 'scene') {
@@ -1455,32 +1458,22 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                 <button
                   type="button"
                   onClick={closeScriptSheet}
-                  className={`pointer-events-auto absolute inset-0 ${activeScriptTab === 'analysis' ? 'bg-transparent' : 'bg-black/38'}`}
+                  className="pointer-events-auto absolute inset-0 bg-transparent"
                   aria-label="Close script sheet"
                 />
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 top-0 mx-auto w-full max-w-[500px]">
                   <div
-                    className={`border border-gray-200 bg-white text-gray-900 shadow-[0_24px_60px_rgb(0_0_0_/_0.24)] ${
-                      activeScriptTab === 'analysis'
-                        ? 'pointer-events-auto absolute inset-x-0 bottom-0 flex flex-col rounded-t-[2rem] border-b-0'
-                        : 'pointer-events-auto absolute inset-x-0 bottom-0 flex w-full flex-col rounded-t-[2rem] border-b-0'
-                    }`}
-                    style={activeScriptTab === 'analysis' ? { height: 'min(50%, 50svh)', maxHeight: 'min(50%, 50svh)' } : { maxHeight: '42vh' }}
+                    className="pointer-events-auto absolute inset-x-0 bottom-0 flex w-full flex-col rounded-t-[2rem] border border-gray-200 border-b-0 bg-white text-gray-900 shadow-[0_24px_60px_rgb(0_0_0_/_0.24)]"
+                    style={{ height: 'min(50%, 50svh)', maxHeight: 'min(50%, 50svh)' }}
                   >
                     <div className="flex justify-center pt-3">
                       <div className="h-1.5 w-11 rounded-full bg-gray-300" />
                     </div>
-                    <div className="flex items-start justify-between gap-3 px-4 pb-3 pt-2">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <img src="/parrot-logo.png" alt="" className="h-7 w-7 shrink-0" aria-hidden="true" />
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-bold text-gray-950">
-                            {getScriptSheetTitle(activeScriptTab)} - #{selectedScene.id}: {selectedScene.title}
-                          </p>
-                          <p className="text-[11px] font-medium text-gray-500">
-                            {getScriptSheetDescription(activeScriptTab)}
-                          </p>
-                        </div>
+                    <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-gray-950">
+                          #{selectedScene.id}: {selectedScene.title}
+                        </p>
                       </div>
                       <button
                         type="button"
@@ -1490,6 +1483,28 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                       >
                         ×
                       </button>
+                    </div>
+                    <div className="px-4 pb-3">
+                      <div className="flex flex-wrap gap-2">
+                        {activeScriptTab === 'analysis' ? (
+                          <button
+                            type="button"
+                            onClick={() => switchScriptSheetTab('recipe')}
+                            className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-700 transition hover:border-gray-300 hover:bg-gray-100"
+                          >
+                            View Your Script
+                          </button>
+                        ) : null}
+                        {activeScriptTab === 'recipe' ? (
+                          <button
+                            type="button"
+                            onClick={openParrotAiFromSheet}
+                            className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-700 transition hover:border-gray-300 hover:bg-gray-100"
+                          >
+                            Edit with Parrot AI
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
 
                     <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
