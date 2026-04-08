@@ -72,6 +72,7 @@ export const ExploreContent: React.FC = () => {
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
 
   const categories = ['All', '🍳 Cooking', '💄 Beauty', '💪 Fitness', '🏠 DIY', '✈️ Travel', '😂 Comedy'];
+  const loopingPartnerCreators = [...partnerCreators, ...partnerCreators];
 
   React.useEffect(() => {
     const fetchTrendingReferences = async () => {
@@ -222,24 +223,16 @@ export const ExploreContent: React.FC = () => {
         <p className="text-sm text-gray-600">Most popular viral references</p>
       </div>
 
-      <div className="rounded-[26px] border border-rose-100 bg-gradient-to-r from-rose-50 via-white to-orange-50 p-3.5 shadow-[0_10px_28px_rgba(253,164,175,0.14)]">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900">
-              Partner Creators <span className="text-base">🤍</span>
-            </h3>
-            <p className="text-xs font-medium text-gray-500">Reference makers we keep close</p>
-          </div>
-          <div className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-rose-500 ring-1 ring-rose-100">
-            curated
-          </div>
-        </div>
+      <div className="space-y-2">
+        <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900">
+          Partner Creators <span className="text-base">🤍</span>
+        </h3>
 
-        <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
-          {partnerCreators.map((creator) => (
-            <div key={creator.id} className="min-w-[84px] flex-shrink-0 text-center">
-              <div className="mx-auto mb-2 h-[74px] w-[74px] rounded-full bg-gradient-to-br from-rose-300 via-pink-200 to-orange-200 p-[2px] shadow-sm">
-                <div className="h-full w-full overflow-hidden rounded-full bg-white p-[3px]">
+        <div className="overflow-hidden py-1">
+          <div className="partner-creators-marquee flex w-max gap-4">
+            {loopingPartnerCreators.map((creator, index) => (
+              <div key={`${creator.id}-${index}`} className="w-[86px] flex-shrink-0 text-center">
+                <div className="mx-auto mb-2 h-[74px] w-[74px] overflow-hidden rounded-full ring-1 ring-gray-200 shadow-sm">
                   <img
                     src={creator.avatar}
                     alt={creator.name}
@@ -247,12 +240,27 @@ export const ExploreContent: React.FC = () => {
                     loading="lazy"
                   />
                 </div>
+                <p className="truncate text-[13px] font-semibold text-gray-900">{creator.name}</p>
               </div>
-              <p className="truncate text-[13px] font-semibold text-gray-900">{creator.name}</p>
-              <p className="truncate text-[11px] font-medium text-gray-500">{creator.handle}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
+
+        <style jsx>{`
+          @keyframes partner-creators-marquee {
+            0% {
+              transform: translate3d(0, 0, 0);
+            }
+            100% {
+              transform: translate3d(-50%, 0, 0);
+            }
+          }
+
+          .partner-creators-marquee {
+            animation: partner-creators-marquee 28s linear infinite;
+            will-change: transform;
+          }
+        `}</style>
       </div>
 
       {/* Category Filter Pills */}
