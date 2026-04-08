@@ -142,6 +142,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   const trashZoneRef = useRef<HTMLDivElement>(null);
   const trashHoverRef = useRef(false);
   const draggingBlockIdRef = useRef<string | null>(null);
+  const editingBlockRef = useRef<HTMLDivElement | null>(null);
 
   const [isRecording, setIsRecording] = useState(false);
   const [layoutOpen, setLayoutOpen] = useState(false);
@@ -174,6 +175,26 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
       }
     };
   }, [existingCaptureUrl, reviewUrl]);
+
+  useEffect(() => {
+    if (!editingBlockId || !editingBlockRef.current) {
+      return;
+    }
+
+    const target = editingBlockRef.current;
+    target.focus();
+
+    const selection = window.getSelection();
+    if (!selection) {
+      return;
+    }
+
+    const range = document.createRange();
+    range.selectNodeContents(target);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }, [editingBlockId]);
 
   const clearDraftReview = useCallback(() => {
     setReviewVisible(false);
@@ -345,7 +366,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
       return;
     }
 
-    const nextContent = editingValue.trim() || target.content;
+    const nextContent = (editingBlockRef.current?.innerText ?? editingValue).trim() || target.content;
     if (nextContent !== target.content) {
       updateBlock(blockId, (block) => ({
         ...block,
@@ -628,18 +649,17 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                 transformOrigin: 'center center',
               }}
             >
-              <span className={`whitespace-pre-wrap ${isEditing ? 'opacity-0' : ''}`}>{block.content}</span>
               {isEditing ? (
-                <textarea
-                  autoFocus
-                  rows={Math.max(1, block.content.split('\n').length)}
-                  value={editingValue}
-                  onChange={(event) => setEditingValue(event.target.value)}
+                <div
+                  ref={editingBlockRef}
+                  contentEditable
+                  suppressContentEditableWarning
+                  spellCheck={false}
                   onPointerDown={(event) => event.stopPropagation()}
                   onDoubleClick={(event) => event.stopPropagation()}
                   onBlur={() => commitInlineEdit(block.id)}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter' && !event.shiftKey) {
+                    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
                       event.preventDefault();
                       commitInlineEdit(block.id);
                     }
@@ -649,8 +669,13 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                       cancelInlineEdit();
                     }
                   }}
-                  className="absolute inset-0 h-full w-full resize-none overflow-hidden bg-transparent p-0 font-semibold tracking-[-0.02em] text-inherit outline-none"
-                />
+                  className="inline-block min-w-[2ch] whitespace-pre-wrap break-words bg-transparent p-0 font-semibold tracking-[-0.02em] text-inherit outline-none"
+                >
+                  {editingValue}
+                </div>
+              ) : null}
+              {!isEditing ? (
+                <span className="whitespace-pre-wrap">{block.content}</span>
               ) : null}
               {!isEditing ? (
                 <span
