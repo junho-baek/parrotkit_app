@@ -2082,7 +2082,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                       : 'bg-slate-100 text-slate-700 ring-1 ring-slate-200';
               const showStatusBadge = statusLabel !== 'Ready';
               const cardThumbnail =
-                shouldUseLegacyYouTubeCardThumbnails && legacyYouTubeVideoId
+                hasReferenceAnalysis && shouldUseLegacyYouTubeCardThumbnails && legacyYouTubeVideoId
                   ? getLegacyYouTubeThumbnailUrl(legacyYouTubeVideoId, sceneIndex)
                   : scene.thumbnail;
 
