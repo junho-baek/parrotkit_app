@@ -621,7 +621,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                   pinchStateRef.current = null;
                 }
               }}
-              className={`absolute z-10 max-w-[82%] select-none rounded-[1.75rem] border font-semibold tracking-[-0.02em] shadow-[0_16px_40px_rgb(0_0_0_/_0.25)] touch-none ${sizeClassMap[block.size]} ${getBlockTone(block)} ${isEditing ? 'cursor-text' : 'cursor-move'}`}
+              className={`absolute z-10 w-max max-w-[82%] select-none rounded-[1.75rem] border font-semibold tracking-[-0.02em] shadow-[0_16px_40px_rgb(0_0_0_/_0.25)] touch-none ${sizeClassMap[block.size]} ${getBlockTone(block)} ${isEditing ? 'cursor-text' : 'cursor-move'}`}
               style={{
                 ...position,
                 transform: `translate(-50%, -50%) scale(${scale})`,
@@ -692,10 +692,10 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
 
         <div className="absolute bottom-8 left-0 right-0 z-20">
           {draggingBlockId ? (
-            <div className="pointer-events-none absolute left-1/2 top-[-5.5rem] -translate-x-1/2">
+            <div className="pointer-events-none absolute left-1/2 top-[-4.5rem] -translate-x-1/2">
               <div
                 ref={trashZoneRef}
-                className={`flex h-16 w-16 items-center justify-center rounded-full border text-2xl shadow-[0_18px_40px_rgb(0_0_0_/_0.28)] transition ${
+                className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm shadow-[0_12px_24px_rgb(0_0_0_/_0.22)] transition ${
                   trashHovering
                     ? 'border-rose-300 bg-rose-500 text-white scale-110'
                     : 'border-white/18 bg-black/72 text-white/85'
