@@ -23,6 +23,7 @@ type DetailTab = 'analysis' | 'recipe' | 'prompter';
 type ScriptSheetTab = Exclude<DetailTab, 'prompter'>;
 type ChatRole = 'user' | 'assistant';
 type AssistantMode = 'global' | 'scene';
+type EditingPrompterBlock = { sceneId: number; blockId: string } | null;
 
 type SceneUpdate = {
   appealPoint?: string;
@@ -232,11 +233,14 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const [applyingUpdateMessageIndex, setApplyingUpdateMessageIndex] = useState<number | null>(null);
   const [sheetHeight, setSheetHeight] = useState(50);
   const [scriptSheetOpen, setScriptSheetOpen] = useState(false);
+  const [editingPrompterBlock, setEditingPrompterBlock] = useState<EditingPrompterBlock>(null);
+  const [editingPrompterValue, setEditingPrompterValue] = useState('');
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const capturedScenesRef = useRef<{ [key: number]: boolean }>(initialCapturedVideos);
   const prompterPersistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPrompterScenesRef = useRef<RecipeScene[] | null>(null);
+  const prompterToggleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
     setRecipeScenes(normalizedIncomingScenes);
@@ -251,11 +255,24 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     setChatOpen(false);
     setChatMessage('');
     setSceneSaveError(null);
+    setEditingPrompterBlock(null);
+    setEditingPrompterValue('');
   }, [recipeId, videoUrl, scenes]);
 
   React.useEffect(() => {
     setScriptSheetOpen(false);
   }, [activeTab, selectedSceneId]);
+
+  const clearPrompterToggleTimeout = React.useCallback(() => {
+    if (prompterToggleTimeoutRef.current) {
+      clearTimeout(prompterToggleTimeoutRef.current);
+      prompterToggleTimeoutRef.current = null;
+    }
+  }, []);
+
+  React.useEffect(() => () => {
+    clearPrompterToggleTimeout();
+  }, [clearPrompterToggleTimeout]);
 
   const selectedScene = React.useMemo(
     () => recipeScenes.find((scene) => scene.id === selectedSceneId) || null,
@@ -769,7 +786,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     setSceneSaveError(null);
   };
 
-  const handleSceneBlocksChange = (sceneId: number, blocks: PrompterBlock[]) => {
+  const handleSceneBlocksChange = useCallback((sceneId: number, blocks: PrompterBlock[]) => {
     const nextScenes = recipeScenes.map((scene) =>
       scene.id === sceneId
         ? {
@@ -784,9 +801,9 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     setRecipeScenes(nextScenes);
     setSceneSaveError(null);
     schedulePrompterPersistence(nextScenes);
-  };
+  }, [recipeScenes, schedulePrompterPersistence]);
 
-  const toggleScenePrompterBlock = (sceneId: number, blockId: string) => {
+  const toggleScenePrompterBlock = useCallback((sceneId: number, blockId: string) => {
     const scene = recipeScenes.find((item) => item.id === sceneId);
     if (!scene) {
       return;
@@ -803,9 +820,57 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
           : block
       )
     );
-  };
+  }, [handleSceneBlocksChange, recipeScenes]);
+
+  const cancelPrompterBlockEdit = useCallback(() => {
+    setEditingPrompterBlock(null);
+    setEditingPrompterValue('');
+  }, []);
+
+  const commitPrompterBlockEdit = useCallback((sceneId: number, blockId: string) => {
+    const scene = recipeScenes.find((item) => item.id === sceneId);
+    const block = scene?.prompter.blocks.find((item) => item.id === blockId);
+
+    if (!scene || !block) {
+      cancelPrompterBlockEdit();
+      return;
+    }
+
+    const nextContent = editingPrompterValue.trim() || block.content;
+    if (nextContent !== block.content) {
+      handleSceneBlocksChange(
+        sceneId,
+        scene.prompter.blocks.map((item) =>
+          item.id === blockId
+            ? {
+                ...item,
+                content: nextContent,
+              }
+            : item
+        )
+      );
+    }
+
+    cancelPrompterBlockEdit();
+  }, [cancelPrompterBlockEdit, editingPrompterValue, handleSceneBlocksChange, recipeScenes]);
+
+  const schedulePrompterBlockToggle = useCallback((sceneId: number, blockId: string) => {
+    clearPrompterToggleTimeout();
+    prompterToggleTimeoutRef.current = setTimeout(() => {
+      toggleScenePrompterBlock(sceneId, blockId);
+      prompterToggleTimeoutRef.current = null;
+    }, 180);
+  }, [clearPrompterToggleTimeout, toggleScenePrompterBlock]);
+
+  const startPrompterBlockEdit = useCallback((sceneId: number, blockId: string, content: string) => {
+    clearPrompterToggleTimeout();
+    setEditingPrompterBlock({ sceneId, blockId });
+    setEditingPrompterValue(content);
+  }, [clearPrompterToggleTimeout]);
 
   const handleDetailBack = () => {
+    clearPrompterToggleTimeout();
+    cancelPrompterBlockEdit();
     setSelectedSceneId(null);
     setActiveTab('analysis');
     setScriptSheetOpen(false);
@@ -932,24 +997,21 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
       <div className="mt-4 space-y-4">
         <section className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Prompter Picks</p>
-              <p className="mt-1 text-xs font-medium text-white/50">Check the cues you want to see while shooting.</p>
-            </div>
-            <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/70">
-              {scene.prompter.blocks.filter((block) => block.visible).length} visible
-            </span>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2">
             {scene.prompter.blocks
               .slice()
               .sort((left, right) => left.order - right.order)
-              .map((block) => (
+              .map((block) => {
+                const isEditing =
+                  editingPrompterBlock?.sceneId === scene.id
+                  && editingPrompterBlock.blockId === block.id;
+
+                return (
                 <button
                   key={`${scene.id}-${block.id}`}
                   type="button"
-                  onClick={() => toggleScenePrompterBlock(scene.id, block.id)}
+                  onClick={() => schedulePrompterBlockToggle(scene.id, block.id)}
+                  onDoubleClick={() => startPrompterBlockEdit(scene.id, block.id, block.content)}
                   className={`max-w-full rounded-[1.4rem] border px-3 py-2 text-left transition ${
                     block.visible
                       ? 'border-sky-300/35 bg-sky-500/14 text-sky-50 shadow-[0_10px_24px_rgb(14_165_233_/_0.12)]'
@@ -966,9 +1028,34 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                       {getPrompterBlockLabel(block)}
                     </span>
                   </div>
-                  <p className="mt-1 line-clamp-2 text-sm font-semibold leading-snug">{block.content}</p>
+                  {isEditing ? (
+                    <input
+                      autoFocus
+                      type="text"
+                      value={editingPrompterValue}
+                      onChange={(event) => setEditingPrompterValue(event.target.value)}
+                      onClick={(event) => event.stopPropagation()}
+                      onDoubleClick={(event) => event.stopPropagation()}
+                      onBlur={() => commitPrompterBlockEdit(scene.id, block.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          commitPrompterBlockEdit(scene.id, block.id);
+                        }
+
+                        if (event.key === 'Escape') {
+                          event.preventDefault();
+                          cancelPrompterBlockEdit();
+                        }
+                      }}
+                      className="mt-2 w-full rounded-xl border border-white/15 bg-black/20 px-3 py-2 text-sm font-semibold text-white outline-none ring-0 placeholder:text-white/30"
+                    />
+                  ) : (
+                    <p className="mt-1 line-clamp-2 text-sm font-semibold leading-snug">{block.content}</p>
+                  )}
                 </button>
-              ))}
+                );
+              })}
           </div>
         </section>
 
@@ -982,28 +1069,6 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                 </span>
                 <p className="text-base font-semibold leading-relaxed text-white">{line}</p>
               </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Must Include</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {(scene.recipe.mustInclude.length > 0 ? scene.recipe.mustInclude : ['No required cue captured']).map((item, index) => (
-              <span key={`${scene.id}-include-${index}`} className="rounded-full border border-emerald-300/20 bg-emerald-500/12 px-3 py-1.5 text-xs font-semibold text-emerald-100">
-                {item}
-              </span>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Must Avoid</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {(scene.recipe.mustAvoid.length > 0 ? scene.recipe.mustAvoid : ['No avoid cue captured']).map((item, index) => (
-              <span key={`${scene.id}-avoid-${index}`} className="rounded-full border border-rose-300/20 bg-rose-500/12 px-3 py-1.5 text-xs font-semibold text-rose-100">
-                {item}
-              </span>
             ))}
           </div>
         </section>
