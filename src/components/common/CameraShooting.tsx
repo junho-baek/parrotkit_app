@@ -378,7 +378,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
       }
 
       const rect = container.getBoundingClientRect();
-      const x = Math.min(0.92, Math.max(0.08, (event.clientX - rect.left) / rect.width));
+      const x = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
       const y = Math.min(0.9, Math.max(0.08, (event.clientY - rect.top) / rect.height));
 
       updateBlock(active.blockId, (block) => ({
