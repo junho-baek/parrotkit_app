@@ -31,6 +31,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   themeColor: "#6366f1",
   viewportFit: "cover",
 };
@@ -45,6 +49,53 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <Script
+          id="stable-mobile-vh"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                var doc = document.documentElement;
+                var lastHeight = 0;
+                var readHeight = function () {
+                  var visualViewportHeight = window.visualViewport ? window.visualViewport.height : 0;
+                  return Math.round(Math.max(window.innerHeight || 0, visualViewportHeight || 0));
+                };
+                var setHeight = function (force) {
+                  var nextHeight = readHeight();
+                  if (!nextHeight) return;
+                  if (force || nextHeight > lastHeight) {
+                    lastHeight = nextHeight;
+                    doc.style.setProperty('--app-stable-vh', nextHeight + 'px');
+                  }
+                };
+                setHeight(true);
+                var onResize = function () {
+                  window.requestAnimationFrame(function () {
+                    setHeight(false);
+                  });
+                };
+                window.addEventListener('resize', onResize, { passive: true });
+                if (window.visualViewport) {
+                  window.visualViewport.addEventListener('resize', onResize, { passive: true });
+                }
+                window.addEventListener('orientationchange', function () {
+                  window.setTimeout(function () {
+                    setHeight(true);
+                  }, 180);
+                }, { passive: true });
+                window.addEventListener('focusout', function () {
+                  window.setTimeout(function () {
+                    setHeight(true);
+                  }, 120);
+                }, { passive: true });
+                window.addEventListener('pageshow', function () {
+                  setHeight(true);
+                }, { passive: true });
+              })();
+            `,
+          }}
+        />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />

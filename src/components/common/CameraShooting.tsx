@@ -615,6 +615,10 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
           return (
             <div
               key={block.id}
+              onClick={(event) => {
+                event.stopPropagation();
+                setFocusedBlockId(block.id);
+              }}
               onPointerDown={(event) => {
                 if (isEditing) {
                   return;
@@ -637,6 +641,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                 startInlineEdit(block.id, block.content);
               }}
               onTouchStart={(event) => {
+                setFocusedBlockId(block.id);
                 if (isEditing) {
                   return;
                 }
@@ -669,12 +674,13 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                 updateBlockScale(block.id, pinch.startScale * (nextDistance / pinch.startDistance));
               }}
               onTouchEnd={(event) => {
+                setFocusedBlockId(block.id);
                 if (event.touches.length < 2) {
                   dragStateRef.current = null;
                   pinchStateRef.current = null;
                 }
               }}
-              className={`absolute z-10 w-max max-w-[82%] select-none rounded-[1.75rem] border font-semibold tracking-[-0.02em] shadow-[0_16px_40px_rgb(0_0_0_/_0.25)] touch-none ${sizeClassMap[block.size]} ${getBlockTone(block)} ${isEditing ? 'cursor-text' : 'cursor-move'}`}
+              className={`group absolute z-10 w-max max-w-[82%] select-none rounded-[1.75rem] border font-semibold tracking-[-0.02em] shadow-[0_16px_40px_rgb(0_0_0_/_0.25)] touch-none ${sizeClassMap[block.size]} ${getBlockTone(block)} ${isEditing ? 'cursor-text' : 'cursor-move'}`}
               style={{
                 ...position,
                 transform: `translate(-50%, -50%) scale(${scale})`,
@@ -722,10 +728,10 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                       startScale: block.scale ?? 1,
                     };
                   }}
-                  className="absolute -bottom-2 -right-2 hidden h-5 w-5 items-center justify-center rounded-full border border-white/25 bg-black/70 text-[10px] text-white shadow-lg md:flex"
+                  className="pointer-events-none absolute -bottom-1.5 -right-1.5 hidden h-8 w-8 items-center justify-center rounded-full border border-white/18 bg-black/58 text-white opacity-0 shadow-[0_12px_24px_rgb(0_0_0_/_0.22)] backdrop-blur-sm transition-opacity duration-150 md:flex md:group-hover:pointer-events-auto md:group-hover:opacity-100 md:group-focus-within:pointer-events-auto md:group-focus-within:opacity-100"
                   aria-hidden="true"
                 >
-                  ↘
+                  <span className="h-3.5 w-3.5 rounded-br-[0.4rem] border-b-2 border-r-2 border-white/90" />
                 </span>
               ) : null}
             </div>

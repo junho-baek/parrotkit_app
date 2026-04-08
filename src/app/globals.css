@@ -5,6 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  --app-stable-vh: 100dvh;
 
   /* Brand Colors - Modern & Luxury */
   --color-primary: #6366f1;
@@ -140,10 +141,32 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+html {
+  min-height: var(--app-stable-vh);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  min-height: var(--app-stable-vh);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+@supports (-webkit-touch-callout: none) {
+  html,
+  body {
+    min-height: max(var(--app-stable-vh), -webkit-fill-available);
+  }
+}
+
+input,
+textarea,
+select,
+[contenteditable="true"] {
+  font-size: 16px;
 }
 
 /* Recipe fullscreen mode: hide app shell (top header + bottom tab bar) */
