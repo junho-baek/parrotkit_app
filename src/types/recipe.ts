@@ -31,10 +31,13 @@ export interface SceneReferenceSignal {
 }
 
 export interface SceneAnalysis {
+  // Reference transcript for the script drawer. Keep reading it for older recipes.
   transcriptOriginal?: string[];
+  // Legacy/plain fallback transcript string kept for older payloads and persistence.
   transcriptSnippet?: string | null;
   motionDescription?: string;
   whyItWorks: string[];
+  // Legacy-only analysis metadata. New UI should not depend on this field.
   referenceSignals: SceneReferenceSignal[];
 }
 
@@ -96,6 +99,7 @@ export interface RecipeScene {
   recipe: SceneRecipePlan;
   prompter: ScenePrompter;
   progress?: number;
+  // Legacy flat fields persisted for backward compatibility with older saved recipes.
   description?: string;
   script?: string[];
   transcriptSnippet?: string | null;

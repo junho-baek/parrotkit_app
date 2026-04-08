@@ -109,32 +109,6 @@ function createFallbackWhyItWorks(title: string, motionDescription: string, tran
   return reasons;
 }
 
-function createFallbackReferenceSignals(
-  motionDescription: string,
-  transcriptSnippet: string,
-  recipe: SceneRecipePlan
-) {
-  const signals: Array<{ type: ReferenceSignalType; text: string }> = [];
-
-  if (motionDescription) {
-    signals.push({ type: 'motion', text: motionDescription });
-  }
-
-  if (transcriptSnippet) {
-    signals.push({ type: 'caption', text: transcriptSnippet });
-  }
-
-  if (recipe.appealPoint) {
-    signals.push({ type: 'hook', text: recipe.appealPoint });
-  }
-
-  if (recipe.cta) {
-    signals.push({ type: 'cta', text: recipe.cta });
-  }
-
-  return signals.slice(0, 4);
-}
-
 export function normalizeBrandBrief(raw: unknown, sourceFileName?: string | null): BrandBrief | null {
   if (!isRecord(raw)) {
     if (sourceFileName) {
@@ -410,7 +384,7 @@ function normalizeSceneRecipe(item: JsonRecord, title: string, description: stri
   };
 }
 
-function normalizeSceneAnalysis(item: JsonRecord, title: string, recipe: SceneRecipePlan): SceneAnalysis {
+function normalizeSceneAnalysis(item: JsonRecord, title: string): SceneAnalysis {
   const analysis = isRecord(item.analysis) ? item.analysis : {};
   const transcriptSnippet = compactText(analysis.transcriptSnippet ?? item.transcriptSnippet);
   const motionDescription = compactText(analysis.motionDescription ?? item.description);
@@ -441,7 +415,7 @@ function normalizeSceneAnalysis(item: JsonRecord, title: string, recipe: SceneRe
     transcriptSnippet: transcriptSnippet || null,
     motionDescription,
     whyItWorks: whyItWorks.length > 0 ? whyItWorks : createFallbackWhyItWorks(title, motionDescription, transcriptSnippet),
-    referenceSignals: referenceSignals.length > 0 ? referenceSignals : createFallbackReferenceSignals(motionDescription, transcriptSnippet, recipe),
+    referenceSignals,
   };
 }
 
@@ -450,7 +424,7 @@ export function normalizeRecipeScene(raw: unknown, index: number, brandBrief?: B
   const title = compactText(item.title) || `Scene ${index + 1}`;
   const description = compactText(item.description);
   const recipe = normalizeSceneRecipe(item, title, description, brandBrief);
-  const analysis = normalizeSceneAnalysis(item, title, recipe);
+  const analysis = normalizeSceneAnalysis(item, title);
 
   return {
     id: Number(item.id ?? index + 1),
@@ -496,6 +470,19 @@ export function buildPersistableScene(scene: RecipeScene): RecipeScene {
 
 export function buildPersistableScenes(scenes: RecipeScene[]) {
   return scenes.map((scene) => buildPersistableScene(scene));
+}
+
+export function getSceneOriginalScriptLines(scene: RecipeScene) {
+  const originalLines = (scene.analysis.transcriptOriginal || [])
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (originalLines.length > 0) {
+    return originalLines;
+  }
+
+  const fallbackSnippet = (scene.analysis.transcriptSnippet || scene.transcriptSnippet || '').trim();
+  return fallbackSnippet ? [fallbackSnippet] : [];
 }
 
 export function getSceneScriptLines(scene: RecipeScene) {

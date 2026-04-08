@@ -9,7 +9,14 @@ import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button
 import { Spinner } from '@/components/ui/spinner';
 import { authenticatedFetch, ensureValidAccessToken } from '@/lib/auth/client-session';
 import { logClientEvent } from '@/lib/client-events';
-import { buildPersistableScenes, getSceneCardSummary, getSceneScriptLines, normalizeBrandBrief, normalizeRecipeScenes } from '@/lib/recipe-scene';
+import {
+  buildPersistableScenes,
+  getSceneCardSummary,
+  getSceneOriginalScriptLines,
+  getSceneScriptLines,
+  normalizeBrandBrief,
+  normalizeRecipeScenes,
+} from '@/lib/recipe-scene';
 import type { BrandBrief, PrompterBlock, RecipeScene } from '@/types/recipe';
 
 type DetailTab = 'analysis' | 'recipe' | 'prompter';
@@ -99,19 +106,6 @@ function getPrompterBlockLabel(block: PrompterBlock) {
     default:
       return 'Cue';
   }
-}
-
-function getSceneTranscriptLines(scene: RecipeScene) {
-  const originalLines = (scene.analysis.transcriptOriginal || [])
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  if (originalLines.length > 0) {
-    return originalLines;
-  }
-
-  const fallbackSnippet = (scene.analysis.transcriptSnippet || scene.transcriptSnippet || '').trim();
-  return fallbackSnippet ? [fallbackSnippet] : [];
 }
 
 function getScriptSheetButtonLabel(tab: ScriptSheetTab) {
@@ -274,7 +268,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const activeScriptTab: ScriptSheetTab | null = activeTab === 'analysis' || activeTab === 'recipe' ? activeTab : null;
   const activeScriptLines = selectedScene
     ? activeScriptTab === 'analysis'
-      ? getSceneTranscriptLines(selectedScene)
+      ? getSceneOriginalScriptLines(selectedScene)
       : activeScriptTab === 'recipe'
         ? getSceneScriptLines(selectedScene)
         : []

@@ -40,6 +40,7 @@ type PrompterBlockDraft = Omit<PrompterBlock, 'id'> & {
 type GeneratedScenePlan = {
   scene_id: number;
   why_it_works?: string[];
+  // Legacy compatibility only. The current UI no longer consumes reference signals inline.
   reference_signals?: ReferenceSignalDraft[];
   objective?: string;
   appeal_point?: string;
@@ -741,9 +742,6 @@ Return valid JSON only in this exact shape:
     {
       "scene_id": 1,
       "why_it_works": ["", ""],
-      "reference_signals": [
-        { "type": "hook", "text": "" }
-      ],
       "objective": "",
       "appeal_point": "",
       "key_line": "",
@@ -772,7 +770,6 @@ Return valid JSON only in this exact shape:
 Requirements:
 - Return exactly ${scenes.length} scenes in order.
 - why_it_works should explain why the reference performs well in 1 to 3 short bullets.
-- reference_signals type must be one of: hook, pacing, motion, caption, emotion, product, cta.
 - appeal_point is the cut goal. It should describe the persuasion job or scene role, not repeat the spoken script.
 - script_lines must be 2 to 4 short lines that a creator can actually say or act on.
 - key_line should be the single most important line for this cut.
@@ -781,6 +778,7 @@ Requirements:
 - must_include and must_avoid must reflect the brand brief when available.
 - prompter_blocks should prioritize key_line, short keyword-style cues, warnings, and CTA.
 - prompter block content should stay compact enough to be used as an on-camera cue.
+- Do not include reference_signals. That field is legacy compatibility only and will be ignored.
 - Keep outputs concrete and creator-friendly, not abstract marketing language.`;
 
     const text = await generateReplicateGeminiFlashText({
