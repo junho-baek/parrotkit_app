@@ -259,6 +259,14 @@ function getScriptSheetEmptyMessage(tab: ScriptSheetTab) {
     : 'No creator script is available for this cut yet.';
 }
 
+function getDetailTabLabel(tab: DetailTab) {
+  if (tab === 'prompter') {
+    return 'Shooting';
+  }
+
+  return tab.charAt(0).toUpperCase() + tab.slice(1);
+}
+
 function containsKeyword(text: string, keywords: string[]) {
   return keywords.some((keyword) => text.includes(keyword));
 }
@@ -1200,31 +1208,34 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                   aria-label={`Change cue color for ${block.content}`}
                 />
               </div>
-              {isEditing ? (
-                <textarea
-                  autoFocus
-                  rows={Math.max(2, editingPrompterValue.split('\n').length)}
-                  value={editingPrompterValue}
-                  onChange={(event) => setEditingPrompterValue(event.target.value)}
-                  onClick={(event) => event.stopPropagation()}
-                  onDoubleClick={(event) => event.stopPropagation()}
-                  onBlur={() => commitPrompterBlockEdit(scene.id, block.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      commitPrompterBlockEdit(scene.id, block.id);
-                    }
+              <div className="relative">
+                <p className={`whitespace-pre-wrap text-[15px] font-semibold leading-8 text-inherit ${isEditing ? 'opacity-0' : ''}`}>
+                  {block.content}
+                </p>
+                {isEditing ? (
+                  <textarea
+                    autoFocus
+                    rows={Math.max(2, block.content.split('\n').length)}
+                    value={editingPrompterValue}
+                    onChange={(event) => setEditingPrompterValue(event.target.value)}
+                    onClick={(event) => event.stopPropagation()}
+                    onDoubleClick={(event) => event.stopPropagation()}
+                    onBlur={() => commitPrompterBlockEdit(scene.id, block.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault();
+                        commitPrompterBlockEdit(scene.id, block.id);
+                      }
 
-                    if (event.key === 'Escape') {
-                      event.preventDefault();
-                      cancelPrompterBlockEdit();
-                    }
-                  }}
-                  className="w-full resize-none overflow-hidden bg-transparent p-0 text-[15px] font-semibold leading-8 text-inherit outline-none placeholder:text-slate-400"
-                />
-              ) : (
-                <p className="text-[15px] font-semibold leading-8 text-inherit">{block.content}</p>
-              )}
+                      if (event.key === 'Escape') {
+                        event.preventDefault();
+                        cancelPrompterBlockEdit();
+                      }
+                    }}
+                    className="absolute inset-0 h-full w-full resize-none overflow-hidden bg-transparent p-0 text-[15px] font-semibold leading-8 text-inherit outline-none placeholder:text-slate-400"
+                  />
+                ) : null}
+              </div>
             </div>
           );
         })}
@@ -1271,7 +1282,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                 </span>
               ) : null}
             </div>
-            <div className={`text-xs ${sceneChromeDark ? 'text-white/35' : 'text-slate-400'}`}>{activeTab}</div>
+            <div className={`text-xs ${sceneChromeDark ? 'text-white/35' : 'text-slate-400'}`}>{getDetailTabLabel(activeTab)}</div>
           </div>
         </div>
 
@@ -1290,7 +1301,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                     : 'border border-slate-200 bg-[#f7f8fb] text-slate-500'
               }`}
             >
-              {tab}
+              {getDetailTabLabel(tab)}
             </button>
           ))}
         </div>
@@ -1424,7 +1435,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
           </div>
         ) : null}
 
-        {!chatOpen && !scriptSheetOpen ? (
+        {!chatOpen && !scriptSheetOpen && activeTab !== 'prompter' ? (
           <button
             onClick={() => openChatAssistant('scene')}
             className="absolute bottom-8 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-2xl transition-all hover:scale-110 hover:shadow-blue-500/50 active:scale-95"

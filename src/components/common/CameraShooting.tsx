@@ -507,19 +507,6 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
           style={{ transform: 'scaleX(-1)' }}
         />
 
-        <div className="absolute top-4 left-4 z-20">
-          <button
-            onClick={onBack}
-            className="rounded-xl border border-white/15 bg-black/65 px-3.5 py-2 text-sm font-semibold text-white backdrop-blur-sm transition-transform active:scale-95"
-          >
-            ← Back
-          </button>
-        </div>
-
-        <div className="absolute right-4 top-4 z-20 rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-white/75 backdrop-blur-sm">
-          Prompter
-        </div>
-
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="absolute inset-0 grid grid-cols-3 grid-rows-3">
             {Array.from({ length: 9 }).map((_, index) => (
@@ -605,10 +592,11 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                 transformOrigin: 'center center',
               }}
             >
+              <span className={`whitespace-pre-wrap ${isEditing ? 'opacity-0' : ''}`}>{block.content}</span>
               {isEditing ? (
                 <textarea
                   autoFocus
-                  rows={Math.max(1, editingValue.split('\n').length)}
+                  rows={Math.max(1, block.content.split('\n').length)}
                   value={editingValue}
                   onChange={(event) => setEditingValue(event.target.value)}
                   onPointerDown={(event) => event.stopPropagation()}
@@ -625,11 +613,9 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                       cancelInlineEdit();
                     }
                   }}
-                  className="w-full resize-none overflow-hidden bg-transparent p-0 font-semibold tracking-[-0.02em] text-inherit outline-none"
+                  className="absolute inset-0 h-full w-full resize-none overflow-hidden bg-transparent p-0 font-semibold tracking-[-0.02em] text-inherit outline-none"
                 />
-              ) : (
-                <span>{block.content}</span>
-              )}
+              ) : null}
               {!isEditing ? (
                 <span
                   onPointerDown={(event) => {
