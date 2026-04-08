@@ -335,11 +335,36 @@ function getSceneStrategyMeta(scene: RecipeScene, sceneIndex: number, totalScene
   };
 }
 
-function renderAnalysisSheetContent(scene: RecipeScene) {
+function renderAnalysisSheetContent(scene: RecipeScene, originalScriptLines: string[]) {
   const whyItWorks = scene.analysis.whyItWorks.filter((item) => item.trim().length > 0);
 
   return (
     <div className="space-y-5">
+      <section className="space-y-2">
+        <h3 className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Original Script</h3>
+        {originalScriptLines.length > 0 ? (
+          <div className="space-y-2">
+            {originalScriptLines.map((line, index) => (
+              <div
+                key={`${scene.id}-analysis-sheet-script-${index}`}
+                className="rounded-[1.6rem] border border-slate-200 bg-slate-50 px-4 py-4"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-slate-900 ring-1 ring-slate-200">
+                    {index + 1}
+                  </span>
+                  <p className="text-sm font-medium leading-relaxed text-slate-800">{line}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-[1.6rem] border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-medium leading-relaxed text-slate-500">
+            No original transcript was captured for this cut.
+          </div>
+        )}
+      </section>
+
       <section className="space-y-2">
         <h3 className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Motion View</h3>
         <div className="rounded-[1.6rem] border border-sky-200 bg-sky-50 px-4 py-4">
@@ -1299,6 +1324,8 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   }
 
   if (selectedScene) {
+    const isAnalysisSheetOpen = activeScriptTab === 'analysis' && scriptSheetOpen;
+
     return (
       <div className={`fixed inset-0 z-[9999] flex flex-col overflow-hidden ${sceneChromeDark ? 'bg-black' : 'bg-white'}`}>
         <div className={`backdrop-blur-sm ${sceneChromeDark ? 'border-b border-white/10 bg-black/90' : 'border-b border-slate-200 bg-white/95'}`}>
@@ -1345,7 +1372,12 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
         <div className="relative flex-1 overflow-hidden">
           {activeTab === 'analysis' ? (
-            <RecipeVideoPlayer videoUrl={videoUrl} scene={selectedScene} />
+            <div
+              className="transition-[height] duration-300 ease-out"
+              style={{ height: isAnalysisSheetOpen ? '50%' : '100%' }}
+            >
+              <RecipeVideoPlayer videoUrl={videoUrl} scene={selectedScene} />
+            </div>
           ) : activeTab === 'recipe' ? (
             renderRecipeDetail(selectedScene)
           ) : (
@@ -1366,11 +1398,12 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
             type="button"
             onClick={() => navigateScene(-1)}
             disabled={selectedSceneIndex <= 0}
-            className={`absolute left-3 top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full text-xl font-semibold backdrop-blur-sm transition disabled:cursor-not-allowed disabled:opacity-25 ${
+            className={`absolute left-3 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full text-xl font-semibold backdrop-blur-sm transition disabled:cursor-not-allowed disabled:opacity-25 ${
               sceneChromeDark
                 ? 'border border-white/15 bg-black/55 text-white'
                 : 'border border-slate-200 bg-white/92 text-slate-700 shadow-[0_14px_28px_rgb(15_23_42_/_0.12)]'
             }`}
+            style={{ top: isAnalysisSheetOpen ? '25%' : '50%' }}
             aria-label="Previous segment"
           >
             ←
@@ -1379,11 +1412,12 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
             type="button"
             onClick={() => navigateScene(1)}
             disabled={selectedSceneIndex >= recipeScenes.length - 1}
-            className={`absolute right-3 top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full text-xl font-semibold backdrop-blur-sm transition disabled:cursor-not-allowed disabled:opacity-25 ${
+            className={`absolute right-3 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full text-xl font-semibold backdrop-blur-sm transition disabled:cursor-not-allowed disabled:opacity-25 ${
               sceneChromeDark
                 ? 'border border-white/15 bg-black/55 text-white'
                 : 'border border-slate-200 bg-white/92 text-slate-700 shadow-[0_14px_28px_rgb(15_23_42_/_0.12)]'
             }`}
+            style={{ top: isAnalysisSheetOpen ? '25%' : '50%' }}
             aria-label="Next segment"
           >
             →
@@ -1412,11 +1446,14 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                 <button
                   type="button"
                   onClick={closeScriptSheet}
-                  className="pointer-events-auto absolute inset-0 bg-black/38"
+                  className={`pointer-events-auto absolute inset-0 ${activeScriptTab === 'analysis' ? 'bg-transparent' : 'bg-black/38'}`}
                   aria-label="Close script sheet"
                 />
                 <div className="pointer-events-auto absolute inset-x-0 bottom-0 mx-auto w-full max-w-[500px] px-3 pb-5">
-                  <div className="rounded-[2rem] border border-gray-200 bg-white text-gray-900 shadow-[0_24px_60px_rgb(0_0_0_/_0.24)]">
+                  <div
+                    className="rounded-[2rem] border border-gray-200 bg-white text-gray-900 shadow-[0_24px_60px_rgb(0_0_0_/_0.24)]"
+                    style={{ maxHeight: activeScriptTab === 'analysis' ? '50vh' : undefined, height: activeScriptTab === 'analysis' ? '50vh' : undefined }}
+                  >
                     <div className="flex justify-center pt-3">
                       <div className="h-1.5 w-11 rounded-full bg-gray-300" />
                     </div>
@@ -1442,9 +1479,9 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                       </button>
                     </div>
 
-                    <div className="max-h-[42vh] overflow-y-auto px-4 pb-4">
+                    <div className="overflow-y-auto px-4 pb-4" style={{ maxHeight: activeScriptTab === 'analysis' ? 'calc(50vh - 84px)' : '42vh' }}>
                       {activeScriptTab === 'analysis' ? (
-                        renderAnalysisSheetContent(selectedScene)
+                        renderAnalysisSheetContent(selectedScene, activeScriptLines)
                       ) : activeScriptLines.length > 0 ? (
                         <div className="space-y-2">
                           {activeScriptLines.map((line, index) => (
