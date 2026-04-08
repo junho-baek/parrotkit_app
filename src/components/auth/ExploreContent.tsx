@@ -260,6 +260,10 @@ export const ExploreContent: React.FC = () => {
             animation: partner-creators-marquee 28s linear infinite;
             will-change: transform;
           }
+
+          .partner-creators-marquee:hover {
+            animation-play-state: paused;
+          }
         `}</style>
       </div>
 
