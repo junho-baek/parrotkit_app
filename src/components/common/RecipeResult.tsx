@@ -448,6 +448,8 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     setRecipeScenes(nextScenes);
     setSceneSaveError(null);
     closeChatAssistant();
+    setActiveTab('recipe');
+    setScriptSheetOpen(true);
     syncRecipeSessionStorage(nextScenes);
     void persistRecipeScenes(nextScenes);
     setApplyingUpdateMessageIndex(null);
