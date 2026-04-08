@@ -258,10 +258,10 @@ function sceneSupportsAnalysis(scene: RecipeScene) {
   return originalScriptLines.length > 0 || hasMotionDescription || hasWhyItWorks;
 }
 
-function createCustomRecipeScene(sceneId: number, startTime: string): RecipeScene {
+function createCustomRecipeScene(sceneId: number, startTime: string, title?: string): RecipeScene {
   return {
     id: sceneId,
-    title: `Scene ${sceneId}`,
+    title: title?.trim() || `Scene ${sceneId}`,
     startTime,
     endTime: startTime,
     thumbnail: '',
@@ -284,7 +284,20 @@ function createCustomRecipeScene(sceneId: number, startTime: string): RecipeScen
       cta: '',
     },
     prompter: {
-      blocks: [],
+      blocks: [
+        {
+          id: `scene-${sceneId}-cue-1`,
+          type: 'keyword',
+          label: undefined,
+          content: 'New cue',
+          accentColor: 'blue',
+          visible: true,
+          size: 'md',
+          positionPreset: 'upperThird',
+          scale: 1,
+          order: 1,
+        },
+      ],
     },
     progress: 0,
     description: '',
@@ -502,6 +515,8 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const [editingPrompterValue, setEditingPrompterValue] = useState('');
   const [editingSceneTitleId, setEditingSceneTitleId] = useState<number | null>(null);
   const [editingSceneTitleValue, setEditingSceneTitleValue] = useState('');
+  const [createSceneSheetOpen, setCreateSceneSheetOpen] = useState(false);
+  const [createSceneTitleValue, setCreateSceneTitleValue] = useState('');
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const capturedScenesRef = useRef<{ [key: number]: boolean }>(initialCapturedVideos);
@@ -526,6 +541,8 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     setEditingPrompterValue('');
     setEditingSceneTitleId(null);
     setEditingSceneTitleValue('');
+    setCreateSceneSheetOpen(false);
+    setCreateSceneTitleValue('');
   }, [recipeId, videoUrl, scenes]);
 
   React.useEffect(() => {
@@ -975,20 +992,31 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     cancelSceneTitleEdit();
   }, [cancelSceneTitleEdit, editingSceneTitleValue, recipeScenes, saveSceneStructure]);
 
+  const closeCreateSceneSheet = React.useCallback(() => {
+    setCreateSceneSheetOpen(false);
+    setCreateSceneTitleValue('');
+  }, []);
+
   const handleAddScene = React.useCallback(() => {
     const nextSceneId = recipeScenes.reduce((maxId, scene) => Math.max(maxId, scene.id), 0) + 1;
+    closeChatAssistant();
+    setCreateSceneTitleValue(`Scene ${nextSceneId}`);
+    setCreateSceneSheetOpen(true);
+  }, [closeChatAssistant, recipeScenes]);
+
+  const confirmAddScene = React.useCallback(() => {
+    const nextSceneId = recipeScenes.reduce((maxId, scene) => Math.max(maxId, scene.id), 0) + 1;
     const lastScene = recipeScenes[recipeScenes.length - 1];
-    const newScene = createCustomRecipeScene(nextSceneId, lastScene?.endTime || '00:00');
+    const newScene = createCustomRecipeScene(
+      nextSceneId,
+      lastScene?.endTime || '00:00',
+      createSceneTitleValue
+    );
     const nextScenes = [...recipeScenes, newScene];
 
     saveSceneStructure(nextScenes);
-    setSelectedSceneId(newScene.id);
-    setActiveTab('recipe');
-    setAssistantMode('scene');
-    closeChatAssistant();
-    setEditingSceneTitleId(newScene.id);
-    setEditingSceneTitleValue(newScene.title);
-  }, [closeChatAssistant, recipeScenes, saveSceneStructure]);
+    closeCreateSceneSheet();
+  }, [closeCreateSceneSheet, createSceneTitleValue, recipeScenes, saveSceneStructure]);
 
   const markSceneCaptured = useCallback((sceneId: number) => {
     setCapturedScenes((prev) => {
@@ -2080,7 +2108,80 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
         </div>
       </div>
 
-      {!chatOpen ? (
+      {createSceneSheetOpen ? (
+        <div className="pointer-events-none absolute inset-0 z-40">
+          <button
+            type="button"
+            onClick={closeCreateSceneSheet}
+            className="pointer-events-auto absolute inset-0 bg-black/24"
+            aria-label="Close create scene drawer"
+          />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 mx-auto w-full max-w-[500px]">
+            <div className="pointer-events-auto rounded-t-[2rem] border border-gray-200 border-b-0 bg-white px-4 pb-5 pt-3 shadow-[0_-20px_48px_rgb(15_23_42_/_0.16)]">
+              <div className="flex justify-center pb-3">
+                <div className="h-1.5 w-11 rounded-full bg-gray-300" />
+              </div>
+              <div className="flex items-start justify-between gap-3 pb-4">
+                <div>
+                  <p className="text-sm font-bold text-gray-950">Add a recipe scene</p>
+                  <p className="text-xs font-medium text-gray-500">Recipe and Shooting only. We&apos;ll start it with one new cue.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeCreateSceneSheet}
+                  className="flex h-8 w-8 flex-none items-center justify-center rounded-full text-lg font-medium text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                  aria-label="Close create scene drawer"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="space-y-4">
+                <label className="block">
+                  <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+                    Scene title
+                  </span>
+                  <input
+                    autoFocus
+                    value={createSceneTitleValue}
+                    onChange={(event) => setCreateSceneTitleValue(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        confirmAddScene();
+                      }
+
+                      if (event.key === 'Escape') {
+                        event.preventDefault();
+                        closeCreateSceneSheet();
+                      }
+                    }}
+                    placeholder="Scene title"
+                    className="w-full rounded-[1.25rem] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-950 outline-none placeholder:text-slate-300"
+                  />
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={closeCreateSceneSheet}
+                    className="flex-1 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmAddScene}
+                    className="flex-1 rounded-full bg-[linear-gradient(135deg,#2f6bff_0%,#5f8bff_55%,#ff7a59_100%)] px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_34px_rgb(47_107_255_/_0.22)] transition hover:brightness-105 active:scale-[0.98]"
+                  >
+                    Add Scene
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {!chatOpen && !createSceneSheetOpen ? (
         <button
           type="button"
           onClick={handleAddScene}
@@ -2091,7 +2192,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
         </button>
       ) : null}
 
-      {!chatOpen ? (
+      {!chatOpen && !createSceneSheetOpen ? (
         <button
           onClick={() => openChatAssistant('global')}
           className="absolute bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-500 text-white shadow-lg transition-all hover:bg-blue-600 hover:scale-110"
