@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
     const title = String(body.title || '').trim();
 
     const videoUrl = String(body.videoUrl || body.url || '').trim();
+    const sourceUrl = String(body.sourceUrl || body.url || videoUrl).trim();
     const brandBrief = normalizeBrandBrief(body.brandBrief);
     const scenes = parseScenes(body.scenes, brandBrief);
 
@@ -110,7 +111,7 @@ export async function POST(request: NextRequest) {
 
     const referencePayload = {
       user_id: authUser.id,
-      source_url: videoUrl,
+      source_url: sourceUrl,
       platform: body.platform || null,
       video_id: body.videoId || null,
       niche: body.niche || null,
@@ -145,7 +146,7 @@ export async function POST(request: NextRequest) {
           .from('references')
           .insert({
             user_id: authUser.id,
-            source_url: videoUrl,
+            source_url: sourceUrl,
             platform: body.platform || null,
             video_id: body.videoId || null,
             niche: body.niche || null,

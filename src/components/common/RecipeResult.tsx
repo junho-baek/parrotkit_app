@@ -1515,7 +1515,6 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
               const isUploading = Boolean(uploadingScenes[scene.id]);
               const uploadError = uploadErrors[scene.id];
               const hasUploadError = Boolean(uploadError);
-              const summary = getSceneCardSummary(scene);
               const strategyMeta = getSceneStrategyMeta(scene, sceneIndex, recipeScenes.length);
               const statusLabel = isUploading
                 ? 'Uploading'
@@ -1618,16 +1617,6 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-400">
                         Scene {scene.id} · {scene.startTime} → {scene.endTime}
                       </p>
-
-                      <p className="line-clamp-2 text-[14px] leading-[1.45] text-gray-700">
-                        {summary.title}
-                      </p>
-
-                      {summary.detail && summary.detail !== summary.title ? (
-                        <p className="line-clamp-1 text-[12px] leading-[1.4] text-gray-500">
-                          {summary.detail}
-                        </p>
-                      ) : null}
 
                       <div className="flex items-center justify-end pt-1">
                         <span className="text-xs font-semibold text-gray-500">

@@ -211,6 +211,10 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
       }
 
       const data = await response.json();
+      const playbackVideoUrl =
+        typeof data?.videoUrl === 'string' && data.videoUrl.trim().length > 0
+          ? data.videoUrl.trim()
+          : url;
       await logClientEvent('recipe_generated', {
         source_url: url,
         scenes_count: Array.isArray(data.scenes) ? data.scenes.length : 0,
@@ -225,7 +229,8 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
           },
           body: JSON.stringify({
             title: title.trim(),
-            videoUrl: url,
+            videoUrl: playbackVideoUrl,
+            sourceUrl: url,
             scenes: data.scenes,
             niche,
             goal,
@@ -260,7 +265,8 @@ export const URLInputForm: React.FC<URLInputFormProps> = ({ variant = 'page' }) 
         'recipeData',
         JSON.stringify({
           scenes: data.scenes,
-          videoUrl: url,
+          videoUrl: playbackVideoUrl,
+          sourceUrl: url,
           capturedVideos: {},
           matchResults: {},
           recipeId,

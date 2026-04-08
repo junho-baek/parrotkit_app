@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analyzeVideoFrameCandidates, analyzeYouTubeVideo, type SceneCandidate, type VideoAnalysisResult } from '@/lib/video-analyzer';
+import { analyzeVideoFrameCandidates, analyzeYouTubeVideo, extractVideoThumbnailsAtTimestamps, type SceneCandidate, type VideoAnalysisResult } from '@/lib/video-analyzer';
 import { generateReplicateGeminiFlashText, generateReplicateGeminiProText } from '@/lib/replicate';
 import { fetchSupadataTranscript, type TranscriptSegment, type TranscriptSource } from '@/lib/supadata';
 import { fetchSocialVideoDownload, type DownloadSource } from '@/lib/social-video-downloader';
 import { extractBrandBriefFromPdf } from '@/lib/brand-brief';
 import { normalizeRecipeScene } from '@/lib/recipe-scene';
+import { createSupabaseAdminClient } from '@/lib/supabase/server';
 import type { BrandBrief, PrompterBlock, ReferenceSignalType } from '@/types/recipe';
 
 type Platform = 'youtube' | 'youtube-shorts' | 'instagram' | 'tiktok' | 'other';
@@ -14,6 +15,12 @@ type PageMedia = {
   videoUrl: string | null;
   source: DownloadSource | 'page_meta' | 'direct_url' | 'none';
   fallbackReason: string | null;
+};
+
+type StoredPlaybackVideo = {
+  playbackUrl: string | null;
+  storagePath: string | null;
+  storageError: string | null;
 };
 
 type ExtendedVideoAnalysisResult = Omit<VideoAnalysisResult, 'method'> & {
@@ -68,6 +75,8 @@ type ParsedAnalyzeInput = {
 };
 
 type AnalyzeLogLevel = 'info' | 'warn' | 'error';
+
+const RECIPE_SOURCE_VIDEO_BUCKET = 'recipe-source-videos';
 
 function createAnalyzeRequestId() {
   return `analyze_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -129,6 +138,104 @@ function extractTikTokId(url: string): string | null {
 
 function isDirectVideoUrl(url: string) {
   return /\.(mp4|mov|m4v|webm)(\?.*)?$/i.test(url);
+}
+
+function sanitizeStoragePathSegment(value: string) {
+  const normalized = value
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return normalized || 'video';
+}
+
+function inferVideoFileExtension(videoUrl: string, contentType: string | null) {
+  if (contentType) {
+    if (contentType.includes('webm')) return 'webm';
+    if (contentType.includes('quicktime')) return 'mov';
+    if (contentType.includes('m4v')) return 'm4v';
+    if (contentType.includes('mp4')) return 'mp4';
+  }
+
+  const match = videoUrl.match(/\.([a-z0-9]+)(?:\?.*)?$/i);
+  const extension = match?.[1]?.toLowerCase();
+
+  if (extension && ['mp4', 'webm', 'mov', 'm4v'].includes(extension)) {
+    return extension;
+  }
+
+  return 'mp4';
+}
+
+async function uploadPlaybackVideoToStorage({
+  sourceVideoUrl,
+  platform,
+  sourceId,
+  requestId,
+}: {
+  sourceVideoUrl: string;
+  platform: Platform;
+  sourceId: string | null;
+  requestId: string;
+}): Promise<StoredPlaybackVideo> {
+  try {
+    const response = await fetch(sourceVideoUrl, {
+      cache: 'no-store',
+      redirect: 'follow',
+    });
+
+    if (!response.ok) {
+      return {
+        playbackUrl: null,
+        storagePath: null,
+        storageError: `storage_fetch_http_${response.status}`,
+      };
+    }
+
+    const contentType = response.headers.get('content-type');
+    const extension = inferVideoFileExtension(sourceVideoUrl, contentType);
+    const path = `${sanitizeStoragePathSegment(platform)}/${sanitizeStoragePathSegment(sourceId || requestId)}/${Date.now()}.${extension}`;
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const supabase = createSupabaseAdminClient();
+
+    const { error } = await supabase.storage
+      .from(RECIPE_SOURCE_VIDEO_BUCKET)
+      .upload(path, buffer, {
+        cacheControl: '3600',
+        contentType: contentType || undefined,
+        upsert: true,
+      });
+
+    if (error) {
+      return {
+        playbackUrl: null,
+        storagePath: null,
+        storageError: error.message || 'storage_upload_failed',
+      };
+    }
+
+    const { data } = supabase.storage.from(RECIPE_SOURCE_VIDEO_BUCKET).getPublicUrl(path);
+
+    if (!data.publicUrl) {
+      return {
+        playbackUrl: null,
+        storagePath: path,
+        storageError: 'storage_public_url_missing',
+      };
+    }
+
+    return {
+      playbackUrl: data.publicUrl,
+      storagePath: path,
+      storageError: null,
+    };
+  } catch (error) {
+    return {
+      playbackUrl: null,
+      storagePath: null,
+      storageError: error instanceof Error ? error.message : 'storage_upload_failed',
+    };
+  }
 }
 
 function extractMetaContent(html: string, metaName: string) {
@@ -207,6 +314,11 @@ function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.max(0, Math.floor(seconds % 60));
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+function timeStringToSeconds(time: string) {
+  const [mins, secs] = time.split(':').map(Number);
+  return mins * 60 + secs;
 }
 
 const defaultSceneDescriptions = [
@@ -952,6 +1064,36 @@ export async function POST(request: NextRequest) {
       source: rapidMedia.videoUrl ? rapidMedia.source : pageMedia.source,
       fallbackReason: rapidMedia.videoUrl ? null : rapidMedia.fallbackReason || pageMedia.fallbackReason,
     };
+    const canonicalSourceId =
+      videoId
+      || extractInstagramId(url)
+      || extractTikTokId(url)
+      || transcriptResult.sourceMetadata?.id
+      || null;
+    let playbackVideoUrl = resolvedMedia.videoUrl;
+    let playbackStoragePath: string | null = null;
+    let playbackStorageError: string | null = null;
+
+    if (resolvedMedia.videoUrl) {
+      const storedPlaybackVideo = await uploadPlaybackVideoToStorage({
+        sourceVideoUrl: resolvedMedia.videoUrl,
+        platform,
+        sourceId: canonicalSourceId,
+        requestId,
+      });
+
+      playbackVideoUrl = storedPlaybackVideo.playbackUrl || resolvedMedia.videoUrl;
+      playbackStoragePath = storedPlaybackVideo.storagePath;
+      playbackStorageError = storedPlaybackVideo.storageError;
+
+      logAnalyze(storedPlaybackVideo.playbackUrl ? 'info' : 'warn', requestId, '직접 재생용 비디오 URL을 정리했습니다.', {
+        originalMediaSource: resolvedMedia.source,
+        playbackSource: storedPlaybackVideo.playbackUrl ? 'supabase_storage' : resolvedMedia.source,
+        storageBucket: storedPlaybackVideo.playbackUrl ? RECIPE_SOURCE_VIDEO_BUCKET : null,
+        storagePath: storedPlaybackVideo.storagePath,
+        storageError: storedPlaybackVideo.storageError,
+      });
+    }
 
     let analysisResult: ExtendedVideoAnalysisResult | null = null;
     let sceneDetectionFallbackReason: string | null = null;
@@ -1095,7 +1237,7 @@ export async function POST(request: NextRequest) {
       duration: detectedDuration,
       pageMedia: {
         imageUrl: transcriptResult.sourceMetadata?.thumbnailUrl || resolvedMedia.imageUrl,
-        videoUrl: resolvedMedia.videoUrl,
+        videoUrl: playbackVideoUrl || resolvedMedia.videoUrl,
         source: resolvedMedia.source,
         fallbackReason: resolvedMedia.fallbackReason,
       },
@@ -1104,8 +1246,25 @@ export async function POST(request: NextRequest) {
       transcript: transcriptResult.transcript,
     });
 
+    let scenesForPlanning = provisionalScenes;
+
+    if (playbackVideoUrl && isDirectVideoUrl(playbackVideoUrl)) {
+      const thumbnailTimestamps = provisionalScenes.map((scene) => timeStringToSeconds(scene.startTime));
+      const sceneStartThumbnails = await extractVideoThumbnailsAtTimestamps(playbackVideoUrl, thumbnailTimestamps);
+
+      if (sceneStartThumbnails.size > 0) {
+        scenesForPlanning = provisionalScenes.map((scene) => {
+          const sceneStartSeconds = timeStringToSeconds(scene.startTime);
+          return {
+            ...scene,
+            thumbnail: sceneStartThumbnails.get(sceneStartSeconds) || scene.thumbnail,
+          };
+        });
+      }
+    }
+
     const aiResult = await generateScenePlansWithAI({
-      scenes: provisionalScenes,
+      scenes: scenesForPlanning,
       transcript: transcriptResult.transcript,
       niche,
       goal,
@@ -1116,7 +1275,7 @@ export async function POST(request: NextRequest) {
 
     const scriptSource = aiResult ? 'scene_designer_ai_generated' : 'default';
 
-    const scenes = provisionalScenes.map((scene, index) => {
+    const scenes = scenesForPlanning.map((scene, index) => {
       const generatedScene = aiResult?.scenes.find((item) => Number(item.scene_id) === scene.id);
 
       return normalizeRecipeScene({
@@ -1160,6 +1319,17 @@ export async function POST(request: NextRequest) {
       tiktok: 'TikTok',
       other: 'Video',
     };
+    const sourceMetadata = {
+      ...(transcriptResult.sourceMetadata && typeof transcriptResult.sourceMetadata === 'object'
+        ? transcriptResult.sourceMetadata
+        : {}),
+      originalSourceUrl: url,
+      resolvedVideoUrl: resolvedMedia.videoUrl,
+      playbackVideoUrl: playbackVideoUrl || resolvedMedia.videoUrl || null,
+      storageBucket: playbackStoragePath ? RECIPE_SOURCE_VIDEO_BUCKET : null,
+      storagePath: playbackStoragePath,
+      storageUploadError: playbackStorageError,
+    };
 
     const responseMetadata = {
       title: transcriptResult.sourceMetadata?.title || `${platformLabels[platform]} Video`,
@@ -1183,7 +1353,7 @@ export async function POST(request: NextRequest) {
       scriptSource,
       brandContextFileName,
       brandBriefStatus: brandBrief?.extractionStatus || 'none',
-      sourceMetadata: transcriptResult.sourceMetadata,
+      sourceMetadata,
     };
 
     logAnalyze('info', requestId, '분석 응답을 반환합니다.', {
@@ -1201,6 +1371,7 @@ export async function POST(request: NextRequest) {
       success: true,
       videoId: videoId || extractInstagramId(url) || extractTikTokId(url) || transcriptResult.sourceMetadata?.id || 'unknown',
       url,
+      videoUrl: playbackVideoUrl || resolvedMedia.videoUrl || url,
       scenes,
       transcript: transcriptResult.transcript,
       brandBrief,

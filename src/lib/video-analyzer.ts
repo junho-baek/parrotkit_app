@@ -165,6 +165,65 @@ async function downloadRemoteVideo(remoteUrl: string, tempDir: string) {
   return filePath;
 }
 
+export async function extractVideoThumbnailsAtTimestamps(videoUrl: string, timestamps: number[]) {
+  const tempDir = getTempRoot('scene-thumbnails', `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+  const thumbDir = path.join(tempDir, 'thumbs');
+  const normalizedTimestamps = Array.from(
+    new Set(
+      timestamps
+        .filter((timestamp) => Number.isFinite(timestamp))
+        .map((timestamp) => Math.max(0, timestamp))
+    )
+  ).sort((a, b) => a - b);
+
+  if (normalizedTimestamps.length === 0) {
+    return new Map<number, string>();
+  }
+
+  const isRemoteVideo = /^https?:\/\//i.test(videoUrl);
+  let localVideoPath = videoUrl;
+
+  try {
+    await mkdir(tempDir, { recursive: true });
+    await mkdir(thumbDir, { recursive: true });
+    localVideoPath = isRemoteVideo ? await downloadRemoteVideo(videoUrl, tempDir) : videoUrl;
+
+    const thumbnails = new Map<number, string>();
+
+    for (const timestamp of normalizedTimestamps) {
+      try {
+        const thumbPath = await extractThumbnail(localVideoPath, timestamp, thumbDir);
+        const thumbnailBase64 = await imageToBase64(thumbPath);
+        thumbnails.set(timestamp, thumbnailBase64);
+        await unlink(thumbPath);
+      } catch (error) {
+        console.warn('[비디오 썸네일] 특정 시점 프레임 추출에 실패했습니다.', { timestamp, error });
+      }
+    }
+
+    return thumbnails;
+  } catch (error) {
+    console.warn('[비디오 썸네일] 다중 프레임 추출에 실패했습니다.', error);
+    return new Map<number, string>();
+  } finally {
+    try {
+      if (isRemoteVideo && fs.existsSync(localVideoPath)) {
+        await unlink(localVideoPath);
+      }
+    } catch {
+      // ignore cleanup failures
+    }
+
+    try {
+      if (fs.existsSync(tempDir)) {
+        await rmdir(tempDir, { recursive: true, force: true });
+      }
+    } catch {
+      // ignore cleanup failures
+    }
+  }
+}
+
 function getMean(values: number[]) {
   if (values.length === 0) return 0;
   return values.reduce((sum, value) => sum + value, 0) / values.length;

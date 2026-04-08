@@ -51,7 +51,7 @@ interface RecipeVideoPlayerProps {
   scene: RecipeScene;
 }
 
-type SupportedPlatform = 'youtube' | 'instagram' | 'tiktok' | 'direct-video' | 'other';
+type SupportedPlatform = 'youtube' | 'direct-video' | 'other';
 
 function timeToSeconds(time: string): number {
   const [mins, secs] = time.split(':').map(Number);
@@ -73,26 +73,12 @@ function extractYouTubeVideoId(url: string): string {
   return '';
 }
 
-function extractInstagramEmbedUrl(url: string): string | null {
-  const match = url.match(/instagram\.com\/(reel|p|tv)\/([^/?#]+)/i);
-  if (!match) return null;
-  return `https://www.instagram.com/${match[1].toLowerCase()}/${match[2]}/embed/captioned/`;
-}
-
-function extractTikTokEmbedUrl(url: string): string | null {
-  const match = url.match(/tiktok\.com\/(?:@[^/]+\/video\/)?(\d+)/i);
-  if (!match) return null;
-  return `https://www.tiktok.com/embed/v2/${match[1]}`;
-}
-
 function isDirectVideoUrl(url: string): boolean {
   return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(url);
 }
 
 function getPlatform(url: string): SupportedPlatform {
   if (extractYouTubeVideoId(url)) return 'youtube';
-  if (extractInstagramEmbedUrl(url)) return 'instagram';
-  if (extractTikTokEmbedUrl(url)) return 'tiktok';
   if (isDirectVideoUrl(url)) return 'direct-video';
   return 'other';
 }
@@ -109,9 +95,6 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
   const videoId = extractYouTubeVideoId(videoUrl);
   const isYouTube = platform === 'youtube';
   const isDirectVideo = platform === 'direct-video';
-  const instagramEmbedUrl = extractInstagramEmbedUrl(videoUrl);
-  const tiktokEmbedUrl = extractTikTokEmbedUrl(videoUrl);
-  const embedUrl = instagramEmbedUrl || tiktokEmbedUrl;
   const playerError = isYouTube ? failedVideoId === videoId : platform === 'other';
   const startSeconds = timeToSeconds(scene.startTime);
   const endSeconds = timeToSeconds(scene.endTime);
@@ -265,6 +248,10 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
   }, [isDirectVideo, startSeconds, endSeconds, videoUrl]);
 
   const thumbnailUrl = scene.thumbnail || (isYouTube ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : '');
+  const fallbackMessage = isYouTube
+    ? 'The YouTube player could not load inline for this shot.'
+    : 'This recipe does not have a direct playback video yet.';
+  const fallbackActionLabel = isYouTube ? 'Open on YouTube' : 'Open source video';
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">
@@ -281,14 +268,6 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
               controls
               preload="metadata"
             />
-          ) : embedUrl ? (
-            <iframe
-              src={embedUrl}
-              title={scene.title}
-              className="absolute inset-0 h-full w-full"
-              allow="autoplay; encrypted-media; picture-in-picture; clipboard-write"
-              allowFullScreen
-            />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-black">
               {thumbnailUrl ? (
@@ -300,7 +279,7 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
               ) : null}
               <div className="relative z-10 max-w-[260px] rounded-3xl bg-white/10 px-5 py-4 text-center backdrop-blur-sm">
                 <p className="text-sm font-semibold text-white/90">
-                  This reference source cannot be embedded inline.
+                  {fallbackMessage}
                 </p>
                 <a
                   href={videoUrl}
@@ -308,7 +287,7 @@ export const RecipeVideoPlayer: React.FC<RecipeVideoPlayerProps> = ({
                   rel="noopener noreferrer"
                   className="mt-3 inline-flex rounded-full border border-white/20 bg-white px-4 py-2 text-sm font-semibold text-slate-900"
                 >
-                  Open source video
+                  {fallbackActionLabel}
                 </a>
               </div>
             </div>
