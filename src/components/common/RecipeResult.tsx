@@ -1006,10 +1006,9 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
   const confirmAddScene = React.useCallback(() => {
     const nextSceneId = recipeScenes.reduce((maxId, scene) => Math.max(maxId, scene.id), 0) + 1;
-    const lastScene = recipeScenes[recipeScenes.length - 1];
     const newScene = createCustomRecipeScene(
       nextSceneId,
-      lastScene?.endTime || '00:00',
+      '',
       createSceneTitleValue
     );
     const nextScenes = [...recipeScenes, newScene];
@@ -1932,6 +1931,11 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
           <div className="flex flex-col gap-3 pb-20">
             {recipeScenes.map((scene, sceneIndex) => {
               const hasReferenceAnalysis = sceneSupportsAnalysis(scene);
+              const shouldShowTimeline = Boolean(
+                scene.startTime.trim()
+                && scene.endTime.trim()
+                && (hasReferenceAnalysis || scene.startTime !== scene.endTime)
+              );
               const isCaptured = capturedScenes[scene.id];
               const hasLocalCapture = Boolean(capturedVideos[scene.id]) || isCaptured;
               const isUploading = Boolean(uploadingScenes[scene.id]);
@@ -1989,26 +1993,21 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                   style={{ touchAction: 'pan-y' }}
                 >
                   <div className="flex items-start gap-3 p-3">
-                    <div className="pointer-events-none relative w-[108px] flex-shrink-0 overflow-hidden rounded-[22px] bg-gradient-to-br from-purple-100 to-pink-100">
-                      <div className="aspect-[9/16] w-full">
-                        <img
-                          src={cardThumbnail}
-                          alt={getSceneDisplayTitle(scene)}
-                          draggable={false}
-                          className="pointer-events-none h-full w-full object-cover"
-                          onError={(event) => {
-                            const target = event.target as HTMLImageElement;
-                            target.style.display = 'none';
-                          }}
-                        />
+                    <div className="pointer-events-none relative w-[108px] flex-shrink-0 overflow-hidden rounded-[22px] bg-gray-100">
+                      <div className="aspect-[9/16] w-full bg-gray-100">
+                        {cardThumbnail ? (
+                          <img
+                            src={cardThumbnail}
+                            alt={getSceneDisplayTitle(scene)}
+                            draggable={false}
+                            className="pointer-events-none h-full w-full object-cover"
+                            onError={(event) => {
+                              const target = event.target as HTMLImageElement;
+                              target.style.display = 'none';
+                            }}
+                          />
+                        ) : null}
                       </div>
-                      {!cardThumbnail ? (
-                        <div className="absolute inset-0 flex items-center justify-center bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(15,23,42,0.08))] px-3 text-center">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                            Recipe scene
-                          </span>
-                        </div>
-                      ) : null}
                       {isUploading ? (
                         <div className="absolute inset-0 flex items-center justify-center bg-amber-500/20">
                           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-amber-600 shadow-sm">
@@ -2075,11 +2074,11 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                                   ✎
                                 </button>
                               </div>
-                              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                                {hasReferenceAnalysis
-                                  ? `${strategyMeta.stageLabel}: ${strategyMeta.patternLabel}`
-                                  : 'Recipe only · no reference'}
-                              </p>
+                              {hasReferenceAnalysis ? (
+                                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                  {strategyMeta.stageLabel}: {strategyMeta.patternLabel}
+                                </p>
+                              ) : null}
                             </>
                           )}
                         </div>
@@ -2090,9 +2089,11 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                         ) : null}
                       </div>
 
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-400">
-                        Scene {scene.id} · {scene.startTime} → {scene.endTime}
-                      </p>
+                      {shouldShowTimeline ? (
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-400">
+                          Scene {scene.id} · {scene.startTime} → {scene.endTime}
+                        </p>
+                      ) : null}
 
                       <div className="flex items-center justify-end pt-1">
                         <span className="text-xs font-semibold text-gray-500">
