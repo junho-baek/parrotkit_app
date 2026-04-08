@@ -968,34 +968,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
   const renderRecipeDetail = (scene: RecipeScene) => (
     <div className="mx-auto flex h-full w-full max-w-[500px] flex-col overflow-y-auto bg-[#0b0d12] px-4 pb-10 pt-4 text-white">
-      <div className="rounded-[2rem] border border-white/10 bg-white/5 p-4 shadow-[0_22px_50px_rgb(0_0_0_/_0.28)]">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-sky-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-100">
-            Cut Goal
-          </span>
-          {resolvedBrandBrief?.productName ? (
-            <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/70">
-              {resolvedBrandBrief.productName}
-            </span>
-          ) : null}
-        </div>
-        <p className="text-sm font-semibold leading-relaxed text-white/70">{scene.recipe.appealPoint}</p>
-        <h2 className="mt-4 text-[1.85rem] font-bold tracking-[-0.04em] text-white">
-          {scene.recipe.keyLine}
-        </h2>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-white/10 bg-black/25 p-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Mood</p>
-            <p className="mt-2 text-sm font-semibold text-white">{scene.recipe.keyMood}</p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-black/25 p-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Action</p>
-            <p className="mt-2 text-sm font-semibold text-white">{scene.recipe.keyAction}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-4 space-y-4">
+      <div className="space-y-4">
         <section className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
           <div className="flex flex-wrap gap-2">
             {scene.prompter.blocks
@@ -1056,20 +1029,6 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                 </button>
                 );
               })}
-          </div>
-        </section>
-
-        <section className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">Recommended Script</p>
-          <div className="mt-3 space-y-3">
-            {getSceneScriptLines(scene).map((line, index) => (
-              <div key={`${scene.id}-script-${index}`} className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-slate-950">
-                  {index + 1}
-                </span>
-                <p className="text-base font-semibold leading-relaxed text-white">{line}</p>
-              </div>
-            ))}
           </div>
         </section>
 
