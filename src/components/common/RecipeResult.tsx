@@ -245,6 +245,54 @@ function getScriptSheetButtonLabel(tab: ScriptSheetTab) {
   return tab === 'analysis' ? 'View Original Analysis' : 'View Your Script';
 }
 
+function getSceneDisplayTitle(scene: RecipeScene) {
+  const trimmedTitle = scene.title.trim();
+  return trimmedTitle.length > 0 ? trimmedTitle : `Scene ${scene.id}`;
+}
+
+function sceneSupportsAnalysis(scene: RecipeScene) {
+  const originalScriptLines = getSceneOriginalScriptLines(scene).filter((line) => line.trim().length > 0);
+  const hasMotionDescription = Boolean(scene.analysis.motionDescription?.trim());
+  const hasWhyItWorks = scene.analysis.whyItWorks.some((item) => item.trim().length > 0);
+
+  return originalScriptLines.length > 0 || hasMotionDescription || hasWhyItWorks;
+}
+
+function createCustomRecipeScene(sceneId: number, startTime: string): RecipeScene {
+  return {
+    id: sceneId,
+    title: `Scene ${sceneId}`,
+    startTime,
+    endTime: startTime,
+    thumbnail: '',
+    analysis: {
+      transcriptOriginal: [],
+      transcriptSnippet: null,
+      motionDescription: '',
+      whyItWorks: [],
+      referenceSignals: [],
+    },
+    recipe: {
+      objective: '',
+      appealPoint: '',
+      keyLine: '',
+      scriptLines: [],
+      keyMood: '',
+      keyAction: '',
+      mustInclude: [],
+      mustAvoid: [],
+      cta: '',
+    },
+    prompter: {
+      blocks: [],
+    },
+    progress: 0,
+    description: '',
+    script: [],
+    transcriptSnippet: null,
+  };
+}
+
 function getScriptSheetEmptyMessage(tab: ScriptSheetTab) {
   return tab === 'analysis'
     ? 'No original analysis is available for this cut yet.'
@@ -452,6 +500,8 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const [scriptSheetOpen, setScriptSheetOpen] = useState(false);
   const [editingPrompterBlock, setEditingPrompterBlock] = useState<EditingPrompterBlock>(null);
   const [editingPrompterValue, setEditingPrompterValue] = useState('');
+  const [editingSceneTitleId, setEditingSceneTitleId] = useState<number | null>(null);
+  const [editingSceneTitleValue, setEditingSceneTitleValue] = useState('');
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const capturedScenesRef = useRef<{ [key: number]: boolean }>(initialCapturedVideos);
@@ -474,6 +524,8 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     setSceneSaveError(null);
     setEditingPrompterBlock(null);
     setEditingPrompterValue('');
+    setEditingSceneTitleId(null);
+    setEditingSceneTitleValue('');
   }, [recipeId, videoUrl, scenes]);
 
   React.useEffect(() => {
@@ -501,6 +553,10 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   );
   const activeScriptTab: ScriptSheetTab | null = activeTab === 'analysis' || activeTab === 'recipe' ? activeTab : null;
   const sceneChromeDark = activeTab === 'prompter';
+  const selectedSceneSupportsAnalysis = selectedScene ? sceneSupportsAnalysis(selectedScene) : false;
+  const availableDetailTabs = selectedSceneSupportsAnalysis
+    ? (['analysis', 'recipe', 'prompter'] as DetailTab[])
+    : (['recipe', 'prompter'] as DetailTab[]);
   const activeScriptLines = selectedScene
     ? activeScriptTab === 'analysis'
       ? getSceneOriginalScriptLines(selectedScene)
@@ -631,6 +687,14 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     pendingPrompterScenesRef.current = null;
     clearPrompterPersistTimeout();
   }, [clearPrompterPersistTimeout]);
+
+  const saveSceneStructure = React.useCallback((nextScenes: RecipeScene[]) => {
+    cancelPendingPrompterPersistence();
+    setRecipeScenes(nextScenes);
+    setSceneSaveError(null);
+    syncRecipeSessionStorage(nextScenes);
+    void persistRecipeScenes(nextScenes);
+  }, [cancelPendingPrompterPersistence, persistRecipeScenes, syncRecipeSessionStorage]);
 
   const flushPendingPrompterPersistence = React.useCallback(() => {
     const pendingScenes = pendingPrompterScenesRef.current;
@@ -847,7 +911,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
   const handleSceneClick = (scene: RecipeScene) => {
     setSelectedSceneId(scene.id);
-    setActiveTab('analysis');
+    setActiveTab(sceneSupportsAnalysis(scene) ? 'analysis' : 'recipe');
     setAssistantMode('scene');
     closeChatAssistant();
   };
@@ -863,9 +927,68 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     }
 
     setSelectedSceneId(nextScene.id);
+    setActiveTab((currentTab) => {
+      if (!sceneSupportsAnalysis(nextScene) && currentTab === 'analysis') {
+        return 'recipe';
+      }
+
+      return currentTab;
+    });
     closeChatAssistant();
     setAssistantMode('scene');
   }, [closeChatAssistant, recipeScenes, selectedSceneIndex]);
+
+  const startSceneTitleEdit = React.useCallback((sceneId: number, currentTitle: string) => {
+    setEditingSceneTitleId(sceneId);
+    setEditingSceneTitleValue(currentTitle);
+  }, []);
+
+  const cancelSceneTitleEdit = React.useCallback(() => {
+    setEditingSceneTitleId(null);
+    setEditingSceneTitleValue('');
+  }, []);
+
+  const commitSceneTitleEdit = React.useCallback((sceneId: number) => {
+    const nextTitle = editingSceneTitleValue.trim() || `Scene ${sceneId}`;
+    const targetScene = recipeScenes.find((scene) => scene.id === sceneId);
+
+    if (!targetScene) {
+      cancelSceneTitleEdit();
+      return;
+    }
+
+    if (targetScene.title === nextTitle) {
+      cancelSceneTitleEdit();
+      return;
+    }
+
+    const nextScenes = recipeScenes.map((scene) =>
+      scene.id === sceneId
+        ? {
+            ...scene,
+            title: nextTitle,
+          }
+        : scene
+    );
+
+    saveSceneStructure(nextScenes);
+    cancelSceneTitleEdit();
+  }, [cancelSceneTitleEdit, editingSceneTitleValue, recipeScenes, saveSceneStructure]);
+
+  const handleAddScene = React.useCallback(() => {
+    const nextSceneId = recipeScenes.reduce((maxId, scene) => Math.max(maxId, scene.id), 0) + 1;
+    const lastScene = recipeScenes[recipeScenes.length - 1];
+    const newScene = createCustomRecipeScene(nextSceneId, lastScene?.endTime || '00:00');
+    const nextScenes = [...recipeScenes, newScene];
+
+    saveSceneStructure(nextScenes);
+    setSelectedSceneId(newScene.id);
+    setActiveTab('recipe');
+    setAssistantMode('scene');
+    closeChatAssistant();
+    setEditingSceneTitleId(newScene.id);
+    setEditingSceneTitleValue(newScene.title);
+  }, [closeChatAssistant, recipeScenes, saveSceneStructure]);
 
   const markSceneCaptured = useCallback((sceneId: number) => {
     setCapturedScenes((prev) => {
@@ -1349,9 +1472,49 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
               ← Back
             </button>
             <div className="min-w-0 text-center">
-              <span className="block truncate text-sm font-medium">
-                #{selectedScene.id}: {selectedScene.title}
-              </span>
+              {editingSceneTitleId === selectedScene.id ? (
+                <input
+                  autoFocus
+                  value={editingSceneTitleValue}
+                  onChange={(event) => setEditingSceneTitleValue(event.target.value)}
+                  onBlur={() => commitSceneTitleEdit(selectedScene.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      commitSceneTitleEdit(selectedScene.id);
+                    }
+
+                    if (event.key === 'Escape') {
+                      event.preventDefault();
+                      cancelSceneTitleEdit();
+                    }
+                  }}
+                  className={`block w-full min-w-0 rounded-full border px-3 py-1 text-center text-sm font-medium outline-none ${
+                    sceneChromeDark
+                      ? 'border-white/20 bg-white/10 text-white placeholder:text-white/35'
+                      : 'border-slate-200 bg-white text-slate-950 placeholder:text-slate-300'
+                  }`}
+                  placeholder={`Scene ${selectedScene.id}`}
+                />
+              ) : (
+                <div className="flex items-center justify-center gap-2">
+                  <span className="block truncate text-sm font-medium">
+                    #{selectedScene.id}: {getSceneDisplayTitle(selectedScene)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => startSceneTitleEdit(selectedScene.id, getSceneDisplayTitle(selectedScene))}
+                    className={`flex h-7 w-7 items-center justify-center rounded-full text-xs transition ${
+                      sceneChromeDark
+                        ? 'text-white/60 hover:bg-white/10 hover:text-white'
+                        : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'
+                    }`}
+                    aria-label="Edit scene title"
+                  >
+                    ✎
+                  </button>
+                </div>
+              )}
               {resolvedBrandBrief?.brandName ? (
                 <span className={`truncate text-[11px] font-semibold ${sceneChromeDark ? 'text-white/45' : 'text-slate-400'}`}>
                   {resolvedBrandBrief.brandName} context active
@@ -1363,7 +1526,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
         </div>
 
         <div className={`flex items-center justify-center gap-3 py-2.5 ${sceneChromeDark ? 'bg-black' : 'bg-white'}`}>
-          {(['analysis', 'recipe', 'prompter'] as DetailTab[]).map((tab) => (
+          {availableDetailTabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -1740,6 +1903,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
 
           <div className="flex flex-col gap-3 pb-20">
             {recipeScenes.map((scene, sceneIndex) => {
+              const hasReferenceAnalysis = sceneSupportsAnalysis(scene);
               const isCaptured = capturedScenes[scene.id];
               const hasLocalCapture = Boolean(capturedVideos[scene.id]) || isCaptured;
               const isUploading = Boolean(uploadingScenes[scene.id]);
@@ -1801,7 +1965,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                       <div className="aspect-[9/16] w-full">
                         <img
                           src={cardThumbnail}
-                          alt={scene.title}
+                          alt={getSceneDisplayTitle(scene)}
                           draggable={false}
                           className="pointer-events-none h-full w-full object-cover"
                           onError={(event) => {
@@ -1810,6 +1974,13 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                           }}
                         />
                       </div>
+                      {!cardThumbnail ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(15,23,42,0.08))] px-3 text-center">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                            Recipe scene
+                          </span>
+                        </div>
+                      ) : null}
                       {isUploading ? (
                         <div className="absolute inset-0 flex items-center justify-center bg-amber-500/20">
                           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-amber-600 shadow-sm">
@@ -1834,12 +2005,55 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                       </div>
                     </div>
 
-                    <div className="pointer-events-none flex min-w-0 flex-1 flex-col justify-between gap-2 py-0.5">
+                    <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 py-0.5">
                       <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <h3 className="line-clamp-1 text-sm font-bold uppercase tracking-[0.08em] text-gray-900">
-                            {strategyMeta.stageLabel}: {strategyMeta.patternLabel}
-                          </h3>
+                        <div className="min-w-0 flex-1">
+                          {editingSceneTitleId === scene.id ? (
+                            <input
+                              autoFocus
+                              value={editingSceneTitleValue}
+                              onChange={(event) => setEditingSceneTitleValue(event.target.value)}
+                              onClick={(event) => event.stopPropagation()}
+                              onBlur={() => commitSceneTitleEdit(scene.id)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  event.preventDefault();
+                                  commitSceneTitleEdit(scene.id);
+                                }
+
+                                if (event.key === 'Escape') {
+                                  event.preventDefault();
+                                  cancelSceneTitleEdit();
+                                }
+                              }}
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-gray-900 outline-none placeholder:text-slate-300"
+                              placeholder={`Scene ${scene.id}`}
+                            />
+                          ) : (
+                            <>
+                              <div className="flex items-start gap-2">
+                                <h3 className="line-clamp-2 flex-1 text-sm font-bold tracking-[0.02em] text-gray-900">
+                                  {getSceneDisplayTitle(scene)}
+                                </h3>
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    startSceneTitleEdit(scene.id, getSceneDisplayTitle(scene));
+                                  }}
+                                  className="flex h-7 w-7 flex-none items-center justify-center rounded-full text-xs text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                                  aria-label="Edit scene title"
+                                >
+                                  ✎
+                                </button>
+                              </div>
+                              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                {hasReferenceAnalysis
+                                  ? `${strategyMeta.stageLabel}: ${strategyMeta.patternLabel}`
+                                  : 'Recipe only · no reference'}
+                              </p>
+                            </>
+                          )}
                         </div>
                         {showStatusBadge ? (
                           <span className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${statusClassName}`}>
@@ -1865,6 +2079,17 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
           </div>
         </div>
       </div>
+
+      {!chatOpen ? (
+        <button
+          type="button"
+          onClick={handleAddScene}
+          className="absolute bottom-6 left-1/2 z-40 flex h-16 w-16 -translate-x-1/2 items-center justify-center rounded-full bg-[linear-gradient(135deg,#2f6bff_0%,#5f8bff_55%,#ff7a59_100%)] text-[2rem] font-semibold leading-none text-white shadow-[0_22px_42px_rgb(47_107_255_/_0.28)] transition hover:scale-105 active:scale-[0.98]"
+          aria-label="Add new scene"
+        >
+          +
+        </button>
+      ) : null}
 
       {!chatOpen ? (
         <button
