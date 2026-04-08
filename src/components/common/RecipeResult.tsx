@@ -130,6 +130,7 @@ function getScriptSheetEmptyMessage(tab: ScriptSheetTab) {
   return tab === 'analysis'
     ? 'No original transcript was captured for this cut.'
     : 'No creator script is available for this cut yet.';
+}
 
 function containsKeyword(text: string, keywords: string[]) {
   return keywords.some((keyword) => text.includes(keyword));
