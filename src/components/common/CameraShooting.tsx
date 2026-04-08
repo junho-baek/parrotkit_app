@@ -784,14 +784,16 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                 ref={trashZoneRef}
                 className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm shadow-[0_12px_24px_rgb(0_0_0_/_0.22)] transition ${
                   trashHovering
-                    ? 'border-amber-200 bg-amber-500 text-white scale-110'
+                    ? 'border-rose-300 bg-rose-500 text-white scale-110'
                     : 'border-white/18 bg-black/72 text-white/85'
                 }`}
               >
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z" />
-                  <path d="M9.5 9.5a3.5 3.5 0 0 1 5 5" />
-                  <path d="M4 4l16 16" />
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4h8v2" />
+                  <path d="M19 6l-1 14H6L5 6" />
+                  <path d="M10 11v5" />
+                  <path d="M14 11v5" />
                 </svg>
               </div>
             </div>

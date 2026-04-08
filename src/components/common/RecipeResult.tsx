@@ -515,6 +515,8 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   const [editingPrompterValue, setEditingPrompterValue] = useState('');
   const [editingSceneTitleId, setEditingSceneTitleId] = useState<number | null>(null);
   const [editingSceneTitleValue, setEditingSceneTitleValue] = useState('');
+  const [draggingRecipeBlock, setDraggingRecipeBlock] = useState<EditingPrompterBlock>(null);
+  const [recipeTrashHovering, setRecipeTrashHovering] = useState(false);
   const [createSceneSheetOpen, setCreateSceneSheetOpen] = useState(false);
   const [createSceneTitleValue, setCreateSceneTitleValue] = useState('');
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
@@ -1234,16 +1236,78 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   }, [cancelPrompterBlockEdit, editingPrompterValue, handleSceneBlocksChange, recipeScenes]);
 
   const addScenePrompterBlock = useCallback((sceneId: number) => {
-    const scene = recipeScenes.find((item) => item.id === sceneId);
+    clearPrompterToggleTimeout();
+
+    const scenesWithCommittedDraft = editingPrompterBlock
+      ? recipeScenes.map((scene) =>
+          scene.id === editingPrompterBlock.sceneId
+            ? {
+                ...scene,
+                prompter: {
+                  blocks: scene.prompter.blocks.map((block) =>
+                    block.id === editingPrompterBlock.blockId
+                      ? {
+                          ...block,
+                          content: editingPrompterValue.trim() || block.content,
+                        }
+                      : block
+                  ),
+                },
+              }
+            : scene
+        )
+      : recipeScenes;
+
+    const scene = scenesWithCommittedDraft.find((item) => item.id === sceneId);
     if (!scene) {
       return;
     }
 
     const nextBlock = createRecipeCueBlock(scene.prompter.blocks);
-    handleSceneBlocksChange(sceneId, [...scene.prompter.blocks, nextBlock]);
+    const nextScenes = scenesWithCommittedDraft.map((item) =>
+      item.id === sceneId
+        ? {
+            ...item,
+            prompter: {
+              blocks: [...scene.prompter.blocks, nextBlock],
+            },
+          }
+        : item
+    );
+
+    setRecipeScenes(nextScenes);
+    setSceneSaveError(null);
+    schedulePrompterPersistence(nextScenes);
     setEditingPrompterBlock({ sceneId, blockId: nextBlock.id });
     setEditingPrompterValue(nextBlock.content);
-  }, [handleSceneBlocksChange, recipeScenes]);
+  }, [clearPrompterToggleTimeout, editingPrompterBlock, editingPrompterValue, recipeScenes, schedulePrompterPersistence]);
+
+  const discardScenePrompterBlock = useCallback((sceneId: number, blockId: string) => {
+    clearPrompterToggleTimeout();
+
+    const scene = recipeScenes.find((item) => item.id === sceneId);
+    const block = scene?.prompter.blocks.find((item) => item.id === blockId);
+    if (!scene || !block) {
+      return;
+    }
+
+    const nextBlocks = block.id.startsWith('custom-')
+      ? scene.prompter.blocks.filter((item) => item.id !== blockId)
+      : scene.prompter.blocks.map((item) =>
+          item.id === blockId
+            ? {
+                ...item,
+                visible: false,
+              }
+            : item
+        );
+
+    if (editingPrompterBlock?.sceneId === sceneId && editingPrompterBlock.blockId === blockId) {
+      cancelPrompterBlockEdit();
+    }
+
+    handleSceneBlocksChange(sceneId, nextBlocks);
+  }, [cancelPrompterBlockEdit, clearPrompterToggleTimeout, editingPrompterBlock, handleSceneBlocksChange, recipeScenes]);
 
   const cycleScenePrompterBlockColor = useCallback((sceneId: number, blockId: string) => {
     clearPrompterToggleTimeout();
@@ -1380,10 +1444,15 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
   };
 
   const renderRecipeDetail = (scene: RecipeScene) => (
-    <div className="mx-auto flex h-full w-full max-w-[500px] flex-col overflow-y-auto bg-white px-4 pb-28 pt-5 text-slate-950">
+    <div className="relative mx-auto flex h-full w-full max-w-[500px] flex-col overflow-y-auto bg-white px-4 pb-28 pt-5 text-slate-950">
       <div className="mb-5 flex justify-end">
         <button
           type="button"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            clearPrompterToggleTimeout();
+          }}
           onClick={() => addScenePrompterBlock(scene.id)}
           className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[linear-gradient(135deg,#2f6bff_0%,#5f8bff_55%,#ff7a59_100%)] text-[1.65rem] font-semibold leading-none text-white shadow-[0_18px_34px_rgb(47_107_255_/_0.22)] transition hover:brightness-105 active:scale-[0.98]"
           aria-label="Add cue"
@@ -1391,6 +1460,45 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
           +
         </button>
       </div>
+
+      {draggingRecipeBlock?.sceneId === scene.id ? (
+        <div
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setRecipeTrashHovering(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setRecipeTrashHovering(true);
+          }}
+          onDragLeave={() => setRecipeTrashHovering(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            if (draggingRecipeBlock?.sceneId === scene.id) {
+              discardScenePrompterBlock(draggingRecipeBlock.sceneId, draggingRecipeBlock.blockId);
+            }
+            setDraggingRecipeBlock(null);
+            setRecipeTrashHovering(false);
+          }}
+          className="absolute bottom-8 left-1/2 z-20 flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full border shadow-[0_18px_36px_rgb(15_23_42_/_0.18)] transition"
+        >
+          <div
+            className={`flex h-full w-full items-center justify-center rounded-full border transition ${
+              recipeTrashHovering
+                ? 'border-rose-300 bg-rose-500 text-white scale-110'
+                : 'border-slate-200 bg-white text-slate-500'
+            }`}
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3 6h18" />
+              <path d="M8 6V4h8v2" />
+              <path d="M19 6l-1 14H6L5 6" />
+              <path d="M10 11v5" />
+              <path d="M14 11v5" />
+            </svg>
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3 pb-3">
         {getRecipeEditorPrompterBlocks(scene.prompter.blocks).map((block) => {
@@ -1404,6 +1512,18 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
               key={`${scene.id}-${block.id}`}
               role="button"
               tabIndex={0}
+              draggable={!isEditing}
+              onDragStart={(event) => {
+                clearPrompterToggleTimeout();
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', `${scene.id}:${block.id}`);
+                setDraggingRecipeBlock({ sceneId: scene.id, blockId: block.id });
+                setRecipeTrashHovering(false);
+              }}
+              onDragEnd={() => {
+                setDraggingRecipeBlock(null);
+                setRecipeTrashHovering(false);
+              }}
               onClick={() => schedulePrompterBlockToggle(scene.id, block.id)}
               onDoubleClick={() => startPrompterBlockEdit(scene.id, block.id, block.content)}
               onKeyDown={(event) => {
@@ -1414,7 +1534,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
               }}
               className={`min-h-[148px] rounded-[2rem] border px-4 py-4 text-left transition duration-150 ${
                 block.visible ? tone.active : tone.inactive
-              }`}
+              } ${isEditing ? 'cursor-text' : 'cursor-grab active:cursor-grabbing'}`}
             >
               <div className="mb-5 flex items-center">
                 <button
