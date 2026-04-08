@@ -43,6 +43,7 @@ type ChatMessage = {
 };
 
 const PROMPTER_PERSIST_DEBOUNCE_MS = 275;
+const LEGACY_YOUTUBE_THUMBNAIL_VARIANTS = ['1.jpg', '2.jpg', '3.jpg', '0.jpg', '1.jpg', '2.jpg', '3.jpg'];
 
 interface RecipeResultProps {
   scenes: RecipeScene[];
@@ -53,6 +54,26 @@ interface RecipeResultProps {
   initialMatchResults?: { [key: number]: boolean };
   brandBrief?: BrandBrief | null;
   analysisMetadata?: Record<string, unknown>;
+}
+
+function extractLegacyYouTubeVideoId(url: string) {
+  const patterns = [
+    /shorts\/([a-zA-Z0-9_-]+)/,
+    /watch\?v=([a-zA-Z0-9_-]+)/,
+    /youtu\.be\/([a-zA-Z0-9_-]+)/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+
+  return null;
+}
+
+function getLegacyYouTubeThumbnailUrl(videoId: string, sceneIndex: number) {
+  const variant = LEGACY_YOUTUBE_THUMBNAIL_VARIANTS[sceneIndex % LEGACY_YOUTUBE_THUMBNAIL_VARIANTS.length] || '0.jpg';
+  return `https://img.youtube.com/vi/${videoId}/${variant}`;
 }
 
 function mergePrompterBlocks(existingBlocks: PrompterBlock[], updates: SceneUpdate['prompterBlocks']) {
@@ -298,6 +319,20 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
     [resolvedBrandBrief, scenes]
   );
   const [recipeScenes, setRecipeScenes] = useState<RecipeScene[]>(normalizedIncomingScenes);
+  const legacyYouTubeVideoId = React.useMemo(() => extractLegacyYouTubeVideoId(videoUrl), [videoUrl]);
+  const shouldUseLegacyYouTubeCardThumbnails = React.useMemo(() => {
+    if (!legacyYouTubeVideoId || recipeScenes.length === 0) {
+      return false;
+    }
+
+    const uniqueSceneThumbnails = new Set(
+      recipeScenes
+        .map((scene) => scene.thumbnail)
+        .filter((thumbnail) => typeof thumbnail === 'string' && thumbnail.trim().length > 0)
+    );
+
+    return uniqueSceneThumbnails.size <= 1;
+  }, [legacyYouTubeVideoId, recipeScenes]);
   const [selectedSceneId, setSelectedSceneId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<DetailTab>('analysis');
   const [capturedVideos, setCapturedVideos] = useState<{ [key: number]: Blob }>({});
@@ -1535,6 +1570,10 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                       ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
                       : 'bg-slate-100 text-slate-700 ring-1 ring-slate-200';
               const showStatusBadge = statusLabel !== 'Ready';
+              const cardThumbnail =
+                shouldUseLegacyYouTubeCardThumbnails && legacyYouTubeVideoId
+                  ? getLegacyYouTubeThumbnailUrl(legacyYouTubeVideoId, sceneIndex)
+                  : scene.thumbnail;
 
               return (
                 <div
@@ -1566,7 +1605,7 @@ export const RecipeResult: React.FC<RecipeResultProps> = ({
                     <div className="pointer-events-none relative w-[108px] flex-shrink-0 overflow-hidden rounded-[22px] bg-gradient-to-br from-purple-100 to-pink-100">
                       <div className="aspect-[9/16] w-full">
                         <img
-                          src={scene.thumbnail}
+                          src={cardThumbnail}
                           alt={scene.title}
                           draggable={false}
                           className="pointer-events-none h-full w-full object-cover"
