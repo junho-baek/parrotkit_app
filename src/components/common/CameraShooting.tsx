@@ -173,6 +173,7 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
   const [trashHovering, setTrashHovering] = useState(false);
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
+  const [visibilityPanelOpen, setVisibilityPanelOpen] = useState(false);
 
   const existingCaptureUrl = useMemo(
     () => (existingCapture ? URL.createObjectURL(existingCapture) : null),
@@ -378,6 +379,29 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
       accentColor,
     }));
   }, [updateBlock]);
+
+  const toggleBlockVisibility = useCallback((blockId: string) => {
+    const targetBlock = prompterBlocks.find((block) => block.id === blockId);
+    if (!targetBlock) {
+      return;
+    }
+
+    const nextVisible = targetBlock.visible === false;
+    updateBlock(blockId, (block) => ({
+      ...block,
+      visible: nextVisible,
+    }));
+
+    if (nextVisible) {
+      setFocusedBlockId(blockId);
+      return;
+    }
+
+    if (focusedBlockId === blockId) {
+      const nextFocusedBlock = prompterBlocks.find((block) => block.id !== blockId && block.visible !== false);
+      setFocusedBlockId(nextFocusedBlock?.id ?? null);
+    }
+  }, [focusedBlockId, prompterBlocks, updateBlock]);
 
   const getTouchDistance = useCallback((touches: ArrayLike<{ clientX: number; clientY: number }>) => {
     if (touches.length < 2) {
@@ -760,36 +784,90 @@ export const CameraShooting: React.FC<CameraShootingProps> = ({
                 ref={trashZoneRef}
                 className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm shadow-[0_12px_24px_rgb(0_0_0_/_0.22)] transition ${
                   trashHovering
-                    ? 'border-rose-300 bg-rose-500 text-white scale-110'
+                    ? 'border-amber-200 bg-amber-500 text-white scale-110'
                     : 'border-white/18 bg-black/72 text-white/85'
                 }`}
               >
-                🗑
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z" />
+                  <path d="M9.5 9.5a3.5 3.5 0 0 1 5 5" />
+                  <path d="M4 4l16 16" />
+                </svg>
               </div>
             </div>
           ) : null}
 
-          {focusedBlock && !draggingBlockId ? (
-            <div className="mb-4 flex justify-center">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-black/66 px-3 py-2 shadow-[0_12px_28px_rgb(0_0_0_/_0.24)] backdrop-blur-sm">
-                {PROMPTER_CUE_ACCENT_ORDER.map((accent) => {
-                  const currentAccent = isPrompterCueAccent(focusedBlock.accentColor)
-                    ? focusedBlock.accentColor
-                    : getDefaultPrompterAccent(focusedBlock.type);
+          {!draggingBlockId ? (
+            <div className="mb-4 flex flex-col items-center gap-3 px-4">
+              <div className="inline-flex max-w-[92vw] items-center gap-2 rounded-full border border-white/12 bg-black/66 px-3 py-2 shadow-[0_12px_28px_rgb(0_0_0_/_0.24)] backdrop-blur-sm">
+                {focusedBlock ? (
+                  <>
+                    {PROMPTER_CUE_ACCENT_ORDER.map((accent) => {
+                      const currentAccent = isPrompterCueAccent(focusedBlock.accentColor)
+                        ? focusedBlock.accentColor
+                        : getDefaultPrompterAccent(focusedBlock.type);
 
-                  return (
-                    <button
-                      key={accent}
-                      type="button"
-                      onClick={() => updateBlockAccentColor(focusedBlock.id, accent)}
-                      className={`h-7 w-7 rounded-full border-2 transition ${
-                        currentAccent === accent ? 'scale-110 border-white' : 'border-transparent opacity-80'
-                      } ${getAccentSwatchClass(accent)}`}
-                      aria-label={`Set cue color to ${accent}`}
-                    />
-                  );
-                })}
+                      return (
+                        <button
+                          key={accent}
+                          type="button"
+                          onClick={() => updateBlockAccentColor(focusedBlock.id, accent)}
+                          className={`h-7 w-7 rounded-full border-2 transition ${
+                            currentAccent === accent ? 'scale-110 border-white' : 'border-transparent opacity-80'
+                          } ${getAccentSwatchClass(accent)}`}
+                          aria-label={`Set cue color to ${accent}`}
+                        />
+                      );
+                    })}
+                  </>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => setVisibilityPanelOpen((previous) => !previous)}
+                  className={`inline-flex h-9 w-9 items-center justify-center rounded-full border transition ${
+                    visibilityPanelOpen
+                      ? 'border-white/80 bg-white text-gray-900'
+                      : 'border-white/18 bg-white/8 text-white/88'
+                  }`}
+                  aria-label="Toggle cue visibility"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z" />
+                    <path d="M9.5 9.5a3.5 3.5 0 0 1 5 5" />
+                    <path d="M4 4l16 16" />
+                  </svg>
+                </button>
               </div>
+
+              {visibilityPanelOpen ? (
+                <div className="w-[min(92vw,30rem)] rounded-[1.6rem] border border-white/12 bg-black/72 p-3 shadow-[0_18px_40px_rgb(0_0_0_/_0.26)] backdrop-blur-md">
+                  <div className="flex flex-wrap gap-2">
+                    {prompterBlocks.map((block) => {
+                      const accent = isPrompterCueAccent(block.accentColor)
+                        ? block.accentColor
+                        : getDefaultPrompterAccent(block.type);
+                      const isVisible = block.visible !== false;
+
+                      return (
+                        <button
+                          key={block.id}
+                          type="button"
+                          onClick={() => toggleBlockVisibility(block.id)}
+                          className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-2 text-left text-xs font-semibold transition ${
+                            isVisible
+                              ? 'border-white/70 bg-white text-gray-900 shadow-[0_10px_18px_rgb(255_255_255_/_0.12)]'
+                              : 'border-white/12 bg-white/8 text-white/55'
+                          }`}
+                        >
+                          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${getAccentSwatchClass(accent)}`} />
+                          <span className="max-w-[14rem] truncate">{block.content}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
