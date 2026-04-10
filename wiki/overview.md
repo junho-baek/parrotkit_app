@@ -2,7 +2,7 @@
 
 ## Scope
 
-이 위키는 ParrotKit 저장소의 `context/` 문서와 관련 운영/도메인 규칙을 재사용 가능한 지식 구조로 바꾸기 위한 시작점이다. 현재 범위는 주로 2026-04-01부터 2026-04-08 사이의 제품 구조 개편, recipe/shooting UI 반복, Git 운영 규칙 정리다.
+이 위키는 ParrotKit 저장소의 `context/` 문서와 관련 운영/도메인 규칙을 재사용 가능한 지식 구조로 바꾸기 위한 시작점이다. 현재 범위는 2026-04-01부터 2026-04-08 사이의 웹 제품 구조 개편과 2026-04-11의 Expo mobile shell 전개, agent 작업트리 hygiene 정리까지 포함한다.
 
 ## Current Thesis
 
@@ -10,6 +10,7 @@
 - 2026-04-06 리팩터는 이 흐름을 `scene.analysis`, `scene.recipe`, `scene.prompter` nested 구조와 3탭 UI로 고정하려는 시도였다.
 - 2026-04-08의 다수 context는 그 구조 위에서 무엇을 더 보이고 무엇을 drawer로 숨길지, 그리고 cue를 얼마나 직접적이고 가볍게 편집하게 할지 조정하는 과정이었다.
 - 운영 측면에서는 `dev-only / multi-clone`이 문서와 실제 작업 기준선으로 확정되었다.
+- 2026-04-11부터는 `parrotkit-app/` Expo 프로젝트가 생기며 mobile shell이 실제 코드 레이어로 추가됐고, 모바일 하단 네비게이션은 웹의 custom bar보다 native tabs를 우선하는 방향으로 출발했다.
 
 ## Open Questions
 
@@ -17,6 +18,7 @@
 - analysis 탭의 근거 정보는 어디까지 본문에 두고 어디까지 script drawer로 밀어넣을지가 계속 흔들렸다.
 - context는 빠르게 축적되고 있지만, 아직 3월의 오래된 문서 다수는 위키 concept/entity와 연결되지 않았다.
 - 배포 QA/실사용 피드백 문서가 별도 knowledge layer로 정리되지는 않아, UI 판단의 장기적 근거 추적은 더 보강할 수 있다.
+- mobile shell과 웹앱의 타입/디자인/API 공유 전략은 아직 정리되지 않았다.
 
 ## Key Pages
 
@@ -24,4 +26,5 @@
 - [프롬프터 지속성 및 인라인 편집 | Prompter Persistence And Inline Editing](concepts/prompter-persistence-and-inline-editing.md)
 - [레시피 상세 UI 단순화 | Recipe Detail UI Simplification](concepts/recipe-detail-ui-simplification.md)
 - [dev-only 멀티클론 워크플로 | Dev-Only Multi-Clone Workflow](concepts/dev-only-multi-clone-workflow.md)
+- [모바일 네이티브 셸 | Mobile Native Shell](concepts/mobile-native-shell.md)
 - [2026년 4월 context 맵 | Context Map for April 2026](analyses/context-map-april-2026.md)

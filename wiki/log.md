@@ -14,3 +14,10 @@
 - `wiki/entities/`에 `ParrotKit`, `RecipeResult`, `CameraShooting` 페이지를 만들었다.
 - `wiki/analyses/context-map-april-2026.md`를 추가해 4월 초 context 흐름을 요약했다.
 - 향후 ingest 우선순위로 3월 context 일괄 편입과 배포 QA 기록 연결을 남겼다.
+
+## [2026-04-11] ingest | mobile shell and ops hygiene pass
+
+- `context/context_20260411_parrotkit_app_expo_scaffold.md`와 `context/context_20260411_parrotkit_app_native_tabs_prebuild.md`를 묶어 mobile shell source 페이지로 정리했다.
+- `context/context_20260411_playwright_cli_ignore.md`를 운영 hygiene source 페이지로 추가했다.
+- `wiki/concepts/mobile-native-shell.md`와 `wiki/entities/parrotkit-app.md`를 새로 만들고, `ParrotKit`, `dev-only` 관련 기존 페이지를 보강했다.
+- `wiki/index.md`와 `wiki/overview.md`를 2026-04-11 범위까지 확장했다.
