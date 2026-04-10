@@ -106,7 +106,7 @@ export function SourceScreen() {
         <Pressable
           accessibilityHint="Open the source action sheet"
           accessibilityLabel="Add source"
-          className="h-[68px] w-[68px] items-center justify-center rounded-full border border-white/85 bg-ink"
+          className="h-[60px] w-[60px] items-center justify-center rounded-full border border-white/85 bg-ink"
           onPress={() => router.push('/source-actions' as Href)}
           style={[
             styles.fab,
@@ -115,7 +115,7 @@ export function SourceScreen() {
             },
           ]}
         >
-          <MaterialCommunityIcons color="#fffdf8" name="plus" size={30} />
+          <MaterialCommunityIcons color="#fffdf8" name="plus" size={26} />
         </Pressable>
       </View>
     </View>
