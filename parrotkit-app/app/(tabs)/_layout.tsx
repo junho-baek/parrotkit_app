@@ -2,23 +2,26 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { DynamicColorIOS, Platform } from 'react-native';
 import { NativeTabs, Icon, Label, VectorIcon } from 'expo-router/unstable-native-tabs';
 
-const iosTintColor = DynamicColorIOS({
-  dark: '#ffffff',
-  light: '#111827',
-});
-
 export default function TabsLayout() {
+  const isIOS = Platform.OS === 'ios';
+  const iosTintColor = isIOS
+    ? DynamicColorIOS({
+        dark: '#ffffff',
+        light: '#111827',
+      })
+    : '#111827';
+
   return (
     <NativeTabs
       badgeBackgroundColor="#ff9568"
-      backgroundColor={Platform.OS === 'ios' ? null : '#ffffff'}
-      blurEffect="systemChromeMaterial"
-      disableTransparentOnScrollEdge
-      tintColor={Platform.OS === 'ios' ? iosTintColor : '#111827'}
+      backgroundColor={isIOS ? null : '#ffffff'}
+      blurEffect={isIOS ? 'systemChromeMaterial' : undefined}
+      disableTransparentOnScrollEdge={isIOS}
+      tintColor={iosTintColor}
       labelStyle={{
-        color: Platform.OS === 'ios' ? iosTintColor : '#4b5563',
+        color: isIOS ? iosTintColor : '#4b5563',
       }}
-      minimizeBehavior="onScrollDown"
+      minimizeBehavior={isIOS ? 'onScrollDown' : undefined}
     >
       <NativeTabs.Trigger name="index">
         <Icon
