@@ -111,7 +111,7 @@ export function SourceScreen() {
           style={[
             styles.fab,
             {
-              bottom: insets.bottom + 32,
+              bottom: insets.bottom + 52,
             },
           ]}
         >
