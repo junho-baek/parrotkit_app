@@ -27,6 +27,7 @@
       "package": "com.anonymous.parrotkitapp"
     },
     "web": {
+      "bundler": "metro",
       "favicon": "./assets/favicon.png"
     },
     "experiments": {

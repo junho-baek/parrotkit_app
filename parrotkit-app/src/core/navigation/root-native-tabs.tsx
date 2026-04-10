@@ -1,8 +1,8 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { Icon, Label, NativeTabs, VectorIcon } from 'expo-router/unstable-native-tabs';
 import { DynamicColorIOS, Platform } from 'react-native';
-import { NativeTabs, Icon, Label, VectorIcon } from 'expo-router/unstable-native-tabs';
 
-export default function TabsLayout() {
+export function RootNativeTabs() {
   const isIOS = Platform.OS === 'ios';
   const iosTintColor = isIOS
     ? DynamicColorIOS({
@@ -14,66 +14,55 @@ export default function TabsLayout() {
   return (
     <NativeTabs
       badgeBackgroundColor="#ff9568"
-      backgroundColor={isIOS ? null : '#ffffff'}
+      backgroundColor={isIOS ? null : '#fffdf8'}
       blurEffect={isIOS ? 'systemChromeMaterial' : undefined}
       disableTransparentOnScrollEdge={isIOS}
-      tintColor={iosTintColor}
       labelStyle={{
-        color: isIOS ? iosTintColor : '#4b5563',
+        color: isIOS ? iosTintColor : '#57534e',
       }}
       minimizeBehavior={isIOS ? 'onScrollDown' : undefined}
+      tintColor={iosTintColor}
     >
       <NativeTabs.Trigger name="index">
         <Icon
-          sf={{ default: 'house', selected: 'house.fill' }}
           androidSrc={{
             default: <VectorIcon family={MaterialCommunityIcons} name="home-variant-outline" />,
             selected: <VectorIcon family={MaterialCommunityIcons} name="home-variant" />,
           }}
+          sf={{ default: 'house', selected: 'house.fill' }}
         />
         <Label>Home</Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="explore">
         <Icon
-          sf={{ default: 'safari', selected: 'safari.fill' }}
           androidSrc={{
             default: <VectorIcon family={MaterialCommunityIcons} name="compass-outline" />,
             selected: <VectorIcon family={MaterialCommunityIcons} name="compass" />,
           }}
+          sf={{ default: 'safari', selected: 'safari.fill' }}
         />
         <Label>Explore</Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="paste">
-        <Icon
-          sf={{ default: 'plus.circle', selected: 'plus.circle.fill' }}
-          androidSrc={{
-            default: <VectorIcon family={MaterialCommunityIcons} name="link-variant-plus" />,
-            selected: <VectorIcon family={MaterialCommunityIcons} name="link-variant" />,
-          }}
-        />
-        <Label>Paste</Label>
-      </NativeTabs.Trigger>
-
       <NativeTabs.Trigger name="recipes">
         <Icon
-          sf={{ default: 'book', selected: 'book.fill' }}
           androidSrc={{
             default: <VectorIcon family={MaterialCommunityIcons} name="book-open-page-variant-outline" />,
             selected: <VectorIcon family={MaterialCommunityIcons} name="book-open-page-variant" />,
           }}
+          sf={{ default: 'book', selected: 'book.fill' }}
         />
         <Label>Recipes</Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="my">
         <Icon
-          sf={{ default: 'person', selected: 'person.fill' }}
           androidSrc={{
             default: <VectorIcon family={MaterialCommunityIcons} name="account-outline" />,
             selected: <VectorIcon family={MaterialCommunityIcons} name="account" />,
           }}
+          sf={{ default: 'person', selected: 'person.fill' }}
         />
         <Label>My</Label>
       </NativeTabs.Trigger>
