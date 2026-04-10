@@ -3,31 +3,31 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-type PasteOption = {
+type SourceAction = {
   description: string;
   icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   title: string;
 };
 
-const quickOptions: PasteOption[] = [
+const sourceActions: SourceAction[] = [
   {
-    description: 'Start from a copied creator or video URL and turn it into a new recipe draft.',
-    icon: 'link-variant',
+    description: 'Start from a copied creator or video URL and turn it into a structured source draft.',
+    icon: 'link-variant-plus',
     title: 'Paste URL',
   },
   {
-    description: 'Capture a share-sheet or deep-link handoff later without changing the root navigation.',
-    icon: 'share-variant',
-    title: 'Share Extension',
+    description: 'Pull in what is already on the clipboard when Source becomes the default mobile intake surface.',
+    icon: 'content-paste',
+    title: 'Use clipboard',
   },
   {
-    description: 'Leave room for clipboard detection, camera import, or recent links as the flow evolves.',
-    icon: 'content-paste',
-    title: 'Future Inputs',
+    description: 'Leave room for share sheet, photo import, or file-based intake without changing the bottom navigation again.',
+    icon: 'tray-arrow-up',
+    title: 'Import media',
   },
 ];
 
-export function PasteDrawerScreen() {
+export function SourceActionSheetScreen() {
   const router = useRouter();
 
   return (
@@ -43,11 +43,11 @@ export function PasteDrawerScreen() {
           <ScrollView showsVerticalScrollIndicator={false}>
             <View className="gap-5 pb-2">
               <View className="gap-2">
-                <Text className="text-[13px] font-extrabold tracking-[1px] text-violet">PASTE</Text>
-                <Text className="text-[31px] font-black leading-[36px] text-ink">Quick capture drawer</Text>
+                <Text className="text-[13px] font-extrabold tracking-[1px] text-violet">ADD SOURCE</Text>
+                <Text className="text-[31px] font-black leading-[36px] text-ink">Quick intake sheet</Text>
                 <Text className="text-base leading-6 text-stone-600">
-                  Paste is now a transient input flow instead of a permanent tab, so quick capture stays fast and the
-                  root nav stays focused.
+                  Keep Source as a stable destination tab, and open this sheet only when you want to paste, import, or
+                  create a new source draft.
                 </Text>
               </View>
 
@@ -65,26 +65,26 @@ export function PasteDrawerScreen() {
                   onPress={() => router.back()}
                 >
                   <MaterialCommunityIcons color="#fffdf8" name="arrow-top-right" size={18} />
-                  <Text className="text-base font-semibold text-slate-50">Create draft from link</Text>
+                  <Text className="text-base font-semibold text-slate-50">Create source draft</Text>
                 </Pressable>
               </View>
 
               <View className="gap-3">
-                {quickOptions.map((option) => (
-                  <View key={option.title} className="flex-row gap-3 rounded-3xl bg-surface px-4 py-4" style={styles.card}>
+                {sourceActions.map((action) => (
+                  <View key={action.title} className="flex-row gap-3 rounded-3xl bg-surface px-4 py-4" style={styles.card}>
                     <View className="h-11 w-11 items-center justify-center rounded-2xl bg-violet/10">
-                      <MaterialCommunityIcons color="#8c67ff" name={option.icon} size={22} />
+                      <MaterialCommunityIcons color="#8c67ff" name={action.icon} size={22} />
                     </View>
                     <View className="flex-1 gap-1">
-                      <Text className="text-[16px] font-bold text-ink">{option.title}</Text>
-                      <Text className="text-[14px] leading-[21px] text-stone-600">{option.description}</Text>
+                      <Text className="text-[16px] font-bold text-ink">{action.title}</Text>
+                      <Text className="text-[14px] leading-[21px] text-stone-600">{action.description}</Text>
                     </View>
                   </View>
                 ))}
               </View>
 
               <Pressable className="items-center justify-center rounded-2xl border border-stroke px-4 py-4" onPress={() => router.back()}>
-                <Text className="text-[15px] font-semibold text-stone-700">Close drawer</Text>
+                <Text className="text-[15px] font-semibold text-stone-700">Close sheet</Text>
               </Pressable>
             </View>
           </ScrollView>

@@ -45,6 +45,17 @@ export function RootNativeTabs() {
         <Label>Explore</Label>
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="source">
+        <Icon
+          androidSrc={{
+            default: <VectorIcon family={MaterialCommunityIcons} name="layers-outline" />,
+            selected: <VectorIcon family={MaterialCommunityIcons} name="layers" />,
+          }}
+          sf={{ default: 'square.stack.3d.up', selected: 'square.stack.3d.up.fill' }}
+        />
+        <Label>Source</Label>
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="recipes">
         <Icon
           androidSrc={{

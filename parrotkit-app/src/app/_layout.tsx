@@ -3,7 +3,6 @@ import '../../global.css';
 import { Stack } from 'expo-router';
 
 import { AppThemeProvider } from '@/core/providers/app-theme-provider';
-import { FloatingPasteButton } from '@/core/ui/floating-paste-button';
 
 export default function RootLayout() {
   return (
@@ -11,7 +10,7 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
-          name="paste"
+          name="source-actions"
           options={{
             animation: 'slide_from_bottom',
             contentStyle: {
@@ -21,7 +20,6 @@ export default function RootLayout() {
           }}
         />
       </Stack>
-      <FloatingPasteButton />
     </AppThemeProvider>
   );
 }
