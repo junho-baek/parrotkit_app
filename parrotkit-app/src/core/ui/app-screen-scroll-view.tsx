@@ -1,12 +1,18 @@
-import { PropsWithChildren } from 'react';
-import { Platform, ScrollViewProps, StyleProp, ViewStyle } from 'react-native';
-import Animated, { useAnimatedScrollHandler } from 'react-native-reanimated';
+import { useFocusEffect } from 'expo-router';
+import { PropsWithChildren, useCallback, useRef } from 'react';
+import {
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Platform,
+  ScrollViewProps,
+  StyleProp,
+  ViewStyle,
+} from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { APP_TOP_BAR_HEIGHT, APP_TOP_BAR_HIDE_RANGE } from '@/core/navigation/app-top-bar';
 import { useAppChrome } from '@/core/navigation/app-chrome-provider';
-
-const APP_TOP_BAR_SHOW_THRESHOLD = 24;
 
 type AppScreenScrollViewProps = PropsWithChildren<
   Omit<ScrollViewProps, 'contentContainerStyle' | 'onScroll'> & {
@@ -24,34 +30,37 @@ export function AppScreenScrollView({
   ...props
 }: AppScreenScrollViewProps) {
   const insets = useSafeAreaInsets();
-  const { topBarLastScrollY, topBarProgress } = useAppChrome();
-  const topPadding = insets.top + APP_TOP_BAR_HEIGHT + (Platform.OS === 'ios' ? topSpacing : Math.max(2, topSpacing - 2));
+  const { topBarProgress } = useAppChrome();
+  const scrollOffsetRef = useRef(0);
+  const topPadding =
+    APP_TOP_BAR_HEIGHT +
+    insets.top +
+    (Platform.OS === 'ios' ? Math.max(0, topSpacing - 6) : Math.max(2, topSpacing - 2));
 
-  const onScroll = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      const offsetY = Math.max(event.contentOffset.y, 0);
-
-      if (offsetY <= APP_TOP_BAR_SHOW_THRESHOLD) {
-        topBarLastScrollY.value = offsetY;
-        topBarProgress.value = 0;
-        return;
-      }
-
-      const delta = offsetY - topBarLastScrollY.value;
-      const nextProgress = Math.min(
+  useFocusEffect(
+    useCallback(() => {
+      topBarProgress.value = Math.min(
         APP_TOP_BAR_HIDE_RANGE,
-        Math.max(0, topBarProgress.value + delta)
+        Math.max(0, scrollOffsetRef.current)
       );
+    }, [topBarProgress])
+  );
 
-      topBarLastScrollY.value = offsetY;
-      topBarProgress.value = offsetY <= 0 ? 0 : nextProgress;
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const offsetY = Math.max(event.nativeEvent.contentOffset.y, 0);
+      scrollOffsetRef.current = offsetY;
+      topBarProgress.value = Math.min(APP_TOP_BAR_HIDE_RANGE, offsetY);
     },
-  });
+    [topBarProgress]
+  );
 
   return (
     <Animated.ScrollView
       {...props}
+      automaticallyAdjustContentInsets={false}
       className="flex-1 bg-canvas"
+      contentInsetAdjustmentBehavior="never"
       contentContainerStyle={[
         {
           paddingBottom: bottomPadding,
@@ -59,9 +68,13 @@ export function AppScreenScrollView({
         },
         contentContainerStyle,
       ]}
-      onScroll={onScroll}
+      onScroll={handleScroll}
       scrollEventThrottle={16}
       showsVerticalScrollIndicator={false}
+      scrollIndicatorInsets={{
+        bottom: bottomPadding,
+        top: topPadding,
+      }}
     >
       {children}
     </Animated.ScrollView>

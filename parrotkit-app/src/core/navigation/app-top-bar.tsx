@@ -8,7 +8,7 @@ import { useAppChrome } from '@/core/navigation/app-chrome-provider';
 const parrotLogo = require('../../../assets/parrot-logo.png');
 
 export const APP_TOP_BAR_HEIGHT = 44;
-export const APP_TOP_BAR_HIDE_RANGE = 88;
+export const APP_TOP_BAR_HIDE_RANGE = 24;
 
 export function AppTopBar() {
   const insets = useSafeAreaInsets();
@@ -93,9 +93,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   barIOS: {
-    backgroundColor: 'rgba(255,255,255,0.74)',
-    borderBottomColor: 'rgba(148,163,184,0.14)',
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    backgroundColor: 'transparent',
+    borderBottomWidth: 0,
     shadowOpacity: 0,
     shadowRadius: 0,
   },

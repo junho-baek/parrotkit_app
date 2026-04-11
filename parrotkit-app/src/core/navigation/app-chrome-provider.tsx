@@ -4,7 +4,6 @@ import { SharedValue, useSharedValue } from 'react-native-reanimated';
 
 type AppChromeContextValue = {
   topBarProgress: SharedValue<number>;
-  topBarLastScrollY: SharedValue<number>;
 };
 
 const AppChromeContext = createContext<AppChromeContextValue | null>(null);
@@ -12,17 +11,14 @@ const AppChromeContext = createContext<AppChromeContextValue | null>(null);
 export function AppChromeProvider({ children }: PropsWithChildren) {
   const pathname = usePathname();
   const topBarProgress = useSharedValue(0);
-  const topBarLastScrollY = useSharedValue(0);
 
   useEffect(() => {
     topBarProgress.value = 0;
-    topBarLastScrollY.value = 0;
-  }, [pathname, topBarLastScrollY, topBarProgress]);
+  }, [pathname, topBarProgress]);
 
   return (
     <AppChromeContext.Provider
       value={{
-        topBarLastScrollY,
         topBarProgress,
       }}
     >
