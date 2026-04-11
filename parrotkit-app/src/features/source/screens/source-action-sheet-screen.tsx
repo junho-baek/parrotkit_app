@@ -1,27 +1,26 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { brandActionGradient } from '@/core/theme/colors';
 
 type SourceAction = {
-  description: string;
   icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   title: string;
 };
 
 const sourceActions: SourceAction[] = [
   {
-    description: 'Start from a copied creator or video URL and turn it into a structured source draft.',
     icon: 'link-variant-plus',
     title: 'Paste URL',
   },
   {
-    description: 'Pull in what is already on the clipboard when Source becomes the default mobile intake surface.',
     icon: 'content-paste',
     title: 'Use clipboard',
   },
   {
-    description: 'Leave room for share sheet, photo import, or file-based intake without changing the bottom navigation again.',
     icon: 'tray-arrow-up',
     title: 'Import media',
   },
@@ -29,83 +28,73 @@ const sourceActions: SourceAction[] = [
 
 export function SourceActionSheetScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
     <View className="flex-1 bg-black/30">
       <Pressable className="flex-1" onPress={() => router.back()} />
 
-      <SafeAreaView edges={['bottom']} style={styles.safeArea}>
-        <View className="rounded-t-[34px] border border-b-0 border-stroke bg-sheet px-5 pb-6 pt-4">
+      <View className="bg-transparent">
+        <View
+          className="overflow-hidden rounded-t-[34px] border border-b-0 border-stroke bg-sheet px-5 pt-4"
+          style={{ paddingBottom: insets.bottom + 16 }}
+        >
+          <View
+            aria-hidden
+            className="pointer-events-none absolute inset-x-[-12px] top-0 h-40 bg-[radial-gradient(74%_62%_at_50%_0%,rgba(213,232,255,0.74)_0%,rgba(238,228,255,0.46)_40%,rgba(255,255,255,0)_80%)]"
+          />
+          <View aria-hidden className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-slate-200/90 to-transparent" />
+
           <View className="items-center pb-4">
-            <View className="h-1.5 w-12 rounded-full bg-stone-300" />
+            <View className="h-1.5 w-12 rounded-full bg-slate-300/80" />
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            <View className="gap-5 pb-2">
-              <View className="gap-2">
-                <Text className="text-[13px] font-extrabold tracking-[1px] text-violet">ADD SOURCE</Text>
-                <Text className="text-[31px] font-black leading-[36px] text-ink">Quick intake sheet</Text>
-                <Text className="text-base leading-6 text-stone-600">
-                  Keep Source as a stable destination tab, and open this sheet only when you want to paste, import, or
-                  create a new source draft.
-                </Text>
-              </View>
+            <View className="gap-5 px-1">
+              <Text className="text-[31px] font-black leading-[36px] text-ink">Paste</Text>
 
-              <View className="rounded-[26px] border border-stroke bg-surface px-4 py-4" style={styles.card}>
-                <Text className="text-sm font-semibold uppercase tracking-[0.6px] text-stone-500">URL</Text>
+              <View className="gap-3">
+                <Text className="text-sm font-semibold uppercase tracking-[0.6px] text-slate-500">Video URL</Text>
                 <TextInput
                   autoCapitalize="none"
                   autoCorrect={false}
-                  className="mt-3 rounded-2xl border border-stroke bg-canvas px-4 py-4 text-base text-ink"
+                  className="rounded-2xl border border-stroke bg-surface px-4 py-4 text-base text-ink"
                   placeholder="Paste a YouTube, TikTok, or Instagram URL"
                   placeholderTextColor="#8c8a84"
                 />
-                <Pressable
-                  className="mt-4 flex-row items-center justify-center gap-2 rounded-2xl bg-ink px-4 py-4"
-                  onPress={() => router.back()}
-                >
-                  <MaterialCommunityIcons color="#fffdf8" name="arrow-top-right" size={18} />
-                  <Text className="text-base font-semibold text-slate-50">Create source draft</Text>
+                <Pressable onPress={() => router.back()}>
+                  <LinearGradient
+                    colors={brandActionGradient}
+                    end={{ x: 1, y: 1 }}
+                    start={{ x: 0, y: 0 }}
+                    style={{ borderRadius: 18 }}
+                  >
+                    <View className="flex-row items-center justify-center gap-2 rounded-[18px] px-4 py-4">
+                      <Text className="text-base font-semibold text-white">Make your video recipe</Text>
+                      <MaterialCommunityIcons color="#fffdf8" name="arrow-right" size={18} />
+                    </View>
+                  </LinearGradient>
                 </Pressable>
               </View>
 
+              <View className="h-px bg-slate-200/80" />
+
               <View className="gap-3">
                 {sourceActions.map((action) => (
-                  <View key={action.title} className="flex-row gap-3 rounded-3xl bg-surface px-4 py-4" style={styles.card}>
+                  <View key={action.title} className="flex-row gap-3 rounded-3xl border border-stroke bg-surface px-4 py-4">
                     <View className="h-11 w-11 items-center justify-center rounded-2xl bg-violet/10">
                       <MaterialCommunityIcons color="#8c67ff" name={action.icon} size={22} />
                     </View>
-                    <View className="flex-1 gap-1">
+                    <View className="flex-1 justify-center">
                       <Text className="text-[16px] font-bold text-ink">{action.title}</Text>
-                      <Text className="text-[14px] leading-[21px] text-stone-600">{action.description}</Text>
                     </View>
                   </View>
                 ))}
               </View>
-
-              <Pressable className="items-center justify-center rounded-2xl border border-stroke px-4 py-4" onPress={() => router.back()}>
-                <Text className="text-[15px] font-semibold text-stone-700">Close sheet</Text>
-              </Pressable>
             </View>
           </ScrollView>
         </View>
-      </SafeAreaView>
+      </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    elevation: 2,
-    shadowColor: '#111827',
-    shadowOpacity: 0.06,
-    shadowRadius: 18,
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-  },
-  safeArea: {
-    backgroundColor: 'transparent',
-  },
-});

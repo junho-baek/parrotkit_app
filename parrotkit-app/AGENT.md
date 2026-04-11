@@ -16,8 +16,8 @@
 
 ## 내비게이션 원칙
 - 기본 루트는 Expo Router + native tabs를 유지한다.
-- `Source`는 quick capture와 import 상태를 모아두는 destination tab으로 유지한다.
-- 빠른 입력 액션은 전역 탭처럼 보이게 두기보다 `Source` 안에서 modal, sheet, drawer 같은 action flow로 연다.
+- `Source`는 incoming draft, import 상태, source history를 모아두는 destination tab으로 유지한다.
+- 빠른 입력 액션은 특정 화면 내부 버튼보다 탭 셸 전역의 floating CTA가 소유하고, 실제 흐름은 modal, sheet, drawer 같은 stacked action flow로 연다.
 - route 파일에서 복잡한 데이터 조합을 하지 말고, feature screen을 바로 연결한다.
 
 ## 스타일링 원칙
@@ -26,7 +26,7 @@
 - `TouchableOpacity` 대신 `Pressable`을 기본으로 사용한다.
 
 ## 구현 메모
-- `Source`는 현재 가운데 destination tab이며, `+` 액션은 Source 화면 안에서 바텀 시트형 modal route를 연다.
+- `Source`는 현재 가운데 destination tab이며, 앱 전역 `Add Source` CTA가 `source-actions` modal route를 연다.
 - 새 native dependency는 반드시 `parrotkit-app` 패키지 안에 직접 추가한다.
 - safe area, scroll inset, modal presentation은 iOS/Android 둘 다 실제 기기 감각을 해치지 않게 유지한다.
 

@@ -1,6 +1,8 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Icon, Label, NativeTabs, VectorIcon } from 'expo-router/unstable-native-tabs';
-import { DynamicColorIOS, Platform } from 'react-native';
+import { DynamicColorIOS, Platform, View } from 'react-native';
+
+import { GlobalSourceCta } from '@/core/navigation/global-source-cta';
 
 export function RootNativeTabs() {
   const isIOS = Platform.OS === 'ios';
@@ -12,71 +14,75 @@ export function RootNativeTabs() {
     : '#111827';
 
   return (
-    <NativeTabs
-      badgeBackgroundColor="#ff9568"
-      backgroundColor={isIOS ? null : '#fffdf8'}
-      blurEffect={isIOS ? 'systemChromeMaterial' : undefined}
-      disableTransparentOnScrollEdge={isIOS}
-      labelStyle={{
-        color: isIOS ? iosTintColor : '#57534e',
-      }}
-      minimizeBehavior={isIOS ? 'onScrollDown' : undefined}
-      tintColor={iosTintColor}
-    >
-      <NativeTabs.Trigger name="index">
-        <Icon
-          androidSrc={{
-            default: <VectorIcon family={MaterialCommunityIcons} name="home-variant-outline" />,
-            selected: <VectorIcon family={MaterialCommunityIcons} name="home-variant" />,
-          }}
-          sf={{ default: 'house', selected: 'house.fill' }}
-        />
-        <Label>Home</Label>
-      </NativeTabs.Trigger>
+    <View className="flex-1">
+      <NativeTabs
+        badgeBackgroundColor="#ff9568"
+        backgroundColor={isIOS ? null : '#ffffff'}
+        blurEffect={isIOS ? 'systemChromeMaterial' : undefined}
+        disableTransparentOnScrollEdge={isIOS}
+        labelStyle={{
+          color: isIOS ? iosTintColor : '#57534e',
+        }}
+        minimizeBehavior={isIOS ? 'onScrollDown' : undefined}
+        tintColor={iosTintColor}
+      >
+        <NativeTabs.Trigger name="index">
+          <Icon
+            androidSrc={{
+              default: <VectorIcon family={MaterialCommunityIcons} name="home-variant-outline" />,
+              selected: <VectorIcon family={MaterialCommunityIcons} name="home-variant" />,
+            }}
+            sf={{ default: 'house', selected: 'house.fill' }}
+          />
+          <Label>Home</Label>
+        </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="explore">
-        <Icon
-          androidSrc={{
-            default: <VectorIcon family={MaterialCommunityIcons} name="compass-outline" />,
-            selected: <VectorIcon family={MaterialCommunityIcons} name="compass" />,
-          }}
-          sf={{ default: 'safari', selected: 'safari.fill' }}
-        />
-        <Label>Explore</Label>
-      </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="explore">
+          <Icon
+            androidSrc={{
+              default: <VectorIcon family={MaterialCommunityIcons} name="compass-outline" />,
+              selected: <VectorIcon family={MaterialCommunityIcons} name="compass" />,
+            }}
+            sf={{ default: 'safari', selected: 'safari.fill' }}
+          />
+          <Label>Explore</Label>
+        </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="source">
-        <Icon
-          androidSrc={{
-            default: <VectorIcon family={MaterialCommunityIcons} name="layers-outline" />,
-            selected: <VectorIcon family={MaterialCommunityIcons} name="layers" />,
-          }}
-          sf={{ default: 'square.stack.3d.up', selected: 'square.stack.3d.up.fill' }}
-        />
-        <Label>Source</Label>
-      </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="source">
+          <Icon
+            androidSrc={{
+              default: <VectorIcon family={MaterialCommunityIcons} name="layers-outline" />,
+              selected: <VectorIcon family={MaterialCommunityIcons} name="layers" />,
+            }}
+            sf={{ default: 'square.stack.3d.up', selected: 'square.stack.3d.up.fill' }}
+          />
+          <Label>Source</Label>
+        </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="recipes">
-        <Icon
-          androidSrc={{
-            default: <VectorIcon family={MaterialCommunityIcons} name="book-open-page-variant-outline" />,
-            selected: <VectorIcon family={MaterialCommunityIcons} name="book-open-page-variant" />,
-          }}
-          sf={{ default: 'book', selected: 'book.fill' }}
-        />
-        <Label>Recipes</Label>
-      </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="recipes">
+          <Icon
+            androidSrc={{
+              default: <VectorIcon family={MaterialCommunityIcons} name="book-open-page-variant-outline" />,
+              selected: <VectorIcon family={MaterialCommunityIcons} name="book-open-page-variant" />,
+            }}
+            sf={{ default: 'book', selected: 'book.fill' }}
+          />
+          <Label>Recipes</Label>
+        </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="my">
-        <Icon
-          androidSrc={{
-            default: <VectorIcon family={MaterialCommunityIcons} name="account-outline" />,
-            selected: <VectorIcon family={MaterialCommunityIcons} name="account" />,
-          }}
-          sf={{ default: 'person', selected: 'person.fill' }}
-        />
-        <Label>My</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
+        <NativeTabs.Trigger name="my">
+          <Icon
+            androidSrc={{
+              default: <VectorIcon family={MaterialCommunityIcons} name="account-outline" />,
+              selected: <VectorIcon family={MaterialCommunityIcons} name="account" />,
+            }}
+            sf={{ default: 'person', selected: 'person.fill' }}
+          />
+          <Label>My</Label>
+        </NativeTabs.Trigger>
+      </NativeTabs>
+
+      <GlobalSourceCta />
+    </View>
   );
 }

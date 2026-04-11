@@ -5,12 +5,12 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        canvas: '#f6f3ea',
-        surface: '#fffdf8',
-        sheet: '#fff9ee',
-        stroke: '#e8e0d2',
+        canvas: '#ffffff',
+        surface: '#ffffff',
+        sheet: '#ffffff',
+        stroke: '#e2e8f0',
         ink: '#111827',
-        muted: '#57534e',
+        muted: '#64748b',
         brand: '#ff9568',
         rose: '#de81c1',
         violet: '#8c67ff',
