@@ -1,7 +1,8 @@
 import { Href, useRouter } from 'expo-router';
-import { ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
+import { AppScreenScrollView } from '@/core/ui/app-screen-scroll-view';
 import { MediaTileCard } from '@/core/ui/media-tile-card';
 
 export function SourceScreen() {
@@ -9,13 +10,8 @@ export function SourceScreen() {
   const { recentReferences, recipes, sourceStats } = useMockWorkspace();
 
   return (
-    <ScrollView
-      className="flex-1 bg-canvas"
-      contentContainerStyle={{ paddingBottom: 176 }}
-      contentInsetAdjustmentBehavior="automatic"
-      showsVerticalScrollIndicator={false}
-    >
-      <View className="gap-5 px-5 pt-5">
+    <AppScreenScrollView>
+      <View className="gap-5 px-5">
         <View className="gap-1">
           <Text className="text-[32px] font-black leading-[36px] text-ink">Source inbox</Text>
           <Text className="text-[15px] text-muted">Incoming drafts, imports, and latest paste activity</Text>
@@ -80,7 +76,7 @@ export function SourceScreen() {
           </View>
         ) : null}
       </View>
-    </ScrollView>
+    </AppScreenScrollView>
   );
 }
 

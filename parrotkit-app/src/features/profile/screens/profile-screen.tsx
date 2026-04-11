@@ -1,19 +1,15 @@
-import { ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
+import { AppScreenScrollView } from '@/core/ui/app-screen-scroll-view';
 import { MediaTileCard } from '@/core/ui/media-tile-card';
 
 export function ProfileScreen() {
   const { likedReferences, profile, recipes } = useMockWorkspace();
 
   return (
-    <ScrollView
-      className="flex-1 bg-canvas"
-      contentContainerStyle={{ paddingBottom: 176 }}
-      contentInsetAdjustmentBehavior="automatic"
-      showsVerticalScrollIndicator={false}
-    >
-      <View className="gap-5 px-5 pt-5">
+    <AppScreenScrollView>
+      <View className="gap-5 px-5">
         <View className="gap-3 rounded-[28px] border border-stroke bg-surface px-5 py-5">
           <View className="gap-1">
             <Text className="text-[30px] font-black leading-[34px] text-ink">{profile.name}</Text>
@@ -68,7 +64,7 @@ export function ProfileScreen() {
           )}
         </View>
       </View>
-    </ScrollView>
+    </AppScreenScrollView>
   );
 }
 

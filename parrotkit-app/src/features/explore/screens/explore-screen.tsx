@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Image, ScrollView, Text, View } from 'react-native';
 
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
+import { AppScreenScrollView } from '@/core/ui/app-screen-scroll-view';
 import { MediaTileCard } from '@/core/ui/media-tile-card';
 
 const categories = ['All', 'Cooking', 'Beauty', 'Fitness', 'Creator'];
@@ -21,13 +22,8 @@ export function ExploreScreen() {
   );
 
   return (
-    <ScrollView
-      className="flex-1 bg-canvas"
-      contentContainerStyle={{ paddingBottom: 176 }}
-      contentInsetAdjustmentBehavior="automatic"
-      showsVerticalScrollIndicator={false}
-    >
-      <View className="gap-5 px-5 pt-5">
+    <AppScreenScrollView>
+      <View className="gap-5 px-5">
         <View className="gap-1">
           <Text className="text-[32px] font-black leading-[36px] text-ink">Explore</Text>
           <Text className="text-[15px] text-muted">Most popular viral references</Text>
@@ -95,7 +91,7 @@ export function ExploreScreen() {
           ))}
         </View>
       </View>
-    </ScrollView>
+    </AppScreenScrollView>
   );
 }
 

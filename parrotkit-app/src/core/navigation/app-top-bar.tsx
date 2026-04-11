@@ -1,45 +1,122 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { Href, useRouter } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { brandActionGradientSoft } from '@/core/theme/colors';
+import { useAppChrome } from '@/core/navigation/app-chrome-provider';
+
+const parrotLogo = require('../../../assets/parrot-logo.png');
+
+export const APP_TOP_BAR_HEIGHT = 44;
+export const APP_TOP_BAR_HIDE_RANGE = 88;
 
 export function AppTopBar() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { topBarProgress } = useAppChrome();
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const translateY = -interpolate(
+      topBarProgress.value,
+      [0, APP_TOP_BAR_HIDE_RANGE],
+      [0, insets.top + APP_TOP_BAR_HEIGHT + 10],
+      Extrapolation.CLAMP
+    );
+    const opacity = interpolate(
+      topBarProgress.value,
+      [0, APP_TOP_BAR_HIDE_RANGE * 0.55, APP_TOP_BAR_HIDE_RANGE],
+      [1, 0.98, 0],
+      Extrapolation.CLAMP
+    );
+
+    return {
+      opacity,
+      transform: [{ translateY }],
+    };
+  });
 
   return (
-    <View className="h-12 flex-row items-center justify-center px-5">
-      <Pressable
-        accessibilityHint="Go to the home tab"
-        accessibilityLabel="ParrotKit home"
-        className="absolute left-5"
-        onPress={() => router.navigate('/' as Href)}
-      >
-        {({ pressed }) => (
-          <View className={pressed ? 'opacity-90' : undefined}>
-            <LinearGradient
-              colors={brandActionGradientSoft}
-              end={{ x: 1, y: 1 }}
-              start={{ x: 0, y: 0 }}
-              style={{
-                alignItems: 'center',
-                borderColor: 'rgba(255,255,255,0.88)',
-                borderRadius: 16,
-                borderWidth: 1,
-                height: 32,
-                justifyContent: 'center',
-                width: 32,
-              }}
-            >
-              <Text className="text-[14px] font-black text-white">P</Text>
-            </LinearGradient>
-          </View>
-        )}
-      </Pressable>
+    <Animated.View
+      pointerEvents="box-none"
+      style={[
+        styles.shell,
+        {
+          paddingTop: insets.top,
+        },
+        animatedStyle,
+      ]}
+    >
+      <View style={styles.bar}>
+        <Pressable
+          accessibilityHint="Go to the home tab"
+          accessibilityLabel="ParrotKit home"
+          hitSlop={10}
+          onPress={() => router.navigate('/' as Href)}
+          style={styles.logoButton}
+        >
+          {({ pressed }) => (
+            <View style={[styles.logoWrap, pressed ? styles.logoWrapPressed : null]}>
+              <Image resizeMode="contain" source={parrotLogo} style={styles.logoImage} />
+            </View>
+          )}
+        </Pressable>
 
-      <Text className="text-[19px] font-black tracking-[-0.4px] text-ink">ParrotKit</Text>
+        <Text className="text-[17px] font-bold tracking-[-0.35px] text-ink">ParrotKit</Text>
 
-      <View className="absolute right-5 h-8 w-8" />
-    </View>
+        <View style={styles.rightSpacer} />
+      </View>
+    </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  bar: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderBottomColor: 'rgba(148,163,184,0.2)',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    height: APP_TOP_BAR_HEIGHT,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    shadowColor: '#111827',
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+  },
+  logoButton: {
+    left: 20,
+    position: 'absolute',
+  },
+  logoImage: {
+    height: 28,
+    width: 28,
+  },
+  logoWrap: {
+    alignItems: 'center',
+    borderRadius: 999,
+    height: 30,
+    justifyContent: 'center',
+    width: 30,
+  },
+  logoWrapPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.96 }],
+  },
+  rightSpacer: {
+    height: 28,
+    position: 'absolute',
+    right: 20,
+    width: 28,
+  },
+  shell: {
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 20,
+  },
+});

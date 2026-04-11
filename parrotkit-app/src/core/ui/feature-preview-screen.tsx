@@ -1,4 +1,6 @@
-import { ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+
+import { AppScreenScrollView } from '@/core/ui/app-screen-scroll-view';
 
 type FeaturePreviewScreenProps = {
   title: string;
@@ -8,13 +10,8 @@ type FeaturePreviewScreenProps = {
 
 export function FeaturePreviewScreen({ title, accentColor, panels }: FeaturePreviewScreenProps) {
   return (
-    <ScrollView
-      className="flex-1 bg-canvas"
-      contentContainerStyle={{ paddingBottom: 176 }}
-      contentInsetAdjustmentBehavior="automatic"
-      showsVerticalScrollIndicator={false}
-    >
-      <View className="gap-5 px-5 pt-5">
+    <AppScreenScrollView>
+      <View className="gap-5 px-5">
         <View
           className="rounded-[28px] border bg-surface px-5 py-6"
           style={{
@@ -54,6 +51,6 @@ export function FeaturePreviewScreen({ title, accentColor, panels }: FeaturePrev
           ))}
         </View>
       </View>
-    </ScrollView>
+    </AppScreenScrollView>
   );
 }

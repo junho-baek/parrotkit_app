@@ -1,8 +1,9 @@
 import { Href, useRouter } from 'expo-router';
-import { ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient } from '@/core/theme/colors';
+import { AppScreenScrollView } from '@/core/ui/app-screen-scroll-view';
 import { MediaTileCard } from '@/core/ui/media-tile-card';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -16,13 +17,8 @@ export function HomeScreen() {
   const { homeStats, recentReferences, recipes } = useMockWorkspace();
 
   return (
-    <ScrollView
-      className="flex-1 bg-canvas"
-      contentContainerStyle={{ paddingBottom: 176 }}
-      contentInsetAdjustmentBehavior="automatic"
-      showsVerticalScrollIndicator={false}
-    >
-      <View className="gap-5 px-5 pt-5">
+    <AppScreenScrollView>
+      <View className="gap-5 px-5">
         <View className="gap-1">
           <Text className="text-[32px] font-black leading-[36px] text-ink">Welcome!</Text>
           <Text className="text-[15px] font-medium text-ink">Your creative workspace</Text>
@@ -85,7 +81,7 @@ export function HomeScreen() {
           </View>
         </View>
       </View>
-    </ScrollView>
+    </AppScreenScrollView>
   );
 }
 

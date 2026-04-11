@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { PropsWithChildren } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { AppChromeProvider } from '@/core/navigation/app-chrome-provider';
 import { colors } from '@/core/theme/colors';
 
 const appTheme = {
@@ -22,8 +23,10 @@ export function AppThemeProvider({ children }: PropsWithChildren) {
   return (
     <SafeAreaProvider>
       <ThemeProvider value={appTheme}>
-        <StatusBar style="dark" />
-        {children}
+        <AppChromeProvider>
+          <StatusBar style="dark" />
+          {children}
+        </AppChromeProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );
