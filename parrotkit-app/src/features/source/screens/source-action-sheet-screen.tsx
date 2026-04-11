@@ -63,7 +63,7 @@ export function SourceActionSheetScreen() {
         <View className="items-center bg-transparent">
           <View
             className="w-full overflow-hidden rounded-t-[32px] border border-b-0 border-white/80 bg-white px-4 pt-4"
-            style={[styles.sheet, { maxHeight: '92%', paddingBottom: insets.bottom + 16 }]}
+            style={[styles.sheet, { maxHeight: '92%' }]}
           >
             <LinearGradient
               colors={['rgba(213,232,255,0.74)', 'rgba(238,228,255,0.46)', 'rgba(255,255,255,0)']}
@@ -86,7 +86,7 @@ export function SourceActionSheetScreen() {
 
             <ScrollView
               className="relative z-10"
-              contentContainerStyle={styles.scrollContent}
+              contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 16) }]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
