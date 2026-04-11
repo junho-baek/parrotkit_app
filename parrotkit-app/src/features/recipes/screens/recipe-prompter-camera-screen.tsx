@@ -3,8 +3,8 @@ import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import {
@@ -15,6 +15,7 @@ import {
 
 export function RecipePrompterCameraScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ recipeId?: string; sceneId?: string }>();
   const { getPrompterSelection, getRecipeById, togglePrompterSelection } = useMockWorkspace();
   const [permission, requestPermission] = useCameraPermissions();
@@ -93,9 +94,14 @@ export function RecipePrompterCameraScreen() {
         style={styles.bottomFade}
       />
 
-      <SafeAreaView className="flex-1">
+      <View className="flex-1">
         <View className="flex-1 justify-between">
-          <View className="px-4 pt-2">
+          <View
+            className="px-4"
+            style={{
+              paddingTop: insets.top + (Platform.OS === 'android' ? 14 : 6),
+            }}
+          >
             <View className="flex-row items-center justify-between">
               <OverlayIconButton
                 accessibilityLabel="Go back"
@@ -139,7 +145,12 @@ export function RecipePrompterCameraScreen() {
             </View>
           </View>
 
-          <View className="rounded-t-[30px] border border-white/10 bg-slate-950/72 px-4 pb-4 pt-4">
+          <View
+            className="rounded-t-[30px] border border-white/10 bg-slate-950/72 px-4 pt-4"
+            style={{
+              paddingBottom: insets.bottom + (Platform.OS === 'android' ? 12 : 4),
+            }}
+          >
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View className="flex-row gap-2 pr-1">
                 {recipe.scenes.map((scene, index) => {
@@ -203,7 +214,7 @@ export function RecipePrompterCameraScreen() {
             </View>
           </View>
         </View>
-      </SafeAreaView>
+      </View>
     </View>
   );
 }

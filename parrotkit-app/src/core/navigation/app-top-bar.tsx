@@ -1,5 +1,5 @@
 import { Href, useRouter } from 'expo-router';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,6 +14,7 @@ export function AppTopBar() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { topBarProgress } = useAppChrome();
+  const isIOS = Platform.OS === 'ios';
 
   const animatedStyle = useAnimatedStyle(() => {
     const translateY = -interpolate(
@@ -37,7 +38,9 @@ export function AppTopBar() {
 
   return (
     <Animated.View
+      needsOffscreenAlphaCompositing
       pointerEvents="box-none"
+      renderToHardwareTextureAndroid
       style={[
         styles.shell,
         {
@@ -46,7 +49,7 @@ export function AppTopBar() {
         animatedStyle,
       ]}
     >
-      <View style={styles.bar}>
+      <View style={[styles.bar, isIOS ? styles.barIOS : styles.barAndroid]}>
         <Pressable
           accessibilityHint="Go to the home tab"
           accessibilityLabel="ParrotKit home"
@@ -72,20 +75,29 @@ export function AppTopBar() {
 const styles = StyleSheet.create({
   bar: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderBottomColor: 'rgba(148,163,184,0.2)',
-    borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     height: APP_TOP_BAR_HEIGHT,
     justifyContent: 'center',
     paddingHorizontal: 20,
+  },
+  barAndroid: {
+    backgroundColor: 'rgba(255,255,255,0.98)',
+    borderBottomWidth: 0,
+    elevation: 10,
     shadowColor: '#111827',
     shadowOffset: {
       width: 0,
-      height: 6,
+      height: 2,
     },
-    shadowOpacity: 0.04,
-    shadowRadius: 16,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+  },
+  barIOS: {
+    backgroundColor: 'rgba(255,255,255,0.74)',
+    borderBottomColor: 'rgba(148,163,184,0.14)',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    shadowOpacity: 0,
+    shadowRadius: 0,
   },
   logoButton: {
     left: 20,
@@ -113,10 +125,11 @@ const styles = StyleSheet.create({
     width: 28,
   },
   shell: {
+    elevation: 24,
     left: 0,
     position: 'absolute',
     right: 0,
     top: 0,
-    zIndex: 20,
+    zIndex: 40,
   },
 });

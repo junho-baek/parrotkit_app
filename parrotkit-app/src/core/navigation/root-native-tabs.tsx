@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Icon, Label, NativeTabs, VectorIcon } from 'expo-router/unstable-native-tabs';
-import { DynamicColorIOS, Platform, View } from 'react-native';
+import { DynamicColorIOS, Platform, StyleSheet, View } from 'react-native';
 
 import { AppTopBar } from '@/core/navigation/app-top-bar';
 import { GlobalSourceCta } from '@/core/navigation/global-source-cta';
@@ -83,8 +83,18 @@ export function RootNativeTabs() {
         </NativeTabs.Trigger>
       </NativeTabs>
 
-      <AppTopBar />
+      <View pointerEvents="box-none" style={styles.topChromeLayer}>
+        <AppTopBar />
+      </View>
       <GlobalSourceCta />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  topChromeLayer: {
+    ...StyleSheet.absoluteFillObject,
+    elevation: 30,
+    zIndex: 40,
+  },
+});
