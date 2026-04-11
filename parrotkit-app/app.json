@@ -34,7 +34,14 @@
       "typedRoutes": true
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow ParrotKit to access your camera so you can shoot with recipe cues.",
+          "recordAudioAndroid": false
+        }
+      ]
     ]
   }
 }

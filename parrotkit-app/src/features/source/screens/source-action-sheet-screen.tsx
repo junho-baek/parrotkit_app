@@ -68,10 +68,14 @@ export function SourceActionSheetScreen() {
   };
 
   return (
-    <View className="flex-1 bg-black/30">
-      <Pressable className="flex-1" onPress={() => router.back()} />
+    <View className="flex-1 justify-end bg-black/30">
+      <Pressable onPress={() => router.back()} style={StyleSheet.absoluteFillObject} />
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={8}
+        style={styles.keyboardAvoiding}
+      >
         <View className="items-center bg-transparent">
           <View
             className="w-full overflow-hidden rounded-t-[32px] border border-b-0 border-white/80 bg-white px-4 pt-4"
@@ -98,7 +102,7 @@ export function SourceActionSheetScreen() {
 
             <ScrollView
               className="relative z-10"
-              contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 16) }]}
+              contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 12) }]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
@@ -320,6 +324,9 @@ const styles = StyleSheet.create({
       width: 0,
       height: 1,
     },
+  },
+  keyboardAvoiding: {
+    justifyContent: 'flex-end',
   },
   platformWordSky: {
     color: '#8b5cf6',

@@ -18,6 +18,12 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
+            name="recipe/[recipeId]/prompter"
+            options={{
+              animation: 'slide_from_bottom',
+            }}
+          />
+          <Stack.Screen
             name="source-actions"
             options={{
               animation: 'slide_from_bottom',

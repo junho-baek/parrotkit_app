@@ -1,8 +1,9 @@
-import { createContext, PropsWithChildren, useContext, useMemo, useState } from 'react';
+import { createContext, PropsWithChildren, useCallback, useContext, useMemo, useState } from 'react';
 
 import {
   MockPlatform,
   MockRecipe,
+  MockRecipeScene,
   MockReference,
   partnerCreators,
   profileSeed,
@@ -10,6 +11,7 @@ import {
   recipesSeed,
   trendingReferencesSeed,
 } from '@/core/mocks/parrotkit-data';
+import { getDefaultPrompterSelection } from '@/features/recipes/lib/mock-prompter-elements';
 
 type CreateRecipeDraftInput = {
   title: string;
@@ -40,9 +42,14 @@ type MockWorkspaceContextValue = {
   toggleLikeReference: (referenceId: string) => void;
   createRecipeDraft: (input: CreateRecipeDraftInput) => MockRecipe;
   getRecipeById: (recipeId: string) => MockRecipe | null;
+  getPrompterSelection: (recipeId: string, scene: MockRecipeScene) => string[];
+  setPrompterSelection: (recipeId: string, sceneId: string, elementIds: string[]) => void;
+  togglePrompterSelection: (recipeId: string, scene: MockRecipeScene, elementId: string) => void;
 };
 
 const MockWorkspaceContext = createContext<MockWorkspaceContextValue | null>(null);
+
+type PrompterSelectionState = Record<string, Record<string, string[]>>;
 
 function guessPlatform(url: string): MockPlatform {
   const lowered = url.toLowerCase();
@@ -113,6 +120,7 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
   const [recentReferences, setRecentReferences] = useState<MockReference[]>(recentReferencesSeed);
   const [recipes, setRecipes] = useState<MockRecipe[]>(recipesSeed);
   const [trendingReferences, setTrendingReferences] = useState<MockReference[]>(trendingReferencesSeed);
+  const [prompterSelections, setPrompterSelections] = useState<PrompterSelectionState>({});
 
   const toggleLikeReference = (referenceId: string) => {
     setTrendingReferences((current) =>
@@ -171,6 +179,41 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
     return recipe;
   };
 
+  const getPrompterSelection = useCallback(
+    (recipeId: string, scene: MockRecipeScene) =>
+      prompterSelections[recipeId]?.[scene.id] ?? getDefaultPrompterSelection(scene),
+    [prompterSelections]
+  );
+
+  const setPrompterSelection = useCallback((recipeId: string, sceneId: string, elementIds: string[]) => {
+    const nextIds = Array.from(new Set(elementIds));
+
+    setPrompterSelections((current) => ({
+      ...current,
+      [recipeId]: {
+        ...(current[recipeId] ?? {}),
+        [sceneId]: nextIds,
+      },
+    }));
+  }, []);
+
+  const togglePrompterSelection = useCallback((recipeId: string, scene: MockRecipeScene, elementId: string) => {
+    setPrompterSelections((current) => {
+      const currentSelection = current[recipeId]?.[scene.id] ?? getDefaultPrompterSelection(scene);
+      const nextSelection = currentSelection.includes(elementId)
+        ? currentSelection.filter((id) => id !== elementId)
+        : [...currentSelection, elementId];
+
+      return {
+        ...current,
+        [recipeId]: {
+          ...(current[recipeId] ?? {}),
+          [scene.id]: nextSelection,
+        },
+      };
+    });
+  }, []);
+
   const likedReferences = useMemo(
     () => trendingReferences.filter((reference) => reference.isLiked),
     [trendingReferences]
@@ -210,8 +253,24 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       toggleLikeReference,
       createRecipeDraft,
       getRecipeById,
+      getPrompterSelection,
+      setPrompterSelection,
+      togglePrompterSelection,
     }),
-    [homeStats, likedReferences, recentReferences, recipes, sourceStats, trendingReferences]
+    [
+      createRecipeDraft,
+      getPrompterSelection,
+      getRecipeById,
+      homeStats,
+      likedReferences,
+      recentReferences,
+      recipes,
+      setPrompterSelection,
+      sourceStats,
+      toggleLikeReference,
+      togglePrompterSelection,
+      trendingReferences,
+    ]
   );
 
   return <MockWorkspaceContext.Provider value={value}>{children}</MockWorkspaceContext.Provider>;
