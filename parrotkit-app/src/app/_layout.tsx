@@ -12,7 +12,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen
-            name="recipe/[recipeId]"
+            name="recipe/[recipeId]/index"
             options={{
               animation: 'slide_from_right',
             }}
