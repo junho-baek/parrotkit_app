@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { Href, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -14,7 +14,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { rotatingPlatforms } from '@/core/mocks/parrotkit-data';
+import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient, brandActionShadow } from '@/core/theme/colors';
+import { RotatingWord } from '@/core/ui/rotating-word';
 
 const titlePlaceholder = 'e.g., Korean Diet Viral Hook...';
 const urlPlaceholder = 'https://www.tiktok.com/@username/video/...';
@@ -25,6 +28,7 @@ const notesPlaceholder = 'Anything specific to preserve or improve...';
 export function SourceActionSheetScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { createRecipeDraft } = useMockWorkspace();
 
   const [recipeTitle, setRecipeTitle] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
@@ -52,7 +56,15 @@ export function SourceActionSheetScreen() {
       return;
     }
 
-    router.back();
+    const recipe = createRecipeDraft({
+      goal,
+      niche,
+      notes,
+      title: recipeTitle,
+      videoUrl,
+    });
+
+    router.replace(`/recipe/${recipe.id}` as Href);
   };
 
   return (
@@ -91,17 +103,29 @@ export function SourceActionSheetScreen() {
               showsVerticalScrollIndicator={false}
             >
               <View className="gap-4 px-1 pb-1 pt-2">
-                <Text style={styles.headline} className="text-center text-slate-950">
-                  <Text>Paste a viral </Text>
-                  <Text style={styles.platformWordSky}>Instagram</Text>
-                  <Text> </Text>
-                  <Text style={styles.platformWordViolet}>Reels</Text>
-                  <Text> link,</Text>
-                  {'\n'}
-                  <Text>then turn it into your own content recipe</Text>
-                  <Text>🦜</Text>
-                  <Text>.</Text>
-                </Text>
+                <View className="items-center gap-1.5">
+                  <View className="flex-row flex-wrap items-center justify-center">
+                    <Text style={styles.headline} className="text-slate-950">
+                      Paste a viral{' '}
+                    </Text>
+                    <RotatingWord
+                      reserveSpace={false}
+                      textStyle={styles.headline}
+                      words={[
+                        { color: '#8b5cf6', label: rotatingPlatforms[0] },
+                        { color: '#ff6b6b', label: rotatingPlatforms[1] },
+                        { color: '#ef4444', label: rotatingPlatforms[2] },
+                      ]}
+                    />
+                    <Text style={styles.headline} className="text-slate-950">
+                      {' '}link,
+                    </Text>
+                  </View>
+
+                  <Text style={styles.headline} className="text-center text-slate-950">
+                    then turn it into your own content recipe🦜.
+                  </Text>
+                </View>
 
                 <View className="gap-3.5">
                   <FormField
@@ -298,9 +322,6 @@ const styles = StyleSheet.create({
     },
   },
   platformWordSky: {
-    color: '#38bdf8',
-  },
-  platformWordViolet: {
     color: '#8b5cf6',
   },
   scrollContent: {

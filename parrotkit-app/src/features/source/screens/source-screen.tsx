@@ -1,88 +1,95 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { Href, useRouter } from 'expo-router';
 import { ScrollView, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { screenAccents } from '@/core/theme/colors';
-
-type SourceQueueItem = {
-  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
-  title: string;
-};
-
-const sourceQueue: SourceQueueItem[] = [
-  {
-    icon: 'link-variant',
-    title: 'Links',
-  },
-  {
-    icon: 'content-paste',
-    title: 'Drafts',
-  },
-  {
-    icon: 'tray-arrow-up',
-    title: 'Imports',
-  },
-  {
-    icon: 'arrow-top-right-thin-circle-outline',
-    title: 'Queue',
-  },
-];
+import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
+import { MediaTileCard } from '@/core/ui/media-tile-card';
 
 export function SourceScreen() {
-  const accentColor = screenAccents.source;
-  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { recentReferences, recipes, sourceStats } = useMockWorkspace();
 
   return (
-    <View className="flex-1 bg-canvas">
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingBottom: insets.bottom + 176 }}
-        contentInsetAdjustmentBehavior="automatic"
-        showsVerticalScrollIndicator={false}
-      >
-        <View className="gap-5 px-5 pt-5">
-          <View
-            className="rounded-[28px] border bg-surface px-5 py-6"
-            style={{
-              borderColor: accentColor,
-              elevation: 5,
-              shadowColor: accentColor,
-              shadowOpacity: 0.1,
-              shadowRadius: 24,
-              shadowOffset: {
-                width: 0,
-                height: 18,
-              },
-            }}
+    <ScrollView
+      className="flex-1 bg-canvas"
+      contentContainerStyle={{ paddingBottom: 176 }}
+      contentInsetAdjustmentBehavior="automatic"
+      showsVerticalScrollIndicator={false}
+    >
+      <View className="gap-5 px-5 pt-5">
+        <View className="gap-1">
+          <Text className="text-[32px] font-black leading-[36px] text-ink">Source inbox</Text>
+          <Text className="text-[15px] text-muted">Incoming drafts, imports, and latest paste activity</Text>
+        </View>
+
+        <View className="flex-row flex-wrap gap-3">
+          <SourceStat title="Links" value={String(sourceStats.links)} />
+          <SourceStat title="Drafts" value={String(sourceStats.drafts)} />
+          <SourceStat title="Imports" value={String(sourceStats.imports)} />
+          <SourceStat title="Queue" value={String(sourceStats.queue)} />
+        </View>
+
+        <View className="gap-3 rounded-[28px] border border-stroke bg-surface px-5 py-5">
+          <Text className="text-[18px] font-bold text-ink">Next Action</Text>
+          <Text className="text-sm leading-6 text-muted">
+            Paste a viral link, create a draft recipe, and review it before wiring real analysis.
+          </Text>
+          <Text
+            className="self-start rounded-full bg-violet px-4 py-3 text-sm font-bold text-white"
+            onPress={() => router.push('/source-actions' as Href)}
           >
-            <Text className="text-[32px] font-black leading-[38px] text-ink">Source inbox</Text>
-          </View>
+            Open Paste Drawer
+          </Text>
+        </View>
+
+        <View className="gap-3">
+          <Text className="text-[18px] font-bold text-ink">Latest Added</Text>
 
           <View className="flex-row flex-wrap gap-3">
-            {sourceQueue.map((item) => (
-              <View
-                key={item.title}
-                className="min-h-[118px] w-[48%] rounded-[26px] border border-stroke bg-surface px-4 py-4"
-                style={{
-                  elevation: 2,
-                  shadowColor: '#111827',
-                  shadowOpacity: 0.07,
-                  shadowRadius: 18,
-                  shadowOffset: {
-                    width: 0,
-                    height: 10,
-                  },
-                }}
-              >
-                <View className="h-11 w-11 items-center justify-center rounded-2xl bg-violet/10">
-                  <MaterialCommunityIcons color={accentColor} name={item.icon} size={22} />
-                </View>
-                <Text className="mt-auto text-[15px] font-semibold text-ink">{item.title}</Text>
+            {recentReferences.map((reference) => (
+              <View key={reference.id} className="w-[48%]">
+                <MediaTileCard
+                  actionLabel={reference.recipeId ? 'Open Recipe' : 'Open Drawer'}
+                  actionTone={reference.recipeId ? 'brand' : 'neutral'}
+                  onAction={() =>
+                    reference.recipeId
+                      ? router.push(`/recipe/${reference.recipeId}` as Href)
+                      : router.push('/source-actions' as Href)
+                  }
+                  onPress={() =>
+                    reference.recipeId
+                      ? router.push(`/recipe/${reference.recipeId}` as Href)
+                      : router.push('/source-actions' as Href)
+                  }
+                  subtitle={reference.platform}
+                  thumbnail={reference.thumbnail}
+                  title={reference.title}
+                  topLeftLabel="SOURCE"
+                  topLeftTone="brand"
+                  topRightLabel={reference.createdAt}
+                />
               </View>
             ))}
           </View>
         </View>
-      </ScrollView>
+
+        {recipes[0] ? (
+          <View className="gap-2 rounded-[28px] border border-stroke bg-surface px-5 py-5">
+            <Text className="text-[12px] font-semibold uppercase tracking-[0.8px] text-muted">Current draft</Text>
+            <Text className="text-[22px] font-black leading-[28px] text-ink">{recipes[0].title}</Text>
+            <Text className="text-sm text-muted">{recipes[0].summary}</Text>
+          </View>
+        ) : null}
+      </View>
+    </ScrollView>
+  );
+}
+
+function SourceStat({ title, value }: { title: string; value: string }) {
+  return (
+    <View className="min-h-[110px] w-[48%] rounded-[26px] border border-stroke bg-surface px-4 py-4">
+      <View className="h-2.5 w-2.5 rounded-full bg-violet" />
+      <Text className="mt-auto text-[30px] font-black text-ink">{value}</Text>
+      <Text className="text-[15px] font-semibold text-ink">{title}</Text>
     </View>
   );
 }

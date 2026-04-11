@@ -3,23 +3,32 @@ import '../../global.css';
 import { Stack } from 'expo-router';
 
 import { AppThemeProvider } from '@/core/providers/app-theme-provider';
+import { MockWorkspaceProvider } from '@/core/providers/mock-workspace-provider';
 
 export default function RootLayout() {
   return (
     <AppThemeProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen
-          name="source-actions"
-          options={{
-            animation: 'slide_from_bottom',
-            contentStyle: {
-              backgroundColor: 'transparent',
-            },
-            presentation: 'transparentModal',
-          }}
-        />
-      </Stack>
+      <MockWorkspaceProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen
+            name="recipe/[recipeId]"
+            options={{
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="source-actions"
+            options={{
+              animation: 'slide_from_bottom',
+              contentStyle: {
+                backgroundColor: 'transparent',
+              },
+              presentation: 'transparentModal',
+            }}
+          />
+        </Stack>
+      </MockWorkspaceProvider>
     </AppThemeProvider>
   );
 }
