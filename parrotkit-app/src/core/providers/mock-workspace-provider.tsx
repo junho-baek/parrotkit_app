@@ -4,6 +4,7 @@ import {
   MockPlatform,
   MockRecipe,
   MockRecipeScene,
+  MockRecordedTake,
   MockReference,
   partnerCreators,
   profileSeed,
@@ -13,6 +14,7 @@ import {
 } from '@/core/mocks/parrotkit-data';
 import { getDefaultPrompterSelection } from '@/features/recipes/lib/mock-prompter-elements';
 import { normalizeNativeRecipeScene } from '@/features/recipes/lib/recipe-domain-normalizer';
+import type { PrompterBlock } from '@/features/recipes/types/recipe-domain';
 
 type CreateRecipeDraftInput = {
   title: string;
@@ -46,13 +48,25 @@ type MockWorkspaceContextValue = {
   getPrompterSelection: (recipeId: string, scene: MockRecipeScene) => string[];
   setPrompterSelection: (recipeId: string, sceneId: string, elementIds: string[]) => void;
   togglePrompterSelection: (recipeId: string, scene: MockRecipeScene, elementId: string) => void;
+  updateScenePrompterBlock: (
+    recipeId: string,
+    sceneId: string,
+    blockId: string,
+    updates: Partial<PrompterBlock>
+  ) => void;
   updateScenePrompterBlockVisibility: (recipeId: string, sceneId: string, blockId: string, visible: boolean) => void;
   updateScenePrompterBlockContent: (recipeId: string, sceneId: string, blockId: string, content: string) => void;
+  addScenePrompterBlock: (recipeId: string, sceneId: string) => string | null;
+  hideScenePrompterBlock: (recipeId: string, sceneId: string, blockId: string) => void;
+  getSceneRecordedTake: (recipeId: string, sceneId: string) => MockRecordedTake | null;
+  setSceneRecordedTake: (recipeId: string, sceneId: string, take: MockRecordedTake) => void;
+  clearSceneRecordedTake: (recipeId: string, sceneId: string) => void;
 };
 
 const MockWorkspaceContext = createContext<MockWorkspaceContextValue | null>(null);
 
 type PrompterSelectionState = Record<string, Record<string, string[]>>;
+type RecordedTakeState = Record<string, Record<string, MockRecordedTake>>;
 
 function guessPlatform(url: string): MockPlatform {
   const lowered = url.toLowerCase();
@@ -124,6 +138,7 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
   const [recipes, setRecipes] = useState<MockRecipe[]>(recipesSeed);
   const [trendingReferences, setTrendingReferences] = useState<MockReference[]>(trendingReferencesSeed);
   const [prompterSelections, setPrompterSelections] = useState<PrompterSelectionState>({});
+  const [recordedTakes, setRecordedTakes] = useState<RecordedTakeState>({});
 
   const toggleLikeReference = (referenceId: string) => {
     setTrendingReferences((current) =>
@@ -201,7 +216,12 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
     }));
   }, []);
 
-  const updateScenePrompterBlockVisibility = useCallback((recipeId: string, sceneId: string, blockId: string, visible: boolean) => {
+  const updateScenePrompterBlock = useCallback((
+    recipeId: string,
+    sceneId: string,
+    blockId: string,
+    updates: Partial<PrompterBlock>
+  ) => {
     setRecipes((currentRecipes) =>
       currentRecipes.map((recipe) => {
         if (recipe.id !== recipeId) {
@@ -224,10 +244,103 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
                   block.id === blockId
                     ? {
                         ...block,
-                        visible,
+                        ...updates,
+                        content: typeof updates.content === 'string'
+                          ? updates.content.trim() || block.content
+                          : block.content,
                       }
                     : block
                 ),
+              },
+            };
+          }),
+        };
+      })
+    );
+
+    if (typeof updates.visible === 'boolean') {
+      const recipe = recipes.find((currentRecipe) => currentRecipe.id === recipeId);
+      const sceneIndex = recipe?.scenes.findIndex((scene) => scene.id === sceneId) ?? -1;
+      const scene = sceneIndex >= 0 ? recipe?.scenes[sceneIndex] : null;
+      const baseSelection = scene
+        ? normalizeNativeRecipeScene(scene, sceneIndex, recipe?.thumbnail ?? '').prompter.blocks
+            .filter((block) => block.visible)
+            .map((block) => block.id)
+        : [];
+
+      setPrompterSelections((current) => {
+        const currentRecipe = current[recipeId] ?? {};
+        const currentSelection = currentRecipe[sceneId] ?? baseSelection;
+        const nextSelection = updates.visible
+          ? Array.from(new Set([...currentSelection, blockId]))
+          : currentSelection.filter((id) => id !== blockId);
+
+        return {
+          ...current,
+          [recipeId]: {
+            ...currentRecipe,
+            [sceneId]: nextSelection,
+          },
+        };
+      });
+    }
+  }, [recipes]);
+
+  const updateScenePrompterBlockVisibility = useCallback((recipeId: string, sceneId: string, blockId: string, visible: boolean) => {
+    updateScenePrompterBlock(recipeId, sceneId, blockId, { visible });
+  }, [updateScenePrompterBlock]);
+
+  const updateScenePrompterBlockContent = useCallback((recipeId: string, sceneId: string, blockId: string, content: string) => {
+    updateScenePrompterBlock(recipeId, sceneId, blockId, { content });
+  }, [updateScenePrompterBlock]);
+
+  const addScenePrompterBlock = useCallback((recipeId: string, sceneId: string) => {
+    const recipe = recipes.find((currentRecipe) => currentRecipe.id === recipeId);
+    const sceneIndex = recipe?.scenes.findIndex((scene) => scene.id === sceneId) ?? -1;
+    const scene = sceneIndex >= 0 ? recipe?.scenes[sceneIndex] : null;
+
+    if (!recipe || !scene) {
+      return null;
+    }
+
+    const newBlockId = `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+    const baseSelection = normalizeNativeRecipeScene(scene, sceneIndex, recipe.thumbnail).prompter.blocks
+      .filter((block) => block.visible)
+      .map((block) => block.id);
+
+    setRecipes((currentRecipes) =>
+      currentRecipes.map((recipe) => {
+        if (recipe.id !== recipeId) {
+          return recipe;
+        }
+
+        return {
+          ...recipe,
+          scenes: recipe.scenes.map((scene, sceneIndex) => {
+            if (scene.id !== sceneId) {
+              return scene;
+            }
+
+            const normalized = normalizeNativeRecipeScene(scene, sceneIndex, recipe.thumbnail);
+
+            return {
+              ...scene,
+              prompter: {
+                blocks: [
+                  ...normalized.prompter.blocks,
+                  {
+                    id: newBlockId,
+                    type: 'keyword',
+                    label: 'Cue',
+                    content: 'New cue',
+                    accentColor: 'blue',
+                    visible: true,
+                    size: 'md',
+                    positionPreset: 'upperThird',
+                    scale: 1,
+                    order: normalized.prompter.blocks.reduce((max, block) => Math.max(max, block.order), 0) + 1,
+                  },
+                ],
               },
             };
           }),
@@ -237,59 +350,49 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
 
     setPrompterSelections((current) => {
       const currentRecipe = current[recipeId] ?? {};
-      const currentSelection = currentRecipe[sceneId] ?? [];
-      const nextSelection = visible
-        ? Array.from(new Set([...currentSelection, blockId]))
-        : currentSelection.filter((id) => id !== blockId);
+      const currentSelection = currentRecipe[sceneId] ?? baseSelection;
 
       return {
         ...current,
         [recipeId]: {
           ...currentRecipe,
-          [sceneId]: nextSelection,
+          [sceneId]: Array.from(new Set([...currentSelection, newBlockId])),
         },
       };
     });
+
+    return newBlockId;
+  }, [recipes]);
+
+  const hideScenePrompterBlock = useCallback((recipeId: string, sceneId: string, blockId: string) => {
+    updateScenePrompterBlock(recipeId, sceneId, blockId, { visible: false });
+  }, [updateScenePrompterBlock]);
+
+  const getSceneRecordedTake = useCallback(
+    (recipeId: string, sceneId: string) => recordedTakes[recipeId]?.[sceneId] ?? null,
+    [recordedTakes]
+  );
+
+  const setSceneRecordedTake = useCallback((recipeId: string, sceneId: string, take: MockRecordedTake) => {
+    setRecordedTakes((current) => ({
+      ...current,
+      [recipeId]: {
+        ...(current[recipeId] ?? {}),
+        [sceneId]: take,
+      },
+    }));
   }, []);
 
-  const updateScenePrompterBlockContent = useCallback((recipeId: string, sceneId: string, blockId: string, content: string) => {
-    const nextContent = content.trim();
-    if (!nextContent) {
-      return;
-    }
+  const clearSceneRecordedTake = useCallback((recipeId: string, sceneId: string) => {
+    setRecordedTakes((current) => {
+      const nextRecipe = { ...(current[recipeId] ?? {}) };
+      delete nextRecipe[sceneId];
 
-    setRecipes((currentRecipes) =>
-      currentRecipes.map((recipe) => {
-        if (recipe.id !== recipeId) {
-          return recipe;
-        }
-
-        return {
-          ...recipe,
-          scenes: recipe.scenes.map((scene, sceneIndex) => {
-            if (scene.id !== sceneId) {
-              return scene;
-            }
-
-            const normalized = normalizeNativeRecipeScene(scene, sceneIndex, recipe.thumbnail);
-
-            return {
-              ...scene,
-              prompter: {
-                blocks: normalized.prompter.blocks.map((block) =>
-                  block.id === blockId
-                    ? {
-                        ...block,
-                        content: nextContent,
-                      }
-                    : block
-                ),
-              },
-            };
-          }),
-        };
-      })
-    );
+      return {
+        ...current,
+        [recipeId]: nextRecipe,
+      };
+    });
   }, []);
 
   const togglePrompterSelection = useCallback((recipeId: string, scene: MockRecipeScene, elementId: string) => {
@@ -359,22 +462,34 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       getPrompterSelection,
       setPrompterSelection,
       togglePrompterSelection,
+      updateScenePrompterBlock,
       updateScenePrompterBlockVisibility,
       updateScenePrompterBlockContent,
+      addScenePrompterBlock,
+      hideScenePrompterBlock,
+      getSceneRecordedTake,
+      setSceneRecordedTake,
+      clearSceneRecordedTake,
     }),
     [
+      addScenePrompterBlock,
+      clearSceneRecordedTake,
       createRecipeDraft,
+      getSceneRecordedTake,
       getPrompterSelection,
       getRecipeById,
+      hideScenePrompterBlock,
       homeStats,
       likedReferences,
       recentReferences,
       recipes,
       setPrompterSelection,
+      setSceneRecordedTake,
       sourceStats,
       toggleLikeReference,
       togglePrompterSelection,
       trendingReferences,
+      updateScenePrompterBlock,
       updateScenePrompterBlockContent,
       updateScenePrompterBlockVisibility,
     ]

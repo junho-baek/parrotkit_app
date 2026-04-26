@@ -23,6 +23,11 @@ export type MockPartnerCreator = {
   avatar: string;
 };
 
+export type MockRecordedTake = {
+  uri: string;
+  savedAt: string;
+};
+
 export type MockRecipeScene = {
   id: string;
   sceneNumber?: number;
