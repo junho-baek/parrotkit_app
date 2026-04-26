@@ -65,16 +65,15 @@ export function NativePrompterToolbar({
               <Pressable
                 accessibilityLabel={`Set cue color ${swatch.accentColor}`}
                 accessibilityRole="button"
-                key={swatch.accentColor}
-                onPress={() => onColorCue(swatch.accentColor)}
-                style={({ pressed }) => [
-                  styles.swatch,
-                  { backgroundColor: swatch.color },
-                  focusedBlock.accentColor === swatch.accentColor && styles.activeSwatch,
-                  pressed && styles.pressedButton,
-                ]}
-              >
-                <View style={styles.swatchInner} />
+              key={swatch.accentColor}
+              onPress={() => onColorCue(swatch.accentColor)}
+              style={[
+                styles.swatch,
+                { backgroundColor: swatch.color },
+                focusedBlock.accentColor === swatch.accentColor && styles.activeSwatch,
+              ]}
+            >
+                <View style={[styles.swatchInner, { backgroundColor: swatch.color }]} />
               </Pressable>
             ))}
           </View>
@@ -184,7 +183,6 @@ const styles = StyleSheet.create({
     padding: 7,
   },
   swatchInner: {
-    backgroundColor: 'rgba(255, 255, 255, 0.38)',
     borderRadius: 999,
     flex: 1,
   },
