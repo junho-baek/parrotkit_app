@@ -1,12 +1,22 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
+import {
+  CameraType,
+  CameraView,
+  type CameraViewRef,
+  useCameraPermissions,
+  useMicrophonePermissions,
+} from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
+import { NativePrompterBlockOverlay } from '@/features/recipes/components/native-prompter-block-overlay';
+import { NativePrompterToolbar } from '@/features/recipes/components/native-prompter-toolbar';
+import { NativeRecordButton } from '@/features/recipes/components/native-record-button';
+import { NativeTakeReview } from '@/features/recipes/components/native-take-review';
 import { ShootingSceneSwitcher } from '@/features/recipes/components/shooting-scene-switcher';
 import { getVisiblePrompterBlocks, normalizeNativeRecipe } from '@/features/recipes/lib/recipe-domain-normalizer';
 import { PrompterBlock } from '@/features/recipes/types/recipe-domain';
@@ -15,9 +25,26 @@ export function RecipePrompterCameraScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ recipeId?: string; sceneId?: string }>();
-  const { getRecipeById } = useMockWorkspace();
+  const {
+    addScenePrompterBlock,
+    getRecipeById,
+    getSceneRecordedTake,
+    hideScenePrompterBlock,
+    setSceneRecordedTake,
+    updateScenePrompterBlock,
+  } = useMockWorkspace();
   const [permission, requestPermission] = useCameraPermissions();
+  const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
+  const cameraRef = useRef<CameraViewRef>(null);
+  const cameraViewRef = useRef<CameraView>(null);
+  const recordingPromiseRef = useRef<Promise<{ uri: string }> | null>(null);
   const [facing, setFacing] = useState<CameraType>('front');
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
+  const [editRequestByBlockId, setEditRequestByBlockId] = useState<Record<string, number>>({});
+  const [recording, setRecording] = useState(false);
+  const [reviewUri, setReviewUri] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState('');
   const rawRecipe = params.recipeId ? getRecipeById(params.recipeId) : null;
   const recipe = useMemo(() => (rawRecipe ? normalizeNativeRecipe(rawRecipe) : null), [rawRecipe]);
   const [activeSceneId, setActiveSceneId] = useState(params.sceneId ?? recipe?.scenes[0]?.id ?? '');
@@ -39,6 +66,139 @@ export function RecipePrompterCameraScreen() {
     [activeSceneId, recipe]
   );
   const selectedBlocks = activeScene ? getVisiblePrompterBlocks(activeScene) : [];
+  const focusedBlock = useMemo(
+    () => selectedBlocks.find((block) => block.id === focusedBlockId) ?? selectedBlocks[0] ?? null,
+    [focusedBlockId, selectedBlocks]
+  );
+  const savedTake = recipe && activeScene ? getSceneRecordedTake(recipe.id, activeScene.id) : null;
+
+  useEffect(() => {
+    if (focusedBlockId && !selectedBlocks.some((block) => block.id === focusedBlockId)) {
+      setFocusedBlockId(selectedBlocks[0]?.id ?? null);
+    }
+  }, [focusedBlockId, selectedBlocks]);
+
+  useEffect(() => {
+    setReviewUri(null);
+    setSaveMessage('');
+  }, [activeSceneId]);
+
+  const handleOverlayLayout = useCallback((event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+
+    setContainerSize((current) => {
+      if (Math.round(current.width) === Math.round(width) && Math.round(current.height) === Math.round(height)) {
+        return current;
+      }
+
+      return { width, height };
+    });
+  }, []);
+
+  const handleUpdateBlock = useCallback((blockId: string, updates: Partial<Pick<PrompterBlock, 'content' | 'scale' | 'x' | 'y'>>) => {
+    if (!recipe || !activeScene) return;
+
+    updateScenePrompterBlock(recipe.id, activeScene.id, blockId, updates);
+  }, [activeScene, recipe, updateScenePrompterBlock]);
+
+  const requestEditForBlock = useCallback((blockId: string) => {
+    setFocusedBlockId(blockId);
+    setEditRequestByBlockId((current) => ({
+      ...current,
+      [blockId]: Date.now(),
+    }));
+  }, []);
+
+  const handleAddCue = useCallback(() => {
+    if (!recipe || !activeScene) return;
+
+    const blockId = addScenePrompterBlock(recipe.id, activeScene.id);
+
+    if (blockId) {
+      setFocusedBlockId(blockId);
+      requestAnimationFrame(() => requestEditForBlock(blockId));
+    }
+  }, [activeScene, addScenePrompterBlock, recipe, requestEditForBlock]);
+
+  const handleHideFocusedCue = useCallback(() => {
+    if (!recipe || !activeScene || !focusedBlock) return;
+
+    hideScenePrompterBlock(recipe.id, activeScene.id, focusedBlock.id);
+    setFocusedBlockId(null);
+  }, [activeScene, focusedBlock, hideScenePrompterBlock, recipe]);
+
+  const handleScaleFocusedCue = useCallback((scale: number) => {
+    if (!focusedBlock) return;
+
+    handleUpdateBlock(focusedBlock.id, { scale });
+  }, [focusedBlock, handleUpdateBlock]);
+
+  const handleEditFocusedCue = useCallback(() => {
+    if (!focusedBlock) return;
+
+    requestEditForBlock(focusedBlock.id);
+  }, [focusedBlock, requestEditForBlock]);
+
+  const handleRecordPress = useCallback(async () => {
+    if (recording) {
+      cameraRef.current?.stopRecording();
+      return;
+    }
+
+    if (microphonePermission?.canAskAgain && !microphonePermission.granted) {
+      await requestMicrophonePermission();
+    }
+
+    cameraRef.current = cameraViewRef.current?._cameraRef.current ?? null;
+    const camera = cameraRef.current;
+
+    if (!camera) return;
+
+    setSaveMessage('');
+    setReviewUri(null);
+    setRecording(true);
+
+    const recordingPromise = camera.record({ maxDuration: 90 }) as Promise<{ uri: string }>;
+    recordingPromiseRef.current = recordingPromise;
+
+    try {
+      const result = await recordingPromise;
+
+      if (result?.uri) {
+        setReviewUri(result.uri);
+      }
+    } catch {
+      setSaveMessage('Recording could not be saved. Try again.');
+    } finally {
+      if (recordingPromiseRef.current === recordingPromise) {
+        recordingPromiseRef.current = null;
+      }
+
+      setRecording(false);
+    }
+  }, [microphonePermission, recording, requestMicrophonePermission]);
+
+  const handleCameraReady = useCallback(() => {
+    cameraRef.current = cameraViewRef.current?._cameraRef.current ?? null;
+  }, []);
+
+  const handleRetryReview = useCallback(() => {
+    setReviewUri(null);
+    setSaveMessage('');
+  }, []);
+
+  const handleUseTake = useCallback(() => {
+    if (!recipe || !activeScene || !reviewUri) return;
+
+    setSceneRecordedTake(recipe.id, activeScene.id, {
+      uri: reviewUri,
+      savedAt: 'Saved just now',
+    });
+    setReviewUri(null);
+    setSaveMessage('Take saved');
+  }, [activeScene, recipe, reviewUri, setSceneRecordedTake]);
+
+  const statusLabel = saveMessage || savedTake?.savedAt || (!microphonePermission?.granted ? 'Mic off: muted recording' : '');
 
   if (!recipe || !activeScene) {
     return (
@@ -62,10 +222,14 @@ export function RecipePrompterCameraScreen() {
   return (
     <View className="flex-1 bg-slate-950">
       <CameraView
+        ref={cameraViewRef}
         active
         animateShutter={false}
         facing={facing}
         mirror={facing === 'front'}
+        mode="video"
+        mute={!microphonePermission?.granted}
+        onCameraReady={handleCameraReady}
         style={styles.camera}
       />
 
@@ -103,16 +267,24 @@ export function RecipePrompterCameraScreen() {
           </View>
         </View>
 
-        <View pointerEvents="box-none" className="flex-1 justify-center px-4">
-          <View className="self-center w-full max-w-[330px] gap-3">
+        <View pointerEvents="box-none" className="flex-1" onLayout={handleOverlayLayout}>
+          <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
             {selectedBlocks.length ? (
               selectedBlocks.map((block) => (
-                <OverlayCueCard key={block.id} block={block} />
+                <NativePrompterBlockOverlay
+                  key={block.id}
+                  block={block}
+                  containerSize={containerSize}
+                  editingRequestedAt={editRequestByBlockId[block.id]}
+                  focused={block.id === focusedBlock?.id}
+                  onFocus={() => setFocusedBlockId(block.id)}
+                  onUpdate={(updates) => handleUpdateBlock(block.id, updates)}
+                />
               ))
             ) : (
-              <View className="rounded-[24px] border border-dashed border-white/20 bg-black/35 px-5 py-5">
+              <View className="mx-4 self-center rounded-[24px] border border-dashed border-white/20 bg-black/35 px-5 py-5" style={styles.emptyCueState}>
                 <Text className="text-sm font-medium leading-6 text-white/70">
-                  Select cues in the Recipe tab before shooting.
+                  Add a cue to start shooting with prompts.
                 </Text>
               </View>
             )}
@@ -123,6 +295,27 @@ export function RecipePrompterCameraScreen() {
           className="rounded-t-[30px] border border-white/10 bg-slate-950/72 px-4 pt-4"
           style={{ paddingBottom: insets.bottom + (Platform.OS === 'android' ? 12 : 4) }}
         >
+          <View className="mb-3 flex-row items-center justify-between gap-3">
+            <NativePrompterToolbar
+              focusedBlock={focusedBlock}
+              onAddCue={handleAddCue}
+              onEditCue={handleEditFocusedCue}
+              onHideCue={handleHideFocusedCue}
+              onScaleCue={handleScaleFocusedCue}
+            />
+            <NativeRecordButton
+              disabled={Boolean(reviewUri)}
+              onPress={handleRecordPress}
+              recording={recording}
+            />
+          </View>
+
+          {statusLabel ? (
+            <Text className="mb-3 text-center text-[12px] font-semibold text-white/60">
+              {statusLabel}
+            </Text>
+          ) : null}
+
           <ShootingSceneSwitcher
             activeSceneId={activeScene.id}
             onSelectScene={setActiveSceneId}
@@ -130,6 +323,16 @@ export function RecipePrompterCameraScreen() {
           />
         </View>
       </View>
+
+      {reviewUri ? (
+        <View style={styles.reviewOverlay}>
+          <NativeTakeReview
+            onRetry={handleRetryReview}
+            onUseTake={handleUseTake}
+            uri={reviewUri}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -183,18 +386,6 @@ function OverlayIconButton({
   );
 }
 
-function OverlayCueCard({ block }: { block: PrompterBlock }) {
-  const toneClass = block.type === 'key_line'
-    ? 'border-[#ffb598]/60 bg-[#ff936b]/20'
-    : 'border-[#c4b5fd]/60 bg-[#8b5cf6]/20';
-
-  return (
-    <View className={`rounded-[24px] border px-4 py-4 ${toneClass}`}>
-      <Text className="text-[17px] font-semibold leading-6 text-white">{block.content}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   camera: {
     ...StyleSheet.absoluteFillObject,
@@ -218,5 +409,13 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     zIndex: 1,
+  },
+  emptyCueState: {
+    top: '42%',
+    maxWidth: 330,
+  },
+  reviewOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
   },
 });
