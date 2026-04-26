@@ -67,6 +67,11 @@ const MockWorkspaceContext = createContext<MockWorkspaceContextValue | null>(nul
 
 type PrompterSelectionState = Record<string, Record<string, string[]>>;
 type RecordedTakeState = Record<string, Record<string, MockRecordedTake>>;
+type WorkspaceState = {
+  recipes: MockRecipe[];
+  prompterSelections: PrompterSelectionState;
+};
+type StateUpdate<T> = T | ((current: T) => T);
 
 function guessPlatform(url: string): MockPlatform {
   const lowered = url.toLowerCase();
@@ -135,10 +140,27 @@ function buildScenes(title: string, niche: string, goal: string, notes: string):
 
 export function MockWorkspaceProvider({ children }: PropsWithChildren) {
   const [recentReferences, setRecentReferences] = useState<MockReference[]>(recentReferencesSeed);
-  const [recipes, setRecipes] = useState<MockRecipe[]>(recipesSeed);
+  const [workspaceState, setWorkspaceState] = useState<WorkspaceState>({
+    recipes: recipesSeed,
+    prompterSelections: {},
+  });
   const [trendingReferences, setTrendingReferences] = useState<MockReference[]>(trendingReferencesSeed);
-  const [prompterSelections, setPrompterSelections] = useState<PrompterSelectionState>({});
   const [recordedTakes, setRecordedTakes] = useState<RecordedTakeState>({});
+  const { recipes, prompterSelections } = workspaceState;
+
+  const setRecipes = useCallback((update: StateUpdate<MockRecipe[]>) => {
+    setWorkspaceState((current) => ({
+      ...current,
+      recipes: typeof update === 'function' ? update(current.recipes) : update,
+    }));
+  }, []);
+
+  const setPrompterSelections = useCallback((update: StateUpdate<PrompterSelectionState>) => {
+    setWorkspaceState((current) => ({
+      ...current,
+      prompterSelections: typeof update === 'function' ? update(current.prompterSelections) : update,
+    }));
+  }, []);
 
   const toggleLikeReference = (referenceId: string) => {
     setTrendingReferences((current) =>
@@ -207,10 +229,10 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
   const setPrompterSelection = useCallback((recipeId: string, sceneId: string, elementIds: string[]) => {
     const elementIdSet = new Set(elementIds);
 
-    setRecipes((currentRecipes) => {
+    setWorkspaceState((current) => {
       let nextIds = Array.from(elementIdSet);
 
-      const nextRecipes = currentRecipes.map((currentRecipe) => {
+      const nextRecipes = current.recipes.map((currentRecipe) => {
         if (currentRecipe.id !== recipeId) {
           return currentRecipe;
         }
@@ -245,15 +267,17 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
         };
       });
 
-      setPrompterSelections((current) => ({
+      return {
         ...current,
-        [recipeId]: {
-          ...(current[recipeId] ?? {}),
-          [sceneId]: nextIds,
+        recipes: nextRecipes,
+        prompterSelections: {
+          ...current.prompterSelections,
+          [recipeId]: {
+            ...(current.prompterSelections[recipeId] ?? {}),
+            [sceneId]: nextIds,
+          },
         },
-      }));
-
-      return nextRecipes;
+      };
     });
   }, []);
 
