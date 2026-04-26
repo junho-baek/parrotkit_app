@@ -1,5 +1,6 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Href, useRouter } from 'expo-router';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { AppScreenScrollView } from '@/core/ui/app-screen-scroll-view';
@@ -7,7 +8,18 @@ import { MediaTileCard } from '@/core/ui/media-tile-card';
 
 export function SourceScreen() {
   const router = useRouter();
-  const { recentReferences, recipes, sourceStats } = useMockWorkspace();
+  const { createRecipeDraft, recentReferences, recipes, sourceStats } = useMockWorkspace();
+
+  const handleStartBlankRecipe = () => {
+    const recipe = createRecipeDraft({
+      goal: 'Build a reusable content recipe',
+      niche: 'Creator',
+      notes: 'Started from Source without a pasted link.',
+      title: 'New Recipe Draft',
+    });
+
+    router.push(`/recipe/${recipe.id}` as Href);
+  };
 
   return (
     <AppScreenScrollView>
@@ -24,17 +36,27 @@ export function SourceScreen() {
           <SourceStat title="Queue" value={String(sourceStats.queue)} />
         </View>
 
-        <View className="gap-3 rounded-[28px] border border-stroke bg-surface px-5 py-5">
-          <Text className="text-[18px] font-bold text-ink">Next Action</Text>
-          <Text className="text-sm leading-6 text-muted">
-            Paste a viral link, create a draft recipe, and review it before wiring real analysis.
-          </Text>
-          <Text
-            className="self-start rounded-full bg-violet px-4 py-3 text-sm font-bold text-white"
-            onPress={() => router.push('/source-actions' as Href)}
-          >
-            Open Paste Drawer
-          </Text>
+        <View className="gap-3">
+          <Text className="text-[18px] font-bold text-ink">Create from Source</Text>
+
+          <View className="flex-row gap-3">
+            <SourceActionCard
+              accent="violet"
+              body="Drop a TikTok, Reel, or Short. ParrotKit turns it into a structured draft."
+              icon="link-variant"
+              label="Paste"
+              onPress={() => router.push('/source-actions' as Href)}
+              title="Paste recipe"
+            />
+            <SourceActionCard
+              accent="blue"
+              body="Skip the link. Open a clean draft and shape the content recipe yourself."
+              icon="playlist-edit"
+              label="Start"
+              onPress={handleStartBlankRecipe}
+              title="Blank recipe"
+            />
+          </View>
         </View>
 
         <View className="gap-3">
@@ -87,5 +109,60 @@ function SourceStat({ title, value }: { title: string; value: string }) {
       <Text className="mt-auto text-[30px] font-black text-ink">{value}</Text>
       <Text className="text-[15px] font-semibold text-ink">{title}</Text>
     </View>
+  );
+}
+
+function SourceActionCard({
+  accent,
+  body,
+  icon,
+  label,
+  onPress,
+  title,
+}: {
+  accent: 'blue' | 'violet';
+  body: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  label: string;
+  onPress: () => void;
+  title: string;
+}) {
+  const tone =
+    accent === 'violet'
+      ? {
+          background: '#f5f3ff',
+          button: '#8b5cf6',
+          icon: '#7c3aed',
+        }
+      : {
+          background: '#eff6ff',
+          button: '#0284c7',
+          icon: '#0369a1',
+        };
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      className="min-h-[178px] flex-1 justify-between rounded-[26px] border border-stroke px-4 py-4"
+      onPress={onPress}
+      style={{ backgroundColor: tone.background }}
+    >
+      <View className="gap-3">
+        <View className="h-11 w-11 items-center justify-center rounded-2xl bg-white/80">
+          <MaterialCommunityIcons color={tone.icon} name={icon} size={21} />
+        </View>
+
+        <View className="gap-1.5">
+          <Text className="text-[17px] font-black leading-[21px] text-ink">{title}</Text>
+          <Text className="text-[12px] font-medium leading-[17px] text-muted">{body}</Text>
+        </View>
+      </View>
+
+      <View className="mt-4 min-w-[70px] items-center rounded-full px-3.5 py-2" style={{ backgroundColor: tone.button }}>
+        <Text allowFontScaling={false} className="text-[12px] font-bold text-white">
+          {label}
+        </Text>
+      </View>
+    </Pressable>
   );
 }

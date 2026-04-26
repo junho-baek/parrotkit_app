@@ -15,10 +15,10 @@ import { getDefaultPrompterSelection } from '@/features/recipes/lib/mock-prompte
 
 type CreateRecipeDraftInput = {
   title: string;
-  videoUrl: string;
-  niche: string;
-  goal: string;
-  notes: string;
+  videoUrl?: string;
+  niche?: string;
+  goal?: string;
+  notes?: string;
 };
 
 type MockWorkspaceContextValue = {
@@ -136,13 +136,14 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
     );
   };
 
-  const createRecipeDraft = ({ title, videoUrl, niche, goal, notes }: CreateRecipeDraftInput) => {
+  const createRecipeDraft = ({ title, videoUrl = '', niche = '', goal = '', notes = '' }: CreateRecipeDraftInput) => {
     const platform = guessPlatform(videoUrl);
     const draftId = `recipe-${Date.now().toString(36)}`;
+    const resolvedTitle = title.trim() || 'Untitled Recipe Draft';
 
     const recipe: MockRecipe = {
       id: draftId,
-      title: title.trim(),
+      title: resolvedTitle,
       creator: '@parrotkit',
       platform,
       thumbnail: platform === 'YouTube Shorts'
@@ -150,16 +151,16 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
         : 'https://images.unsplash.com/photo-1492724441997-5dc865305da7?auto=format&fit=crop&w=900&q=80',
       savedAt: 'Saved just now',
       sourceUrl: videoUrl.trim(),
-      summary: `${title.trim()} is now a local draft recipe shell you can review before wiring real analysis.`,
+      summary: `${resolvedTitle} is now a local draft recipe shell you can shape before wiring real analysis.`,
       niche: niche.trim() || 'Creator',
       goal: goal.trim() || 'Sharper pacing',
       notes: notes.trim(),
-      scenes: buildScenes(title, niche, goal, notes),
+      scenes: buildScenes(resolvedTitle, niche, goal, notes),
     };
 
     const reference: MockReference = {
       id: `recent-${Date.now().toString(36)}`,
-      title: title.trim(),
+      title: resolvedTitle,
       creator: '@parrotkit',
       thumbnail: recipe.thumbnail,
       duration: '00:29',

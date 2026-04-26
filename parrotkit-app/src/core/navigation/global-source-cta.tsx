@@ -11,7 +11,7 @@ export function GlobalSourceCta() {
   const pathname = usePathname();
   const router = useRouter();
 
-  if (pathname === '/source-actions') {
+  if (pathname === '/source' || pathname === '/source-actions') {
     return null;
   }
 
