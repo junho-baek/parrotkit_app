@@ -37,8 +37,8 @@ export function NativePrompterToolbar({
   return (
     <View pointerEvents="box-none" style={styles.root}>
       {focusedBlock ? (
-        <View style={styles.focusedControls}>
-          <View style={styles.actionRow}>
+        <>
+          <View style={styles.focusedControls}>
             <ToolbarButton
               accessibilityLabel="Make focused cue smaller"
               iconName="format-font-size-decrease"
@@ -60,7 +60,7 @@ export function NativePrompterToolbar({
               onPress={onHideCue}
             />
           </View>
-          <View style={styles.swatchRow}>
+          <View style={styles.paletteBar}>
             {colorSwatches.map((swatch) => (
               <Pressable
                 accessibilityLabel={`Set cue color ${swatch.accentColor}`}
@@ -73,10 +73,12 @@ export function NativePrompterToolbar({
                   focusedBlock.accentColor === swatch.accentColor && styles.activeSwatch,
                   pressed && styles.pressedButton,
                 ]}
-              />
+              >
+                <View style={styles.swatchInner} />
+              </Pressable>
             ))}
           </View>
-        </View>
+        </>
       ) : null}
 
       <ToolbarButton
@@ -123,7 +125,7 @@ function ToolbarButton({
 const styles = StyleSheet.create({
   root: {
     alignItems: 'center',
-    flexDirection: 'row',
+    alignSelf: 'flex-start',
     gap: 10,
     justifyContent: 'center',
   },
@@ -131,15 +133,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(15, 23, 42, 0.72)',
     borderColor: 'rgba(255, 255, 255, 0.14)',
-    borderRadius: 24,
+    borderRadius: 999,
     borderWidth: 1,
-    gap: 6,
-    padding: 6,
-  },
-  actionRow: {
-    alignItems: 'center',
     flexDirection: 'row',
     gap: 6,
+    padding: 6,
   },
   button: {
     alignItems: 'center',
@@ -166,18 +164,28 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.24)',
     borderRadius: 999,
     borderWidth: 1,
-    height: 26,
-    width: 26,
+    height: 28,
+    padding: 3,
+    width: 28,
   },
   activeSwatch: {
     borderColor: '#ffffff',
     borderWidth: 2,
   },
-  swatchRow: {
+  paletteBar: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(15, 23, 42, 0.72)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderRadius: 999,
+    borderWidth: 1,
     flexDirection: 'row',
-    gap: 8,
-    justifyContent: 'center',
-    paddingBottom: 2,
-    paddingTop: 2,
+    gap: 7,
+    padding: 7,
+  },
+  swatchInner: {
+    backgroundColor: 'rgba(255, 255, 255, 0.38)',
+    borderRadius: 999,
+    flex: 1,
   },
 });
