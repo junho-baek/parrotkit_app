@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import {
+  clampPrompterPointToBounds,
   getBlockPoint,
   normalizePrompterScale,
   pointFromGesture,
@@ -27,8 +28,8 @@ type NativePrompterBlockOverlayProps = {
   editingRequestedAt?: number;
 };
 
-const BLOCK_WIDTH = 280;
-const BLOCK_MIN_HEIGHT = 74;
+const BLOCK_WIDTH = 244;
+const BLOCK_MIN_HEIGHT = 58;
 
 function getTouchDistance(event: GestureResponderEvent) {
   const [firstTouch, secondTouch] = event.nativeEvent.touches;
@@ -42,10 +43,10 @@ function getTouchDistance(event: GestureResponderEvent) {
 }
 
 function getFontSize(block: PrompterBlock) {
-  if (block.size === 'xl') return 24;
-  if (block.size === 'lg') return 21;
+  if (block.size === 'xl') return 20;
+  if (block.size === 'lg') return 18;
   if (block.size === 'sm') return 16;
-  return 18;
+  return 17;
 }
 
 function getTone(block: PrompterBlock) {
@@ -98,7 +99,11 @@ export function NativePrompterBlockOverlay({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(block.content);
 
-  const point = getBlockPoint(block);
+  const point = clampPrompterPointToBounds(getBlockPoint(block), {
+    bottomInset: 0.66,
+    horizontalInset: 0.18,
+    topInset: 0.14,
+  });
   const scale = normalizePrompterScale(block.scale ?? 1);
   const safeWidth = Math.max(containerSize.width, 1);
   const safeHeight = Math.max(containerSize.height, 1);
@@ -179,7 +184,11 @@ export function NativePrompterBlockOverlay({
             height: safeHeight,
           });
 
-          onUpdate({ x: nextPoint.x, y: nextPoint.y });
+          onUpdate(clampPrompterPointToBounds(nextPoint, {
+            bottomInset: 0.66,
+            horizontalInset: 0.18,
+            topInset: 0.14,
+          }));
         },
         onPanResponderRelease: () => {
           startPinchDistanceRef.current = null;
@@ -198,7 +207,7 @@ export function NativePrompterBlockOverlay({
         styles.root,
         {
           left: point.x * safeWidth - BLOCK_WIDTH / 2,
-          top: point.y * safeHeight,
+          top: point.y * safeHeight - BLOCK_MIN_HEIGHT / 2,
           transform: [{ scale }],
           width: BLOCK_WIDTH,
         },
@@ -250,8 +259,8 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 1,
     minHeight: BLOCK_MIN_HEIGHT,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.35,
