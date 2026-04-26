@@ -36,5 +36,17 @@
 - 녹화 권한과 microphone permission은 app config/prebuild 영향이 있으므로 native rebuild가 필요할 수 있다.
 
 ## 결과
-- native prompter web parity 구현 플랜을 작성했다.
-- 연결 플랜: `docs/superpowers/plans/2026-04-26-parrotkit-native-prompter-web-parity.md`
+- native prompter web parity 구현 완료.
+- `dev`에서 camera shooting surface를 실제 조작 가능한 화면으로 재구성했다.
+- 구현 내용:
+  - cue block 이동, 더블탭/툴바 편집, scale 조정, color palette 변경, add/hide cue.
+  - Expo Camera video mode 기반 record/stop.
+  - recorded take review/use-take persistence.
+  - mock provider의 prompter block layout/content/color/visibility/custom cue/take state API.
+  - `expo-video` native module 미포함 dev-client에서도 앱이 뜨도록 review fallback 적용.
+- 검증:
+  - `cd parrotkit-app && npx tsc --noEmit` 통과.
+  - Metro dev-client bundle 통과.
+  - iOS simulator deep link `parrotkit-app:///recipe/recipe-korean-diet-hook/prompter` 확인.
+  - 스크린샷: `output/playwright/native-prompter-palette-swatches.png`.
+- 연결 context: `context/context_20260426_parrotkit_native_prompter_web_parity.md`
