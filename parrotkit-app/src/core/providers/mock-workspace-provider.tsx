@@ -205,7 +205,55 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
   );
 
   const setPrompterSelection = useCallback((recipeId: string, sceneId: string, elementIds: string[]) => {
-    const nextIds = Array.from(new Set(elementIds));
+    const recipe = recipes.find((currentRecipe) => currentRecipe.id === recipeId);
+    const sceneIndex = recipe?.scenes.findIndex((scene) => scene.id === sceneId) ?? -1;
+    const scene = sceneIndex >= 0 ? recipe?.scenes[sceneIndex] : null;
+    const elementIdSet = new Set(elementIds);
+    const normalized = recipe && scene
+      ? normalizeNativeRecipeScene(scene, sceneIndex, recipe.thumbnail)
+      : null;
+    const nextIds = normalized
+      ? normalized.prompter.blocks
+          .filter((block) => elementIdSet.has(block.id))
+          .map((block) => block.id)
+      : Array.from(elementIdSet);
+
+    if (normalized) {
+      const nextIdSet = new Set(nextIds);
+
+      setRecipes((currentRecipes) =>
+        currentRecipes.map((currentRecipe) => {
+          if (currentRecipe.id !== recipeId) {
+            return currentRecipe;
+          }
+
+          return {
+            ...currentRecipe,
+            scenes: currentRecipe.scenes.map((currentScene, currentSceneIndex) => {
+              if (currentScene.id !== sceneId) {
+                return currentScene;
+              }
+
+              const currentNormalized = normalizeNativeRecipeScene(
+                currentScene,
+                currentSceneIndex,
+                currentRecipe.thumbnail
+              );
+
+              return {
+                ...currentScene,
+                prompter: {
+                  blocks: currentNormalized.prompter.blocks.map((block) => ({
+                    ...block,
+                    visible: nextIdSet.has(block.id),
+                  })),
+                },
+              };
+            }),
+          };
+        })
+      );
+    }
 
     setPrompterSelections((current) => ({
       ...current,
@@ -214,7 +262,7 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
         [sceneId]: nextIds,
       },
     }));
-  }, []);
+  }, [recipes]);
 
   const updateScenePrompterBlock = useCallback((
     recipeId: string,
@@ -385,8 +433,19 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
 
   const clearSceneRecordedTake = useCallback((recipeId: string, sceneId: string) => {
     setRecordedTakes((current) => {
-      const nextRecipe = { ...(current[recipeId] ?? {}) };
+      const recipeTakes = current[recipeId];
+      if (!recipeTakes?.[sceneId]) {
+        return current;
+      }
+
+      const nextRecipe = { ...recipeTakes };
       delete nextRecipe[sceneId];
+
+      if (Object.keys(nextRecipe).length === 0) {
+        const nextRecordedTakes = { ...current };
+        delete nextRecordedTakes[recipeId];
+        return nextRecordedTakes;
+      }
 
       return {
         ...current,
