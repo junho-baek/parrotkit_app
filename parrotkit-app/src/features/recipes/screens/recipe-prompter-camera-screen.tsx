@@ -303,7 +303,7 @@ export function RecipePrompterCameraScreen() {
           </View>
 
           {statusLabel ? (
-            <Text className="mb-3 text-center text-[12px] font-semibold text-white/60">
+            <Text style={styles.statusLabel}>
               {statusLabel}
             </Text>
           ) : null}
@@ -409,5 +409,12 @@ const styles = StyleSheet.create({
   reviewOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 20,
+  },
+  statusLabel: {
+    color: 'rgba(255, 255, 255, 0.62)',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 12,
+    textAlign: 'center',
   },
 });
