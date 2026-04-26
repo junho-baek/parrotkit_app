@@ -93,7 +93,7 @@ export function RecipePrompterCameraScreen() {
     });
   }, []);
 
-  const handleUpdateBlock = useCallback((blockId: string, updates: Partial<Pick<PrompterBlock, 'content' | 'scale' | 'x' | 'y'>>) => {
+  const handleUpdateBlock = useCallback((blockId: string, updates: Partial<PrompterBlock>) => {
     if (!recipe || !activeScene) return;
 
     updateScenePrompterBlock(recipe.id, activeScene.id, blockId, updates);
@@ -129,6 +129,12 @@ export function RecipePrompterCameraScreen() {
     if (!focusedBlock) return;
 
     handleUpdateBlock(focusedBlock.id, { scale });
+  }, [focusedBlock, handleUpdateBlock]);
+
+  const handleColorFocusedCue = useCallback((accentColor: string) => {
+    if (!focusedBlock) return;
+
+    handleUpdateBlock(focusedBlock.id, { accentColor });
   }, [focusedBlock, handleUpdateBlock]);
 
   const handleEditFocusedCue = useCallback(() => {
@@ -291,6 +297,7 @@ export function RecipePrompterCameraScreen() {
             <NativePrompterToolbar
               focusedBlock={focusedBlock}
               onAddCue={handleAddCue}
+              onColorCue={handleColorFocusedCue}
               onEditCue={handleEditFocusedCue}
               onHideCue={handleHideFocusedCue}
               onScaleCue={handleScaleFocusedCue}

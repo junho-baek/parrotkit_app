@@ -96,6 +96,8 @@ export function NativePrompterBlockOverlay({
   const startPointRef = useRef<PrompterPoint>(getBlockPoint(block));
   const startScaleRef = useRef(normalizePrompterScale(block.scale ?? 1));
   const startPinchDistanceRef = useRef<number | null>(null);
+  const gestureMovedRef = useRef(false);
+  const lastTapAtRef = useRef(0);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(block.content);
 
@@ -151,16 +153,25 @@ export function NativePrompterBlockOverlay({
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: (event) => event.nativeEvent.touches.length > 1,
+        onStartShouldSetPanResponder: () => !editing,
         onMoveShouldSetPanResponder: (event, gestureState) =>
-          event.nativeEvent.touches.length > 1 || Math.abs(gestureState.dx) > 3 || Math.abs(gestureState.dy) > 3,
+          !editing && (
+            event.nativeEvent.touches.length > 1 ||
+            Math.abs(gestureState.dx) > 2 ||
+            Math.abs(gestureState.dy) > 2
+          ),
         onPanResponderGrant: (event) => {
           onFocus();
+          gestureMovedRef.current = false;
           startPointRef.current = getBlockPoint(block);
           startScaleRef.current = normalizePrompterScale(block.scale ?? 1);
           startPinchDistanceRef.current = getTouchDistance(event);
         },
         onPanResponderMove: (event: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+          if (Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2) {
+            gestureMovedRef.current = true;
+          }
+
           const pinchDistance = getTouchDistance(event);
 
           if (pinchDistance !== null) {
@@ -192,12 +203,22 @@ export function NativePrompterBlockOverlay({
         },
         onPanResponderRelease: () => {
           startPinchDistanceRef.current = null;
+
+          if (!gestureMovedRef.current) {
+            const now = Date.now();
+            if (now - lastTapAtRef.current < 300) {
+              beginEditing();
+              lastTapAtRef.current = 0;
+            } else {
+              lastTapAtRef.current = now;
+            }
+          }
         },
         onPanResponderTerminate: () => {
           startPinchDistanceRef.current = null;
         },
       }),
-    [block, onFocus, onUpdate, safeHeight, safeWidth],
+    [beginEditing, block, editing, onFocus, onUpdate, safeHeight, safeWidth],
   );
 
   return (
@@ -214,7 +235,6 @@ export function NativePrompterBlockOverlay({
       ]}
     >
       <View
-        onTouchStart={onFocus}
         style={[
           styles.card,
           tone,

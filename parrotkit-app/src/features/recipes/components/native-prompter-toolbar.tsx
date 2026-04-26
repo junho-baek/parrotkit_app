@@ -7,18 +7,27 @@ import type { PrompterBlock } from '@/features/recipes/types/recipe-domain';
 type NativePrompterToolbarProps = {
   focusedBlock: PrompterBlock | null;
   onAddCue: () => void;
+  onColorCue: (accentColor: string) => void;
   onEditCue: () => void;
   onHideCue: () => void;
   onScaleCue: (scale: number) => void;
 };
 
 const SCALE_STEP = 0.12;
+const colorSwatches = [
+  { accentColor: 'blue', color: '#8b5cf6' },
+  { accentColor: 'coral', color: '#ff7e58' },
+  { accentColor: 'yellow', color: '#facc15' },
+  { accentColor: 'green', color: '#22c55e' },
+  { accentColor: 'pink', color: '#ec4899' },
+];
 
 type ToolbarIconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 export function NativePrompterToolbar({
   focusedBlock,
   onAddCue,
+  onColorCue,
   onEditCue,
   onHideCue,
   onScaleCue,
@@ -49,6 +58,21 @@ export function NativePrompterToolbar({
             iconName="eye-off-outline"
             onPress={onHideCue}
           />
+          <View style={styles.divider} />
+          {colorSwatches.map((swatch) => (
+            <Pressable
+              accessibilityLabel={`Set cue color ${swatch.accentColor}`}
+              accessibilityRole="button"
+              key={swatch.accentColor}
+              onPress={() => onColorCue(swatch.accentColor)}
+              style={({ pressed }) => [
+                styles.swatch,
+                { backgroundColor: swatch.color },
+                focusedBlock.accentColor === swatch.accentColor && styles.activeSwatch,
+                pressed && styles.pressedButton,
+              ]}
+            />
+          ))}
         </View>
       ) : null}
 
@@ -120,6 +144,11 @@ const styles = StyleSheet.create({
   secondaryButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
+  divider: {
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    height: 24,
+    width: 1,
+  },
   emphasizedButton: {
     backgroundColor: '#ffffff',
     shadowColor: '#000',
@@ -130,5 +159,16 @@ const styles = StyleSheet.create({
   pressedButton: {
     opacity: 0.72,
     transform: [{ scale: 0.96 }],
+  },
+  swatch: {
+    borderColor: 'rgba(255, 255, 255, 0.24)',
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 24,
+    width: 24,
+  },
+  activeSwatch: {
+    borderColor: '#ffffff',
+    borderWidth: 2,
   },
 });
