@@ -2,7 +2,6 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
   CameraType,
   CameraView,
-  type CameraViewRef,
   useCameraPermissions,
   useMicrophonePermissions,
 } from 'expo-camera';
@@ -35,9 +34,8 @@ export function RecipePrompterCameraScreen() {
   } = useMockWorkspace();
   const [permission, requestPermission] = useCameraPermissions();
   const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
-  const cameraRef = useRef<CameraViewRef>(null);
-  const cameraViewRef = useRef<CameraView>(null);
-  const recordingPromiseRef = useRef<Promise<{ uri: string }> | null>(null);
+  const cameraRef = useRef<CameraView>(null);
+  const recordingPromiseRef = useRef<Promise<{ uri: string } | undefined> | null>(null);
   const [facing, setFacing] = useState<CameraType>('front');
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
@@ -149,7 +147,6 @@ export function RecipePrompterCameraScreen() {
       await requestMicrophonePermission();
     }
 
-    cameraRef.current = cameraViewRef.current?._cameraRef.current ?? null;
     const camera = cameraRef.current;
 
     if (!camera) return;
@@ -158,7 +155,7 @@ export function RecipePrompterCameraScreen() {
     setReviewUri(null);
     setRecording(true);
 
-    const recordingPromise = camera.record({ maxDuration: 90 }) as Promise<{ uri: string }>;
+    const recordingPromise = camera.recordAsync({ maxDuration: 90 });
     recordingPromiseRef.current = recordingPromise;
 
     try {
@@ -177,10 +174,6 @@ export function RecipePrompterCameraScreen() {
       setRecording(false);
     }
   }, [microphonePermission, recording, requestMicrophonePermission]);
-
-  const handleCameraReady = useCallback(() => {
-    cameraRef.current = cameraViewRef.current?._cameraRef.current ?? null;
-  }, []);
 
   const handleRetryReview = useCallback(() => {
     setReviewUri(null);
@@ -222,14 +215,13 @@ export function RecipePrompterCameraScreen() {
   return (
     <View className="flex-1 bg-slate-950">
       <CameraView
-        ref={cameraViewRef}
+        ref={cameraRef}
         active
         animateShutter={false}
         facing={facing}
         mirror={facing === 'front'}
         mode="video"
         mute={!microphonePermission?.granted}
-        onCameraReady={handleCameraReady}
         style={styles.camera}
       />
 
