@@ -1,37 +1,32 @@
 import { MockRecipeScene } from '@/core/mocks/parrotkit-data';
+import { normalizeNativeRecipeScene } from '@/features/recipes/lib/recipe-domain-normalizer';
+import { PrompterBlock } from '@/features/recipes/types/recipe-domain';
 
-export type MockPrompterElementKind = 'script' | 'cue';
+export type MockPrompterElementKind = PrompterBlock['type'];
 
 export type MockPrompterElement = {
   id: string;
   kind: MockPrompterElementKind;
   label: string;
   text: string;
+  visible: boolean;
 };
 
 export function getScenePrompterElements(scene: MockRecipeScene): MockPrompterElement[] {
-  const scriptElements = scene.recipeLines.map((line, index) => ({
-    id: `script-${index + 1}`,
-    kind: 'script' as const,
-    label: `Script ${index + 1}`,
-    text: line,
-  }));
+  const normalized = normalizeNativeRecipeScene(scene, 0, '');
 
-  const cueElements = scene.prompterLines.map((line, index) => ({
-    id: `cue-${index + 1}`,
-    kind: 'cue' as const,
-    label: `Cue ${index + 1}`,
-    text: line,
+  return normalized.prompter.blocks.map((block) => ({
+    id: block.id,
+    kind: block.type,
+    label: block.label || block.type.replace(/_/g, ' '),
+    text: block.content,
+    visible: block.visible,
   }));
-
-  return [...scriptElements, ...cueElements];
 }
 
 export function getDefaultPrompterSelection(scene: MockRecipeScene) {
-  const elements = getScenePrompterElements(scene);
-
-  return elements
-    .filter((element, index) => element.kind === 'cue' || index === 0)
+  return getScenePrompterElements(scene)
+    .filter((element) => element.visible)
     .map((element) => element.id);
 }
 

@@ -25,11 +25,50 @@ export type MockPartnerCreator = {
 
 export type MockRecipeScene = {
   id: string;
+  sceneNumber?: number;
   title: string;
   summary: string;
+  startTime?: string;
+  endTime?: string;
+  thumbnail?: string;
   analysisLines: string[];
   recipeLines: string[];
   prompterLines: string[];
+  analysis?: {
+    transcriptOriginal?: string[];
+    transcriptSnippet?: string | null;
+    motionDescription?: string;
+    whyItWorks?: string[];
+    referenceSignals?: Array<{ type: string; text: string }>;
+  };
+  recipe?: {
+    objective?: string;
+    appealPoint?: string;
+    keyLine?: string;
+    scriptLines?: string[];
+    keyMood?: string;
+    keyAction?: string;
+    mustInclude?: string[];
+    mustAvoid?: string[];
+    cta?: string;
+  };
+  prompter?: {
+    blocks?: Array<{
+      id: string;
+      type: 'key_line' | 'keyword' | 'appeal_point' | 'mood' | 'action' | 'warning' | 'cta';
+      label?: string;
+      content: string;
+      accentColor?: string;
+      visible: boolean;
+      size: 'sm' | 'md' | 'lg' | 'xl';
+      positionPreset: 'top' | 'upperThird' | 'center' | 'lowerThird' | 'bottom';
+      scale?: number;
+      x?: number;
+      y?: number;
+      order: number;
+    }>;
+  };
+  progress?: number;
 };
 
 export type MockRecipe = {
@@ -201,8 +240,12 @@ export const recipesSeed: MockRecipe[] = [
     scenes: [
       {
         id: 'scene-1',
+        sceneNumber: 1,
         title: 'Immediate promise',
         summary: 'Lead with the payoff before the process.',
+        startTime: '00:00',
+        endTime: '00:05',
+        thumbnail: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80',
         analysisLines: [
           'Open on the strongest food/result contrast in the first second.',
           'Use the creator face only after the promise is clear.',
@@ -212,6 +255,70 @@ export const recipesSeed: MockRecipe[] = [
           'Cut from plated meal to creator reaction in under 1 second.',
         ],
         prompterLines: ['State the promise in one breath.', 'Smile on the reveal shot.'],
+        analysis: {
+          transcriptOriginal: ['I stopped overthinking diet food and this is what finally stuck.'],
+          transcriptSnippet: 'I stopped overthinking diet food and this is what finally stuck.',
+          motionDescription: 'The reference opens on the strongest food/result contrast, then cuts quickly to the creator reaction.',
+          whyItWorks: [
+            'The payoff appears before the explanation, so the viewer knows why to keep watching.',
+            'The creator face arrives after the promise, which makes the reaction feel earned.',
+          ],
+          referenceSignals: [],
+        },
+        recipe: {
+          objective: 'Turn the opening into a reusable promise-first hook.',
+          appealPoint: 'Lead with the payoff before the process.',
+          keyLine: 'I stopped overthinking diet food and this is what finally stuck.',
+          scriptLines: [
+            'I stopped overthinking diet food and this is what finally stuck.',
+            'Cut from plated meal to creator reaction in under 1 second.',
+          ],
+          keyMood: 'Confident, relieved, direct',
+          keyAction: 'Show plated result first, then creator reaction.',
+          mustInclude: ['Payoff first', 'Creator reaction after promise'],
+          mustAvoid: ['Do not explain the process before the result'],
+          cta: '',
+        },
+        prompter: {
+          blocks: [
+            {
+              id: 'key-line',
+              type: 'key_line',
+              label: 'Main Script',
+              content: 'I stopped overthinking diet food and this is what finally stuck.',
+              accentColor: 'blue',
+              visible: true,
+              size: 'xl',
+              positionPreset: 'lowerThird',
+              scale: 1,
+              order: 1,
+            },
+            {
+              id: 'action',
+              type: 'action',
+              label: 'Action',
+              content: 'Meal first, reaction second',
+              accentColor: 'coral',
+              visible: true,
+              size: 'md',
+              positionPreset: 'upperThird',
+              scale: 1,
+              order: 2,
+            },
+            {
+              id: 'avoid',
+              type: 'warning',
+              label: 'Avoid',
+              content: 'Do not explain before payoff',
+              accentColor: 'yellow',
+              visible: false,
+              size: 'sm',
+              positionPreset: 'top',
+              scale: 1,
+              order: 3,
+            },
+          ],
+        },
       },
       {
         id: 'scene-2',
