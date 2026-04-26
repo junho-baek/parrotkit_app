@@ -4,6 +4,11 @@ import {
 } from '@/features/recipes/types/recipe-domain';
 
 export type PrompterPoint = { x: number; y: number };
+export type PrompterPointBounds = {
+  horizontalInset?: number;
+  topInset?: number;
+  bottomInset?: number;
+};
 
 export const PROMPTER_SCALE_MIN = 0.65;
 export const PROMPTER_SCALE_MAX = 2.5;
@@ -16,25 +21,48 @@ export const presetOffsetMap: Record<PrompterPositionPreset, PrompterPoint> = {
   bottom: { x: 0.5, y: 0.78 },
 };
 
+export function finiteOrFallback(value: number | undefined, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
 export function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
+  const safeMin = finiteOrFallback(min, 0);
+  const safeMax = finiteOrFallback(max, safeMin);
+  const lowerBound = Math.min(safeMin, safeMax);
+  const upperBound = Math.max(safeMin, safeMax);
+  const safeValue = finiteOrFallback(value, lowerBound);
+
+  return Math.min(Math.max(safeValue, lowerBound), upperBound);
 }
 
 export function clampPrompterPoint(point: PrompterPoint): PrompterPoint {
+  return clampPrompterPointToBounds(point);
+}
+
+export function clampPrompterPointToBounds(
+  point: PrompterPoint,
+  { horizontalInset = 0.08, topInset = 0.1, bottomInset = 0.84 }: PrompterPointBounds = {},
+): PrompterPoint {
+  const safeHorizontalInset = clamp(finiteOrFallback(horizontalInset, 0.08), 0, 0.5);
+  const safeTopInset = clamp(finiteOrFallback(topInset, 0.1), 0, 1);
+  const safeBottomInset = clamp(finiteOrFallback(bottomInset, 0.84), safeTopInset, 1);
+
   return {
-    x: clamp(point.x, 0.08, 0.92),
-    y: clamp(point.y, 0.1, 0.84),
+    x: clamp(finiteOrFallback(point.x, 0.5), safeHorizontalInset, 1 - safeHorizontalInset),
+    y: clamp(finiteOrFallback(point.y, 0.45), safeTopInset, safeBottomInset),
   };
 }
 
 export function normalizePrompterScale(value: number) {
-  return clamp(value, PROMPTER_SCALE_MIN, PROMPTER_SCALE_MAX);
+  return clamp(finiteOrFallback(value, 1), PROMPTER_SCALE_MIN, PROMPTER_SCALE_MAX);
 }
 
 export function getBlockPoint(block: PrompterBlock): PrompterPoint {
+  const presetPoint = presetOffsetMap[block.positionPreset];
+
   return clampPrompterPoint({
-    x: block.x ?? presetOffsetMap[block.positionPreset].x,
-    y: block.y ?? presetOffsetMap[block.positionPreset].y,
+    x: finiteOrFallback(block.x, presetPoint.x),
+    y: finiteOrFallback(block.y, presetPoint.y),
   });
 }
 
@@ -51,8 +79,17 @@ export function pointFromGesture({
   width: number;
   height: number;
 }): PrompterPoint {
+  const safeStart = {
+    x: finiteOrFallback(start.x, 0.5),
+    y: finiteOrFallback(start.y, 0.45),
+  };
+  const safeDx = finiteOrFallback(dx, 0);
+  const safeDy = finiteOrFallback(dy, 0);
+  const safeWidth = Math.max(finiteOrFallback(width, 1), 1);
+  const safeHeight = Math.max(finiteOrFallback(height, 1), 1);
+
   return clampPrompterPoint({
-    x: start.x + dx / Math.max(width, 1),
-    y: start.y + dy / Math.max(height, 1),
+    x: safeStart.x + safeDx / safeWidth,
+    y: safeStart.y + safeDy / safeHeight,
   });
 }
