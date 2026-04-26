@@ -6,7 +6,7 @@ import {
   useMicrophonePermissions,
 } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -69,6 +69,15 @@ export function RecipePrompterCameraScreen() {
     [focusedBlockId, selectedBlocks]
   );
   const savedTake = recipe && activeScene ? getSceneRecordedTake(recipe.id, activeScene.id) : null;
+
+  const handleBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace((recipe ? `/recipe/${recipe.id}` : '/(tabs)/recipes') as Href);
+  }, [recipe, router]);
 
   useEffect(() => {
     if (focusedBlockId && !selectedBlocks.some((block) => block.id === focusedBlockId)) {
@@ -203,7 +212,7 @@ export function RecipePrompterCameraScreen() {
     return (
       <View className="flex-1 items-center justify-center bg-slate-950 px-6">
         <Text className="text-[24px] font-black text-white">Prompter unavailable</Text>
-        <Pressable className="mt-5 rounded-full border border-white/15 bg-white/10 px-5 py-3" onPress={() => router.back()}>
+        <Pressable className="mt-5 rounded-full border border-white/15 bg-white/10 px-5 py-3" onPress={handleBack}>
           <Text className="text-sm font-semibold text-white">Back</Text>
         </Pressable>
       </View>
@@ -215,7 +224,7 @@ export function RecipePrompterCameraScreen() {
   }
 
   if (!permission.granted) {
-    return <CameraPermissionGate onBack={() => router.back()} onRequest={requestPermission} />;
+    return <CameraPermissionGate onBack={handleBack} onRequest={requestPermission} />;
   }
 
   return (
@@ -249,7 +258,7 @@ export function RecipePrompterCameraScreen() {
       <View className="flex-1 justify-between" style={styles.content}>
         <View className="px-4" style={{ paddingTop: insets.top + (Platform.OS === 'android' ? 14 : 6) }}>
           <View className="flex-row items-center justify-between">
-            <OverlayIconButton accessibilityLabel="Go back" iconName="arrow-left" onPress={() => router.back()} />
+            <OverlayIconButton accessibilityLabel="Go back" iconName="arrow-left" onPress={handleBack} />
 
             <View className="max-w-[230px] rounded-full border border-white/15 bg-black/35 px-3 py-1.5">
               <Text className="text-[12px] font-semibold text-white/85" numberOfLines={1}>
