@@ -38,41 +38,44 @@ export function NativePrompterToolbar({
     <View pointerEvents="box-none" style={styles.root}>
       {focusedBlock ? (
         <View style={styles.focusedControls}>
-          <ToolbarButton
-            accessibilityLabel="Make focused cue smaller"
-            iconName="format-font-size-decrease"
-            onPress={() => onScaleCue(normalizePrompterScale(currentScale - SCALE_STEP))}
-          />
-          <ToolbarButton
-            accessibilityLabel="Make focused cue larger"
-            iconName="format-font-size-increase"
-            onPress={() => onScaleCue(normalizePrompterScale(currentScale + SCALE_STEP))}
-          />
-          <ToolbarButton
-            accessibilityLabel="Edit focused cue"
-            iconName="pencil-outline"
-            onPress={onEditCue}
-          />
-          <ToolbarButton
-            accessibilityLabel="Hide focused cue"
-            iconName="eye-off-outline"
-            onPress={onHideCue}
-          />
-          <View style={styles.divider} />
-          {colorSwatches.map((swatch) => (
-            <Pressable
-              accessibilityLabel={`Set cue color ${swatch.accentColor}`}
-              accessibilityRole="button"
-              key={swatch.accentColor}
-              onPress={() => onColorCue(swatch.accentColor)}
-              style={({ pressed }) => [
-                styles.swatch,
-                { backgroundColor: swatch.color },
-                focusedBlock.accentColor === swatch.accentColor && styles.activeSwatch,
-                pressed && styles.pressedButton,
-              ]}
+          <View style={styles.actionRow}>
+            <ToolbarButton
+              accessibilityLabel="Make focused cue smaller"
+              iconName="format-font-size-decrease"
+              onPress={() => onScaleCue(normalizePrompterScale(currentScale - SCALE_STEP))}
             />
-          ))}
+            <ToolbarButton
+              accessibilityLabel="Make focused cue larger"
+              iconName="format-font-size-increase"
+              onPress={() => onScaleCue(normalizePrompterScale(currentScale + SCALE_STEP))}
+            />
+            <ToolbarButton
+              accessibilityLabel="Edit focused cue"
+              iconName="pencil-outline"
+              onPress={onEditCue}
+            />
+            <ToolbarButton
+              accessibilityLabel="Hide focused cue"
+              iconName="eye-off-outline"
+              onPress={onHideCue}
+            />
+          </View>
+          <View style={styles.swatchRow}>
+            {colorSwatches.map((swatch) => (
+              <Pressable
+                accessibilityLabel={`Set cue color ${swatch.accentColor}`}
+                accessibilityRole="button"
+                key={swatch.accentColor}
+                onPress={() => onColorCue(swatch.accentColor)}
+                style={({ pressed }) => [
+                  styles.swatch,
+                  { backgroundColor: swatch.color },
+                  focusedBlock.accentColor === swatch.accentColor && styles.activeSwatch,
+                  pressed && styles.pressedButton,
+                ]}
+              />
+            ))}
+          </View>
         </View>
       ) : null}
 
@@ -128,11 +131,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(15, 23, 42, 0.72)',
     borderColor: 'rgba(255, 255, 255, 0.14)',
-    borderRadius: 999,
+    borderRadius: 24,
     borderWidth: 1,
-    flexDirection: 'row',
     gap: 6,
     padding: 6,
+  },
+  actionRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
   },
   button: {
     alignItems: 'center',
@@ -143,11 +150,6 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  divider: {
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    height: 24,
-    width: 1,
   },
   emphasizedButton: {
     backgroundColor: '#ffffff',
@@ -164,11 +166,18 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.24)',
     borderRadius: 999,
     borderWidth: 1,
-    height: 24,
-    width: 24,
+    height: 26,
+    width: 26,
   },
   activeSwatch: {
     borderColor: '#ffffff',
     borderWidth: 2,
+  },
+  swatchRow: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    paddingBottom: 2,
+    paddingTop: 2,
   },
 });
