@@ -1,5 +1,4 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useVideoPlayer, VideoView } from 'expo-video';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 type NativeTakeReviewProps = {
@@ -13,21 +12,16 @@ export function NativeTakeReview({
   onRetry,
   onUseTake,
 }: NativeTakeReviewProps) {
-  const player = useVideoPlayer({ uri }, (createdPlayer) => {
-    createdPlayer.loop = true;
-    createdPlayer.play();
-  });
-
   return (
     <View style={styles.root}>
       <View style={styles.previewFrame}>
-        <VideoView
-          allowsFullscreen
-          contentFit="cover"
-          nativeControls
-          player={player}
-          style={styles.video}
-        />
+        <View style={styles.previewFallback}>
+          <MaterialCommunityIcons color="#ffffff" name="check-circle-outline" size={48} />
+          <Text style={styles.previewTitle}>Take recorded</Text>
+          <Text numberOfLines={2} style={styles.previewMeta}>
+            {uri}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.actions}>
@@ -105,9 +99,24 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     width: '100%',
   },
-  video: {
-    height: '100%',
-    width: '100%',
+  previewFallback: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  previewTitle: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: '900',
+    marginTop: 14,
+  },
+  previewMeta: {
+    color: 'rgba(255, 255, 255, 0.54)',
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 8,
+    textAlign: 'center',
   },
   actions: {
     flexDirection: 'row',
