@@ -205,64 +205,57 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
   );
 
   const setPrompterSelection = useCallback((recipeId: string, sceneId: string, elementIds: string[]) => {
-    const recipe = recipes.find((currentRecipe) => currentRecipe.id === recipeId);
-    const sceneIndex = recipe?.scenes.findIndex((scene) => scene.id === sceneId) ?? -1;
-    const scene = sceneIndex >= 0 ? recipe?.scenes[sceneIndex] : null;
     const elementIdSet = new Set(elementIds);
-    const normalized = recipe && scene
-      ? normalizeNativeRecipeScene(scene, sceneIndex, recipe.thumbnail)
-      : null;
-    const nextIds = normalized
-      ? normalized.prompter.blocks
-          .filter((block) => elementIdSet.has(block.id))
-          .map((block) => block.id)
-      : Array.from(elementIdSet);
 
-    if (normalized) {
-      const nextIdSet = new Set(nextIds);
+    setRecipes((currentRecipes) => {
+      let nextIds = Array.from(elementIdSet);
 
-      setRecipes((currentRecipes) =>
-        currentRecipes.map((currentRecipe) => {
-          if (currentRecipe.id !== recipeId) {
-            return currentRecipe;
-          }
+      const nextRecipes = currentRecipes.map((currentRecipe) => {
+        if (currentRecipe.id !== recipeId) {
+          return currentRecipe;
+        }
 
-          return {
-            ...currentRecipe,
-            scenes: currentRecipe.scenes.map((currentScene, currentSceneIndex) => {
-              if (currentScene.id !== sceneId) {
-                return currentScene;
-              }
+        return {
+          ...currentRecipe,
+          scenes: currentRecipe.scenes.map((currentScene, currentSceneIndex) => {
+            if (currentScene.id !== sceneId) {
+              return currentScene;
+            }
 
-              const currentNormalized = normalizeNativeRecipeScene(
-                currentScene,
-                currentSceneIndex,
-                currentRecipe.thumbnail
-              );
+            const currentNormalized = normalizeNativeRecipeScene(
+              currentScene,
+              currentSceneIndex,
+              currentRecipe.thumbnail
+            );
+            nextIds = currentNormalized.prompter.blocks
+              .filter((block) => elementIdSet.has(block.id))
+              .map((block) => block.id);
+            const nextIdSet = new Set(nextIds);
 
-              return {
-                ...currentScene,
-                prompter: {
-                  blocks: currentNormalized.prompter.blocks.map((block) => ({
-                    ...block,
-                    visible: nextIdSet.has(block.id),
-                  })),
-                },
-              };
-            }),
-          };
-        })
-      );
-    }
+            return {
+              ...currentScene,
+              prompter: {
+                blocks: currentNormalized.prompter.blocks.map((block) => ({
+                  ...block,
+                  visible: nextIdSet.has(block.id),
+                })),
+              },
+            };
+          }),
+        };
+      });
 
-    setPrompterSelections((current) => ({
-      ...current,
-      [recipeId]: {
-        ...(current[recipeId] ?? {}),
-        [sceneId]: nextIds,
-      },
-    }));
-  }, [recipes]);
+      setPrompterSelections((current) => ({
+        ...current,
+        [recipeId]: {
+          ...(current[recipeId] ?? {}),
+          [sceneId]: nextIds,
+        },
+      }));
+
+      return nextRecipes;
+    });
+  }, []);
 
   const updateScenePrompterBlock = useCallback((
     recipeId: string,
