@@ -13,15 +13,15 @@ export function RecipesScreen() {
     <AppScreenScrollView>
       <View className="gap-5 px-5">
         <View className="gap-1">
-          <Text className="text-[32px] font-black leading-[36px] text-ink">My Recipes</Text>
-          <Text className="text-[15px] text-muted">Your analyzed video recipes</Text>
+          <Text className="text-[32px] font-black leading-[36px] text-ink">Recipes</Text>
+          <Text className="text-[15px] text-muted">Scenes, cues, and shootable prompts</Text>
         </View>
 
         {recipes.length === 0 ? (
           <View className="rounded-[28px] border border-dashed border-stroke bg-surface px-5 py-12">
             <Text className="text-center text-[18px] font-bold text-ink">No recipes yet</Text>
             <Text className="mt-2 text-center text-sm text-muted">
-              Create your first recipe from a viral video.
+              Turn a source into scenes, cues, and a shootable prompter.
             </Text>
             <Text
               className="mt-5 self-center rounded-full bg-violet px-5 py-3 text-sm font-bold text-white"

@@ -12,6 +12,7 @@ import {
   trendingReferencesSeed,
 } from '@/core/mocks/parrotkit-data';
 import { getDefaultPrompterSelection } from '@/features/recipes/lib/mock-prompter-elements';
+import { normalizeNativeRecipeScene } from '@/features/recipes/lib/recipe-domain-normalizer';
 
 type CreateRecipeDraftInput = {
   title: string;
@@ -45,6 +46,8 @@ type MockWorkspaceContextValue = {
   getPrompterSelection: (recipeId: string, scene: MockRecipeScene) => string[];
   setPrompterSelection: (recipeId: string, sceneId: string, elementIds: string[]) => void;
   togglePrompterSelection: (recipeId: string, scene: MockRecipeScene, elementId: string) => void;
+  updateScenePrompterBlockVisibility: (recipeId: string, sceneId: string, blockId: string, visible: boolean) => void;
+  updateScenePrompterBlockContent: (recipeId: string, sceneId: string, blockId: string, content: string) => void;
 };
 
 const MockWorkspaceContext = createContext<MockWorkspaceContextValue | null>(null);
@@ -198,7 +201,106 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
     }));
   }, []);
 
+  const updateScenePrompterBlockVisibility = useCallback((recipeId: string, sceneId: string, blockId: string, visible: boolean) => {
+    setRecipes((currentRecipes) =>
+      currentRecipes.map((recipe) => {
+        if (recipe.id !== recipeId) {
+          return recipe;
+        }
+
+        return {
+          ...recipe,
+          scenes: recipe.scenes.map((scene, sceneIndex) => {
+            if (scene.id !== sceneId) {
+              return scene;
+            }
+
+            const normalized = normalizeNativeRecipeScene(scene, sceneIndex, recipe.thumbnail);
+
+            return {
+              ...scene,
+              prompter: {
+                blocks: normalized.prompter.blocks.map((block) =>
+                  block.id === blockId
+                    ? {
+                        ...block,
+                        visible,
+                      }
+                    : block
+                ),
+              },
+            };
+          }),
+        };
+      })
+    );
+
+    setPrompterSelections((current) => {
+      const currentRecipe = current[recipeId] ?? {};
+      const currentSelection = currentRecipe[sceneId] ?? [];
+      const nextSelection = visible
+        ? Array.from(new Set([...currentSelection, blockId]))
+        : currentSelection.filter((id) => id !== blockId);
+
+      return {
+        ...current,
+        [recipeId]: {
+          ...currentRecipe,
+          [sceneId]: nextSelection,
+        },
+      };
+    });
+  }, []);
+
+  const updateScenePrompterBlockContent = useCallback((recipeId: string, sceneId: string, blockId: string, content: string) => {
+    const nextContent = content.trim();
+    if (!nextContent) {
+      return;
+    }
+
+    setRecipes((currentRecipes) =>
+      currentRecipes.map((recipe) => {
+        if (recipe.id !== recipeId) {
+          return recipe;
+        }
+
+        return {
+          ...recipe,
+          scenes: recipe.scenes.map((scene, sceneIndex) => {
+            if (scene.id !== sceneId) {
+              return scene;
+            }
+
+            const normalized = normalizeNativeRecipeScene(scene, sceneIndex, recipe.thumbnail);
+
+            return {
+              ...scene,
+              prompter: {
+                blocks: normalized.prompter.blocks.map((block) =>
+                  block.id === blockId
+                    ? {
+                        ...block,
+                        content: nextContent,
+                      }
+                    : block
+                ),
+              },
+            };
+          }),
+        };
+      })
+    );
+  }, []);
+
   const togglePrompterSelection = useCallback((recipeId: string, scene: MockRecipeScene, elementId: string) => {
+    const normalized = normalizeNativeRecipeScene(scene, 0, '');
+    const currentBlock = normalized.prompter.blocks.find((block) => block.id === elementId);
+
+    if (currentBlock) {
+      updateScenePrompterBlockVisibility(recipeId, scene.id, elementId, !currentBlock.visible);
+      return;
+    }
+
     setPrompterSelections((current) => {
       const currentSelection = current[recipeId]?.[scene.id] ?? getDefaultPrompterSelection(scene);
       const nextSelection = currentSelection.includes(elementId)
@@ -213,7 +315,7 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
         },
       };
     });
-  }, []);
+  }, [updateScenePrompterBlockVisibility]);
 
   const likedReferences = useMemo(
     () => trendingReferences.filter((reference) => reference.isLiked),
@@ -257,6 +359,8 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       getPrompterSelection,
       setPrompterSelection,
       togglePrompterSelection,
+      updateScenePrompterBlockVisibility,
+      updateScenePrompterBlockContent,
     }),
     [
       createRecipeDraft,
@@ -271,6 +375,8 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       toggleLikeReference,
       togglePrompterSelection,
       trendingReferences,
+      updateScenePrompterBlockContent,
+      updateScenePrompterBlockVisibility,
     ]
   );
 

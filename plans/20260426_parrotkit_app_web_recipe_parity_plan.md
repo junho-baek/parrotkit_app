@@ -34,7 +34,12 @@
 
 ## 결과
 - 웹 recipe 기능과 앱 격차 분석을 포함한 상세 구현 플랜을 작성했다.
+- 앱 구현까지 진행해 native recipe detail을 scene-first 구조로 재정렬했다.
+- `Analysis`, `Recipe`, `Shoot` 탭을 장면 단위로 연결했다.
+- `Recipe` 탭의 cue 선택 상태를 web-compatible `prompter.blocks.visible`로 관리하도록 바꿨다.
+- native camera prompter가 선택된 block만 표시하도록 연결했다.
 - 연결 플랜: `docs/superpowers/plans/2026-04-26-parrotkit-app-web-recipe-parity.md`
 
 ## 연결 context
 - `context/context_20260426_parrotkit_app_web_recipe_parity_plan.md`
+- `context/context_20260426_parrotkit_app_web_recipe_parity.md`
