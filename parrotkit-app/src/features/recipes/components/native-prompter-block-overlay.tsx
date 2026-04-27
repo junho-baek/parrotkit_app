@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   PanResponder,
   StyleSheet,
   Text,
   TextInput,
-  View,
   type GestureResponderEvent,
   type PanResponderGestureState,
 } from 'react-native';
@@ -30,6 +30,11 @@ type NativePrompterBlockOverlayProps = {
 
 const BLOCK_WIDTH = 244;
 const BLOCK_MIN_HEIGHT = 58;
+const PROMPTER_BOUNDS = {
+  bottomInset: 0.66,
+  horizontalInset: 0.18,
+  topInset: 0.14,
+};
 
 function getTouchDistance(event: GestureResponderEvent) {
   const [firstTouch, secondTouch] = event.nativeEvent.touches;
@@ -47,6 +52,16 @@ function getFontSize(block: PrompterBlock) {
   if (block.size === 'lg') return 18;
   if (block.size === 'sm') return 16;
   return 17;
+}
+
+function getTopLeftFromPoint(
+  point: PrompterPoint,
+  { width, height }: { width: number; height: number },
+) {
+  return {
+    x: point.x * width - BLOCK_WIDTH / 2,
+    y: point.y * height - BLOCK_MIN_HEIGHT / 2,
+  };
 }
 
 function getTone(block: PrompterBlock) {
@@ -93,19 +108,20 @@ export function NativePrompterBlockOverlay({
   editingRequestedAt,
 }: NativePrompterBlockOverlayProps) {
   const textInputRef = useRef<TextInput>(null);
+  const animatedPosition = useRef(new Animated.ValueXY()).current;
+  const animatedScale = useRef(new Animated.Value(normalizePrompterScale(block.scale ?? 1))).current;
   const startPointRef = useRef<PrompterPoint>(getBlockPoint(block));
   const startScaleRef = useRef(normalizePrompterScale(block.scale ?? 1));
   const startPinchDistanceRef = useRef<number | null>(null);
+  const pendingPointRef = useRef<PrompterPoint | null>(null);
+  const pendingScaleRef = useRef<number | null>(null);
+  const gestureActiveRef = useRef(false);
   const gestureMovedRef = useRef(false);
   const lastTapAtRef = useRef(0);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(block.content);
 
-  const point = clampPrompterPointToBounds(getBlockPoint(block), {
-    bottomInset: 0.66,
-    horizontalInset: 0.18,
-    topInset: 0.14,
-  });
+  const point = clampPrompterPointToBounds(getBlockPoint(block), PROMPTER_BOUNDS);
   const scale = normalizePrompterScale(block.scale ?? 1);
   const safeWidth = Math.max(containerSize.width, 1);
   const safeHeight = Math.max(containerSize.height, 1);
@@ -117,6 +133,38 @@ export function NativePrompterBlockOverlay({
     setDraft(block.content);
     setEditing(true);
   }, [block.content, onFocus]);
+
+  const syncAnimatedLayout = useCallback(() => {
+    animatedPosition.setValue(getTopLeftFromPoint(point, {
+      height: safeHeight,
+      width: safeWidth,
+    }));
+    animatedScale.setValue(scale);
+  }, [animatedPosition, animatedScale, point.x, point.y, safeHeight, safeWidth, scale]);
+
+  const commitGestureUpdates = useCallback(() => {
+    const nextPoint = pendingPointRef.current;
+    const nextScale = pendingScaleRef.current;
+    const updates: Partial<Pick<PrompterBlock, 'scale' | 'x' | 'y'>> = {};
+
+    pendingPointRef.current = null;
+    pendingScaleRef.current = null;
+    startPinchDistanceRef.current = null;
+    gestureActiveRef.current = false;
+
+    if (nextPoint) {
+      updates.x = nextPoint.x;
+      updates.y = nextPoint.y;
+    }
+
+    if (nextScale !== null) {
+      updates.scale = nextScale;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      onUpdate(updates);
+    }
+  }, [onUpdate]);
 
   const commitDraft = useCallback(() => {
     const trimmed = draft.trim();
@@ -143,6 +191,11 @@ export function NativePrompterBlockOverlay({
   }, [beginEditing, editingRequestedAt]);
 
   useEffect(() => {
+    if (gestureActiveRef.current) return;
+    syncAnimatedLayout();
+  }, [syncAnimatedLayout]);
+
+  useEffect(() => {
     if (editing) {
       requestAnimationFrame(() => {
         textInputRef.current?.focus();
@@ -162,13 +215,23 @@ export function NativePrompterBlockOverlay({
           ),
         onPanResponderGrant: (event) => {
           onFocus();
+          animatedPosition.stopAnimation();
+          animatedScale.stopAnimation();
+          gestureActiveRef.current = true;
           gestureMovedRef.current = false;
-          startPointRef.current = getBlockPoint(block);
-          startScaleRef.current = normalizePrompterScale(block.scale ?? 1);
+          pendingPointRef.current = null;
+          pendingScaleRef.current = null;
+          startPointRef.current = point;
+          startScaleRef.current = scale;
           startPinchDistanceRef.current = getTouchDistance(event);
+          syncAnimatedLayout();
         },
         onPanResponderMove: (event: GestureResponderEvent, gestureState: PanResponderGestureState) => {
-          if (Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2) {
+          if (
+            event.nativeEvent.touches.length > 1 ||
+            Math.abs(gestureState.dx) > 2 ||
+            Math.abs(gestureState.dy) > 2
+          ) {
             gestureMovedRef.current = true;
           }
 
@@ -179,9 +242,10 @@ export function NativePrompterBlockOverlay({
             startPinchDistanceRef.current = startPinchDistance;
 
             if (startPinchDistance > 0) {
-              onUpdate({
-                scale: normalizePrompterScale(startScaleRef.current * (pinchDistance / startPinchDistance)),
-              });
+              const nextScale = normalizePrompterScale(startScaleRef.current * (pinchDistance / startPinchDistance));
+
+              pendingScaleRef.current = nextScale;
+              animatedScale.setValue(nextScale);
             }
 
             return;
@@ -194,17 +258,20 @@ export function NativePrompterBlockOverlay({
             width: safeWidth,
             height: safeHeight,
           });
+          const clampedPoint = clampPrompterPointToBounds(nextPoint, PROMPTER_BOUNDS);
 
-          onUpdate(clampPrompterPointToBounds(nextPoint, {
-            bottomInset: 0.66,
-            horizontalInset: 0.18,
-            topInset: 0.14,
+          pendingPointRef.current = clampedPoint;
+          animatedPosition.setValue(getTopLeftFromPoint(clampedPoint, {
+            height: safeHeight,
+            width: safeWidth,
           }));
         },
         onPanResponderRelease: () => {
-          startPinchDistanceRef.current = null;
+          const gestureMoved = gestureMovedRef.current;
 
-          if (!gestureMovedRef.current) {
+          commitGestureUpdates();
+
+          if (!gestureMoved) {
             const now = Date.now();
             if (now - lastTapAtRef.current < 300) {
               beginEditing();
@@ -215,31 +282,45 @@ export function NativePrompterBlockOverlay({
           }
         },
         onPanResponderTerminate: () => {
-          startPinchDistanceRef.current = null;
+          commitGestureUpdates();
         },
       }),
-    [beginEditing, block, editing, onFocus, onUpdate, safeHeight, safeWidth],
+    [
+      animatedPosition,
+      animatedScale,
+      beginEditing,
+      commitGestureUpdates,
+      editing,
+      onFocus,
+      point,
+      safeHeight,
+      safeWidth,
+      scale,
+      syncAnimatedLayout,
+    ],
   );
 
   return (
-    <View
+    <Animated.View
       {...panResponder.panHandlers}
       style={[
         styles.root,
         {
-          left: point.x * safeWidth - BLOCK_WIDTH / 2,
-          top: point.y * safeHeight - BLOCK_MIN_HEIGHT / 2,
-          transform: [{ scale }],
+          transform: animatedPosition.getTranslateTransform(),
           width: BLOCK_WIDTH,
         },
+        focused && styles.focusedRoot,
       ]}
     >
-      <View
+      <Animated.View
         style={[
           styles.card,
           tone,
           focused && styles.focusedCard,
           editing && styles.editingCard,
+          {
+            transform: [{ scale: animatedScale }],
+          },
         ]}
       >
         {editing ? (
@@ -264,20 +345,25 @@ export function NativePrompterBlockOverlay({
             {block.content}
           </Text>
         )}
-      </View>
-    </View>
+      </Animated.View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
+    left: 0,
     minHeight: BLOCK_MIN_HEIGHT,
     position: 'absolute',
+    top: 0,
     zIndex: 10,
+  },
+  focusedRoot: {
+    zIndex: 11,
   },
   card: {
     borderRadius: 22,
-    borderWidth: 1,
+    borderWidth: 2,
     minHeight: BLOCK_MIN_HEIGHT,
     paddingHorizontal: 14,
     paddingVertical: 11,
@@ -291,7 +377,6 @@ const styles = StyleSheet.create({
   },
   focusedCard: {
     borderColor: '#ffffff',
-    borderWidth: 2,
   },
   input: {
     color: '#ffffff',
