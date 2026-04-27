@@ -9,9 +9,21 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as MediaLibrary from 'expo-media-library';
 import { Href, useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import {
+  Animated,
+  Easing,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+  type GestureResponderEvent,
+  type LayoutChangeEvent,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { NativePrompterBlockOverlay } from '@/features/recipes/components/native-prompter-block-overlay';
 import { NativePrompterToolbar } from '@/features/recipes/components/native-prompter-toolbar';
 import { NativeRecordButton } from '@/features/recipes/components/native-record-button';
@@ -40,12 +52,17 @@ const initialBlocks: PrompterBlock[] = [
 export function QuickShootCameraScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const { createQuickShootRecipe } = useMockWorkspace();
   const [permission, requestPermission] = useCameraPermissions();
   const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
   const cameraRef = useRef<CameraView>(null);
   const recordingPromiseRef = useRef<Promise<{ uri: string } | undefined> | null>(null);
   const gallerySaveRunRef = useRef(0);
   const gallerySavedUrisRef = useRef<Set<string>>(new Set());
+  const swipeTranslateX = useRef(new Animated.Value(0)).current;
+  const swipeStartRef = useRef({ x: 0, y: 0 });
+  const swipeTriggeredRef = useRef(false);
   const [blocks, setBlocks] = useState(initialBlocks);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [editRequestByBlockId, setEditRequestByBlockId] = useState<Record<string, number>>({});
@@ -70,6 +87,7 @@ export function QuickShootCameraScreen() {
     () => visibleBlocks.find((block) => block.id === focusedBlockId) ?? null,
     [focusedBlockId, visibleBlocks]
   );
+  const screenSwipeEnabled = !recording && !reviewUri && !savingTake;
 
   const handleBack = useCallback(() => {
     if (router.canGoBack()) {
@@ -79,6 +97,104 @@ export function QuickShootCameraScreen() {
 
     router.replace('/(tabs)' as Href);
   }, [router]);
+
+  const handleGoHome = useCallback(() => {
+    router.replace('/(tabs)' as Href);
+  }, [router]);
+
+  const animateSwipeTo = useCallback((toValue: number, onComplete?: () => void) => {
+    Animated.timing(swipeTranslateX, {
+      duration: toValue === 0 ? 170 : 210,
+      easing: Easing.out(Easing.cubic),
+      toValue,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        onComplete?.();
+      }
+    });
+  }, [swipeTranslateX]);
+
+  const getScreenSwipeState = useCallback((event: GestureResponderEvent) => {
+    const start = swipeStartRef.current;
+    const dx = event.nativeEvent.pageX - start.x;
+    const dy = event.nativeEvent.pageY - start.y;
+    const horizontalIntent = Math.abs(dx) > 26 && Math.abs(dx) > Math.abs(dy) * 1.35;
+
+    return { dx, horizontalIntent };
+  }, []);
+
+  const handleMakeRecipe = useCallback(() => {
+    const recipe = createQuickShootRecipe({
+      blocks,
+      title: 'Quick Shoot Recipe',
+    });
+
+    router.replace(`/recipe/${recipe.id}` as Href);
+  }, [blocks, createQuickShootRecipe, router]);
+
+  const handleScreenTouchStart = useCallback((event: GestureResponderEvent) => {
+    if (!screenSwipeEnabled) return;
+
+    swipeTriggeredRef.current = false;
+    swipeTranslateX.stopAnimation();
+    swipeStartRef.current = {
+      x: event.nativeEvent.pageX,
+      y: event.nativeEvent.pageY,
+    };
+  }, [screenSwipeEnabled, swipeTranslateX]);
+
+  const handleScreenTouchMove = useCallback((event: GestureResponderEvent) => {
+    if (!screenSwipeEnabled || swipeTriggeredRef.current) return;
+
+    const { dx, horizontalIntent } = getScreenSwipeState(event);
+
+    if (!horizontalIntent) {
+      swipeTranslateX.setValue(0);
+      return;
+    }
+
+    swipeTranslateX.setValue(Math.max(-windowWidth, Math.min(windowWidth, dx)));
+  }, [getScreenSwipeState, screenSwipeEnabled, swipeTranslateX, windowWidth]);
+
+  const handleScreenTouchEnd = useCallback((event: GestureResponderEvent) => {
+    if (!screenSwipeEnabled || swipeTriggeredRef.current) return;
+
+    const { dx, horizontalIntent } = getScreenSwipeState(event);
+    const swipeThreshold = Math.min(150, windowWidth * 0.36);
+
+    if (horizontalIntent && dx < -swipeThreshold) {
+      swipeTriggeredRef.current = true;
+      animateSwipeTo(-windowWidth, () => {
+        handleGoHome();
+        swipeTranslateX.setValue(0);
+      });
+      return;
+    }
+
+    if (horizontalIntent && dx > swipeThreshold) {
+      swipeTriggeredRef.current = true;
+      animateSwipeTo(windowWidth, () => {
+        handleMakeRecipe();
+        swipeTranslateX.setValue(0);
+      });
+      return;
+    }
+
+    animateSwipeTo(0);
+  }, [
+    animateSwipeTo,
+    getScreenSwipeState,
+    handleGoHome,
+    handleMakeRecipe,
+    screenSwipeEnabled,
+    swipeTranslateX,
+    windowWidth,
+  ]);
+
+  const handleScreenTouchCancel = useCallback(() => {
+    animateSwipeTo(0);
+  }, [animateSwipeTo]);
 
   const handleOverlayLayout = useCallback((event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
@@ -305,7 +421,21 @@ export function QuickShootCameraScreen() {
   }
 
   return (
-    <View className="flex-1 bg-slate-950">
+    <View className="flex-1 overflow-hidden bg-slate-950">
+      <QuickShootSwipeBackdrop />
+
+      <Animated.View
+        onTouchCancel={handleScreenTouchCancel}
+        onTouchEnd={handleScreenTouchEnd}
+        onTouchMove={handleScreenTouchMove}
+        onTouchStart={handleScreenTouchStart}
+        style={[
+          styles.quickShootSurface,
+          {
+            transform: [{ translateX: swipeTranslateX }],
+          },
+        ]}
+      >
       <CameraView
         ref={cameraRef}
         active
@@ -416,6 +546,35 @@ export function QuickShootCameraScreen() {
           />
         </View>
       ) : null}
+      </Animated.View>
+    </View>
+  );
+}
+
+function QuickShootSwipeBackdrop() {
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <LinearGradient
+        colors={['#6d28d9', '#7c3aed', '#111827']}
+        end={{ x: 1, y: 1 }}
+        start={{ x: 0, y: 0 }}
+        style={[styles.swipePanel, styles.recipeSwipePanel]}
+      >
+        <MaterialCommunityIcons color="#ffffff" name="layers-triple" size={42} />
+        <Text style={styles.swipePanelTitle}>Make Recipe</Text>
+        <Text style={styles.swipePanelBody}>Turn cues into cuts</Text>
+      </LinearGradient>
+
+      <LinearGradient
+        colors={['#020617', '#0f172a', '#1d4ed8']}
+        end={{ x: 0, y: 1 }}
+        start={{ x: 1, y: 0 }}
+        style={[styles.swipePanel, styles.homeSwipePanel]}
+      >
+        <MaterialCommunityIcons color="#ffffff" name="home-variant" size={42} />
+        <Text style={styles.swipePanelTitle}>Home</Text>
+        <Text style={styles.swipePanelBody}>Back to workspace</Text>
+      </LinearGradient>
     </View>
   );
 }
@@ -470,6 +629,14 @@ function OverlayIconButton({
 }
 
 const styles = StyleSheet.create({
+  quickShootSurface: {
+    backgroundColor: '#020617',
+    flex: 1,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.34,
+    shadowRadius: 34,
+  },
   camera: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 0,
@@ -503,5 +670,33 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 12,
     textAlign: 'center',
+  },
+  swipePanel: {
+    bottom: 0,
+    justifyContent: 'center',
+    paddingHorizontal: 34,
+    position: 'absolute',
+    top: 0,
+    width: '78%',
+  },
+  recipeSwipePanel: {
+    alignItems: 'flex-start',
+    left: 0,
+  },
+  homeSwipePanel: {
+    alignItems: 'flex-end',
+    right: 0,
+  },
+  swipePanelTitle: {
+    color: '#ffffff',
+    fontSize: 28,
+    fontWeight: '900',
+    marginTop: 14,
+  },
+  swipePanelBody: {
+    color: 'rgba(255, 255, 255, 0.72)',
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 6,
   },
 });

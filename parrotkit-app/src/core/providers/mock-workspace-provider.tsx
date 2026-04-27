@@ -24,6 +24,11 @@ type CreateRecipeDraftInput = {
   notes?: string;
 };
 
+type CreateQuickShootRecipeInput = {
+  blocks: PrompterBlock[];
+  title?: string;
+};
+
 type MockWorkspaceContextValue = {
   partnerCreators: typeof partnerCreators;
   profile: typeof profileSeed;
@@ -44,6 +49,7 @@ type MockWorkspaceContextValue = {
   };
   toggleLikeReference: (referenceId: string) => void;
   createRecipeDraft: (input: CreateRecipeDraftInput) => MockRecipe;
+  createQuickShootRecipe: (input: CreateQuickShootRecipeInput) => MockRecipe;
   getRecipeById: (recipeId: string) => MockRecipe | null;
   getPrompterSelection: (recipeId: string, scene: MockRecipeScene) => string[];
   setPrompterSelection: (recipeId: string, sceneId: string, elementIds: string[]) => void;
@@ -138,6 +144,22 @@ function buildScenes(title: string, niche: string, goal: string, notes: string):
   ];
 }
 
+function compactCueContent(content: string, fallback: string) {
+  const cleaned = content.trim().replace(/\s+/g, ' ');
+
+  return cleaned || fallback;
+}
+
+function titleFromCue(content: string, index: number) {
+  const cleaned = compactCueContent(content, `Cut ${index + 1}`);
+
+  if (cleaned.length <= 34) {
+    return cleaned;
+  }
+
+  return `${cleaned.slice(0, 34).trim()}...`;
+}
+
 export function MockWorkspaceProvider({ children }: PropsWithChildren) {
   const [recentReferences, setRecentReferences] = useState<MockReference[]>(recentReferencesSeed);
   const [workspaceState, setWorkspaceState] = useState<WorkspaceState>({
@@ -219,6 +241,89 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
 
     return recipe;
   };
+
+  const createQuickShootRecipe = useCallback(({ blocks, title = 'Quick Shoot Recipe' }: CreateQuickShootRecipeInput) => {
+    const visibleBlocks = blocks
+      .filter((block) => block.visible)
+      .sort((first, second) => first.order - second.order);
+    const sourceBlocks = visibleBlocks.length > 0 ? visibleBlocks : blocks.slice(0, 1);
+    const recipeId = `recipe-${Date.now().toString(36)}`;
+    const resolvedTitle = title.trim() || 'Quick Shoot Recipe';
+    const thumbnail = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=900&q=80';
+    const scenes: MockRecipeScene[] = sourceBlocks.map((block, index) => {
+      const cueContent = compactCueContent(block.content, `Cut ${index + 1}`);
+      const sceneId = `scene-${recipeId}-${index + 1}`;
+
+      return {
+        id: sceneId,
+        sceneNumber: index + 1,
+        title: titleFromCue(cueContent, index),
+        summary: `Cut ${index + 1}: ${cueContent}`,
+        analysisLines: [],
+        recipeLines: [cueContent],
+        prompterLines: [cueContent],
+        recipe: {
+          objective: `Shoot cut ${index + 1} from your quick prompt.`,
+          appealPoint: cueContent,
+          keyLine: cueContent,
+          scriptLines: [cueContent],
+          keyMood: 'Direct creator note',
+          keyAction: 'Treat this cue as one clean beat.',
+          mustInclude: [cueContent],
+          mustAvoid: [],
+          cta: '',
+        },
+        prompter: {
+          blocks: [
+            {
+              ...block,
+              id: `${sceneId}-${block.id}`,
+              label: block.label ?? `Cut ${index + 1}`,
+              content: cueContent,
+              order: 0,
+              visible: true,
+            },
+          ],
+        },
+      };
+    });
+
+    const recipe: MockRecipe = {
+      id: recipeId,
+      title: resolvedTitle,
+      creator: '@parrotkit',
+      platform: 'TikTok',
+      thumbnail,
+      savedAt: 'Saved just now',
+      sourceUrl: '',
+      summary: `${sourceBlocks.length} quick shoot ${sourceBlocks.length === 1 ? 'cue' : 'cues'} turned into a cut-by-cut recipe.`,
+      niche: 'Creator',
+      goal: 'Shoot a multi-cut prompt',
+      notes: 'Created from Quick Shoot.',
+      scenes,
+    };
+
+    const reference: MockReference = {
+      id: `recent-${Date.now().toString(36)}`,
+      title: resolvedTitle,
+      creator: '@parrotkit',
+      thumbnail,
+      duration: `${sourceBlocks.length} ${sourceBlocks.length === 1 ? 'cut' : 'cuts'}`,
+      views: 'Draft',
+      likes: 0,
+      category: 'Quick Shoot',
+      platform: 'TikTok',
+      videoUrl: '',
+      createdAt: 'Just now',
+      isLiked: false,
+      recipeId,
+    };
+
+    setRecipes((current) => [recipe, ...current]);
+    setRecentReferences((current) => [reference, ...current].slice(0, 4));
+
+    return recipe;
+  }, [setRecipes]);
 
   const getPrompterSelection = useCallback(
     (recipeId: string, scene: MockRecipeScene) =>
@@ -534,6 +639,7 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       sourceStats,
       toggleLikeReference,
       createRecipeDraft,
+      createQuickShootRecipe,
       getRecipeById,
       getPrompterSelection,
       setPrompterSelection,
@@ -551,6 +657,7 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       addScenePrompterBlock,
       clearSceneRecordedTake,
       createRecipeDraft,
+      createQuickShootRecipe,
       getSceneRecordedTake,
       getPrompterSelection,
       getRecipeById,
