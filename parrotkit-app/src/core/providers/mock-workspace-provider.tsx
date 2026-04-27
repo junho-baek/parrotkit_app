@@ -359,9 +359,8 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       return null;
     }
 
-    const existingDownloadedRecipe = recipes.find(
-      (recipe) => recipe.sourceUrl === sourceRecipe.sourceUrl && recipe.ownerHandle === sourceRecipe.ownerHandle
-    );
+    const downloadedRecipeId = `downloaded-${sourceRecipe.id}`;
+    const existingDownloadedRecipe = recipes.find((recipe) => recipe.id === downloadedRecipeId);
 
     if (existingDownloadedRecipe) {
       return existingDownloadedRecipe;
@@ -369,7 +368,7 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
 
     const downloadedRecipe: MockRecipe = {
       ...sourceRecipe,
-      id: `downloaded-${sourceRecipe.id}`,
+      id: downloadedRecipeId,
       ownership: 'downloaded',
       savedAt: 'Saved just now',
       shootStatus: 'ready',
@@ -377,7 +376,15 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       totalSceneCount: sourceRecipe.scenes.length,
     };
 
-    setRecipes((current) => [downloadedRecipe, ...current]);
+    setRecipes((current) => {
+      const currentDownloadedRecipe = current.find((recipe) => recipe.id === downloadedRecipeId);
+
+      if (currentDownloadedRecipe) {
+        return current;
+      }
+
+      return [downloadedRecipe, ...current];
+    });
 
     return downloadedRecipe;
   }, [recipes, setRecipes]);
@@ -400,9 +407,9 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
         return false;
       }
 
-      return recipes.some(
-        (recipe) => recipe.sourceUrl === sourceRecipe.sourceUrl && recipe.ownerHandle === sourceRecipe.ownerHandle
-      );
+      const downloadedRecipeId = `downloaded-${sourceRecipe.id}`;
+
+      return recipes.some((recipe) => recipe.id === downloadedRecipeId);
     },
     [recipes]
   );
