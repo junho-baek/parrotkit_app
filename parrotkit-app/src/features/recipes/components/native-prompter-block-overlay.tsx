@@ -13,7 +13,6 @@ import {
   clampPrompterPointToBounds,
   getBlockPoint,
   normalizePrompterScale,
-  pointFromGesture,
   type PrompterPoint,
 } from '@/features/recipes/lib/prompter-layout';
 import type { PrompterBlock } from '@/features/recipes/types/recipe-domain';
@@ -31,9 +30,9 @@ type NativePrompterBlockOverlayProps = {
 const BLOCK_WIDTH = 244;
 const BLOCK_MIN_HEIGHT = 58;
 const PROMPTER_BOUNDS = {
-  bottomInset: 0.66,
-  horizontalInset: 0.18,
-  topInset: 0.14,
+  bottomInset: 0.88,
+  horizontalInset: 0.1,
+  topInset: 0.1,
 };
 
 function getTouchDistance(event: GestureResponderEvent) {
@@ -118,6 +117,7 @@ export function NativePrompterBlockOverlay({
   const gestureActiveRef = useRef(false);
   const gestureMovedRef = useRef(false);
   const lastTapAtRef = useRef(0);
+  const lastHandledTapAtRef = useRef(0);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(block.content);
 
@@ -133,6 +133,23 @@ export function NativePrompterBlockOverlay({
     setDraft(block.content);
     setEditing(true);
   }, [block.content, onFocus]);
+
+  const handleCueTap = useCallback(() => {
+    const now = Date.now();
+
+    if (now - lastHandledTapAtRef.current < 80) return;
+
+    lastHandledTapAtRef.current = now;
+    onFocus();
+
+    if (now - lastTapAtRef.current < 320) {
+      beginEditing();
+      lastTapAtRef.current = 0;
+      return;
+    }
+
+    lastTapAtRef.current = now;
+  }, [beginEditing, onFocus]);
 
   const syncAnimatedLayout = useCallback(() => {
     animatedPosition.setValue(getTopLeftFromPoint(point, {
@@ -251,13 +268,10 @@ export function NativePrompterBlockOverlay({
             return;
           }
 
-          const nextPoint = pointFromGesture({
-            start: startPointRef.current,
-            dx: gestureState.dx,
-            dy: gestureState.dy,
-            width: safeWidth,
-            height: safeHeight,
-          });
+          const nextPoint = {
+            x: startPointRef.current.x + gestureState.dx / safeWidth,
+            y: startPointRef.current.y + gestureState.dy / safeHeight,
+          };
           const clampedPoint = clampPrompterPointToBounds(nextPoint, PROMPTER_BOUNDS);
 
           pendingPointRef.current = clampedPoint;
@@ -272,13 +286,7 @@ export function NativePrompterBlockOverlay({
           commitGestureUpdates();
 
           if (!gestureMoved) {
-            const now = Date.now();
-            if (now - lastTapAtRef.current < 300) {
-              beginEditing();
-              lastTapAtRef.current = 0;
-            } else {
-              lastTapAtRef.current = now;
-            }
+            handleCueTap();
           }
         },
         onPanResponderTerminate: () => {
@@ -291,6 +299,7 @@ export function NativePrompterBlockOverlay({
       beginEditing,
       commitGestureUpdates,
       editing,
+      handleCueTap,
       onFocus,
       point,
       safeHeight,
@@ -339,7 +348,7 @@ export function NativePrompterBlockOverlay({
         ) : (
           <Text
             onLongPress={beginEditing}
-            onPress={onFocus}
+            onPress={handleCueTap}
             style={[styles.text, { fontSize, lineHeight: Math.round(fontSize * 1.34) }]}
           >
             {block.content}

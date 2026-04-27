@@ -64,6 +64,10 @@ export function RecipePrompterCameraScreen() {
     [activeSceneId, recipe]
   );
   const selectedBlocks = activeScene ? getVisiblePrompterBlocks(activeScene) : [];
+  const hiddenBlocks = useMemo(
+    () => activeScene?.prompter.blocks.filter((block) => !block.visible) ?? [],
+    [activeScene]
+  );
   const focusedBlock = useMemo(
     () => selectedBlocks.find((block) => block.id === focusedBlockId) ?? selectedBlocks[0] ?? null,
     [focusedBlockId, selectedBlocks]
@@ -133,6 +137,11 @@ export function RecipePrompterCameraScreen() {
     hideScenePrompterBlock(recipe.id, activeScene.id, focusedBlock.id);
     setFocusedBlockId(null);
   }, [activeScene, focusedBlock, hideScenePrompterBlock, recipe]);
+
+  const handleShowCue = useCallback((blockId: string) => {
+    handleUpdateBlock(blockId, { visible: true });
+    setFocusedBlockId(blockId);
+  }, [handleUpdateBlock]);
 
   const handleScaleFocusedCue = useCallback((scale: number) => {
     if (!focusedBlock) return;
@@ -305,11 +314,13 @@ export function RecipePrompterCameraScreen() {
           <View className="mb-3 flex-row items-center justify-between gap-3">
             <NativePrompterToolbar
               focusedBlock={focusedBlock}
+              hiddenBlocks={hiddenBlocks}
               onAddCue={handleAddCue}
               onColorCue={handleColorFocusedCue}
               onEditCue={handleEditFocusedCue}
               onHideCue={handleHideFocusedCue}
               onScaleCue={handleScaleFocusedCue}
+              onShowCue={handleShowCue}
             />
             <NativeRecordButton
               disabled={Boolean(reviewUri)}
