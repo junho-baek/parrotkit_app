@@ -69,7 +69,7 @@ export function RecipePrompterCameraScreen() {
     [activeScene]
   );
   const focusedBlock = useMemo(
-    () => selectedBlocks.find((block) => block.id === focusedBlockId) ?? selectedBlocks[0] ?? null,
+    () => selectedBlocks.find((block) => block.id === focusedBlockId) ?? null,
     [focusedBlockId, selectedBlocks]
   );
   const savedTake = recipe && activeScene ? getSceneRecordedTake(recipe.id, activeScene.id) : null;
@@ -92,6 +92,7 @@ export function RecipePrompterCameraScreen() {
   useEffect(() => {
     setReviewUri(null);
     setSaveMessage('');
+    setFocusedBlockId(null);
   }, [activeSceneId]);
 
   const handleOverlayLayout = useCallback((event: LayoutChangeEvent) => {
@@ -127,9 +128,8 @@ export function RecipePrompterCameraScreen() {
 
     if (blockId) {
       setFocusedBlockId(blockId);
-      requestAnimationFrame(() => requestEditForBlock(blockId));
     }
-  }, [activeScene, addScenePrompterBlock, recipe, requestEditForBlock]);
+  }, [activeScene, addScenePrompterBlock, recipe]);
 
   const handleHideFocusedCue = useCallback(() => {
     if (!recipe || !activeScene || !focusedBlock) return;
