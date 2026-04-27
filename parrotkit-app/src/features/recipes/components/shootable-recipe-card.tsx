@@ -71,16 +71,20 @@ export function ShootableRecipeCard({
           </View>
 
           <View style={styles.actionRow}>
-            <Pressable accessibilityRole="button" onPress={onPrimary} style={styles.primaryButton}>
+            <Pressable accessibilityRole="button" hitSlop={8} onPress={onPrimary} style={styles.primaryButton}>
               <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.primaryGradient}>
                 <MaterialCommunityIcons color="#fff" name="video-outline" size={16} />
-                <Text style={styles.primaryText}>{resolvedPrimaryLabel}</Text>
+                <Text numberOfLines={1} style={styles.primaryText}>
+                  {resolvedPrimaryLabel}
+                </Text>
               </LinearGradient>
             </Pressable>
 
             {onSecondary && secondaryLabel ? (
-              <Pressable accessibilityRole="button" onPress={onSecondary} style={styles.secondaryButton}>
-                <Text style={styles.secondaryText}>{secondaryLabel}</Text>
+              <Pressable accessibilityRole="button" hitSlop={8} onPress={onSecondary} style={styles.secondaryButton}>
+                <Text numberOfLines={1} style={styles.secondaryText}>
+                  {secondaryLabel}
+                </Text>
               </Pressable>
             ) : null}
           </View>
@@ -94,6 +98,7 @@ const styles = StyleSheet.create({
   actionRow: {
     alignItems: 'center',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginTop: 12,
   },
@@ -175,6 +180,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     borderRadius: 999,
+    maxWidth: '100%',
     overflow: 'hidden',
   },
   primaryGradient: {
@@ -182,17 +188,22 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     flexDirection: 'row',
     gap: 6,
+    minHeight: 44,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
   primaryText: {
     color: '#fff',
+    flexShrink: 1,
     fontSize: 12,
     fontWeight: '900',
   },
   secondaryButton: {
+    alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.14)',
     borderRadius: 999,
+    justifyContent: 'center',
+    minHeight: 44,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
