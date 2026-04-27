@@ -20,18 +20,18 @@ export function PrompterBlockCard({
 }) {
   return (
     <Pressable
-      className={`min-h-[118px] rounded-[22px] border px-4 py-4 ${block.visible ? getTone(block) : 'border-stroke bg-surface'}`}
+      className={`min-h-[132px] rounded-[24px] border px-4 py-4 ${block.visible ? getTone(block) : 'border-stroke bg-surface'}`}
       onPress={() => onToggle(block.id, !block.visible)}
     >
-      <View className="mb-4 flex-row items-center justify-between">
+      <View className="mb-5 flex-row items-center justify-between">
         <View className={`h-3 w-3 rounded-full ${block.visible ? 'bg-violet' : 'bg-slate-300'}`} />
         <MaterialCommunityIcons
           color={block.visible ? '#6366f1' : '#cbd5e1'}
           name={block.visible ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'}
-          size={20}
+          size={21}
         />
       </View>
-      <Text className="text-[13px] font-semibold leading-6 text-ink">{block.content}</Text>
+      <Text className="text-[14px] font-bold leading-6 text-ink">{block.content}</Text>
     </Pressable>
   );
 }
