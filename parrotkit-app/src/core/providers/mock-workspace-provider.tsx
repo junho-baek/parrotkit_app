@@ -6,6 +6,7 @@ import {
   MockRecipeScene,
   MockRecordedTake,
   MockReference,
+  exploreRecipeSeeds,
   partnerCreators,
   profileSeed,
   recentReferencesSeed,
@@ -14,6 +15,10 @@ import {
 } from '@/core/mocks/parrotkit-data';
 import { getDefaultPrompterSelection } from '@/features/recipes/lib/mock-prompter-elements';
 import { normalizeNativeRecipeScene } from '@/features/recipes/lib/recipe-domain-normalizer';
+import {
+  getContinueShootRecipe as selectContinueShootRecipe,
+  getLatestShootableRecipe as selectLatestShootableRecipe,
+} from '@/features/recipes/lib/recipe-ownership';
 import type { PrompterBlock } from '@/features/recipes/types/recipe-domain';
 
 type CreateRecipeDraftInput = {
@@ -34,6 +39,7 @@ type MockWorkspaceContextValue = {
   profile: typeof profileSeed;
   recentReferences: MockReference[];
   recipes: MockRecipe[];
+  exploreRecipes: MockRecipe[];
   trendingReferences: MockReference[];
   likedReferences: MockReference[];
   homeStats: {
@@ -50,7 +56,11 @@ type MockWorkspaceContextValue = {
   toggleLikeReference: (referenceId: string) => void;
   createRecipeDraft: (input: CreateRecipeDraftInput) => MockRecipe;
   createQuickShootRecipe: (input: CreateQuickShootRecipeInput) => MockRecipe;
+  downloadRecipe: (recipeId: string) => MockRecipe | null;
+  getContinueShootRecipe: () => MockRecipe | null;
+  getLatestShootableRecipe: () => MockRecipe | null;
   getRecipeById: (recipeId: string) => MockRecipe | null;
+  isRecipeDownloaded: (recipeId: string) => boolean;
   getPrompterSelection: (recipeId: string, scene: MockRecipeScene) => string[];
   setPrompterSelection: (recipeId: string, sceneId: string, elementIds: string[]) => void;
   togglePrompterSelection: (recipeId: string, scene: MockRecipeScene, elementId: string) => void;
@@ -341,6 +351,61 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
 
     return recipe;
   }, [setRecipes]);
+
+  const downloadRecipe = useCallback((recipeId: string) => {
+    const sourceRecipe = exploreRecipeSeeds.find((recipe) => recipe.id === recipeId);
+
+    if (!sourceRecipe) {
+      return null;
+    }
+
+    const existingDownloadedRecipe = recipes.find(
+      (recipe) => recipe.sourceUrl === sourceRecipe.sourceUrl && recipe.ownerHandle === sourceRecipe.ownerHandle
+    );
+
+    if (existingDownloadedRecipe) {
+      return existingDownloadedRecipe;
+    }
+
+    const downloadedRecipe: MockRecipe = {
+      ...sourceRecipe,
+      id: `downloaded-${sourceRecipe.id}`,
+      ownership: 'downloaded',
+      savedAt: 'Saved just now',
+      shootStatus: 'ready',
+      shotSceneCount: 0,
+      totalSceneCount: sourceRecipe.scenes.length,
+    };
+
+    setRecipes((current) => [downloadedRecipe, ...current]);
+
+    return downloadedRecipe;
+  }, [recipes, setRecipes]);
+
+  const getContinueShootRecipe = useCallback(
+    () => selectContinueShootRecipe(recipes),
+    [recipes]
+  );
+
+  const getLatestShootableRecipe = useCallback(
+    () => selectLatestShootableRecipe(recipes),
+    [recipes]
+  );
+
+  const isRecipeDownloaded = useCallback(
+    (recipeId: string) => {
+      const sourceRecipe = exploreRecipeSeeds.find((recipe) => recipe.id === recipeId);
+
+      if (!sourceRecipe) {
+        return false;
+      }
+
+      return recipes.some(
+        (recipe) => recipe.sourceUrl === sourceRecipe.sourceUrl && recipe.ownerHandle === sourceRecipe.ownerHandle
+      );
+    },
+    [recipes]
+  );
 
   const getPrompterSelection = useCallback(
     (recipeId: string, scene: MockRecipeScene) =>
@@ -650,6 +715,7 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       profile: profileSeed,
       recentReferences,
       recipes,
+      exploreRecipes: exploreRecipeSeeds,
       trendingReferences,
       likedReferences,
       homeStats,
@@ -657,7 +723,11 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       toggleLikeReference,
       createRecipeDraft,
       createQuickShootRecipe,
+      downloadRecipe,
+      getContinueShootRecipe,
+      getLatestShootableRecipe,
       getRecipeById,
+      isRecipeDownloaded,
       getPrompterSelection,
       setPrompterSelection,
       togglePrompterSelection,
@@ -675,11 +745,15 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       clearSceneRecordedTake,
       createRecipeDraft,
       createQuickShootRecipe,
+      downloadRecipe,
+      getContinueShootRecipe,
+      getLatestShootableRecipe,
       getSceneRecordedTake,
       getPrompterSelection,
       getRecipeById,
       hideScenePrompterBlock,
       homeStats,
+      isRecipeDownloaded,
       likedReferences,
       recentReferences,
       recipes,
