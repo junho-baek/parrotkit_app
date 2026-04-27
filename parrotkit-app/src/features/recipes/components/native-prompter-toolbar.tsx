@@ -1,4 +1,5 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { normalizePrompterScale } from '@/features/recipes/lib/prompter-layout';
@@ -36,8 +37,13 @@ export function NativePrompterToolbar({
   onScaleCue,
   onShowCue,
 }: NativePrompterToolbarProps) {
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const currentScale = normalizePrompterScale(focusedBlock?.scale ?? 1);
   const nextHiddenBlock = hiddenBlocks[0] ?? null;
+
+  useEffect(() => {
+    setPaletteOpen(false);
+  }, [focusedBlock?.id]);
 
   return (
     <View pointerEvents="box-none" style={styles.root}>
@@ -60,28 +66,47 @@ export function NativePrompterToolbar({
               onPress={onEditCue}
             />
             <ToolbarButton
+              accessibilityLabel={paletteOpen ? 'Close cue color palette' : 'Open cue color palette'}
+              active={paletteOpen}
+              iconName="palette-outline"
+              onPress={() => setPaletteOpen((current) => !current)}
+            />
+            <ToolbarButton
               accessibilityLabel="Hide focused cue"
               iconName="eye-off-outline"
               onPress={onHideCue}
             />
           </View>
-          <View style={styles.paletteBar}>
-            {colorSwatches.map((swatch) => (
+          {paletteOpen ? (
+            <View style={styles.paletteBar}>
+              {colorSwatches.map((swatch) => (
+                <Pressable
+                  accessibilityLabel={`Set cue color ${swatch.accentColor}`}
+                  accessibilityRole="button"
+                  key={swatch.accentColor}
+                  onPress={() => onColorCue(swatch.accentColor)}
+                  style={[
+                    styles.swatch,
+                    { backgroundColor: swatch.color },
+                    focusedBlock.accentColor === swatch.accentColor && styles.activeSwatch,
+                  ]}
+                >
+                  <View style={[styles.swatchInner, { backgroundColor: swatch.color }]} />
+                </Pressable>
+              ))}
               <Pressable
-                accessibilityLabel={`Set cue color ${swatch.accentColor}`}
+                accessibilityLabel="Close cue color palette"
                 accessibilityRole="button"
-                key={swatch.accentColor}
-                onPress={() => onColorCue(swatch.accentColor)}
-                style={[
-                  styles.swatch,
-                  { backgroundColor: swatch.color },
-                  focusedBlock.accentColor === swatch.accentColor && styles.activeSwatch,
+                onPress={() => setPaletteOpen(false)}
+                style={({ pressed }) => [
+                  styles.paletteCloseButton,
+                  pressed && styles.pressedButton,
                 ]}
               >
-                <View style={[styles.swatchInner, { backgroundColor: swatch.color }]} />
+                <MaterialCommunityIcons color="#ffffff" name="close" size={19} />
               </Pressable>
-            ))}
-          </View>
+            </View>
+          ) : null}
         </>
       ) : null}
 
@@ -91,6 +116,7 @@ export function NativePrompterToolbar({
           emphasized
           iconName="plus"
           onPress={onAddCue}
+          size="large"
         />
         {nextHiddenBlock ? (
           <Pressable
@@ -113,15 +139,21 @@ export function NativePrompterToolbar({
 
 function ToolbarButton({
   accessibilityLabel,
+  active = false,
   emphasized = false,
   iconName,
   onPress,
+  size = 'regular',
 }: {
   accessibilityLabel: string;
+  active?: boolean;
   emphasized?: boolean;
   iconName: ToolbarIconName;
   onPress: () => void;
+  size?: 'regular' | 'large';
 }) {
+  const large = size === 'large';
+
   return (
     <Pressable
       accessibilityLabel={accessibilityLabel}
@@ -129,14 +161,16 @@ function ToolbarButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
+        large && styles.largeButton,
         emphasized ? styles.emphasizedButton : styles.secondaryButton,
+        active && styles.activeButton,
         pressed && styles.pressedButton,
       ]}
     >
       <MaterialCommunityIcons
         color={emphasized ? '#111827' : '#ffffff'}
         name={iconName}
-        size={20}
+        size={large ? 28 : 20}
       />
     </Pressable>
   );
@@ -166,8 +200,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 42,
   },
+  largeButton: {
+    height: 58,
+    width: 58,
+  },
   secondaryButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  activeButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
   },
   emphasizedButton: {
     backgroundColor: '#ffffff',
@@ -184,9 +225,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.24)',
     borderRadius: 999,
     borderWidth: 1,
-    height: 38,
+    height: 42,
     padding: 4,
-    width: 38,
+    width: 42,
   },
   activeSwatch: {
     borderColor: '#ffffff',
@@ -202,6 +243,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     padding: 8,
+  },
+  paletteCloseButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
   },
   quickControls: {
     alignItems: 'center',

@@ -24,6 +24,12 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
+            name="quick-shoot"
+            options={{
+              animation: 'slide_from_left',
+            }}
+          />
+          <Stack.Screen
             name="source-actions"
             options={{
               animation: 'slide_from_bottom',
