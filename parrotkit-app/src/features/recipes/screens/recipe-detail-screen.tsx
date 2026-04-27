@@ -250,7 +250,7 @@ export function RecipeDetailScreen() {
         </View>
 
         <View className="gap-2">
-          <Text className="text-[32px] font-black leading-[36px] text-ink">{nativeRecipe.title}</Text>
+          <Text className="text-[26px] font-black leading-[31px] text-ink">{nativeRecipe.title}</Text>
           <Text className="text-sm leading-6 text-muted">{nativeRecipe.summary}</Text>
         </View>
 

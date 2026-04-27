@@ -28,8 +28,8 @@ export function RecipeSceneCard({
       onPress={onPress}
     >
       <View className="flex-row gap-3 p-3">
-        <View className="relative w-[108px] shrink-0 overflow-hidden rounded-[22px] bg-slate-100">
-          <View className="aspect-[9/16] w-full">
+        <View className="relative shrink-0 overflow-hidden rounded-[22px] bg-slate-100" style={{ width: 108 }}>
+          <View style={{ height: 192, width: 108 }}>
             {scene.thumbnail ? (
               <Image className="h-full w-full" resizeMode="cover" source={{ uri: scene.thumbnail }} />
             ) : (
