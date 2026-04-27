@@ -34,7 +34,7 @@
 - Home: active progress recipe가 있으면 Continue Shoot이 먼저 보인다.
 - Home: active progress recipe가 없으면 최신 shootable recipe가 먼저 보인다.
 - Explore: verified creator recipe가 먼저 보이고 다운로드 후 Recipes/Home에 반영된다.
-- Recipes: owned/downloaded/remixed label이 보이고 Shoot 액션이 recipe detail로 이동한다.
+- Recipes: owned/downloaded/remixed label이 보이고 Shoot 액션은 prompter, Open 액션은 recipe detail로 이동한다.
 
 ## 롤백
 - 새 helper/card/context 파일을 제거한다.
