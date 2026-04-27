@@ -22,6 +22,7 @@ type NativePrompterBlockOverlayProps = {
   containerSize: { width: number; height: number };
   focused: boolean;
   onFocus: () => void;
+  onInteractionActiveChange?: (active: boolean) => void;
   onUpdate: (updates: Partial<Pick<PrompterBlock, 'content' | 'scale' | 'x' | 'y'>>) => void;
   // Bump this timestamp when a parent toolbar needs this block to enter edit mode.
   editingRequestedAt?: number;
@@ -103,6 +104,7 @@ export function NativePrompterBlockOverlay({
   containerSize,
   focused,
   onFocus,
+  onInteractionActiveChange,
   onUpdate,
   editingRequestedAt,
 }: NativePrompterBlockOverlayProps) {
@@ -231,6 +233,7 @@ export function NativePrompterBlockOverlay({
             Math.abs(gestureState.dy) > 2
           ),
         onPanResponderGrant: (event) => {
+          onInteractionActiveChange?.(true);
           onFocus();
           animatedPosition.stopAnimation();
           animatedScale.stopAnimation();
@@ -283,6 +286,7 @@ export function NativePrompterBlockOverlay({
         onPanResponderRelease: () => {
           const gestureMoved = gestureMovedRef.current;
 
+          onInteractionActiveChange?.(false);
           commitGestureUpdates();
 
           if (!gestureMoved) {
@@ -290,6 +294,7 @@ export function NativePrompterBlockOverlay({
           }
         },
         onPanResponderTerminate: () => {
+          onInteractionActiveChange?.(false);
           commitGestureUpdates();
         },
       }),
@@ -301,6 +306,7 @@ export function NativePrompterBlockOverlay({
       editing,
       handleCueTap,
       onFocus,
+      onInteractionActiveChange,
       point,
       safeHeight,
       safeWidth,

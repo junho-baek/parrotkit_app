@@ -4,28 +4,51 @@ import { DynamicColorIOS, Platform, StyleSheet, View } from 'react-native';
 
 import { AppTopBar } from '@/core/navigation/app-top-bar';
 import { GlobalSourceCta } from '@/core/navigation/global-source-cta';
+import {
+  NavigationChromeProvider,
+  useNavigationChrome,
+} from '@/core/navigation/navigation-chrome-context';
 
 export function RootNativeTabs() {
+  return (
+    <NavigationChromeProvider>
+      <RootNativeTabsContent />
+    </NavigationChromeProvider>
+  );
+}
+
+function RootNativeTabsContent() {
+  const { homeQuickShootChromeHidden } = useNavigationChrome();
   const isIOS = Platform.OS === 'ios';
+  const hiddenChromeColor = 'transparent';
   const iosTintColor = isIOS
     ? DynamicColorIOS({
         dark: '#ffffff',
         light: '#111827',
       })
     : '#111827';
+  const tabTintColor = homeQuickShootChromeHidden ? hiddenChromeColor : iosTintColor;
+  const tabLabelColor = homeQuickShootChromeHidden
+    ? hiddenChromeColor
+    : isIOS
+      ? iosTintColor
+      : '#57534e';
 
   return (
     <View className="flex-1 bg-canvas">
       <NativeTabs
-        badgeBackgroundColor="#ff9568"
-        backgroundColor={isIOS ? null : '#ffffff'}
-        blurEffect={isIOS ? 'systemChromeMaterial' : undefined}
-        disableTransparentOnScrollEdge={isIOS}
+        badgeBackgroundColor={homeQuickShootChromeHidden ? hiddenChromeColor : '#ff9568'}
+        backgroundColor={homeQuickShootChromeHidden ? hiddenChromeColor : isIOS ? null : '#ffffff'}
+        blurEffect={isIOS ? (homeQuickShootChromeHidden ? 'none' : 'systemChromeMaterial') : undefined}
+        disableTransparentOnScrollEdge={isIOS && !homeQuickShootChromeHidden}
+        iconColor={homeQuickShootChromeHidden ? { default: hiddenChromeColor, selected: hiddenChromeColor } : undefined}
         labelStyle={{
-          color: isIOS ? iosTintColor : '#57534e',
+          color: tabLabelColor,
         }}
+        labelVisibilityMode={homeQuickShootChromeHidden ? 'unlabeled' : undefined}
         minimizeBehavior={isIOS ? 'onScrollDown' : undefined}
-        tintColor={iosTintColor}
+        shadowColor={homeQuickShootChromeHidden ? hiddenChromeColor : undefined}
+        tintColor={tabTintColor}
       >
         <NativeTabs.Trigger name="index">
           <Icon
@@ -35,7 +58,7 @@ export function RootNativeTabs() {
             }}
             sf={{ default: 'house', selected: 'house.fill' }}
           />
-          <Label>Home</Label>
+          <Label hidden={homeQuickShootChromeHidden}>Home</Label>
         </NativeTabs.Trigger>
 
         <NativeTabs.Trigger name="explore">
@@ -46,7 +69,7 @@ export function RootNativeTabs() {
             }}
             sf={{ default: 'safari', selected: 'safari.fill' }}
           />
-          <Label>Explore</Label>
+          <Label hidden={homeQuickShootChromeHidden}>Explore</Label>
         </NativeTabs.Trigger>
 
         <NativeTabs.Trigger name="source">
@@ -57,7 +80,7 @@ export function RootNativeTabs() {
             }}
             sf={{ default: 'square.stack.3d.up', selected: 'square.stack.3d.up.fill' }}
           />
-          <Label>Source</Label>
+          <Label hidden={homeQuickShootChromeHidden}>Source</Label>
         </NativeTabs.Trigger>
 
         <NativeTabs.Trigger name="recipes">
@@ -68,7 +91,7 @@ export function RootNativeTabs() {
             }}
             sf={{ default: 'book', selected: 'book.fill' }}
           />
-          <Label>Recipes</Label>
+          <Label hidden={homeQuickShootChromeHidden}>Recipes</Label>
         </NativeTabs.Trigger>
 
         <NativeTabs.Trigger name="my">
@@ -79,14 +102,18 @@ export function RootNativeTabs() {
             }}
             sf={{ default: 'person', selected: 'person.fill' }}
           />
-          <Label>My</Label>
+          <Label hidden={homeQuickShootChromeHidden}>My</Label>
         </NativeTabs.Trigger>
       </NativeTabs>
 
-      <View pointerEvents="box-none" style={styles.topChromeLayer}>
-        <AppTopBar />
-      </View>
-      <GlobalSourceCta />
+      {homeQuickShootChromeHidden ? null : (
+        <>
+          <View pointerEvents="box-none" style={styles.topChromeLayer}>
+            <AppTopBar />
+          </View>
+          <GlobalSourceCta />
+        </>
+      )}
     </View>
   );
 }
