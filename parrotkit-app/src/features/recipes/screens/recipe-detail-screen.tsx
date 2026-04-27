@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient } from '@/core/theme/colors';
@@ -23,6 +24,7 @@ const detailTabs: Array<{ id: DetailTab; label: string }> = [
 
 export function RecipeDetailScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ recipeId?: string }>();
   const { getRecipeById, updateScenePrompterBlockVisibility } = useMockWorkspace();
   const recipe = params.recipeId ? getRecipeById(params.recipeId) : null;
@@ -91,7 +93,10 @@ export function RecipeDetailScreen() {
 
     return (
       <View className="flex-1 bg-canvas">
-        <View className="flex-row items-center justify-between border-b border-stroke bg-surface px-5 pb-3 pt-4">
+        <View
+          className="flex-row items-center justify-between border-b border-stroke bg-surface px-5 pb-3"
+          style={{ paddingTop: insets.top + 12 }}
+        >
           <Pressable
             className="h-10 w-10 items-center justify-center rounded-full border border-stroke bg-canvas"
             onPress={closeScene}
