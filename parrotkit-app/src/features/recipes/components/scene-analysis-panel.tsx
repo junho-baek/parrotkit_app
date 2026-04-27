@@ -13,13 +13,13 @@ export function SceneAnalysisPanel({ scene }: { scene: NativeRecipeScene }) {
 
   return (
     <View className="gap-4">
-      <Section title="Original Script">
+      <Section title="What they said">
         {transcriptLines.length ? transcriptLines.map((line, index) => (
           <LineCard key={`${scene.id}-script-${index}`} index={index + 1} text={line} />
         )) : <EmptyCard text="No original transcript was captured for this cut." />}
       </Section>
 
-      <Section title="Motion View">
+      <Section title="What happens on screen">
         <View className="rounded-[22px] border border-sky-100 bg-sky-50 px-4 py-4">
           <Text className="text-sm leading-6 text-ink">
             {scene.analysis.motionDescription || 'No motion-specific description was extracted for this cut.'}
@@ -27,7 +27,7 @@ export function SceneAnalysisPanel({ scene }: { scene: NativeRecipeScene }) {
         </View>
       </Section>
 
-      <Section title="Why It Works">
+      <Section title="Why it works">
         {whyItWorks.length ? whyItWorks.map((line, index) => (
           <LineCard key={`${scene.id}-why-${index}`} index={index + 1} text={line} />
         )) : <EmptyCard text="No reasoning notes were captured for this cut." />}
@@ -39,7 +39,7 @@ export function SceneAnalysisPanel({ scene }: { scene: NativeRecipeScene }) {
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <View className="gap-2">
-      <Text className="text-[12px] font-semibold uppercase tracking-[0.8px] text-muted">{title}</Text>
+      <Text className="text-[13px] font-black text-muted">{title}</Text>
       <View className="gap-2">{children}</View>
     </View>
   );
