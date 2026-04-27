@@ -8,7 +8,7 @@
 ## 목표
 - Home 최상단 우선순위를 A: 마지막 촬영 이어하기, 없으면 B: 최근 저장/소유 레시피, 둘 다 없으면 D: 빈 Quick Shoot으로 만든다.
 - Explore를 verified creator recipe discovery로 바꾼다.
-- Recipes를 내가 소유/저장/다운로드/리믹스한 레시피 보관함으로 정리한다.
+- Recipes를 로컬에서 소유/저장/다운로드/리믹스한 레시피 보관함으로 정리한다.
 - 레시피 카드의 주요 액션을 `Shoot`로 통일한다.
 
 ## 범위

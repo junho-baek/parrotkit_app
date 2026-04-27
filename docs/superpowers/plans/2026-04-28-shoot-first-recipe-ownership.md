@@ -68,7 +68,7 @@ Create `plans/20260428_shoot_first_recipe_ownership.md` with this content:
 ## 목표
 - Home 최상단 우선순위를 A: 마지막 촬영 이어하기, 없으면 B: 최근 저장/소유 레시피, 둘 다 없으면 D: 빈 Quick Shoot으로 만든다.
 - Explore를 verified creator recipe discovery로 바꾼다.
-- Recipes를 내가 소유/저장/다운로드/리믹스한 레시피 보관함으로 정리한다.
+- Recipes를 로컬에서 소유/저장/다운로드/리믹스한 레시피 보관함으로 정리한다.
 - 레시피 카드의 주요 액션을 `Shoot`로 통일한다.
 
 ## 범위
@@ -438,7 +438,7 @@ Create `parrotkit-app/src/features/recipes/lib/recipe-ownership.ts`:
 import type { MockRecipe } from '@/core/mocks/parrotkit-data';
 
 export function getRecipeOwnershipLabel(recipe: MockRecipe) {
-  if (recipe.ownership === 'owned') return 'Yours';
+  if (recipe.ownership === 'owned') return 'Owned';
   if (recipe.ownership === 'downloaded') return 'Saved';
   if (recipe.ownership === 'remixed') return 'Remix';
   return 'Community';
@@ -1393,7 +1393,7 @@ import { ShootableRecipeCard } from '@/features/recipes/components/shootable-rec
 Add above `RecipesScreen`:
 
 ```ts
-const libraryFilters = ['All', 'Yours', 'Saved', 'Remixes'] as const;
+const libraryFilters = ['All', 'Owned', 'Saved', 'Remixes'] as const;
 type LibraryFilter = (typeof libraryFilters)[number];
 ```
 
@@ -1408,7 +1408,7 @@ export function RecipesScreen() {
   const [selectedFilter, setSelectedFilter] = useState<LibraryFilter>('All');
 
   const filteredRecipes = useMemo(() => {
-    if (selectedFilter === 'Yours') {
+    if (selectedFilter === 'Owned') {
       return recipes.filter((recipe) => recipe.ownership === 'owned');
     }
 
@@ -1498,8 +1498,8 @@ Expected: PASS with no TypeScript errors.
 With the app running on 8081, verify:
 
 - Recipes copy says `Your owned, saved, and remixed shooting templates.`
-- Filters `All`, `Yours`, `Saved`, `Remixes` are visible.
-- `Yours` shows owned recipes.
+- Filters `All`, `Owned`, `Saved`, `Remixes` are visible.
+- `Owned` shows owned recipes.
 - `Saved` shows downloaded recipes.
 - `Shoot` opens `/recipe/<recipeId>/prompter`.
 - `Open` opens `/recipe/<recipeId>`.

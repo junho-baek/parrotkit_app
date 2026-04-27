@@ -1,7 +1,7 @@
 import type { MockRecipe } from '@/core/mocks/parrotkit-data';
 
 export function getRecipeOwnershipLabel(recipe: MockRecipe) {
-  if (recipe.ownership === 'owned') return 'Yours';
+  if (recipe.ownership === 'owned') return 'Owned';
   if (recipe.ownership === 'downloaded') return 'Saved';
   if (recipe.ownership === 'remixed') return 'Remix';
   return 'Community';
