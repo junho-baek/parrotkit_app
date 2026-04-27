@@ -1,5 +1,10 @@
 export type MockPlatform = 'TikTok' | 'Instagram Reels' | 'YouTube Shorts';
 
+export type MockCreatorTrust = 'verified' | 'community';
+export type MockRecipeOwnership = 'owned' | 'downloaded' | 'remixed' | 'community';
+export type MockRecipeVerification = 'verified_creator' | 'community';
+export type MockRecipeShootStatus = 'continue' | 'ready' | 'draft';
+
 export type MockReference = {
   id: string;
   title: string;
@@ -21,6 +26,8 @@ export type MockPartnerCreator = {
   name: string;
   handle: string;
   avatar: string;
+  trust: MockCreatorTrust;
+  specialty: string;
 };
 
 export type MockRecordedTake = {
@@ -88,6 +95,16 @@ export type MockRecipe = {
   niche: string;
   goal: string;
   notes: string;
+  ownership: MockRecipeOwnership;
+  verification: MockRecipeVerification;
+  ownerHandle: string;
+  ownerName: string;
+  downloadCount: number;
+  shootStatus: MockRecipeShootStatus;
+  shotSceneCount: number;
+  totalSceneCount: number;
+  lastShotAt?: string;
+  remixOfRecipeId?: string;
   scenes: MockRecipeScene[];
 };
 
@@ -108,30 +125,40 @@ export const partnerCreators: MockPartnerCreator[] = [
     name: 'Minho Eats',
     handle: '@minhoeats',
     avatar: 'https://img.youtube.com/vi/JhBOUaCkltg/mqdefault.jpg',
+    trust: 'verified',
+    specialty: 'Food hooks',
   },
   {
     id: 'creator-2',
     name: 'Ava Beauty',
     handle: '@avabeauty',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80',
+    trust: 'verified',
+    specialty: 'Beauty routines',
   },
   {
     id: 'creator-3',
     name: 'Coach Leon',
     handle: '@coachleon',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
+    trust: 'verified',
+    specialty: 'Fitness proof',
   },
   {
     id: 'creator-4',
     name: 'Lena Builds',
     handle: '@lenabuilds',
     avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=300&q=80',
+    trust: 'community',
+    specialty: 'Founder story',
   },
   {
     id: 'creator-5',
     name: 'Miles Away',
     handle: '@milesaway',
     avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=300&q=80',
+    trust: 'community',
+    specialty: 'Travel edits',
   },
 ];
 
@@ -242,6 +269,15 @@ export const recipesSeed: MockRecipe[] = [
     niche: 'Fitness',
     goal: 'Better hook pacing',
     notes: 'Keep the quick food montage but slow down the claim so the viewer understands the promise.',
+    ownership: 'owned',
+    verification: 'verified_creator',
+    ownerHandle: '@fit.frames',
+    ownerName: 'Fit Frames',
+    downloadCount: 1280,
+    shootStatus: 'continue',
+    shotSceneCount: 2,
+    totalSceneCount: 3,
+    lastShotAt: 'Last shot 18m ago',
     scenes: [
       {
         id: 'scene-1',
@@ -367,6 +403,14 @@ export const recipesSeed: MockRecipe[] = [
     niche: 'Cooking',
     goal: 'Cleaner mid-video pacing',
     notes: 'Keep the crunchy sound moment and the stack reveal, but simplify the ingredient callouts.',
+    ownership: 'downloaded',
+    verification: 'verified_creator',
+    ownerHandle: '@minhoeats',
+    ownerName: 'Minho Eats',
+    downloadCount: 894,
+    shootStatus: 'ready',
+    shotSceneCount: 0,
+    totalSceneCount: 3,
     scenes: [
       {
         id: 'scene-1b',
@@ -409,6 +453,159 @@ export const recipesSeed: MockRecipe[] = [
           'Freeze on the final cross-section for the save beat.',
         ],
         prompterLines: ['Point to the sandwich on the word “template”.', 'Leave one beat for the save CTA.'],
+      },
+    ],
+  },
+];
+
+export const exploreRecipeSeeds: MockRecipe[] = [
+  {
+    id: 'market-recipe-beauty-proof-routine',
+    title: 'Beauty Proof Routine',
+    creator: '@avabeauty',
+    platform: 'Instagram Reels',
+    thumbnail: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80',
+    savedAt: 'Verified recipe',
+    sourceUrl: 'https://www.instagram.com/reel/DemoGlowRoutine',
+    summary: 'A verified creator recipe for turning a routine into three proof-first beats before the product reveal.',
+    niche: 'Beauty',
+    goal: 'Show proof before product',
+    notes: 'Downloaded recipes keep creator attribution and can be remixed after saving.',
+    ownership: 'community',
+    verification: 'verified_creator',
+    ownerHandle: '@avabeauty',
+    ownerName: 'Ava Beauty',
+    downloadCount: 2140,
+    shootStatus: 'ready',
+    shotSceneCount: 0,
+    totalSceneCount: 3,
+    scenes: [
+      {
+        id: 'beauty-proof-1',
+        sceneNumber: 1,
+        title: 'Open on the finished look',
+        summary: 'Start with the result so the routine has a reason to exist.',
+        analysisLines: ['The result-first open makes the routine feel worth copying.'],
+        recipeLines: ['Show the finished look first.', 'Say the visible problem in one short line.'],
+        prompterLines: ['This is the glow I wanted before touching concealer.'],
+      },
+      {
+        id: 'beauty-proof-2',
+        sceneNumber: 2,
+        title: 'Make the product earn attention',
+        summary: 'Hold the product until the viewer understands the problem.',
+        analysisLines: ['The reveal lands because the product appears after a visible need.'],
+        recipeLines: ['Show texture close-up.', 'Name one reason the product matters.'],
+        prompterLines: ['I only care because it fixes this patchy spot.'],
+      },
+      {
+        id: 'beauty-proof-3',
+        sceneNumber: 3,
+        title: 'Close with repeatability',
+        summary: 'End with a routine the viewer can save.',
+        analysisLines: ['A repeatable close drives saves better than a generic CTA.'],
+        recipeLines: ['Summarize the three steps.', 'Hold the final look for one beat.'],
+        prompterLines: ['Result, patch, blend. That is the whole routine.'],
+      },
+    ],
+  },
+  {
+    id: 'market-recipe-core-control-proof',
+    title: 'Core Control Proof',
+    creator: '@coachleon',
+    platform: 'Instagram Reels',
+    thumbnail: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=80',
+    savedAt: 'Verified recipe',
+    sourceUrl: 'https://www.instagram.com/reel/CoreControlSprint',
+    summary: 'A verified fitness recipe for making form correction feel obvious in the first five seconds.',
+    niche: 'Fitness',
+    goal: 'Make form correction visible',
+    notes: 'Use this when the creator needs proof before instruction.',
+    ownership: 'community',
+    verification: 'verified_creator',
+    ownerHandle: '@coachleon',
+    ownerName: 'Coach Leon',
+    downloadCount: 1670,
+    shootStatus: 'ready',
+    shotSceneCount: 0,
+    totalSceneCount: 3,
+    scenes: [
+      {
+        id: 'core-proof-1',
+        sceneNumber: 1,
+        title: 'Show the mistake first',
+        summary: 'Make the bad form visible before explaining it.',
+        analysisLines: ['The mistake-first open makes the correction feel necessary.'],
+        recipeLines: ['Show one bad rep.', 'Freeze the frame on the visible issue.'],
+        prompterLines: ['If your ribs flare here, your core is not controlling the move.'],
+      },
+      {
+        id: 'core-proof-2',
+        sceneNumber: 2,
+        title: 'Switch to the correction',
+        summary: 'Contrast the fixed version immediately.',
+        analysisLines: ['The back-to-back contrast makes the lesson easy to trust.'],
+        recipeLines: ['Show one corrected rep.', 'Keep the camera angle identical.'],
+        prompterLines: ['Now tuck, breathe, and keep the ribs down.'],
+      },
+      {
+        id: 'core-proof-3',
+        sceneNumber: 3,
+        title: 'Give the viewer a test',
+        summary: 'End with a small check they can repeat.',
+        analysisLines: ['A test gives the viewer a reason to save the video.'],
+        recipeLines: ['Name the one check.', 'Invite them to try it next set.'],
+        prompterLines: ['Try three slow reps and watch whether the ribs move.'],
+      },
+    ],
+  },
+  {
+    id: 'market-recipe-founder-problem-hook',
+    title: 'Founder Problem Hook',
+    creator: '@lenabuilds',
+    platform: 'TikTok',
+    thumbnail: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=900&q=80',
+    savedAt: 'Community recipe',
+    sourceUrl: '',
+    summary: 'A community recipe for explaining a product problem without sounding like a pitch.',
+    niche: 'Creator',
+    goal: 'Make a product problem feel specific',
+    notes: 'Community recipes are visible but not treated as verified.',
+    ownership: 'community',
+    verification: 'community',
+    ownerHandle: '@lenabuilds',
+    ownerName: 'Lena Builds',
+    downloadCount: 340,
+    shootStatus: 'ready',
+    shotSceneCount: 0,
+    totalSceneCount: 3,
+    scenes: [
+      {
+        id: 'founder-hook-1',
+        sceneNumber: 1,
+        title: 'Name the annoying moment',
+        summary: 'Use a concrete pain before naming the product.',
+        analysisLines: [],
+        recipeLines: ['Say the moment users already recognize.'],
+        prompterLines: ['The worst part is not the task. It is losing the tiny details.'],
+      },
+      {
+        id: 'founder-hook-2',
+        sceneNumber: 2,
+        title: 'Show the old workaround',
+        summary: 'Make the pain visible with the current hack.',
+        analysisLines: [],
+        recipeLines: ['Show the messy workaround in one shot.'],
+        prompterLines: ['So people build this weird little system around it.'],
+      },
+      {
+        id: 'founder-hook-3',
+        sceneNumber: 3,
+        title: 'Introduce the cleaner habit',
+        summary: 'Position the product as a habit upgrade.',
+        analysisLines: [],
+        recipeLines: ['Show the new clean action.', 'Keep the product name secondary.'],
+        prompterLines: ['We made the habit smaller, so you actually keep doing it.'],
       },
     ],
   },

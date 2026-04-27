@@ -217,6 +217,14 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       niche: niche.trim() || 'Creator',
       goal: goal.trim() || 'Sharper pacing',
       notes: notes.trim(),
+      ownership: 'owned',
+      verification: 'community',
+      ownerHandle: '@parrotkitcodextest',
+      ownerName: 'You',
+      downloadCount: 0,
+      shootStatus: 'draft',
+      shotSceneCount: 0,
+      totalSceneCount: 3,
       scenes: buildScenes(resolvedTitle, niche, goal, notes),
     };
 
@@ -300,6 +308,15 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       niche: 'Creator',
       goal: 'Shoot a multi-cut prompt',
       notes: 'Created from Quick Shoot.',
+      ownership: 'owned',
+      verification: 'community',
+      ownerHandle: '@parrotkitcodextest',
+      ownerName: 'You',
+      downloadCount: 0,
+      shootStatus: 'continue',
+      shotSceneCount: 0,
+      totalSceneCount: scenes.length,
+      lastShotAt: 'Created just now',
       scenes,
     };
 
