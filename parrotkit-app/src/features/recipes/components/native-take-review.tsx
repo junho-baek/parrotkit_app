@@ -5,12 +5,16 @@ type NativeTakeReviewProps = {
   uri: string;
   onRetry: () => void;
   onUseTake: () => void;
+  useTakeDisabled?: boolean;
+  useTakeLabel?: string;
 };
 
 export function NativeTakeReview({
   uri,
   onRetry,
   onUseTake,
+  useTakeDisabled = false,
+  useTakeLabel = 'Use Take',
 }: NativeTakeReviewProps) {
   return (
     <View style={styles.root}>
@@ -33,7 +37,8 @@ export function NativeTakeReview({
         />
         <ReviewButton
           iconName="check"
-          label="Use Take"
+          disabled={useTakeDisabled}
+          label={useTakeLabel}
           onPress={onUseTake}
           tone="primary"
         />
@@ -48,9 +53,11 @@ type ReviewIconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'
 function ReviewButton({
   iconName,
   label,
+  disabled = false,
   onPress,
   tone,
 }: {
+  disabled?: boolean;
   iconName: ReviewIconName;
   label: string;
   onPress: () => void;
@@ -62,10 +69,12 @@ function ReviewButton({
     <Pressable
       accessibilityLabel={label}
       accessibilityRole="button"
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.actionButton,
         primary ? styles.primaryButton : styles.secondaryButton,
+        disabled && styles.disabledButton,
         pressed && styles.pressedButton,
       ]}
     >
@@ -145,6 +154,9 @@ const styles = StyleSheet.create({
   pressedButton: {
     opacity: 0.74,
     transform: [{ scale: 0.98 }],
+  },
+  disabledButton: {
+    opacity: 0.58,
   },
   actionLabel: {
     fontSize: 14,

@@ -6,6 +6,7 @@ import {
   useMicrophonePermissions,
 } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as MediaLibrary from 'expo-media-library';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
@@ -42,6 +43,7 @@ export function RecipePrompterCameraScreen() {
   const [editRequestByBlockId, setEditRequestByBlockId] = useState<Record<string, number>>({});
   const [recording, setRecording] = useState(false);
   const [reviewUri, setReviewUri] = useState<string | null>(null);
+  const [savingTake, setSavingTake] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const rawRecipe = params.recipeId ? getRecipeById(params.recipeId) : null;
   const recipe = useMemo(() => (rawRecipe ? normalizeNativeRecipe(rawRecipe) : null), [rawRecipe]);
@@ -91,6 +93,7 @@ export function RecipePrompterCameraScreen() {
 
   useEffect(() => {
     setReviewUri(null);
+    setSavingTake(false);
     setSaveMessage('');
     setFocusedBlockId(null);
   }, [activeSceneId]);
@@ -204,16 +207,36 @@ export function RecipePrompterCameraScreen() {
     setSaveMessage('');
   }, []);
 
-  const handleUseTake = useCallback(() => {
-    if (!recipe || !activeScene || !reviewUri) return;
+  const handleUseTake = useCallback(async () => {
+    if (!recipe || !activeScene || !reviewUri || savingTake) return;
+
+    setSavingTake(true);
+
+    let message = 'Take saved';
+    let savedAt = 'Saved just now';
+
+    try {
+      const permission = await MediaLibrary.requestPermissionsAsync(true, ['video']);
+
+      if (permission.granted) {
+        await MediaLibrary.saveToLibraryAsync(reviewUri);
+        message = 'Take saved to Photos';
+        savedAt = 'Saved to Photos just now';
+      } else {
+        message = 'Take saved. Photos access was not allowed.';
+      }
+    } catch {
+      message = 'Take saved. Could not save to Photos.';
+    }
 
     setSceneRecordedTake(recipe.id, activeScene.id, {
       uri: reviewUri,
-      savedAt: 'Saved just now',
+      savedAt,
     });
     setReviewUri(null);
-    setSaveMessage('Take saved');
-  }, [activeScene, recipe, reviewUri, setSceneRecordedTake]);
+    setSaveMessage(message);
+    setSavingTake(false);
+  }, [activeScene, recipe, reviewUri, savingTake, setSceneRecordedTake]);
 
   const statusLabel = saveMessage || savedTake?.savedAt || (!microphonePermission?.granted ? 'Mic off: muted recording' : '');
 
@@ -348,6 +371,8 @@ export function RecipePrompterCameraScreen() {
           <NativeTakeReview
             onRetry={handleRetryReview}
             onUseTake={handleUseTake}
+            useTakeDisabled={savingTake}
+            useTakeLabel={savingTake ? 'Saving...' : 'Use Take'}
             uri={reviewUri}
           />
         </View>

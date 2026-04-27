@@ -18,7 +18,9 @@
       "bundleIdentifier": "com.anonymous.parrotkitapp",
       "infoPlist": {
         "NSCameraUsageDescription": "Allow ParrotKit to access your camera so you can shoot with recipe cues.",
-        "NSMicrophoneUsageDescription": "Allow ParrotKit to record your voice while shooting recipe takes."
+        "NSMicrophoneUsageDescription": "Allow ParrotKit to record your voice while shooting recipe takes.",
+        "NSPhotoLibraryAddUsageDescription": "Allow ParrotKit to save approved recipe takes to your photo library.",
+        "NSPhotoLibraryUsageDescription": "Allow ParrotKit to access saved recipe takes in your photo library."
       }
     },
     "android": {
@@ -45,6 +47,16 @@
           "cameraPermission": "Allow ParrotKit to access your camera so you can shoot with recipe cues.",
           "microphonePermission": "Allow ParrotKit to record your voice while shooting recipe takes.",
           "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "granularPermissions": [
+            "video"
+          ],
+          "photosPermission": "Allow ParrotKit to access saved recipe takes in your photo library.",
+          "savePhotosPermission": "Allow ParrotKit to save approved recipe takes to your photo library."
         }
       ],
       "expo-video"
