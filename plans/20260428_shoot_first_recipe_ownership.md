@@ -46,3 +46,11 @@
 - Mock-only ownership이므로 실제 서버 소유권과 다를 수 있다.
 - Home과 Recipes가 같은 카드 컴포넌트를 공유하므로 카드 API가 과도하게 커지지 않게 유지해야 한다.
 - Explore download는 로컬 복제 상태만 만든다. 실제 공유 링크/권한 모델은 다음 단계에서 따로 설계한다.
+
+## 결과
+- 레시피 mock data에 ownership, verification, creator trust, download, shoot progress metadata를 추가했다.
+- Home을 Shoot-first surface로 바꾸고 Continue Shoot / latest shootable recipe / Quick Shoot fallback 순서로 정리했다.
+- Explore를 verified creator recipe discovery로 바꾸고 mock 다운로드를 Recipes/Home 상태에 반영하도록 연결했다.
+- Recipes를 All / Owned / Saved / Remixes 라이브러리로 정리하고 Shoot/Open 액션을 분리했다.
+- 하단 첫 탭 라벨을 Home에서 Shoot로 변경했다.
+- 연결 context: `context/context_20260428_shoot_first_recipe_ownership.md`
