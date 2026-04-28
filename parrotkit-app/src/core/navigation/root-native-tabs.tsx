@@ -58,7 +58,7 @@ function RootNativeTabsContent() {
             }}
             sf={{ default: 'house', selected: 'house.fill' }}
           />
-          <Label hidden={homeQuickShootChromeHidden}>Home</Label>
+          <Label hidden={homeQuickShootChromeHidden}>Shoot</Label>
         </NativeTabs.Trigger>
 
         <NativeTabs.Trigger name="explore">
