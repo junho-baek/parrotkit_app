@@ -1,46 +1,70 @@
 import { Href, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Image, ScrollView, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { AppScreenScrollView } from '@/core/ui/app-screen-scroll-view';
-import { MediaTileCard } from '@/core/ui/media-tile-card';
+import { ShootableRecipeCard } from '@/features/recipes/components/shootable-recipe-card';
+import { isVerifiedCreatorRecipe } from '@/features/recipes/lib/recipe-ownership';
 
-const categories = ['All', 'Cooking', 'Beauty', 'Fitness', 'Creator'];
+const recipeFilters = ['Verified', 'Community', 'All'] as const;
+type RecipeFilter = (typeof recipeFilters)[number];
 
 export function ExploreScreen() {
   const router = useRouter();
-  const { partnerCreators, toggleLikeReference, trendingReferences } = useMockWorkspace();
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const {
+    downloadRecipe,
+    exploreRecipes,
+    isRecipeDownloaded,
+    partnerCreators,
+  } = useMockWorkspace();
+  const [selectedFilter, setSelectedFilter] = useState<RecipeFilter>('Verified');
 
-  const filteredReferences = useMemo(
-    () =>
-      selectedCategory === 'All'
-        ? trendingReferences
-        : trendingReferences.filter((reference) => reference.category === selectedCategory),
-    [selectedCategory, trendingReferences]
-  );
+  const filteredRecipes = useMemo(() => {
+    if (selectedFilter === 'Verified') {
+      return exploreRecipes.filter(isVerifiedCreatorRecipe);
+    }
+
+    if (selectedFilter === 'Community') {
+      return exploreRecipes.filter((recipe) => !isVerifiedCreatorRecipe(recipe));
+    }
+
+    return exploreRecipes;
+  }, [exploreRecipes, selectedFilter]);
+
+  const verifiedCreators = partnerCreators.filter((creator) => creator.trust === 'verified');
+
+  const handleDownload = (recipeId: string) => {
+    const downloadedRecipe = downloadRecipe(recipeId);
+
+    if (downloadedRecipe) {
+      router.push(`/recipe/${downloadedRecipe.id}` as Href);
+    }
+  };
 
   return (
     <AppScreenScrollView>
       <View className="gap-5 px-5">
         <View className="gap-1">
           <Text className="text-[32px] font-black leading-[36px] text-ink">Explore</Text>
-          <Text className="text-[15px] text-muted">Most popular viral references</Text>
+          <Text className="text-[15px] text-muted">Verified creator recipes you can save, remix, and shoot.</Text>
         </View>
 
         <View className="gap-3">
-          <Text className="text-[16px] font-bold text-ink">Partner Creators</Text>
+          <Text className="text-[16px] font-black text-ink">Verified creators</Text>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View className="flex-row gap-4">
-              {partnerCreators.map((creator) => (
-                <View key={creator.id} className="w-[86px] items-center">
-                  <View className="mb-2 h-[74px] w-[74px] overflow-hidden rounded-full border border-stroke">
+              {verifiedCreators.map((creator) => (
+                <View key={creator.id} className="w-[96px]">
+                  <View className="mb-2 h-[76px] w-[76px] overflow-hidden rounded-full border border-violet/30">
                     <MediaAvatar uri={creator.avatar} />
                   </View>
-                  <Text className="text-[13px] font-semibold text-ink" numberOfLines={1}>
+                  <Text className="text-[13px] font-black text-ink" numberOfLines={1}>
                     {creator.name}
+                  </Text>
+                  <Text className="text-[11px] font-semibold text-muted" numberOfLines={1}>
+                    {creator.specialty}
                   </Text>
                 </View>
               ))}
@@ -50,45 +74,44 @@ export function ExploreScreen() {
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View className="flex-row gap-2">
-            {categories.map((category) => {
-              const selected = category === selectedCategory;
+            {recipeFilters.map((filter) => {
+              const selected = filter === selectedFilter;
               return (
-                <Text
-                  key={category}
-                  className={`rounded-full px-4 py-2 text-xs font-bold ${selected ? 'bg-violet text-white' : 'bg-slate-100 text-slate-700'}`}
-                  onPress={() => setSelectedCategory(category)}
+                <Pressable
+                  key={filter}
+                  className={`rounded-full px-4 py-2 ${selected ? 'bg-violet' : 'bg-slate-100'}`}
+                  onPress={() => setSelectedFilter(filter)}
                 >
-                  {category}
-                </Text>
+                  <Text className={`text-xs font-black ${selected ? 'text-white' : 'text-slate-700'}`}>
+                    {filter}
+                  </Text>
+                </Pressable>
               );
             })}
           </View>
         </ScrollView>
 
-        <View className="flex-row flex-wrap gap-3">
-          {filteredReferences.map((reference) => (
-            <View key={reference.id} className="w-[48%]">
-              <MediaTileCard
-                actionLabel={reference.isLiked ? 'Liked' : 'Like'}
-                actionMeta={`(${reference.likes})`}
-                actionTone={reference.isLiked ? 'liked' : 'neutral'}
-                leftMetric={{ icon: '👁', value: reference.views }}
-                onAction={() => toggleLikeReference(reference.id)}
-                onPress={() =>
-                  reference.recipeId
-                    ? router.push(`/recipe/${reference.recipeId}` as Href)
-                    : router.push('/source-actions' as Href)
-                }
-                rightMetric={{ icon: '❤', value: String(reference.likes) }}
-                subtitle={reference.creator}
-                thumbnail={reference.thumbnail}
-                title={reference.title}
-                topLeftLabel="TRENDING"
-                topLeftTone="warm"
-                topRightLabel={reference.duration}
-              />
-            </View>
-          ))}
+        <View className="gap-3">
+          <Text className="text-[18px] font-black text-ink">
+            {selectedFilter === 'Verified' ? 'Verified recipes' : selectedFilter === 'Community' ? 'Community recipes' : 'All recipes'}
+          </Text>
+
+          <View className="flex-row flex-wrap gap-3">
+            {filteredRecipes.map((recipe) => {
+              const downloaded = isRecipeDownloaded(recipe.id);
+              return (
+                <View key={recipe.id} className="w-[48%]">
+                  <ShootableRecipeCard
+                    recipe={recipe}
+                    primaryLabel={downloaded ? 'Open' : 'Download'}
+                    secondaryLabel={downloaded ? 'Saved' : `${recipe.downloadCount}`}
+                    onPrimary={() => handleDownload(recipe.id)}
+                    onSecondary={downloaded ? () => handleDownload(recipe.id) : undefined}
+                  />
+                </View>
+              );
+            })}
+          </View>
         </View>
       </View>
     </AppScreenScrollView>
