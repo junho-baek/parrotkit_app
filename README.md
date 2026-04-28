@@ -2,9 +2,37 @@
 
 > Transform viral videos into actionable content recipes with AI
 
-ParrotKit is a cutting-edge mobile-first platform that analyzes viral short-form videos and generates detailed "recipes" - shot-by-shot breakdowns that help content creators replicate successful formats. Powered by Google Gemini AI and FFmpeg, it provides comprehensive scene analysis, camera angles, lighting setups, and scriptwriting guidance.
+ParrotKit is a mobile-first UGC shooting OS. It helps creators find proven short-form formats, save them as shootable recipes, and open those recipes directly in a camera + prompter workflow. Analysis matters, but the core loop is execution: discover a working pattern, turn it into a recipe, then shoot it.
 
-**Last Updated**: February 11, 2026
+**Last Updated**: April 28, 2026
+
+## Product Direction
+
+ParrotKit should feel less like an operations console and more like a creator tool that gets someone from idea to take as quickly as possible.
+
+### Core Loop
+
+1. **Explore:** Find recipes that already work.
+2. **Save or remix:** Bring a recipe into your own library.
+3. **Shoot:** Open the recipe as prompter-ready ingredients and record takes.
+4. **Review:** Keep the useful take, then come back to shoot again.
+
+### Screen Roles
+
+- **Home / Shoot:** The execution launcher. It should prioritize the last active shoot, frequently used recipes, saved recipes, Quick Shoot, and recent takes.
+- **Explore:** The recipe discovery network. It should feel closer to TikTok Creative Center or Sandcastles than a generic video feed: validated formats, top hooks, outlier breakdowns, creator packs, and trending shootable patterns.
+- **Recipes:** The user's owned, saved, and remixed recipe library. Recipes are not passive notes; each one should be one tap away from the prompter.
+- **Source:** The intake layer for pasted links, scripts, transcripts, and imported assets that can become recipes.
+
+### Reference Apps
+
+- **TikTok Creative Center:** Pattern discovery, trend intelligence, and proof that a format works.
+- **Sandcastles:** Research workflows around viral outliers, hooks, transcripts, and project-level inspiration.
+- **CapCut:** Template browsing and remix behavior, but adapted for shooting before editing.
+- **BIGVU:** Camera + teleprompter + take review mechanics.
+- **Notion / Canva templates:** Ownership, sharing, saving, and remixing mental model for reusable recipes.
+
+The product thesis: **CapCut helps after footage exists. ParrotKit should help before and during the shoot.**
 
 ## ✨ Features
 
@@ -19,7 +47,7 @@ ParrotKit is a cutting-edge mobile-first platform that analyzes viral short-form
 
 ### 📱 Mobile-First Experience
 - **App-Like Interface**: Optimized for mobile with smooth animations and transitions
-- **Bottom Tab Navigation**: Intuitive 5-tab layout (Home, Explore, Paste, Recipes, My)
+- **Bottom Tab Navigation**: Intuitive 5-tab layout (Shoot, Explore, Source, Recipes, My)
 - **Fixed Frame Layout**: Stable viewport with no scrolling issues (100dvh support)
 - **Safe Area Support**: Adaptive padding for notches and home indicators
 - **Responsive Design**: Scales from mobile to tablet to desktop
@@ -27,11 +55,11 @@ ParrotKit is a cutting-edge mobile-first platform that analyzes viral short-form
 - **Bouncing Logo**: Playful loading animations with brand logo throughout
 
 ### 🔍 Explore & Discover
-- **Trending Content**: Browse curated viral videos
-- **Like & Save**: Build your personal collection of favorite videos
-- **Category Filters**: Find content by niche (Cooking, Beauty, Fitness, DIY, Travel, Comedy)
-- **Real YouTube Integration**: Play videos directly within modal player
-- **Grid Layout**: Instagram-style 2-column video grid
+- **Validated Recipes**: Browse creator-proven UGC formats that can be saved and shot
+- **Creator Packs**: Discover verified creator frameworks by niche and style
+- **Outlier Breakdowns**: Study hooks, transcripts, scenes, and reusable structure when source data is available
+- **Save & Remix**: Bring a public recipe into your own library before shooting
+- **Grid Layout**: Fast, mobile-native recipe cards built for scanning and action
 
 ### 📋 Smart Recipe Management
 - **Create Recipes**: Paste video URLs and generate instant recipes
@@ -39,9 +67,9 @@ ParrotKit is a cutting-edge mobile-first platform that analyzes viral short-form
 - **AI Chat Assistant**: Modify scene scripts with conversational AI
 - **View & Edit**: Access detailed scene-by-scene breakdowns with real thumbnails
 - **Track Progress**: Monitor captured scenes and completion status
-- **Camera Shooting**: Record scenes with reference video side-by-side
+- **Camera Shooting**: Record scenes with movable prompter cues and take review
 - **Export Options**: Download captured videos individually or bulk export
-- **Recipe Storage**: LocalStorage-based recipe persistence
+- **Recipe Storage**: Owned, saved, downloaded, and remixed recipe states
 
 ### 👤 Complete User Experience
 - **Secure Authentication**: JWT-based login with bcrypt password hashing
