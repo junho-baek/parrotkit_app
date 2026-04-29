@@ -39,3 +39,9 @@
 ## 리스크
 - v1은 metadata를 mock React state에 저장하므로 앱 재시작 후 take 목록 영속성은 제한적이다.
 - React Native Share sheet에서 CapCut 노출 여부는 iOS와 설치 앱 상태에 의존한다.
+
+## 결과
+- Local take project helper와 workspace API를 추가했다.
+- Recipe shooting과 Quick Shoot 모두 `Keep` 우선 local take flow로 바꿨다.
+- Gallery save와 `Open in...` export는 사용자가 선택한 take에서만 실행된다.
+- 연결 context: `context/context_20260429_local_take_projects.md`

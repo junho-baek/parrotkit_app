@@ -2,9 +2,12 @@ import { createContext, PropsWithChildren, useCallback, useContext, useMemo, use
 
 import {
   MockPlatform,
+  MockProjectTake,
+  MockQuickTakeProject,
   MockRecipe,
   MockRecipeScene,
-  MockRecordedTake,
+  MockRecipeTakeProject,
+  MockSceneTakeCollection,
   MockReference,
   exploreRecipeSeeds,
   partnerCreators,
@@ -19,6 +22,20 @@ import {
   getContinueShootRecipe as selectContinueShootRecipe,
   getLatestShootableRecipe as selectLatestShootableRecipe,
 } from '@/features/recipes/lib/recipe-ownership';
+import {
+  addQuickTake,
+  addSceneTake,
+  createProjectTake,
+  createQuickTakeProject as createMockQuickTakeProject,
+  getBestTake,
+  getSceneTakeCollection as selectSceneTakeCollection,
+  markQuickTakeExported,
+  markSceneTakeExported,
+  removeQuickTake,
+  removeSceneTake,
+  setQuickBestTake,
+  setSceneBestTake,
+} from '@/features/recipes/lib/take-projects';
 import type { PrompterBlock } from '@/features/recipes/types/recipe-domain';
 
 type CreateRecipeDraftInput = {
@@ -74,15 +91,25 @@ type MockWorkspaceContextValue = {
   updateScenePrompterBlockContent: (recipeId: string, sceneId: string, blockId: string, content: string) => void;
   addScenePrompterBlock: (recipeId: string, sceneId: string) => string | null;
   hideScenePrompterBlock: (recipeId: string, sceneId: string, blockId: string) => void;
-  getSceneRecordedTake: (recipeId: string, sceneId: string) => MockRecordedTake | null;
-  setSceneRecordedTake: (recipeId: string, sceneId: string, take: MockRecordedTake) => void;
-  clearSceneRecordedTake: (recipeId: string, sceneId: string) => void;
+  quickTakeProject: MockQuickTakeProject;
+  getSceneTakeCollection: (recipeId: string, sceneId: string) => MockSceneTakeCollection;
+  getSceneBestTake: (recipeId: string, sceneId: string) => MockProjectTake | null;
+  addSceneProjectTake: (recipeId: string, sceneId: string, uri: string) => void;
+  deleteSceneProjectTake: (recipeId: string, sceneId: string, takeId: string) => void;
+  setSceneBestProjectTake: (recipeId: string, sceneId: string, takeId: string) => void;
+  markSceneProjectTakeGallerySaved: (recipeId: string, sceneId: string, takeId: string) => void;
+  markSceneProjectTakeShared: (recipeId: string, sceneId: string, takeId: string) => void;
+  addQuickProjectTake: (uri: string) => void;
+  deleteQuickProjectTake: (takeId: string) => void;
+  setQuickBestProjectTake: (takeId: string) => void;
+  markQuickProjectTakeGallerySaved: (takeId: string) => void;
+  markQuickProjectTakeShared: (takeId: string) => void;
 };
 
 const MockWorkspaceContext = createContext<MockWorkspaceContextValue | null>(null);
 
 type PrompterSelectionState = Record<string, Record<string, string[]>>;
-type RecordedTakeState = Record<string, Record<string, MockRecordedTake>>;
+type RecipeTakeProjectState = Record<string, MockRecipeTakeProject>;
 type WorkspaceState = {
   recipes: MockRecipe[];
   prompterSelections: PrompterSelectionState;
@@ -177,7 +204,8 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
     prompterSelections: {},
   });
   const [trendingReferences, setTrendingReferences] = useState<MockReference[]>(trendingReferencesSeed);
-  const [recordedTakes, setRecordedTakes] = useState<RecordedTakeState>({});
+  const [recipeTakeProjects, setRecipeTakeProjects] = useState<RecipeTakeProjectState>({});
+  const [quickTakeProject, setQuickTakeProject] = useState<MockQuickTakeProject>(() => createMockQuickTakeProject());
   const { recipes, prompterSelections } = workspaceState;
 
   const setRecipes = useCallback((update: StateUpdate<MockRecipe[]>) => {
@@ -627,42 +655,98 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
     updateScenePrompterBlock(recipeId, sceneId, blockId, { visible: false });
   }, [updateScenePrompterBlock]);
 
-  const getSceneRecordedTake = useCallback(
-    (recipeId: string, sceneId: string) => recordedTakes[recipeId]?.[sceneId] ?? null,
-    [recordedTakes]
+  const getSceneTakeCollection = useCallback(
+    (recipeId: string, sceneId: string) => selectSceneTakeCollection(recipeTakeProjects[recipeId], sceneId),
+    [recipeTakeProjects]
   );
 
-  const setSceneRecordedTake = useCallback((recipeId: string, sceneId: string, take: MockRecordedTake) => {
-    setRecordedTakes((current) => ({
-      ...current,
-      [recipeId]: {
-        ...(current[recipeId] ?? {}),
-        [sceneId]: take,
-      },
-    }));
-  }, []);
+  const getSceneBestTake = useCallback(
+    (recipeId: string, sceneId: string) => getBestTake(selectSceneTakeCollection(recipeTakeProjects[recipeId], sceneId)),
+    [recipeTakeProjects]
+  );
 
-  const clearSceneRecordedTake = useCallback((recipeId: string, sceneId: string) => {
-    setRecordedTakes((current) => {
-      const recipeTakes = current[recipeId];
-      if (!recipeTakes?.[sceneId]) {
-        return current;
-      }
-
-      const nextRecipe = { ...recipeTakes };
-      delete nextRecipe[sceneId];
-
-      if (Object.keys(nextRecipe).length === 0) {
-        const nextRecordedTakes = { ...current };
-        delete nextRecordedTakes[recipeId];
-        return nextRecordedTakes;
-      }
+  const addSceneProjectTake = useCallback((recipeId: string, sceneId: string, uri: string) => {
+    setRecipeTakeProjects((current) => {
+      const collection = selectSceneTakeCollection(current[recipeId], sceneId);
+      const take = createProjectTake(uri, collection.takes.length + 1);
 
       return {
         ...current,
-        [recipeId]: nextRecipe,
+        [recipeId]: addSceneTake(current[recipeId], recipeId, sceneId, take),
       };
     });
+  }, []);
+
+  const deleteSceneProjectTake = useCallback((recipeId: string, sceneId: string, takeId: string) => {
+    setRecipeTakeProjects((current) => {
+      const nextProject = removeSceneTake(current[recipeId], sceneId, takeId);
+
+      if (!nextProject) return current;
+
+      return {
+        ...current,
+        [recipeId]: nextProject,
+      };
+    });
+  }, []);
+
+  const setSceneBestProjectTake = useCallback((recipeId: string, sceneId: string, takeId: string) => {
+    setRecipeTakeProjects((current) => {
+      const nextProject = setSceneBestTake(current[recipeId], sceneId, takeId);
+
+      if (!nextProject) return current;
+
+      return {
+        ...current,
+        [recipeId]: nextProject,
+      };
+    });
+  }, []);
+
+  const markSceneProjectTakeGallerySaved = useCallback((recipeId: string, sceneId: string, takeId: string) => {
+    setRecipeTakeProjects((current) => {
+      const nextProject = markSceneTakeExported(current[recipeId], sceneId, takeId, 'gallery');
+
+      if (!nextProject) return current;
+
+      return {
+        ...current,
+        [recipeId]: nextProject,
+      };
+    });
+  }, []);
+
+  const markSceneProjectTakeShared = useCallback((recipeId: string, sceneId: string, takeId: string) => {
+    setRecipeTakeProjects((current) => {
+      const nextProject = markSceneTakeExported(current[recipeId], sceneId, takeId, 'share');
+
+      if (!nextProject) return current;
+
+      return {
+        ...current,
+        [recipeId]: nextProject,
+      };
+    });
+  }, []);
+
+  const addQuickProjectTake = useCallback((uri: string) => {
+    setQuickTakeProject((current) => addQuickTake(current, createProjectTake(uri, current.takes.length + 1)));
+  }, []);
+
+  const deleteQuickProjectTake = useCallback((takeId: string) => {
+    setQuickTakeProject((current) => removeQuickTake(current, takeId));
+  }, []);
+
+  const setQuickBestProjectTake = useCallback((takeId: string) => {
+    setQuickTakeProject((current) => setQuickBestTake(current, takeId));
+  }, []);
+
+  const markQuickProjectTakeGallerySaved = useCallback((takeId: string) => {
+    setQuickTakeProject((current) => markQuickTakeExported(current, takeId, 'gallery'));
+  }, []);
+
+  const markQuickProjectTakeShared = useCallback((takeId: string) => {
+    setQuickTakeProject((current) => markQuickTakeExported(current, takeId, 'share'));
   }, []);
 
   const togglePrompterSelection = useCallback((recipeId: string, scene: MockRecipeScene, elementId: string) => {
@@ -743,29 +827,49 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       updateScenePrompterBlockContent,
       addScenePrompterBlock,
       hideScenePrompterBlock,
-      getSceneRecordedTake,
-      setSceneRecordedTake,
-      clearSceneRecordedTake,
+      quickTakeProject,
+      getSceneTakeCollection,
+      getSceneBestTake,
+      addSceneProjectTake,
+      deleteSceneProjectTake,
+      setSceneBestProjectTake,
+      markSceneProjectTakeGallerySaved,
+      markSceneProjectTakeShared,
+      addQuickProjectTake,
+      deleteQuickProjectTake,
+      setQuickBestProjectTake,
+      markQuickProjectTakeGallerySaved,
+      markQuickProjectTakeShared,
     }),
     [
       addScenePrompterBlock,
-      clearSceneRecordedTake,
+      addQuickProjectTake,
+      addSceneProjectTake,
       createRecipeDraft,
       createQuickShootRecipe,
+      deleteQuickProjectTake,
+      deleteSceneProjectTake,
       downloadRecipe,
       getContinueShootRecipe,
       getLatestShootableRecipe,
-      getSceneRecordedTake,
+      getSceneBestTake,
+      getSceneTakeCollection,
       getPrompterSelection,
       getRecipeById,
       hideScenePrompterBlock,
       homeStats,
       isRecipeDownloaded,
       likedReferences,
+      markQuickProjectTakeGallerySaved,
+      markQuickProjectTakeShared,
+      markSceneProjectTakeGallerySaved,
+      markSceneProjectTakeShared,
+      quickTakeProject,
       recentReferences,
       recipes,
       setPrompterSelection,
-      setSceneRecordedTake,
+      setQuickBestProjectTake,
+      setSceneBestProjectTake,
       sourceStats,
       toggleLikeReference,
       togglePrompterSelection,

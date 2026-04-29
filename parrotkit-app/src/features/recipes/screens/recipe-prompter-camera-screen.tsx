@@ -6,22 +6,24 @@ import {
   useMicrophonePermissions,
 } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as MediaLibrary from 'expo-media-library';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import type { MockProjectTake } from '@/core/mocks/parrotkit-data';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { NativePrompterBlockOverlay } from '@/features/recipes/components/native-prompter-block-overlay';
 import { NativePrompterToolbar } from '@/features/recipes/components/native-prompter-toolbar';
 import { NativeRecordButton } from '@/features/recipes/components/native-record-button';
 import {
   NativeTakeReview,
-  type NativeGallerySaveStatus,
+  type NativeTakeReviewStatus,
 } from '@/features/recipes/components/native-take-review';
+import { NativeTakeTray } from '@/features/recipes/components/native-take-tray';
 import { ShootingSceneSwitcher } from '@/features/recipes/components/shooting-scene-switcher';
 import { getVisiblePrompterBlocks, normalizeNativeRecipe } from '@/features/recipes/lib/recipe-domain-normalizer';
+import { openTakeInShareSheet, saveTakeToGallery } from '@/features/recipes/lib/take-export';
 import { PrompterBlock } from '@/features/recipes/types/recipe-domain';
 
 export function RecipePrompterCameraScreen() {
@@ -30,10 +32,15 @@ export function RecipePrompterCameraScreen() {
   const params = useLocalSearchParams<{ recipeId?: string; sceneId?: string }>();
   const {
     addScenePrompterBlock,
+    addSceneProjectTake,
+    deleteSceneProjectTake,
     getRecipeById,
-    getSceneRecordedTake,
+    getSceneBestTake,
+    getSceneTakeCollection,
     hideScenePrompterBlock,
-    setSceneRecordedTake,
+    markSceneProjectTakeGallerySaved,
+    markSceneProjectTakeShared,
+    setSceneBestProjectTake,
     updateScenePrompterBlock,
   } = useMockWorkspace();
   const [permission, requestPermission] = useCameraPermissions();
@@ -46,12 +53,11 @@ export function RecipePrompterCameraScreen() {
   const [editRequestByBlockId, setEditRequestByBlockId] = useState<Record<string, number>>({});
   const [recording, setRecording] = useState(false);
   const [reviewUri, setReviewUri] = useState<string | null>(null);
-  const [gallerySaveStatus, setGallerySaveStatus] = useState<NativeGallerySaveStatus>('idle');
-  const [gallerySaveMessage, setGallerySaveMessage] = useState('');
+  const [reviewStatus, setReviewStatus] = useState<NativeTakeReviewStatus>('idle');
+  const [reviewStatusMessage, setReviewStatusMessage] = useState('');
   const [savingTake, setSavingTake] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
-  const gallerySaveRunRef = useRef(0);
-  const gallerySavedUrisRef = useRef<Set<string>>(new Set());
+  const [busyTakeId, setBusyTakeId] = useState<string | null>(null);
   const rawRecipe = params.recipeId ? getRecipeById(params.recipeId) : null;
   const recipe = useMemo(() => (rawRecipe ? normalizeNativeRecipe(rawRecipe) : null), [rawRecipe]);
   const [activeSceneId, setActiveSceneId] = useState(params.sceneId ?? recipe?.scenes[0]?.id ?? '');
@@ -81,7 +87,8 @@ export function RecipePrompterCameraScreen() {
     () => selectedBlocks.find((block) => block.id === focusedBlockId) ?? null,
     [focusedBlockId, selectedBlocks]
   );
-  const savedTake = recipe && activeScene ? getSceneRecordedTake(recipe.id, activeScene.id) : null;
+  const sceneTakeCollection = recipe && activeScene ? getSceneTakeCollection(recipe.id, activeScene.id) : null;
+  const bestTake = recipe && activeScene ? getSceneBestTake(recipe.id, activeScene.id) : null;
 
   const handleBack = useCallback(() => {
     if (router.canGoBack()) {
@@ -99,12 +106,12 @@ export function RecipePrompterCameraScreen() {
   }, [focusedBlockId, selectedBlocks]);
 
   useEffect(() => {
-    gallerySaveRunRef.current += 1;
     setReviewUri(null);
-    setGallerySaveStatus('idle');
-    setGallerySaveMessage('');
+    setReviewStatus('idle');
+    setReviewStatusMessage('');
     setSavingTake(false);
     setSaveMessage('');
+    setBusyTakeId(null);
     setFocusedBlockId(null);
   }, [activeSceneId]);
 
@@ -174,64 +181,6 @@ export function RecipePrompterCameraScreen() {
     requestEditForBlock(focusedBlock.id);
   }, [focusedBlock, requestEditForBlock]);
 
-  const saveTakeToNativeGallery = useCallback(async (uri: string) => {
-    const runId = gallerySaveRunRef.current + 1;
-    gallerySaveRunRef.current = runId;
-    const updateGalleryState = (status: NativeGallerySaveStatus, message: string) => {
-      if (gallerySaveRunRef.current !== runId) return;
-
-      setGallerySaveStatus(status);
-      setGallerySaveMessage(message);
-    };
-
-    if (gallerySavedUrisRef.current.has(uri)) {
-      const message = 'Saved to native Gallery';
-      const savedAt = 'Saved to native Gallery just now';
-
-      updateGalleryState('saved', 'This take is already in your native gallery.');
-
-      return { message, savedAt, status: 'saved' as NativeGallerySaveStatus };
-    }
-
-    updateGalleryState('saving', 'Saving this take to the native camera roll.');
-
-    try {
-      const permission = await MediaLibrary.requestPermissionsAsync(true, ['video']);
-
-      if (!permission.granted) {
-        const message = 'Gallery access was not allowed.';
-
-        updateGalleryState('denied', 'Allow Photos access to save this take to the native gallery.');
-
-        return {
-          message,
-          savedAt: 'Gallery access needed',
-          status: 'denied' as NativeGallerySaveStatus,
-        };
-      }
-
-      await MediaLibrary.saveToLibraryAsync(uri);
-      gallerySavedUrisRef.current.add(uri);
-
-      const message = 'Saved to native Gallery';
-      const savedAt = 'Saved to native Gallery just now';
-
-      updateGalleryState('saved', 'This take is now in your native camera roll.');
-
-      return { message, savedAt, status: 'saved' as NativeGallerySaveStatus };
-    } catch {
-      const message = 'Could not save to native Gallery.';
-
-      updateGalleryState('failed', 'Tap Save to Gallery to try again.');
-
-      return {
-        message,
-        savedAt: 'Gallery save failed',
-        status: 'failed' as NativeGallerySaveStatus,
-      };
-    }
-  }, []);
-
   const handleRecordPress = useCallback(async () => {
     if (recording) {
       cameraRef.current?.stopRecording();
@@ -248,9 +197,8 @@ export function RecipePrompterCameraScreen() {
 
     setSaveMessage('');
     setReviewUri(null);
-    gallerySaveRunRef.current += 1;
-    setGallerySaveStatus('idle');
-    setGallerySaveMessage('');
+    setReviewStatus('idle');
+    setReviewStatusMessage('');
     setRecording(true);
 
     const recordingPromise = camera.recordAsync({ maxDuration: 90 });
@@ -261,7 +209,8 @@ export function RecipePrompterCameraScreen() {
 
       if (result?.uri) {
         setReviewUri(result.uri);
-        void saveTakeToNativeGallery(result.uri);
+        setReviewStatus('idle');
+        setReviewStatusMessage('Keep it in this scene, or export only the take you like.');
       }
     } catch {
       setSaveMessage('Recording could not be saved. Try again.');
@@ -272,59 +221,106 @@ export function RecipePrompterCameraScreen() {
 
       setRecording(false);
     }
-  }, [microphonePermission, recording, requestMicrophonePermission, saveTakeToNativeGallery]);
+  }, [microphonePermission, recording, requestMicrophonePermission]);
 
   const handleRetryReview = useCallback(() => {
-    gallerySaveRunRef.current += 1;
     setReviewUri(null);
-    setGallerySaveStatus('idle');
-    setGallerySaveMessage('');
+    setReviewStatus('idle');
+    setReviewStatusMessage('');
     setSaveMessage('');
   }, []);
 
-  const handleUseTake = useCallback(async () => {
+  const handleKeepTake = useCallback(() => {
     if (!recipe || !activeScene || !reviewUri || savingTake) return;
 
     setSavingTake(true);
 
     try {
-      let message = 'Saved to native Gallery';
-      let savedAt = 'Saved to native Gallery just now';
-
-      if (gallerySaveStatus !== 'saved' || !gallerySavedUrisRef.current.has(reviewUri)) {
-        const galleryResult = await saveTakeToNativeGallery(reviewUri);
-
-        if (galleryResult.status !== 'saved') {
-          setSaveMessage(galleryResult.message);
-          return;
-        }
-
-        message = galleryResult.message;
-        savedAt = galleryResult.savedAt;
-      }
-
-      setSceneRecordedTake(recipe.id, activeScene.id, {
-        uri: reviewUri,
-        savedAt,
-      });
+      addSceneProjectTake(recipe.id, activeScene.id, reviewUri);
       setReviewUri(null);
-      setGallerySaveStatus('idle');
-      setGallerySaveMessage('');
-      setSaveMessage(message);
+      setReviewStatus('idle');
+      setReviewStatusMessage('');
+      setSaveMessage(`Kept locally in ${activeScene.title}.`);
     } finally {
       setSavingTake(false);
     }
-  }, [
-    activeScene,
-    gallerySaveStatus,
-    recipe,
-    reviewUri,
-    saveTakeToNativeGallery,
-    savingTake,
-    setSceneRecordedTake,
-  ]);
+  }, [activeScene, addSceneProjectTake, recipe, reviewUri, savingTake]);
 
-  const statusLabel = saveMessage || savedTake?.savedAt || (!microphonePermission?.granted ? 'Mic off: muted recording' : '');
+  const handleSaveReviewToGallery = useCallback(async () => {
+    if (!reviewUri) return;
+
+    setReviewStatus('saving');
+    setReviewStatusMessage('Saving this take to native Gallery.');
+
+    const result = await saveTakeToGallery(reviewUri);
+
+    setReviewStatus(result.status === 'saved' ? 'saved' : result.status === 'denied' ? 'denied' : 'failed');
+    setReviewStatusMessage(result.message);
+    setSaveMessage(result.message);
+  }, [reviewUri]);
+
+  const handleOpenReviewIn = useCallback(async () => {
+    if (!reviewUri) return;
+
+    setReviewStatus('saving');
+    setReviewStatusMessage('Opening share sheet.');
+
+    const result = await openTakeInShareSheet(reviewUri);
+
+    setReviewStatus(result.status === 'shared' ? 'shared' : result.status === 'cancelled' ? 'idle' : 'failed');
+    setReviewStatusMessage(result.message);
+    setSaveMessage(result.message);
+  }, [reviewUri]);
+
+  const handleSaveTakeToGallery = useCallback(async (take: MockProjectTake) => {
+    if (!recipe || !activeScene || busyTakeId) return;
+
+    setBusyTakeId(take.id);
+    setSaveMessage(`Saving ${take.label} to Gallery...`);
+
+    const result = await saveTakeToGallery(take.uri);
+
+    if (result.status === 'saved') {
+      markSceneProjectTakeGallerySaved(recipe.id, activeScene.id, take.id);
+    }
+
+    setSaveMessage(result.message);
+    setBusyTakeId(null);
+  }, [activeScene, busyTakeId, markSceneProjectTakeGallerySaved, recipe]);
+
+  const handleOpenTakeIn = useCallback(async (take: MockProjectTake) => {
+    if (!recipe || !activeScene || busyTakeId) return;
+
+    setBusyTakeId(take.id);
+    setSaveMessage(`Opening ${take.label}...`);
+
+    const result = await openTakeInShareSheet(take.uri);
+
+    if (result.status === 'shared') {
+      markSceneProjectTakeShared(recipe.id, activeScene.id, take.id);
+    }
+
+    setSaveMessage(result.message);
+    setBusyTakeId(null);
+  }, [activeScene, busyTakeId, markSceneProjectTakeShared, recipe]);
+
+  const handleDeleteTake = useCallback((take: MockProjectTake) => {
+    if (!recipe || !activeScene) return;
+
+    deleteSceneProjectTake(recipe.id, activeScene.id, take.id);
+    setSaveMessage(`${take.label} deleted.`);
+  }, [activeScene, deleteSceneProjectTake, recipe]);
+
+  const handleSetBestTake = useCallback((take: MockProjectTake) => {
+    if (!recipe || !activeScene) return;
+
+    setSceneBestProjectTake(recipe.id, activeScene.id, take.id);
+    setSaveMessage(`${take.label} is best for this scene.`);
+  }, [activeScene, recipe, setSceneBestProjectTake]);
+
+  const statusLabel = saveMessage
+    || (bestTake && sceneTakeCollection ? `${sceneTakeCollection.takes.length} local takes · Best ${bestTake.label}` : '')
+    || (!microphonePermission?.granted ? 'Mic off: muted recording' : '');
 
   if (!recipe || !activeScene) {
     return (
@@ -444,6 +440,19 @@ export function RecipePrompterCameraScreen() {
             </Text>
           ) : null}
 
+          {sceneTakeCollection ? (
+            <NativeTakeTray
+              bestTakeId={sceneTakeCollection.bestTakeId}
+              busyTakeId={busyTakeId}
+              onDeleteTake={handleDeleteTake}
+              onOpenIn={handleOpenTakeIn}
+              onSaveToGallery={handleSaveTakeToGallery}
+              onSetBestTake={handleSetBestTake}
+              takes={sceneTakeCollection.takes}
+              title="Scene takes"
+            />
+          ) : null}
+
           <ShootingSceneSwitcher
             activeSceneId={activeScene.id}
             onSelectScene={setActiveSceneId}
@@ -455,18 +464,14 @@ export function RecipePrompterCameraScreen() {
       {reviewUri ? (
         <View style={styles.reviewOverlay}>
           <NativeTakeReview
-            galleryMessage={gallerySaveMessage}
-            galleryStatus={gallerySaveStatus}
+            keepDisabled={savingTake}
+            keepLabel={savingTake ? 'Keeping...' : 'Keep'}
+            onKeep={handleKeepTake}
+            onOpenIn={handleOpenReviewIn}
             onRetry={handleRetryReview}
-            onUseTake={handleUseTake}
-            useTakeDisabled={savingTake || gallerySaveStatus === 'saving'}
-            useTakeLabel={
-              savingTake || gallerySaveStatus === 'saving'
-                ? 'Saving...'
-                : gallerySaveStatus === 'saved'
-                  ? 'Keep Take'
-                  : 'Save to Gallery'
-            }
+            onSaveToGallery={handleSaveReviewToGallery}
+            status={reviewStatus}
+            statusMessage={reviewStatusMessage}
             uri={reviewUri}
           />
         </View>

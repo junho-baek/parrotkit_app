@@ -30,9 +30,38 @@ export type MockPartnerCreator = {
   specialty: string;
 };
 
-export type MockRecordedTake = {
+export type MockTakeExportStatus = 'local' | 'gallery_saved' | 'shared';
+
+export type MockProjectTake = {
+  id: string;
   uri: string;
-  savedAt: string;
+  createdAt: string;
+  label: string;
+  exportStatus: MockTakeExportStatus;
+  exportedToGalleryAt?: string;
+  sharedAt?: string;
+};
+
+export type MockSceneTakeCollection = {
+  sceneId: string;
+  bestTakeId?: string;
+  takes: MockProjectTake[];
+};
+
+export type MockRecipeTakeProject = {
+  id: string;
+  recipeId: string;
+  updatedAt: string;
+  scenes: Record<string, MockSceneTakeCollection>;
+};
+
+export type MockQuickTakeProject = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  bestTakeId?: string;
+  takes: MockProjectTake[];
 };
 
 export type MockRecipeScene = {

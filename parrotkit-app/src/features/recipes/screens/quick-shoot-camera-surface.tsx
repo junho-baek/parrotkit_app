@@ -6,18 +6,21 @@ import {
   useMicrophonePermissions,
 } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as MediaLibrary from 'expo-media-library';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import type { MockProjectTake } from '@/core/mocks/parrotkit-data';
+import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { NativePrompterBlockOverlay } from '@/features/recipes/components/native-prompter-block-overlay';
 import { NativePrompterToolbar } from '@/features/recipes/components/native-prompter-toolbar';
 import { NativeRecordButton } from '@/features/recipes/components/native-record-button';
 import {
   NativeTakeReview,
-  type NativeGallerySaveStatus,
+  type NativeTakeReviewStatus,
 } from '@/features/recipes/components/native-take-review';
+import { NativeTakeTray } from '@/features/recipes/components/native-take-tray';
+import { openTakeInShareSheet, saveTakeToGallery } from '@/features/recipes/lib/take-export';
 import type { PrompterBlock } from '@/features/recipes/types/recipe-domain';
 
 export type QuickShootCameraSurfaceProps = {
@@ -50,12 +53,18 @@ export function QuickShootCameraSurface({
   onPrompterInteractionChange,
 }: QuickShootCameraSurfaceProps) {
   const insets = useSafeAreaInsets();
+  const {
+    addQuickProjectTake,
+    deleteQuickProjectTake,
+    markQuickProjectTakeGallerySaved,
+    markQuickProjectTakeShared,
+    quickTakeProject,
+    setQuickBestProjectTake,
+  } = useMockWorkspace();
   const [permission, requestPermission] = useCameraPermissions();
   const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
   const cameraRef = useRef<CameraView>(null);
   const recordingPromiseRef = useRef<Promise<{ uri: string } | undefined> | null>(null);
-  const gallerySaveRunRef = useRef(0);
-  const gallerySavedUrisRef = useRef<Set<string>>(new Set());
   const [blocks, setBlocks] = useState(initialBlocks);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [editRequestByBlockId, setEditRequestByBlockId] = useState<Record<string, number>>({});
@@ -63,10 +72,11 @@ export function QuickShootCameraSurface({
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(initialBlocks[0]?.id ?? null);
   const [recording, setRecording] = useState(false);
   const [reviewUri, setReviewUri] = useState<string | null>(null);
-  const [gallerySaveStatus, setGallerySaveStatus] = useState<NativeGallerySaveStatus>('idle');
-  const [gallerySaveMessage, setGallerySaveMessage] = useState('');
+  const [reviewStatus, setReviewStatus] = useState<NativeTakeReviewStatus>('idle');
+  const [reviewStatusMessage, setReviewStatusMessage] = useState('');
   const [savingTake, setSavingTake] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [busyTakeId, setBusyTakeId] = useState<string | null>(null);
 
   useEffect(() => {
     onBlocksChange?.(blocks);
@@ -166,58 +176,9 @@ export function QuickShootCameraSurface({
     requestEditForBlock(focusedBlock.id);
   }, [focusedBlock, requestEditForBlock]);
 
-  const resetGalleryReview = useCallback(() => {
-    gallerySaveRunRef.current += 1;
-    setGallerySaveStatus('idle');
-    setGallerySaveMessage('');
-  }, []);
-
-  const saveTakeToNativeGallery = useCallback(async (uri: string) => {
-    const runId = gallerySaveRunRef.current + 1;
-    gallerySaveRunRef.current = runId;
-    const updateGalleryState = (status: NativeGallerySaveStatus, message: string) => {
-      if (gallerySaveRunRef.current !== runId) return;
-
-      setGallerySaveStatus(status);
-      setGallerySaveMessage(message);
-    };
-
-    if (gallerySavedUrisRef.current.has(uri)) {
-      const message = 'Saved to native Gallery';
-
-      updateGalleryState('saved', 'This take is already in your native gallery.');
-
-      return { message, status: 'saved' as NativeGallerySaveStatus };
-    }
-
-    updateGalleryState('saving', 'Saving this take to the native camera roll.');
-
-    try {
-      const permissionResult = await MediaLibrary.requestPermissionsAsync(true, ['video']);
-
-      if (!permissionResult.granted) {
-        const message = 'Gallery access was not allowed.';
-
-        updateGalleryState('denied', 'Allow Photos access to save this take to the native gallery.');
-
-        return { message, status: 'denied' as NativeGallerySaveStatus };
-      }
-
-      await MediaLibrary.saveToLibraryAsync(uri);
-      gallerySavedUrisRef.current.add(uri);
-
-      const message = 'Saved to native Gallery';
-
-      updateGalleryState('saved', 'This take is now in your native camera roll.');
-
-      return { message, status: 'saved' as NativeGallerySaveStatus };
-    } catch {
-      const message = 'Could not save to native Gallery.';
-
-      updateGalleryState('failed', 'Tap Save to Gallery to try again.');
-
-      return { message, status: 'failed' as NativeGallerySaveStatus };
-    }
+  const resetTakeReview = useCallback(() => {
+    setReviewStatus('idle');
+    setReviewStatusMessage('');
   }, []);
 
   const handleRecordPress = useCallback(async () => {
@@ -241,7 +202,7 @@ export function QuickShootCameraSurface({
 
     setSaveMessage('');
     setReviewUri(null);
-    resetGalleryReview();
+    resetTakeReview();
     setRecording(true);
 
     const recordingPromise = camera.recordAsync({ maxDuration: 90 });
@@ -252,7 +213,8 @@ export function QuickShootCameraSurface({
 
       if (result?.uri) {
         setReviewUri(result.uri);
-        void saveTakeToNativeGallery(result.uri);
+        setReviewStatus('idle');
+        setReviewStatusMessage('Keep this take in Quick Shoot, or export it now.');
       }
     } catch {
       setSaveMessage('Recording could not be saved. Try again.');
@@ -268,44 +230,101 @@ export function QuickShootCameraSurface({
     microphonePermission,
     recording,
     requestMicrophonePermission,
-    resetGalleryReview,
-    saveTakeToNativeGallery,
+    resetTakeReview,
   ]);
 
   const handleRetryReview = useCallback(() => {
     setReviewUri(null);
-    resetGalleryReview();
+    resetTakeReview();
     setSaveMessage('');
-  }, [resetGalleryReview]);
+  }, [resetTakeReview]);
 
-  const handleUseTake = useCallback(async () => {
+  const handleKeepTake = useCallback(() => {
     if (!reviewUri || savingTake) return;
 
     setSavingTake(true);
 
     try {
-      let message = 'Saved to native Gallery';
-
-      if (gallerySaveStatus !== 'saved' || !gallerySavedUrisRef.current.has(reviewUri)) {
-        const galleryResult = await saveTakeToNativeGallery(reviewUri);
-
-        if (galleryResult.status !== 'saved') {
-          setSaveMessage(galleryResult.message);
-          return;
-        }
-
-        message = galleryResult.message;
-      }
-
+      addQuickProjectTake(reviewUri);
       setReviewUri(null);
-      resetGalleryReview();
-      setSaveMessage(message);
+      resetTakeReview();
+      setSaveMessage('Kept locally in Quick Shoot.');
     } finally {
       setSavingTake(false);
     }
-  }, [gallerySaveStatus, resetGalleryReview, reviewUri, saveTakeToNativeGallery, savingTake]);
+  }, [addQuickProjectTake, resetTakeReview, reviewUri, savingTake]);
 
-  const statusLabel = saveMessage || (cameraActive && !microphonePermission?.granted ? 'Mic off: muted recording' : '');
+  const handleSaveReviewToGallery = useCallback(async () => {
+    if (!reviewUri) return;
+
+    setReviewStatus('saving');
+    setReviewStatusMessage('Saving this take to native Gallery.');
+
+    const result = await saveTakeToGallery(reviewUri);
+
+    setReviewStatus(result.status === 'saved' ? 'saved' : result.status === 'denied' ? 'denied' : 'failed');
+    setReviewStatusMessage(result.message);
+    setSaveMessage(result.message);
+  }, [reviewUri]);
+
+  const handleOpenReviewIn = useCallback(async () => {
+    if (!reviewUri) return;
+
+    setReviewStatus('saving');
+    setReviewStatusMessage('Opening share sheet.');
+
+    const result = await openTakeInShareSheet(reviewUri);
+
+    setReviewStatus(result.status === 'shared' ? 'shared' : result.status === 'cancelled' ? 'idle' : 'failed');
+    setReviewStatusMessage(result.message);
+    setSaveMessage(result.message);
+  }, [reviewUri]);
+
+  const handleSaveTakeToGallery = useCallback(async (take: MockProjectTake) => {
+    if (busyTakeId) return;
+
+    setBusyTakeId(take.id);
+    setSaveMessage(`Saving ${take.label} to Gallery...`);
+
+    const result = await saveTakeToGallery(take.uri);
+
+    if (result.status === 'saved') {
+      markQuickProjectTakeGallerySaved(take.id);
+    }
+
+    setSaveMessage(result.message);
+    setBusyTakeId(null);
+  }, [busyTakeId, markQuickProjectTakeGallerySaved]);
+
+  const handleOpenTakeIn = useCallback(async (take: MockProjectTake) => {
+    if (busyTakeId) return;
+
+    setBusyTakeId(take.id);
+    setSaveMessage(`Opening ${take.label}...`);
+
+    const result = await openTakeInShareSheet(take.uri);
+
+    if (result.status === 'shared') {
+      markQuickProjectTakeShared(take.id);
+    }
+
+    setSaveMessage(result.message);
+    setBusyTakeId(null);
+  }, [busyTakeId, markQuickProjectTakeShared]);
+
+  const handleDeleteTake = useCallback((take: MockProjectTake) => {
+    deleteQuickProjectTake(take.id);
+    setSaveMessage(`${take.label} deleted.`);
+  }, [deleteQuickProjectTake]);
+
+  const handleSetBestTake = useCallback((take: MockProjectTake) => {
+    setQuickBestProjectTake(take.id);
+    setSaveMessage(`${take.label} is best for Quick Shoot.`);
+  }, [setQuickBestProjectTake]);
+
+  const statusLabel = saveMessage
+    || (quickTakeProject.takes.length ? `${quickTakeProject.takes.length} local takes` : '')
+    || (cameraActive && !microphonePermission?.granted ? 'Mic off: muted recording' : '');
 
   if (cameraActive && !permission) {
     return <View className="flex-1 bg-slate-950" />;
@@ -410,24 +429,31 @@ export function QuickShootCameraSurface({
               {statusLabel}
             </Text>
           ) : null}
+
+          <NativeTakeTray
+            bestTakeId={quickTakeProject.bestTakeId}
+            busyTakeId={busyTakeId}
+            onDeleteTake={handleDeleteTake}
+            onOpenIn={handleOpenTakeIn}
+            onSaveToGallery={handleSaveTakeToGallery}
+            onSetBestTake={handleSetBestTake}
+            takes={quickTakeProject.takes}
+            title="Quick takes"
+          />
         </View>
       </View>
 
       {reviewUri ? (
         <View style={styles.reviewOverlay}>
           <NativeTakeReview
-            galleryMessage={gallerySaveMessage}
-            galleryStatus={gallerySaveStatus}
+            keepDisabled={savingTake}
+            keepLabel={savingTake ? 'Keeping...' : 'Keep'}
+            onKeep={handleKeepTake}
+            onOpenIn={handleOpenReviewIn}
             onRetry={handleRetryReview}
-            onUseTake={handleUseTake}
-            useTakeDisabled={savingTake || gallerySaveStatus === 'saving'}
-            useTakeLabel={
-              savingTake || gallerySaveStatus === 'saving'
-                ? 'Saving...'
-                : gallerySaveStatus === 'saved'
-                  ? 'Keep Take'
-                  : 'Save to Gallery'
-            }
+            onSaveToGallery={handleSaveReviewToGallery}
+            status={reviewStatus}
+            statusMessage={reviewStatusMessage}
             uri={reviewUri}
           />
         </View>
