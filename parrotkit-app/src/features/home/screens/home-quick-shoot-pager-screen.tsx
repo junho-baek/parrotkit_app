@@ -112,6 +112,18 @@ export function HomeQuickShootPagerScreen() {
     router.push(`/recipe/${recipe.id}` as Href);
   }, [createQuickShootRecipe, router]);
 
+  const openQuickShootRoute = useCallback(() => {
+    const homeOffset = pageOffset('home');
+
+    setActivePage('home');
+    setPagerGestureActive(false);
+    setQuickCameraWarm(false);
+    setPrompterInteractionActive(false);
+    translateX.setValue(homeOffset);
+    dragStartRef.current.offset = homeOffset;
+    router.push('/quick-shoot' as Href);
+  }, [pageOffset, router, translateX]);
+
   const getDragState = useCallback((event: GestureResponderEvent) => {
     const start = dragStartRef.current;
     const dx = event.nativeEvent.pageX - start.x;
@@ -163,7 +175,7 @@ export function HomeQuickShootPagerScreen() {
     }
 
     if (activePage === 'home' && dx > 0) {
-      settleToPage('quick');
+      settleToPage('quick', openQuickShootRoute);
       return;
     }
 
@@ -187,6 +199,7 @@ export function HomeQuickShootPagerScreen() {
     activePage,
     createRecipeFromQuickShoot,
     getDragState,
+    openQuickShootRoute,
     prompterInteractionActive,
     settleToPage,
     width,
