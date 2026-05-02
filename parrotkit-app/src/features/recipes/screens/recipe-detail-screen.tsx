@@ -377,82 +377,118 @@ export function RecipeDetailScreen() {
 
   return (
     <View className="flex-1 bg-canvas">
+      <View
+        className="border-b border-stroke bg-surface px-5 pb-4"
+        style={{ paddingTop: insets.top + 10 }}
+      >
+        <View className="flex-row items-center justify-between">
+          <Pressable
+            accessibilityLabel={copy.back}
+            className="h-10 w-10 items-center justify-center rounded-full border border-stroke bg-canvas"
+            onPress={handleBack}
+          >
+            <MaterialCommunityIcons color="#111827" name="arrow-left" size={21} />
+          </Pressable>
+
+          <View className="min-w-0 flex-1 px-3">
+            <Text className="text-center text-[12px] font-black uppercase text-violet">
+              {language === 'ko' ? '실행 워크스페이스' : 'Execution Workspace'}
+            </Text>
+            <Text className="text-center text-[14px] font-black text-ink" numberOfLines={1}>
+              {nativeRecipe.scenes.length} {copy.sceneCount} · 30s
+            </Text>
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            className="h-10 w-10 items-center justify-center rounded-full bg-ink"
+            onPress={handleStartRecipe}
+          >
+            <MaterialCommunityIcons color="#fff" name="camera-outline" size={18} />
+          </Pressable>
+        </View>
+
+        <View className="flex-row gap-3 pt-4">
+          <ImageBackground
+            imageStyle={styles.executionThumbImage}
+            resizeMode="cover"
+            source={{ uri: nativeRecipe.thumbnail }}
+            style={styles.executionThumb}
+          >
+            <LinearGradient
+              colors={['rgba(15,23,42,0)', 'rgba(15,23,42,0.72)']}
+              style={StyleSheet.absoluteFill}
+            />
+            <View className="absolute bottom-2 left-2 right-2 rounded-full bg-white/90 px-2 py-1.5">
+              <Text className="text-center text-[10px] font-black text-ink">
+                {nativeRecipe.scenes.length} {copy.sceneCount} · 30s
+              </Text>
+            </View>
+          </ImageBackground>
+
+          <View className="min-w-0 flex-1 gap-2">
+            <Text className="text-[22px] font-black leading-[27px] text-ink" numberOfLines={2}>
+              {getDetailTitle(language, detailRecipe)}
+            </Text>
+            <Text className="text-[13px] font-semibold leading-5 text-muted" numberOfLines={2}>
+              {language === 'ko'
+                ? '타임라인을 확인하고, 씬별 준비를 맞춘 뒤 바로 프롬프터로 촬영하세요.'
+                : 'Check the timeline, prep each scene, then move into prompter mode.'}
+            </Text>
+            <View className="flex-row flex-wrap gap-1.5">
+              {getDetailTags(language, detailRecipe).slice(0, 3).map((tag) => (
+                <View key={tag} style={styles.executionTag}>
+                  <Text style={styles.executionTagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
+
+        <View className="mt-4 flex-row gap-3">
+          <Pressable
+            accessibilityRole="button"
+            className="min-h-[48px] flex-1 flex-row items-center justify-center gap-2 rounded-full border border-stroke bg-canvas"
+            onPress={saveRecipe}
+          >
+            <MaterialCommunityIcons color="#111827" name={recipeSaved ? 'bookmark' : 'bookmark-outline'} size={18} />
+            <Text className="text-[13px] font-black text-ink">{recipeSaved ? copy.saved : copy.save}</Text>
+          </Pressable>
+
+          <Pressable accessibilityRole="button" className="flex-[1.6] overflow-hidden rounded-full" onPress={handleStartRecipe}>
+            <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.executionStartButton}>
+              <MaterialCommunityIcons color="#fff" name="record-circle-outline" size={18} />
+              <Text className="text-[13px] font-black text-white">{copy.startShooting}</Text>
+            </LinearGradient>
+          </Pressable>
+        </View>
+      </View>
+
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 44 }}
-        contentInsetAdjustmentBehavior="never"
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
-        <ImageBackground
-          imageStyle={styles.heroImage}
-          resizeMode="cover"
-          source={{ uri: nativeRecipe.thumbnail }}
-          style={styles.hero}
-        >
-          <LinearGradient
-            colors={['rgba(15,23,42,0.1)', 'rgba(15,23,42,0.48)', 'rgba(15,23,42,0.92)']}
-            locations={[0, 0.42, 1]}
-            style={StyleSheet.absoluteFill}
-          />
-
-          <View className="flex-1 justify-between px-5 pb-5" style={{ paddingTop: insets.top + 12 }}>
-            <View className="flex-row items-center justify-between">
-              <Pressable
-                accessibilityLabel={copy.back}
-                className="h-10 w-10 items-center justify-center rounded-full bg-black/35"
-                onPress={handleBack}
-              >
-                <MaterialCommunityIcons color="#fff" name="arrow-left" size={21} />
-              </Pressable>
-
-              <View className="flex-row gap-2">
-                <View className="h-10 w-10 items-center justify-center rounded-full bg-black/35">
-                  <MaterialCommunityIcons color="#fff" name="share-variant-outline" size={19} />
-                </View>
-                <Pressable className="h-10 w-10 items-center justify-center rounded-full bg-black/35" onPress={saveRecipe}>
-                  <MaterialCommunityIcons color="#fff" name={recipeSaved ? 'bookmark' : 'bookmark-outline'} size={20} />
-                </Pressable>
-              </View>
-            </View>
-
-            <View className="gap-3">
-              <View className="flex-row flex-wrap gap-2">
-                <View style={styles.heroBadge}>
-                  <Text className="text-[10px] font-black text-white">{copy.partnerCreator}</Text>
-                </View>
-                <View style={styles.heroBadge}>
-                  <MaterialCommunityIcons color="#fff" name="check-decagram" size={11} />
-                  <Text className="text-[10px] font-black text-white">{copy.verified}</Text>
-                </View>
-              </View>
-
-              <Text className="text-[26px] font-black leading-[31px] text-white" numberOfLines={2}>
-                {getDetailTitle(language, detailRecipe)}
-              </Text>
-              <Text style={styles.heroSummary} numberOfLines={2}>
-                {nativeRecipe.summary}
-              </Text>
-              <View className="flex-row flex-wrap gap-2">
-                <Text style={styles.heroMetaStrong}>{detailRecipe.ownerHandle}</Text>
-                <Text style={styles.heroMeta}>
-                  ♡ {formatCompactMetric(detailRecipe.downloadCount)} {copy.saves}
-                </Text>
-                <Text style={styles.heroMeta}>
-                  ◦ {formatCompactMetric(detailRecipe.downloadCount * 6)} {copy.views}
-                </Text>
-              </View>
-              <View className="flex-row flex-wrap gap-1.5">
-                {getDetailTags(language, detailRecipe).map((tag) => (
-                  <View key={tag} style={styles.heroTag}>
-                    <Text style={styles.heroTagText}>{tag}</Text>
+        <View className="gap-5 px-5 py-5">
+          <View style={styles.executionFlowCard}>
+            <Text className="text-[13px] font-black text-ink">
+              {language === 'ko' ? '오늘 찍을 흐름' : 'Today’s shooting flow'}
+            </Text>
+            <View className="mt-3 flex-row items-center justify-between">
+              {nativeRecipe.scenes.map((scene, sceneIndex) => (
+                <View className="flex-1 items-center gap-2" key={scene.id}>
+                  <View style={[styles.flowNode, { backgroundColor: getStructureColor(sceneIndex) }]}>
+                    <Text className="text-[11px] font-black text-white">#{scene.sceneNumber}</Text>
                   </View>
-                ))}
-              </View>
+                  <Text className="text-center text-[10px] font-black leading-3 text-slate-700" numberOfLines={2}>
+                    {getSceneRoleLabel(language, sceneIndex, nativeRecipe.scenes.length)}
+                  </Text>
+                </View>
+              ))}
             </View>
           </View>
-        </ImageBackground>
 
-        <View className="gap-5 px-5 py-5">
           <View className="gap-2">
             <Text className="text-[16px] font-black text-ink">{copy.keyHook}</Text>
             <Text className="text-[15px] font-semibold leading-6 text-slate-700">
@@ -516,7 +552,7 @@ export function RecipeDetailScreen() {
 
           <View className="rounded-[24px] border border-violet/20 bg-violet/5 px-4 py-4">
             <Text className="text-[13px] font-black text-ink">
-              {language === 'ko' ? '레퍼런스를 보고, 구조를 이해하고, 내 제품에 맞게 바꾼 뒤 바로 촬영하세요.' : 'Watch the reference, adapt the shot, then move straight into prompter mode.'}
+              {language === 'ko' ? '씬을 열면 예시, 준비 브리프, 촬영 체크리스트를 한 화면에서 확인할 수 있어요.' : 'Open a scene to review the reference, prep brief, and shooting checklist in one workspace.'}
             </Text>
           </View>
         </View>
@@ -1159,6 +1195,49 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 50,
     paddingHorizontal: 16,
+  },
+  executionFlowCard: {
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 22,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  executionStartButton: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: 16,
+  },
+  executionTag: {
+    backgroundColor: '#f3f0ff',
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  executionTagText: {
+    color: '#6d4df2',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  executionThumb: {
+    borderRadius: 20,
+    height: 112,
+    overflow: 'hidden',
+    width: 84,
+  },
+  executionThumbImage: {
+    borderRadius: 20,
+  },
+  flowNode: {
+    alignItems: 'center',
+    borderRadius: 999,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
   },
   prepChip: {
     alignItems: 'center',

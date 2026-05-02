@@ -169,7 +169,7 @@ export function ExploreScreen() {
   const browseRecipes = filteredRecipes.length > 0 ? filteredRecipes : exploreRecipes;
 
   const openRecipe = (recipeId: string) => {
-    router.push(`/recipe/${recipeId}` as Href);
+    router.push(`/explore-recipe/${recipeId}` as Href);
   };
 
   return (
