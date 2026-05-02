@@ -258,20 +258,20 @@ function QuickRecipeTile({
         />
         <View className="flex-row">
           <View style={styles.tileBadge}>
-            <MaterialCommunityIcons color="#fff" name="check-decagram" size={12} />
-            <Text className="text-[10px] font-black text-white">{statusLabel}</Text>
+            <MaterialCommunityIcons color="#fff" name="check-decagram" size={11} />
+            <Text className="text-[9px] font-black text-white">{statusLabel}</Text>
           </View>
         </View>
         <View className="mt-auto gap-1.5">
-          <Text className="text-[16px] font-black leading-5 text-white" numberOfLines={3}>
+          <Text className="text-[14px] font-black leading-[17px] text-white" numberOfLines={2}>
             {recipe.title}
           </Text>
           <View className="flex-row items-center justify-between gap-2">
-            <Text className="flex-1 text-[12px] font-bold text-white/82" numberOfLines={1}>
+            <Text className="flex-1 text-[11px] font-bold text-white/82" numberOfLines={1}>
               {formatSceneCount(language, recipe.totalSceneCount)}
             </Text>
             <View style={styles.tilePlay}>
-              <MaterialCommunityIcons color="#fff" name="play" size={16} />
+              <MaterialCommunityIcons color="#fff" name="play" size={14} />
             </View>
           </View>
         </View>
@@ -378,21 +378,21 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   quickRail: {
-    gap: 12,
+    gap: 10,
     paddingRight: 20,
   },
   quickTile: {
-    borderRadius: 22,
-    height: 218,
+    borderRadius: 20,
+    height: 188,
     overflow: 'hidden',
-    width: 154,
+    width: 132,
   },
   quickTileBackground: {
     flex: 1,
-    padding: 12,
+    padding: 10,
   },
   quickTileImage: {
-    borderRadius: 22,
+    borderRadius: 20,
   },
   recentImage: {
     backgroundColor: '#f1f5f9',
@@ -427,9 +427,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
   },
   tilePlay: {
     alignItems: 'center',
@@ -437,8 +437,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.25)',
     borderRadius: 999,
     borderWidth: 1,
-    height: 30,
+    height: 28,
     justifyContent: 'center',
-    width: 30,
+    width: 28,
   },
 });
