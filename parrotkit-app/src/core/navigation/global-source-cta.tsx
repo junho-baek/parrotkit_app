@@ -13,7 +13,7 @@ export function GlobalSourceCta() {
   const router = useRouter();
   const { copy } = useAppLanguage();
 
-  if (pathname === '/source' || pathname === '/source-actions') {
+  if (pathname === '/source' || pathname === '/source-actions' || pathname === '/recipes') {
     return null;
   }
 
