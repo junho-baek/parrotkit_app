@@ -8,13 +8,11 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View, type DimensionValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { MockProjectTake } from '@/core/mocks/parrotkit-data';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
-import { NativePrompterBlockOverlay } from '@/features/recipes/components/native-prompter-block-overlay';
-import { NativePrompterToolbar } from '@/features/recipes/components/native-prompter-toolbar';
 import { NativeRecordButton } from '@/features/recipes/components/native-record-button';
 import {
   NativeTakeReview,
@@ -22,35 +20,29 @@ import {
 } from '@/features/recipes/components/native-take-review';
 import { NativeTakeTray } from '@/features/recipes/components/native-take-tray';
 import { ShootingSceneSwitcher } from '@/features/recipes/components/shooting-scene-switcher';
-import { getVisiblePrompterBlocks, normalizeNativeRecipe } from '@/features/recipes/lib/recipe-domain-normalizer';
+import { normalizeNativeRecipe } from '@/features/recipes/lib/recipe-domain-normalizer';
 import { openTakeInShareSheet, saveTakeToGallery } from '@/features/recipes/lib/take-export';
-import { PrompterBlock } from '@/features/recipes/types/recipe-domain';
+import { NativeRecipeScene } from '@/features/recipes/types/recipe-domain';
 
 export function RecipePrompterCameraScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ recipeId?: string; sceneId?: string }>();
   const {
-    addScenePrompterBlock,
     addSceneProjectTake,
     deleteSceneProjectTake,
     getRecipeById,
     getSceneBestTake,
     getSceneTakeCollection,
-    hideScenePrompterBlock,
     markSceneProjectTakeGallerySaved,
     markSceneProjectTakeShared,
     setSceneBestProjectTake,
-    updateScenePrompterBlock,
   } = useMockWorkspace();
   const [permission, requestPermission] = useCameraPermissions();
   const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
   const cameraRef = useRef<CameraView>(null);
   const recordingPromiseRef = useRef<Promise<{ uri: string } | undefined> | null>(null);
   const [facing, setFacing] = useState<CameraType>('front');
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-  const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
-  const [editRequestByBlockId, setEditRequestByBlockId] = useState<Record<string, number>>({});
   const [recording, setRecording] = useState(false);
   const [reviewUri, setReviewUri] = useState<string | null>(null);
   const [reviewStatus, setReviewStatus] = useState<NativeTakeReviewStatus>('idle');
@@ -78,15 +70,12 @@ export function RecipePrompterCameraScreen() {
     () => recipe?.scenes.find((scene) => scene.id === activeSceneId) ?? recipe?.scenes[0] ?? null,
     [activeSceneId, recipe]
   );
-  const selectedBlocks = activeScene ? getVisiblePrompterBlocks(activeScene) : [];
-  const hiddenBlocks = useMemo(
-    () => activeScene?.prompter.blocks.filter((block) => !block.visible) ?? [],
-    [activeScene]
+  const activeSceneIndex = useMemo(
+    () => recipe && activeScene ? Math.max(0, recipe.scenes.findIndex((scene) => scene.id === activeScene.id)) : 0,
+    [activeScene, recipe]
   );
-  const focusedBlock = useMemo(
-    () => selectedBlocks.find((block) => block.id === focusedBlockId) ?? null,
-    [focusedBlockId, selectedBlocks]
-  );
+  const previousScene = recipe && activeSceneIndex > 0 ? recipe.scenes[activeSceneIndex - 1] : null;
+  const nextScene = recipe && activeSceneIndex < recipe.scenes.length - 1 ? recipe.scenes[activeSceneIndex + 1] : null;
   const sceneTakeCollection = recipe && activeScene ? getSceneTakeCollection(recipe.id, activeScene.id) : null;
   const bestTake = recipe && activeScene ? getSceneBestTake(recipe.id, activeScene.id) : null;
 
@@ -100,86 +89,13 @@ export function RecipePrompterCameraScreen() {
   }, [recipe, router]);
 
   useEffect(() => {
-    if (focusedBlockId && !selectedBlocks.some((block) => block.id === focusedBlockId)) {
-      setFocusedBlockId(selectedBlocks[0]?.id ?? null);
-    }
-  }, [focusedBlockId, selectedBlocks]);
-
-  useEffect(() => {
     setReviewUri(null);
     setReviewStatus('idle');
     setReviewStatusMessage('');
     setSavingTake(false);
     setSaveMessage('');
     setBusyTakeId(null);
-    setFocusedBlockId(null);
   }, [activeSceneId]);
-
-  const handleOverlayLayout = useCallback((event: LayoutChangeEvent) => {
-    const { width, height } = event.nativeEvent.layout;
-
-    setContainerSize((current) => {
-      if (Math.round(current.width) === Math.round(width) && Math.round(current.height) === Math.round(height)) {
-        return current;
-      }
-
-      return { width, height };
-    });
-  }, []);
-
-  const handleUpdateBlock = useCallback((blockId: string, updates: Partial<PrompterBlock>) => {
-    if (!recipe || !activeScene) return;
-
-    updateScenePrompterBlock(recipe.id, activeScene.id, blockId, updates);
-  }, [activeScene, recipe, updateScenePrompterBlock]);
-
-  const requestEditForBlock = useCallback((blockId: string) => {
-    setFocusedBlockId(blockId);
-    setEditRequestByBlockId((current) => ({
-      ...current,
-      [blockId]: Date.now(),
-    }));
-  }, []);
-
-  const handleAddCue = useCallback(() => {
-    if (!recipe || !activeScene) return;
-
-    const blockId = addScenePrompterBlock(recipe.id, activeScene.id);
-
-    if (blockId) {
-      setFocusedBlockId(blockId);
-    }
-  }, [activeScene, addScenePrompterBlock, recipe]);
-
-  const handleHideFocusedCue = useCallback(() => {
-    if (!recipe || !activeScene || !focusedBlock) return;
-
-    hideScenePrompterBlock(recipe.id, activeScene.id, focusedBlock.id);
-    setFocusedBlockId(null);
-  }, [activeScene, focusedBlock, hideScenePrompterBlock, recipe]);
-
-  const handleShowCue = useCallback((blockId: string) => {
-    handleUpdateBlock(blockId, { visible: true });
-    setFocusedBlockId(blockId);
-  }, [handleUpdateBlock]);
-
-  const handleScaleFocusedCue = useCallback((scale: number) => {
-    if (!focusedBlock) return;
-
-    handleUpdateBlock(focusedBlock.id, { scale });
-  }, [focusedBlock, handleUpdateBlock]);
-
-  const handleColorFocusedCue = useCallback((accentColor: string) => {
-    if (!focusedBlock) return;
-
-    handleUpdateBlock(focusedBlock.id, { accentColor });
-  }, [focusedBlock, handleUpdateBlock]);
-
-  const handleEditFocusedCue = useCallback(() => {
-    if (!focusedBlock) return;
-
-    requestEditForBlock(focusedBlock.id);
-  }, [focusedBlock, requestEditForBlock]);
 
   const handleRecordPress = useCallback(async () => {
     if (recording) {
@@ -376,7 +292,7 @@ export function RecipePrompterCameraScreen() {
 
             <View className="max-w-[230px] rounded-full border border-white/15 bg-black/35 px-3 py-1.5">
               <Text className="text-[12px] font-semibold text-white/85" numberOfLines={1}>
-                {recipe.title}
+                #{activeScene.sceneNumber} · {getCameraSceneRole(activeSceneIndex, recipe.scenes.length)} · {activeScene.endTime}
               </Text>
             </View>
 
@@ -388,27 +304,14 @@ export function RecipePrompterCameraScreen() {
           </View>
         </View>
 
-        <View pointerEvents="box-none" className="flex-1" onLayout={handleOverlayLayout}>
+        <View pointerEvents="box-none" className="flex-1">
           <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-            {selectedBlocks.length ? (
-              selectedBlocks.map((block) => (
-                <NativePrompterBlockOverlay
-                  key={block.id}
-                  block={block}
-                  containerSize={containerSize}
-                  editingRequestedAt={editRequestByBlockId[block.id]}
-                  focused={block.id === focusedBlock?.id}
-                  onFocus={() => setFocusedBlockId(block.id)}
-                  onUpdate={(updates) => handleUpdateBlock(block.id, updates)}
-                />
-              ))
-            ) : (
-              <View className="mx-4 self-center rounded-[24px] border border-dashed border-white/20 bg-black/35 px-5 py-5" style={styles.emptyCueState}>
-                <Text className="text-sm font-medium leading-6 text-white/70">
-                  Add a cue to start shooting with prompts.
-                </Text>
-              </View>
-            )}
+            <CameraCoachOverlay
+              recording={recording}
+              scene={activeScene}
+              sceneIndex={activeSceneIndex}
+              totalScenes={recipe.scenes.length}
+            />
           </View>
         </View>
 
@@ -417,20 +320,24 @@ export function RecipePrompterCameraScreen() {
           style={{ paddingBottom: insets.bottom + (Platform.OS === 'android' ? 12 : 4) }}
         >
           <View className="mb-3 flex-row items-center justify-between gap-3">
-            <NativePrompterToolbar
-              focusedBlock={focusedBlock}
-              hiddenBlocks={hiddenBlocks}
-              onAddCue={handleAddCue}
-              onColorCue={handleColorFocusedCue}
-              onEditCue={handleEditFocusedCue}
-              onHideCue={handleHideFocusedCue}
-              onScaleCue={handleScaleFocusedCue}
-              onShowCue={handleShowCue}
+            <PrompterStepButton
+              disabled={!previousScene}
+              label="Prev cut"
+              onPress={() => {
+                if (previousScene) setActiveSceneId(previousScene.id);
+              }}
             />
             <NativeRecordButton
               disabled={Boolean(reviewUri)}
               onPress={handleRecordPress}
               recording={recording}
+            />
+            <PrompterStepButton
+              disabled={!nextScene}
+              label="Next cut"
+              onPress={() => {
+                if (nextScene) setActiveSceneId(nextScene.id);
+              }}
             />
           </View>
 
@@ -480,6 +387,81 @@ export function RecipePrompterCameraScreen() {
   );
 }
 
+function CameraCoachOverlay({
+  recording,
+  scene,
+  sceneIndex,
+  totalScenes,
+}: {
+  recording: boolean;
+  scene: NativeRecipeScene;
+  sceneIndex: number;
+  totalScenes: number;
+}) {
+  const primaryLine = getCameraPrimaryLine(scene);
+  const actionLine = getCameraActionLine(scene);
+  const nextLine = getCameraNextLine(scene);
+  const progress = `${Math.max(12, ((sceneIndex + 1) / totalScenes) * 100)}%` as DimensionValue;
+
+  return (
+    <View pointerEvents="none" style={styles.coachOverlay}>
+      <View style={styles.coachTopRow}>
+        <View style={styles.scenePill}>
+          <Text style={styles.scenePillText}>
+            Scene {sceneIndex + 1}/{totalScenes} · {getCameraSceneRole(sceneIndex, totalScenes)}
+          </Text>
+        </View>
+        <View style={[styles.recPill, recording ? styles.recPillActive : null]}>
+          <View style={styles.recDot} />
+          <Text style={styles.recText}>{recording ? 'REC' : 'READY'}</Text>
+        </View>
+      </View>
+
+      <View style={styles.progressRail}>
+        <View style={[styles.progressFill, { width: progress }]} />
+      </View>
+
+      <View style={styles.actionCue}>
+        <Text style={styles.coachLabel}>ACTION</Text>
+        <Text style={styles.actionText}>{actionLine}</Text>
+      </View>
+
+      <View style={styles.sayNowBlock}>
+        <Text style={styles.sayNowLabel}>SAY NOW</Text>
+        <Text style={styles.sayNowText}>{primaryLine}</Text>
+      </View>
+
+      <View style={styles.nextCue}>
+        <Text style={styles.coachLabel}>NEXT</Text>
+        <Text style={styles.nextCueText}>{nextLine}</Text>
+      </View>
+    </View>
+  );
+}
+
+function PrompterStepButton({
+  disabled,
+  label,
+  onPress,
+}: {
+  disabled: boolean;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={onPress}
+      style={[styles.stepButton, disabled ? styles.stepButtonDisabled : styles.stepButtonEnabled]}
+    >
+      <Text style={[styles.stepButtonText, disabled ? styles.stepButtonTextDisabled : styles.stepButtonTextEnabled]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 function CameraPermissionGate({
   onRequest,
   onBack,
@@ -506,6 +488,40 @@ function CameraPermissionGate({
         </View>
       </View>
     </View>
+  );
+}
+
+function getCameraSceneRole(sceneIndex: number, totalScenes: number) {
+  if (sceneIndex === 0) return 'Hook';
+  if (sceneIndex === totalScenes - 1) return 'CTA';
+  return 'Proof';
+}
+
+function getCameraPrimaryLine(scene: NativeRecipeScene) {
+  return (
+    scene.recipe.keyLine.trim()
+    || scene.prompter.blocks.find((block) => block.type === 'key_line')?.content.trim()
+    || scene.recipe.scriptLines[0]?.trim()
+    || scene.recipe.appealPoint.trim()
+    || scene.title
+  );
+}
+
+function getCameraActionLine(scene: NativeRecipeScene) {
+  return (
+    scene.recipe.keyAction.trim()
+    || scene.prompter.blocks.find((block) => block.type === 'action')?.content.trim()
+    || scene.analysis.motionDescription?.trim()
+    || 'Frame the subject and hold the beat.'
+  );
+}
+
+function getCameraNextLine(scene: NativeRecipeScene) {
+  return (
+    scene.prompterLines?.[0]?.trim()
+    || scene.recipe.scriptLines[1]?.trim()
+    || scene.recipe.cta?.trim()
+    || 'Hold for one beat before stopping.'
   );
 }
 
@@ -557,9 +573,133 @@ const styles = StyleSheet.create({
     top: '42%',
     maxWidth: 330,
   },
+  actionCue: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderRadius: 20,
+    borderWidth: 1,
+    maxWidth: 320,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+  actionText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 21,
+    marginTop: 4,
+  },
+  coachLabel: {
+    color: 'rgba(255, 255, 255, 0.58)',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  coachOverlay: {
+    bottom: 24,
+    gap: 14,
+    left: 18,
+    position: 'absolute',
+    right: 18,
+    top: 18,
+  },
+  coachTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  nextCue: {
+    alignSelf: 'flex-end',
+    backgroundColor: 'rgba(15, 23, 42, 0.58)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 18,
+    borderWidth: 1,
+    maxWidth: 280,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  nextCueText: {
+    color: 'rgba(255, 255, 255, 0.82)',
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 19,
+    marginTop: 3,
+  },
+  progressFill: {
+    backgroundColor: '#a78bfa',
+    borderRadius: 999,
+    height: '100%',
+  },
+  progressRail: {
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: 999,
+    height: 3,
+    overflow: 'hidden',
+  },
+  recDot: {
+    backgroundColor: '#ef4444',
+    borderRadius: 999,
+    height: 7,
+    width: 7,
+  },
+  recPill: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  recPillActive: {
+    backgroundColor: 'rgba(127, 29, 29, 0.72)',
+  },
+  recText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '900',
+  },
   reviewOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 20,
+  },
+  sayNowBlock: {
+    backgroundColor: 'rgba(2, 6, 23, 0.66)',
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    borderRadius: 28,
+    borderWidth: 1,
+    marginTop: 'auto',
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+  },
+  sayNowLabel: {
+    color: '#a78bfa',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+  },
+  sayNowText: {
+    color: '#ffffff',
+    fontSize: 31,
+    fontWeight: '900',
+    lineHeight: 40,
+    marginTop: 8,
+  },
+  scenePill: {
+    backgroundColor: 'rgba(15, 23, 42, 0.62)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  scenePillText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '900',
   },
   statusLabel: {
     color: 'rgba(255, 255, 255, 0.62)',
@@ -567,5 +707,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 12,
     textAlign: 'center',
+  },
+  stepButton: {
+    alignItems: 'center',
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 48,
+    justifyContent: 'center',
+    minWidth: 82,
+    paddingHorizontal: 12,
+  },
+  stepButtonDisabled: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  stepButtonEnabled: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+  },
+  stepButtonText: {
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  stepButtonTextDisabled: {
+    color: 'rgba(255, 255, 255, 0.28)',
+  },
+  stepButtonTextEnabled: {
+    color: '#ffffff',
   },
 });
