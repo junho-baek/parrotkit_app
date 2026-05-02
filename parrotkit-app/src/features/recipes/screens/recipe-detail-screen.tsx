@@ -75,6 +75,15 @@ export function RecipeDetailScreen() {
   const [activeTab, setActiveTab] = useState<DetailTab>('recipe');
   const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null);
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace('/explore' as Href);
+  };
+
   useEffect(() => {
     if (!nativeRecipe?.scenes.length || selectedSceneId === null) {
       return;
@@ -89,7 +98,7 @@ export function RecipeDetailScreen() {
     return (
       <View className="flex-1 items-center justify-center bg-canvas px-6">
         <Text className="text-[26px] font-black text-ink">Recipe not found</Text>
-        <Pressable className="mt-5 rounded-full bg-violet px-5 py-3" onPress={() => router.back()}>
+        <Pressable className="mt-5 rounded-full bg-violet px-5 py-3" onPress={handleBack}>
           <Text className="text-sm font-bold text-white">Back</Text>
         </Pressable>
       </View>
@@ -326,7 +335,7 @@ export function RecipeDetailScreen() {
               <Pressable
                 accessibilityLabel={copy.back}
                 className="h-10 w-10 items-center justify-center rounded-full bg-black/35"
-                onPress={() => router.back()}
+                onPress={handleBack}
               >
                 <MaterialCommunityIcons color="#fff" name="arrow-left" size={21} />
               </Pressable>
