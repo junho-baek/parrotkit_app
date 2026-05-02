@@ -4,12 +4,14 @@ import { Href, usePathname, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAppLanguage } from '@/core/i18n/app-language';
 import { brandActionGradientSoft, brandActionShadow } from '@/core/theme/colors';
 
 export function GlobalSourceCta() {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const router = useRouter();
+  const { copy } = useAppLanguage();
 
   if (pathname === '/source' || pathname === '/source-actions') {
     return null;
@@ -18,8 +20,8 @@ export function GlobalSourceCta() {
   return (
     <View pointerEvents="box-none" style={styles.layer}>
       <Pressable
-        accessibilityHint="Open the add source sheet"
-        accessibilityLabel="Paste"
+        accessibilityHint={copy.sourceCta.accessibilityHint}
+        accessibilityLabel={copy.sourceCta.accessibilityLabel}
         onPress={() => router.push('/source-actions' as Href)}
         style={[styles.pressable, { bottom: insets.bottom + 58 }]}
       >
@@ -37,7 +39,9 @@ export function GlobalSourceCta() {
                 <View pointerEvents="none" style={styles.highlight} />
                 <MaterialCommunityIcons color="#fffdf8" name="plus" size={24} />
               </LinearGradient>
-              <Text className="text-[11px] font-semibold lowercase tracking-[0.2px] text-stone-600">paste</Text>
+              <Text className="text-[11px] font-semibold tracking-[0.2px] text-stone-600">
+                {copy.sourceCta.label}
+              </Text>
             </View>
           </View>
         )}

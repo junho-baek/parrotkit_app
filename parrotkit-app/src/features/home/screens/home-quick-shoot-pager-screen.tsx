@@ -256,7 +256,7 @@ export function HomeQuickShootPagerScreen() {
 
 const styles = StyleSheet.create({
   root: {
-    backgroundColor: '#020617',
+    backgroundColor: '#ffffff',
     flex: 1,
     overflow: 'hidden',
   },

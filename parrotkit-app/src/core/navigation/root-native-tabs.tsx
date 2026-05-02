@@ -2,6 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Icon, Label, NativeTabs, VectorIcon } from 'expo-router/unstable-native-tabs';
 import { DynamicColorIOS, Platform, StyleSheet, View } from 'react-native';
 
+import { useAppLanguage } from '@/core/i18n/app-language';
 import { AppTopBar } from '@/core/navigation/app-top-bar';
 import { GlobalSourceCta } from '@/core/navigation/global-source-cta';
 import {
@@ -19,6 +20,7 @@ export function RootNativeTabs() {
 
 function RootNativeTabsContent() {
   const { homeQuickShootChromeHidden } = useNavigationChrome();
+  const { copy } = useAppLanguage();
   const isIOS = Platform.OS === 'ios';
   const hiddenChromeColor = 'transparent';
   const iosTintColor = isIOS
@@ -58,7 +60,7 @@ function RootNativeTabsContent() {
             }}
             sf={{ default: 'house', selected: 'house.fill' }}
           />
-          <Label hidden={homeQuickShootChromeHidden}>Shoot</Label>
+          <Label hidden={homeQuickShootChromeHidden}>{copy.nav.home}</Label>
         </NativeTabs.Trigger>
 
         <NativeTabs.Trigger name="explore">
@@ -69,7 +71,7 @@ function RootNativeTabsContent() {
             }}
             sf={{ default: 'safari', selected: 'safari.fill' }}
           />
-          <Label hidden={homeQuickShootChromeHidden}>Explore</Label>
+          <Label hidden={homeQuickShootChromeHidden}>{copy.nav.explore}</Label>
         </NativeTabs.Trigger>
 
         <NativeTabs.Trigger name="source">
@@ -80,7 +82,7 @@ function RootNativeTabsContent() {
             }}
             sf={{ default: 'square.stack.3d.up', selected: 'square.stack.3d.up.fill' }}
           />
-          <Label hidden={homeQuickShootChromeHidden}>Source</Label>
+          <Label hidden={homeQuickShootChromeHidden}>{copy.nav.source}</Label>
         </NativeTabs.Trigger>
 
         <NativeTabs.Trigger name="recipes">
@@ -91,7 +93,7 @@ function RootNativeTabsContent() {
             }}
             sf={{ default: 'book', selected: 'book.fill' }}
           />
-          <Label hidden={homeQuickShootChromeHidden}>Recipes</Label>
+          <Label hidden={homeQuickShootChromeHidden}>{copy.nav.recipes}</Label>
         </NativeTabs.Trigger>
 
         <NativeTabs.Trigger name="my">
@@ -102,7 +104,7 @@ function RootNativeTabsContent() {
             }}
             sf={{ default: 'person', selected: 'person.fill' }}
           />
-          <Label hidden={homeQuickShootChromeHidden}>My</Label>
+          <Label hidden={homeQuickShootChromeHidden}>{copy.nav.my}</Label>
         </NativeTabs.Trigger>
       </NativeTabs>
 

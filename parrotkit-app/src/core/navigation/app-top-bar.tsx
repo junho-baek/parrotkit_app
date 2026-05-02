@@ -1,8 +1,10 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Href, useRouter } from 'expo-router';
 import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAppLanguage } from '@/core/i18n/app-language';
 import { useAppChrome } from '@/core/navigation/app-chrome-provider';
 
 const parrotLogo = require('../../../assets/parrot-logo.png');
@@ -14,6 +16,7 @@ export function AppTopBar() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { topBarProgress } = useAppChrome();
+  const { copy } = useAppLanguage();
   const isIOS = Platform.OS === 'ios';
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -51,8 +54,8 @@ export function AppTopBar() {
     >
       <View style={[styles.bar, isIOS ? styles.barIOS : styles.barAndroid]}>
         <Pressable
-          accessibilityHint="Go to the home tab"
-          accessibilityLabel="ParrotKit home"
+          accessibilityHint={copy.topBar.homeAccessibilityHint}
+          accessibilityLabel={copy.topBar.homeAccessibilityLabel}
           hitSlop={10}
           onPress={() => router.navigate('/' as Href)}
           style={styles.logoButton}
@@ -66,7 +69,17 @@ export function AppTopBar() {
 
         <Text className="text-[17px] font-bold tracking-[-0.35px] text-ink">ParrotKit</Text>
 
-        <View style={styles.rightSpacer} />
+        <Pressable
+          accessibilityLabel={copy.topBar.notificationsAccessibilityLabel}
+          accessibilityRole="button"
+          hitSlop={10}
+          style={styles.notificationButton}
+        >
+          <MaterialCommunityIcons color="#334155" name="bell-outline" size={23} />
+          <View style={styles.notificationBadge}>
+            <Text style={styles.notificationBadgeText}>1</Text>
+          </View>
+        </Pressable>
       </View>
     </Animated.View>
   );
@@ -117,11 +130,32 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     transform: [{ scale: 0.96 }],
   },
-  rightSpacer: {
-    height: 28,
+  notificationBadge: {
+    alignItems: 'center',
+    backgroundColor: '#ff6b8a',
+    borderColor: '#ffffff',
+    borderRadius: 999,
+    borderWidth: 1.5,
+    height: 15,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: 0,
+    top: -2,
+    width: 15,
+  },
+  notificationBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '900',
+    lineHeight: 11,
+  },
+  notificationButton: {
+    alignItems: 'center',
+    height: 30,
+    justifyContent: 'center',
     position: 'absolute',
     right: 20,
-    width: 28,
+    width: 30,
   },
   shell: {
     elevation: 24,
