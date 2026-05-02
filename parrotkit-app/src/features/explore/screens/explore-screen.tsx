@@ -139,7 +139,6 @@ export function ExploreScreen() {
   const { language } = useAppLanguage();
   const copy = exploreCopy[language];
   const {
-    downloadRecipe,
     exploreRecipes,
     isRecipeDownloaded,
   } = useMockWorkspace();
@@ -170,15 +169,11 @@ export function ExploreScreen() {
   const browseRecipes = filteredRecipes.length > 0 ? filteredRecipes : exploreRecipes;
 
   const openRecipe = (recipeId: string) => {
-    const downloadedRecipe = downloadRecipe(recipeId);
-
-    if (downloadedRecipe) {
-      router.push(`/recipe/${downloadedRecipe.id}` as Href);
-    }
+    router.push(`/recipe/${recipeId}` as Href);
   };
 
   return (
-    <AppScreenScrollView>
+    <AppScreenScrollView contentContainerStyle={styles.exploreScrollContent}>
       <View className="gap-6 px-5">
         <View className="gap-1">
           <Text className="text-[32px] font-black leading-[36px] text-ink">{copy.title}</Text>
@@ -480,6 +475,9 @@ const styles = StyleSheet.create({
     height: 42,
     justifyContent: 'center',
     width: 42,
+  },
+  exploreScrollContent: {
+    paddingTop: 52,
   },
   darkBadge: {
     alignItems: 'center',

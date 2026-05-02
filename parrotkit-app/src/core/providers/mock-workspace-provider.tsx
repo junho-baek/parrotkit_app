@@ -798,7 +798,10 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
     [recentReferences.length, recipes.length]
   );
 
-  const getRecipeById = (recipeId: string) => recipes.find((recipe) => recipe.id === recipeId) ?? null;
+  const getRecipeById = (recipeId: string) =>
+    recipes.find((recipe) => recipe.id === recipeId)
+    ?? exploreRecipeSeeds.find((recipe) => recipe.id === recipeId)
+    ?? null;
 
   const value = useMemo<MockWorkspaceContextValue>(
     () => ({
