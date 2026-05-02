@@ -209,10 +209,15 @@ export function RecipesScreen() {
   const [visibility, setVisibility] = useState<Visibility>('public');
 
   useEffect(() => {
-    if (params.view === 'collection' || params.view === 'publish' || params.view === 'main') {
+    if (params.view === 'publish') {
+      router.replace('/recipe-create?mode=manual' as Href);
+      return;
+    }
+
+    if (params.view === 'collection' || params.view === 'main') {
       setView(params.view);
     }
-  }, [params.view]);
+  }, [params.view, router]);
 
   const continueRecipe = useMemo(
     () => getContinueShootRecipe(recipes) ?? getLatestShootableRecipe(recipes) ?? recipes[0] ?? null,
@@ -254,6 +259,10 @@ export function RecipesScreen() {
 
   const shootRecipe = (recipe: MockRecipe) => {
     router.push(`/recipe/${recipe.id}/prompter` as Href);
+  };
+
+  const startRecipeCreate = (mode: 'brand' | 'manual' | 'reference' = 'reference') => {
+    router.push(`/recipe-create?mode=${mode}` as Href);
   };
 
   if (view === 'collection') {
@@ -348,7 +357,7 @@ export function RecipesScreen() {
             ))}
           </View>
 
-          <Pressable accessibilityRole="button" onPress={() => setView('publish')} style={styles.publishCta}>
+          <Pressable accessibilityRole="button" onPress={() => startRecipeCreate('manual')} style={styles.publishCta}>
             <View style={styles.publishIcon}>
               <MaterialCommunityIcons color="#8c67ff" name="web" size={22} />
             </View>
@@ -366,7 +375,7 @@ export function RecipesScreen() {
           </Pressable>
         </View>
       </RecipesTabScrollView>
-      <RecipeCreateFab onPress={() => setView('publish')} />
+      <RecipeCreateFab onPress={() => startRecipeCreate('reference')} />
     </View>
   );
 }

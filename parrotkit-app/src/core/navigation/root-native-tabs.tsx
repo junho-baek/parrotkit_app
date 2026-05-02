@@ -1,4 +1,5 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { usePathname } from 'expo-router';
 import { Icon, Label, NativeTabs, VectorIcon } from 'expo-router/unstable-native-tabs';
 import { DynamicColorIOS, Platform, StyleSheet, View } from 'react-native';
 
@@ -20,8 +21,10 @@ export function RootNativeTabs() {
 
 function RootNativeTabsContent() {
   const { homeQuickShootChromeHidden } = useNavigationChrome();
+  const pathname = usePathname();
   const { copy } = useAppLanguage();
   const isIOS = Platform.OS === 'ios';
+  const screenOwnsTopBar = pathname === '/recipes' || pathname.startsWith('/recipes/');
   const hiddenChromeColor = 'transparent';
   const iosTintColor = isIOS
     ? DynamicColorIOS({
@@ -110,9 +113,11 @@ function RootNativeTabsContent() {
 
       {homeQuickShootChromeHidden ? null : (
         <>
-          <View pointerEvents="box-none" style={styles.topChromeLayer}>
-            <AppTopBar />
-          </View>
+          {screenOwnsTopBar ? null : (
+            <View pointerEvents="box-none" style={styles.topChromeLayer}>
+              <AppTopBar />
+            </View>
+          )}
           <GlobalSourceCta />
         </>
       )}

@@ -38,6 +38,12 @@ export default function RootLayout() {
               }}
             />
             <Stack.Screen
+              name="recipe-create"
+              options={{
+                animation: 'slide_from_bottom',
+              }}
+            />
+            <Stack.Screen
               name="source-actions"
               options={{
                 animation: 'slide_from_bottom',
