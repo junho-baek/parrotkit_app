@@ -23,6 +23,7 @@ import type { MockRecipe } from '@/core/mocks/parrotkit-data';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient } from '@/core/theme/colors';
 import { AppScreenScrollView } from '@/core/ui/app-screen-scroll-view';
+import { getShootBoardHref } from '@/features/recipes/lib/shoot-board-model';
 
 type HomeCopy = ReturnType<typeof useAppLanguage>['copy']['home'];
 
@@ -42,11 +43,11 @@ export function HomeWorkspaceSurface() {
   const recentRecipes = recipes.slice(0, 3);
 
   const openPrompter = (recipe: MockRecipe) => {
-    router.push(`/recipe/${recipe.id}/prompter` as Href);
+    router.push(getShootBoardHref(recipe.id) as Href);
   };
 
   const openRecipe = (recipe: MockRecipe) => {
-    router.push(`/recipe/${recipe.id}` as Href);
+    router.push(getShootBoardHref(recipe.id) as Href);
   };
 
   return (

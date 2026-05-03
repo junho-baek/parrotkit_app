@@ -19,6 +19,7 @@ import type { MockRecipe } from '@/core/mocks/parrotkit-data';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { AppScreenScrollView } from '@/core/ui/app-screen-scroll-view';
 import { isVerifiedCreatorRecipe } from '@/features/recipes/lib/recipe-ownership';
+import { getShootBoardHref } from '@/features/recipes/lib/shoot-board-model';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 type OriginFilter = 'all' | 'partners' | 'community' | 'brand';
@@ -227,11 +228,7 @@ export function ExploreScreen() {
     if (!card.recipe) return;
 
     const targetRecipe = downloadRecipe(card.recipe.id) ?? card.recipe;
-    const targetScene = targetRecipe.scenes[0];
-
-    if (!targetScene) return;
-
-    router.push(`/recipe/${targetRecipe.id}/prompter?sceneId=${targetScene.id}` as Href);
+    router.push(getShootBoardHref(targetRecipe.id) as Href);
   };
 
   const handleAction = (card: ExploreRecipeCardModel) => {

@@ -22,6 +22,7 @@ import { useAppChrome } from '@/core/navigation/app-chrome-provider';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient } from '@/core/theme/colors';
 import { getContinueShootRecipe, getLatestShootableRecipe } from '@/features/recipes/lib/recipe-ownership';
+import { getShootBoardHref } from '@/features/recipes/lib/shoot-board-model';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 type RecipesView = 'main' | 'collection' | 'publish';
@@ -254,11 +255,11 @@ export function RecipesScreen() {
   }, [exploreRecipes, recipes]);
 
   const openRecipe = (recipe: MockRecipe) => {
-    router.push(`/recipe/${recipe.id}` as Href);
+    router.push(getShootBoardHref(recipe.id) as Href);
   };
 
   const shootRecipe = (recipe: MockRecipe) => {
-    router.push(`/recipe/${recipe.id}/prompter` as Href);
+    router.push(getShootBoardHref(recipe.id) as Href);
   };
 
   const startRecipeCreate = (mode: 'brand' | 'manual' | 'reference' = 'reference') => {

@@ -2,7 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { ComponentProps, useEffect, useMemo, useState } from 'react';
-import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppLanguage, type AppLanguage } from '@/core/i18n/app-language';
@@ -11,6 +11,15 @@ import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient } from '@/core/theme/colors';
 import { normalizeNativeRecipe } from '@/features/recipes/lib/recipe-domain-normalizer';
 import { getSceneCardSummary, getSceneStrategyMeta } from '@/features/recipes/lib/scene-strategy-meta';
+import {
+  appendShootBoardCut,
+  createAddedShootBoardCut,
+  createShootBoardRecipe,
+  getRecipePrompterHref,
+  toggleShootBoardCutStatus,
+  type ShootBoardCut,
+  type ShootBoardRecipe,
+} from '@/features/recipes/lib/shoot-board-model';
 import { NativeRecipeScene } from '@/features/recipes/types/recipe-domain';
 
 type DetailTab = 'analysis' | 'recipe' | 'shoot';
@@ -121,6 +130,9 @@ export function RecipeDetailScreen() {
 
   const [activeTab, setActiveTab] = useState<DetailTab>('recipe');
   const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null);
+  const [shotCutIds, setShotCutIds] = useState<string[]>([]);
+  const [addedCuts, setAddedCuts] = useState<ShootBoardCut[]>([]);
+  const [reorderMode, setReorderMode] = useState(false);
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -154,6 +166,26 @@ export function RecipeDetailScreen() {
       setActiveTab(params.tab);
     }
   }, [nativeRecipe, params.sceneId, params.tab]);
+
+  useEffect(() => {
+    setShotCutIds([]);
+    setAddedCuts([]);
+    setReorderMode(false);
+  }, [nativeRecipe?.id]);
+
+  const recipeSaved = recipe ? isRecipeSaved(recipe, isRecipeDownloaded(recipe.id)) : false;
+  const shootBoard = useMemo(() => {
+    if (!nativeRecipe) {
+      return null;
+    }
+
+    const baseBoard = createShootBoardRecipe(nativeRecipe, {
+      isSaved: recipeSaved,
+      shotCutIds,
+    });
+
+    return addedCuts.reduce((board, cut) => appendShootBoardCut(board, cut), baseBoard);
+  }, [addedCuts, nativeRecipe, recipeSaved, shotCutIds]);
 
   if (!nativeRecipe) {
     return (
@@ -189,10 +221,8 @@ export function RecipeDetailScreen() {
       return;
     }
 
-    router.push(`/recipe/${nativeRecipe.id}/prompter?sceneId=${selectedScene.id}` as Href);
+    router.push(getRecipePrompterHref(nativeRecipe.id, selectedScene.id) as Href);
   };
-
-  const recipeSaved = recipe ? isRecipeSaved(recipe, isRecipeDownloaded(recipe.id)) : false;
 
   const saveRecipe = () => {
     if (!recipe) {
@@ -221,7 +251,7 @@ export function RecipeDetailScreen() {
       return;
     }
 
-    router.push(`/recipe/${targetRecipe.id}/prompter?sceneId=${firstScene.id}` as Href);
+    router.push(getRecipePrompterHref(targetRecipe.id, firstScene.id) as Href);
   };
 
   const handleStartScene = (scene: NativeRecipeScene) => {
@@ -231,7 +261,59 @@ export function RecipeDetailScreen() {
       return;
     }
 
-    router.push(`/recipe/${targetRecipe.id}/prompter?sceneId=${scene.id}` as Href);
+    router.push(getRecipePrompterHref(targetRecipe.id, scene.id) as Href);
+  };
+
+  const findSceneForCut = (cut: ShootBoardCut) => (
+    cut.sceneId ? nativeRecipe.scenes.find((scene) => scene.id === cut.sceneId) ?? null : null
+  );
+
+  const openCutWorkspace = (cut: ShootBoardCut | null, tab: DetailTab = 'analysis') => {
+    if (!cut) {
+      return;
+    }
+
+    const scene = findSceneForCut(cut);
+
+    if (!scene) {
+      return;
+    }
+
+    setSelectedSceneId(scene.id);
+    setActiveTab(tab);
+  };
+
+  const openPrompterForCut = (cut: ShootBoardCut | null) => {
+    const targetRecipe = saveRecipe();
+
+    if (!targetRecipe || !cut) {
+      return;
+    }
+
+    const targetSceneId = cut.sceneId ?? targetRecipe.scenes[0]?.id;
+
+    if (!targetSceneId) {
+      return;
+    }
+
+    router.push(getRecipePrompterHref(targetRecipe.id, targetSceneId) as Href);
+  };
+
+  const toggleCutStatus = (cutId: string) => {
+    if (!shootBoard) {
+      return;
+    }
+
+    const updatedBoard = toggleShootBoardCutStatus(shootBoard, cutId);
+    setShotCutIds(updatedBoard.cuts.filter((cut) => cut.isShot).map((cut) => cut.id));
+  };
+
+  const addCut = () => {
+    if (!shootBoard) {
+      return;
+    }
+
+    setAddedCuts((current) => [...current, createAddedShootBoardCut(shootBoard, 'Custom filming cue')]);
   };
 
   if (selectedScene) {
@@ -365,198 +447,388 @@ export function RecipeDetailScreen() {
     );
   }
 
-  const detailRecipe = recipe;
-
-  if (!detailRecipe) {
+  if (!shootBoard) {
     return null;
   }
 
-  const firstScene = nativeRecipe.scenes[0] ?? null;
-  const keyHook = firstScene?.recipe.keyLine || nativeRecipe.summary;
-  const whyItWorks = getWhyItWorks(nativeRecipe.scenes);
+  const nextCut = shootBoard.cuts.find((cut) => !cut.isShot) ?? shootBoard.cuts[0] ?? null;
 
   return (
     <View className="flex-1 bg-canvas">
-      <View
-        className="border-b border-stroke bg-surface px-5 pb-4"
-        style={{ paddingTop: insets.top + 10 }}
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 142 }}
+        contentInsetAdjustmentBehavior="never"
+        showsVerticalScrollIndicator={false}
       >
-        <View className="flex-row items-center justify-between">
-          <Pressable
-            accessibilityLabel={copy.back}
-            className="h-10 w-10 items-center justify-center rounded-full border border-stroke bg-canvas"
-            onPress={handleBack}
-          >
-            <MaterialCommunityIcons color="#111827" name="arrow-left" size={21} />
-          </Pressable>
+        <View className="gap-4 px-4 pb-4" style={{ paddingTop: insets.top + 18 }}>
+          <ShootBoardHeader
+            board={shootBoard}
+            onBack={handleBack}
+            onMore={() => setReorderMode((current) => !current)}
+            onSave={saveRecipe}
+          />
 
-          <View className="min-w-0 flex-1 px-3">
-            <Text className="text-center text-[12px] font-black uppercase text-violet">
-              {language === 'ko' ? '실행 워크스페이스' : 'Execution Workspace'}
-            </Text>
-            <Text className="text-center text-[14px] font-black text-ink" numberOfLines={1}>
-              {nativeRecipe.scenes.length} {copy.sceneCount} · 30s
-            </Text>
-          </View>
+          <NextUpCard
+            cut={nextCut}
+            onOpenPrompter={() => openCutWorkspace(nextCut, 'recipe')}
+            onShoot={() => openPrompterForCut(nextCut)}
+          />
 
-          <Pressable
-            accessibilityRole="button"
-            className="h-10 w-10 items-center justify-center rounded-full bg-ink"
-            onPress={handleStartRecipe}
-          >
-            <MaterialCommunityIcons color="#fff" name="camera-outline" size={18} />
-          </Pressable>
-        </View>
+          <ProgressSection
+            cuts={shootBoard.cuts}
+            onAddCut={addCut}
+          />
 
-        <View className="flex-row gap-3 pt-4">
-          <ImageBackground
-            imageStyle={styles.executionThumbImage}
-            resizeMode="cover"
-            source={{ uri: nativeRecipe.thumbnail }}
-            style={styles.executionThumb}
-          >
-            <LinearGradient
-              colors={['rgba(15,23,42,0)', 'rgba(15,23,42,0.72)']}
-              style={StyleSheet.absoluteFill}
-            />
-            <View className="absolute bottom-2 left-2 right-2 rounded-full bg-white/90 px-2 py-1.5">
-              <Text className="text-center text-[10px] font-black text-ink">
-                {nativeRecipe.scenes.length} {copy.sceneCount} · 30s
-              </Text>
+          <View style={styles.shootBoardDivider} />
+
+          <View className="gap-3">
+            <View className="flex-row items-center justify-between">
+              <Text style={styles.shootSectionTitle}>CUTS BOARD</Text>
+              <Pressable accessibilityRole="button" className="flex-row items-center gap-1.5" onPress={() => setReorderMode((current) => !current)}>
+                <MaterialCommunityIcons color="#64748b" name={reorderMode ? 'check' : 'swap-vertical'} size={18} />
+                <Text className="text-[13px] font-black text-muted">{reorderMode ? '완료' : '순서 변경'}</Text>
+              </Pressable>
             </View>
-          </ImageBackground>
 
-          <View className="min-w-0 flex-1 gap-2">
-            <Text className="text-[22px] font-black leading-[27px] text-ink" numberOfLines={2}>
-              {getDetailTitle(language, detailRecipe)}
-            </Text>
-            <Text className="text-[13px] font-semibold leading-5 text-muted" numberOfLines={2}>
-              {language === 'ko'
-                ? '타임라인을 확인하고, 씬별 준비를 맞춘 뒤 바로 프롬프터로 촬영하세요.'
-                : 'Check the timeline, prep each scene, then move into prompter mode.'}
-            </Text>
-            <View className="flex-row flex-wrap gap-1.5">
-              {getDetailTags(language, detailRecipe).slice(0, 3).map((tag) => (
-                <View key={tag} style={styles.executionTag}>
-                  <Text style={styles.executionTagText}>{tag}</Text>
-                </View>
+            <View className="gap-2.5">
+              {shootBoard.cuts.map((cut) => (
+                <ShootBoardCutCard
+                  active={cut.id === nextCut?.id}
+                  cut={cut}
+                  key={cut.id}
+                  onOpen={() => openCutWorkspace(cut, 'analysis')}
+                  onPreview={() => openCutWorkspace(cut, 'analysis')}
+                  onShoot={() => openPrompterForCut(cut)}
+                  onToggleShot={() => toggleCutStatus(cut.id)}
+                  reorderMode={reorderMode}
+                />
               ))}
             </View>
+
+            <AddCutButton onPress={addCut} />
+            <BulkActionBar disabled />
+          </View>
+        </View>
+      </ScrollView>
+
+      <ShootBoardBottomNav
+        bottomInset={insets.bottom}
+        onChecklist={() => {
+          if (nextCut) {
+            openCutWorkspace(nextCut, 'shoot');
+          }
+        }}
+        onShoot={() => openPrompterForCut(nextCut)}
+      />
+    </View>
+  );
+}
+
+function ShootBoardHeader({
+  board,
+  onBack,
+  onMore,
+  onSave,
+}: {
+  board: ShootBoardRecipe;
+  onBack: () => void;
+  onMore: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <View className="flex-row items-center gap-3">
+      <Pressable accessibilityLabel="뒤로" accessibilityRole="button" onPress={onBack} style={styles.shootHeaderBackButton}>
+        <MaterialCommunityIcons color="#111827" name="arrow-left" size={26} />
+      </Pressable>
+
+      <View className="min-w-0 flex-1">
+        <View className="flex-row items-center gap-1">
+          <Text className="min-w-0 flex-shrink text-[18px] font-black leading-6 text-ink" numberOfLines={1}>
+            {board.title}
+          </Text>
+          <MaterialCommunityIcons color="#111827" name="chevron-down" size={18} />
+        </View>
+        <Text className="mt-0.5 text-[13px] font-bold text-muted">
+          {board.totalCuts} cuts · {board.totalDurationSeconds}s total · {board.shotCount} / {board.totalCuts} shot
+        </Text>
+      </View>
+
+      <View className="flex-row gap-2">
+        <Pressable accessibilityLabel="저장" accessibilityRole="button" onPress={onSave} style={styles.shootHeaderIconButton}>
+          <MaterialCommunityIcons color="#111827" name={board.isSaved ? 'bookmark' : 'bookmark-outline'} size={22} />
+        </Pressable>
+        <Pressable accessibilityLabel="더보기" accessibilityRole="button" onPress={onMore} style={styles.shootHeaderIconButton}>
+          <MaterialCommunityIcons color="#111827" name="dots-horizontal" size={25} />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function NextUpCard({
+  cut,
+  onOpenPrompter,
+  onShoot,
+}: {
+  cut: ShootBoardCut | null;
+  onOpenPrompter: () => void;
+  onShoot: () => void;
+}) {
+  if (!cut) {
+    return null;
+  }
+
+  const accent = getShootBoardAccent(cut.role);
+
+  return (
+    <View style={styles.nextUpCard}>
+      <View className="min-w-0 flex-1 gap-3">
+        <View className="flex-row items-center gap-2">
+          <View style={[styles.nextUpLabel, { backgroundColor: `${accent.soft}` }]}>
+            <Text style={[styles.nextUpLabelText, { color: accent.main }]}>NEXT UP</Text>
           </View>
         </View>
 
-        <View className="mt-4 flex-row gap-3">
-          <Pressable
-            accessibilityRole="button"
-            className="min-h-[48px] flex-1 flex-row items-center justify-center gap-2 rounded-full border border-stroke bg-canvas"
-            onPress={saveRecipe}
-          >
-            <MaterialCommunityIcons color="#111827" name={recipeSaved ? 'bookmark' : 'bookmark-outline'} size={18} />
-            <Text className="text-[13px] font-black text-ink">{recipeSaved ? copy.saved : copy.save}</Text>
-          </Pressable>
+        <View className="flex-row items-center gap-2">
+          <View style={[styles.nextUpNumber, { backgroundColor: accent.main }]}>
+            <Text className="text-[13px] font-black text-white">#{cut.order}</Text>
+          </View>
+          <Text style={[styles.nextUpRole, { color: accent.main }]}>{cut.roleLabel}</Text>
+          <Text style={[styles.nextUpRole, { color: accent.main }]}>·</Text>
+          <Text style={[styles.nextUpRole, { color: accent.main }]}>{cut.durationSeconds}s</Text>
+        </View>
 
-          <Pressable accessibilityRole="button" className="flex-[1.6] overflow-hidden rounded-full" onPress={handleStartRecipe}>
-            <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.executionStartButton}>
-              <MaterialCommunityIcons color="#fff" name="record-circle-outline" size={18} />
-              <Text className="text-[13px] font-black text-white">{copy.startShooting}</Text>
+        <View className="gap-1.5">
+          <Text className="text-[18px] font-black leading-[22px] text-ink" numberOfLines={2}>
+            {cut.instruction}
+          </Text>
+          <Text className="text-[14px] font-black leading-[18px] text-muted" numberOfLines={2}>
+            “{cut.prompterLine}”
+          </Text>
+        </View>
+
+        <View className="flex-row gap-2">
+          <Pressable accessibilityRole="button" onPress={onOpenPrompter} style={styles.secondaryShootButton}>
+            <MaterialCommunityIcons color="#111827" name="message-text-outline" size={17} />
+            <Text className="text-[13px] font-black text-ink">프롬프터</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={onShoot} style={styles.primaryShootButtonWrap}>
+            <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.primaryShootButton}>
+              <MaterialCommunityIcons color="#fff" name="video-outline" size={18} />
+              <Text className="text-[13px] font-black text-white">촬영 시작</Text>
             </LinearGradient>
           </Pressable>
         </View>
       </View>
 
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingBottom: 44 }}
-        contentInsetAdjustmentBehavior="automatic"
-        showsVerticalScrollIndicator={false}
-      >
-        <View className="gap-5 px-5 py-5">
-          <View style={styles.executionFlowCard}>
-            <Text className="text-[13px] font-black text-ink">
-              {language === 'ko' ? '오늘 찍을 흐름' : 'Today’s shooting flow'}
-            </Text>
-            <View className="mt-3 flex-row items-center justify-between">
-              {nativeRecipe.scenes.map((scene, sceneIndex) => (
-                <View className="flex-1 items-center gap-2" key={scene.id}>
-                  <View style={[styles.flowNode, { backgroundColor: getStructureColor(sceneIndex) }]}>
-                    <Text className="text-[11px] font-black text-white">#{scene.sceneNumber}</Text>
-                  </View>
-                  <Text className="text-center text-[10px] font-black leading-3 text-slate-700" numberOfLines={2}>
-                    {getSceneRoleLabel(language, sceneIndex, nativeRecipe.scenes.length)}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
+      <Pressable accessibilityRole="button" onPress={onOpenPrompter} style={styles.nextThumbWrap}>
+        <Image source={{ uri: cut.thumbnailUrl }} style={styles.nextThumbImage} />
+        <View style={styles.nextThumbOverlay} />
+        <View style={styles.nextPlayButton}>
+          <MaterialCommunityIcons color="#111827" name="play" size={24} />
+        </View>
+        <View style={styles.nextTimeBadge}>
+          <Text className="text-[11px] font-black text-white">{cut.timeRangeLabel}</Text>
+        </View>
+      </Pressable>
+    </View>
+  );
+}
 
-          <View className="gap-2">
-            <Text className="text-[16px] font-black text-ink">{copy.keyHook}</Text>
-            <Text className="text-[15px] font-semibold leading-6 text-slate-700">
-              "{keyHook}"
-            </Text>
-          </View>
+function ProgressSection({
+  cuts,
+  onAddCut,
+}: {
+  cuts: ShootBoardCut[];
+  onAddCut: () => void;
+}) {
+  const progressItems = getShootBoardProgressItems(cuts);
 
-          <RecipePrepSnapshot copy={copy} language={language} recipe={detailRecipe} />
-
-          <View className="gap-3">
-            <View className="flex-row items-center justify-between">
-              <Text className="text-[16px] font-black text-ink">{copy.sceneTimeline}</Text>
-              <Text className="text-[12px] font-bold text-muted">
-                {nativeRecipe.scenes.length} {copy.sceneCount} · 30s
-              </Text>
-            </View>
-
-            <View className="gap-3">
-              {nativeRecipe.scenes.map((scene, sceneIndex) => (
-                <SceneTimelineCard
-                  copy={copy}
-                  key={scene.id}
-                  language={language}
-                  onOpen={() => openScene(scene)}
-                  onShoot={() => handleStartScene(scene)}
-                  scene={scene}
-                  sceneIndex={sceneIndex}
-                  totalScenes={nativeRecipe.scenes.length}
-                />
-              ))}
-            </View>
-          </View>
-
-          <View className="gap-2">
-            <Text className="text-[16px] font-black text-ink">{copy.whyItWorks}</Text>
-            {whyItWorks.map((line) => (
-              <View className="flex-row gap-2" key={line}>
-                <Text className="text-[14px] font-black text-violet">✓</Text>
-                <Text className="flex-1 text-[13px] font-semibold leading-5 text-slate-700">{line}</Text>
+  return (
+    <View className="gap-3">
+      <Text style={styles.shootBoardEyebrow}>PROGRESS</Text>
+      <View className="flex-row items-start justify-between gap-2">
+        {progressItems.map((item, index) => (
+          <View className="flex-1" key={item.role}>
+            <View className="flex-row items-center">
+              <View style={[styles.progressNode, { backgroundColor: item.accent.main }]}>
+                <Text className="text-[14px] font-black text-white">{index + 1}</Text>
               </View>
-            ))}
-          </View>
-
-          <View className="flex-row gap-3">
-            <Pressable
-              accessibilityRole="button"
-              className="min-h-[50px] flex-1 flex-row items-center justify-center gap-2 rounded-full border border-stroke bg-surface"
-              onPress={saveRecipe}
-            >
-              <MaterialCommunityIcons color="#111827" name={recipeSaved ? 'bookmark' : 'bookmark-outline'} size={18} />
-              <Text className="text-[14px] font-black text-ink">{recipeSaved ? copy.saved : copy.save}</Text>
-            </Pressable>
-
-            <Pressable accessibilityRole="button" className="flex-[1.7] overflow-hidden rounded-full" onPress={handleStartRecipe}>
-              <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.startButton}>
-                <MaterialCommunityIcons color="#fff" name="camera-outline" size={18} />
-                <Text className="text-[14px] font-black text-white">{copy.startShooting}</Text>
-              </LinearGradient>
-            </Pressable>
-          </View>
-
-          <View className="rounded-[24px] border border-violet/20 bg-violet/5 px-4 py-4">
-            <Text className="text-[13px] font-black text-ink">
-              {language === 'ko' ? '씬을 열면 예시, 준비 브리프, 촬영 체크리스트를 한 화면에서 확인할 수 있어요.' : 'Open a scene to review the reference, prep brief, and shooting checklist in one workspace.'}
+              {index < progressItems.length - 1 ? <View style={styles.progressDash} /> : null}
+            </View>
+            <Text className="mt-2 text-center text-[13px] font-black text-ink">{item.title}</Text>
+            <Text className="mt-0.5 text-center text-[12px] font-bold text-muted">
+              {item.shotCount} / {item.totalCount} shot
             </Text>
+          </View>
+        ))}
+
+        <Pressable accessibilityRole="button" onPress={onAddCut} style={styles.progressAddButton}>
+          <MaterialCommunityIcons color="#111827" name="plus" size={28} />
+          <Text className="text-[13px] font-black text-ink">컷 추가</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function ShootBoardCutCard({
+  active,
+  cut,
+  onOpen,
+  onPreview,
+  onShoot,
+  onToggleShot,
+  reorderMode,
+}: {
+  active: boolean;
+  cut: ShootBoardCut;
+  onOpen: () => void;
+  onPreview: () => void;
+  onShoot: () => void;
+  onToggleShot: () => void;
+  reorderMode: boolean;
+}) {
+  const accent = getShootBoardAccent(cut.role);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onOpen}
+      style={[
+        styles.cutCard,
+        active && { borderColor: accent.border, shadowOpacity: 0.08 },
+        cut.isShot && styles.cutCardComplete,
+      ]}
+    >
+      <View style={styles.dragHandle}>
+        <MaterialCommunityIcons color={reorderMode ? accent.main : '#94a3b8'} name="drag-vertical" size={22} />
+      </View>
+
+      <View style={styles.cutThumbWrap}>
+        <Image source={{ uri: cut.thumbnailUrl }} style={styles.cutThumbImage} />
+        <View style={styles.cutThumbOverlay} />
+        <Text style={styles.cutThumbTime}>{cut.timeRangeLabel}</Text>
+      </View>
+
+      <View className="min-w-0 flex-1 gap-2">
+        <View className="flex-row items-center justify-between gap-2">
+          <View className="min-w-0 flex-1 flex-row items-center gap-2">
+            <View style={[styles.cutNumberBadge, { borderColor: accent.border, backgroundColor: accent.soft }]}>
+              <Text style={[styles.cutNumberText, { color: accent.main }]}>#{cut.order}</Text>
+            </View>
+            <Text style={[styles.cutRoleLabel, { color: accent.main }]}>{cut.roleLabel}</Text>
+          </View>
+          <View className="flex-row items-center gap-1">
+            <MaterialCommunityIcons color="#111827" name="clock-outline" size={16} />
+            <Text className="text-[12px] font-black text-ink">{cut.durationSeconds}s</Text>
+          </View>
+          <MaterialCommunityIcons color="#94a3b8" name="dots-horizontal" size={20} />
+        </View>
+
+        <Text className="text-[14px] font-black leading-[18px] text-ink" numberOfLines={2}>
+          {cut.instruction}
+        </Text>
+
+        <View style={[styles.quoteBox, { backgroundColor: accent.tint }]}>
+          <MaterialCommunityIcons color={accent.main} name="format-quote-open" size={14} />
+          <Text className="min-w-0 flex-1 text-[12px] font-black leading-4 text-ink" numberOfLines={2}>
+            “{cut.prompterLine}”
+          </Text>
+        </View>
+
+        <View className="flex-row gap-2">
+          <Pressable accessibilityRole="button" onPress={onPreview} style={styles.previewButton}>
+            <MaterialCommunityIcons color="#111827" name="play-outline" size={17} />
+            <Text className="text-[12px] font-black text-ink">미리보기</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={onShoot} style={[styles.cutShootButton, { borderColor: accent.border }]}>
+            <MaterialCommunityIcons color={accent.main} name="video-outline" size={17} />
+            <Text style={[styles.cutShootText, { color: accent.main }]}>촬영</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: cut.isShot }} onPress={onToggleShot} style={styles.shotStatusButton}>
+        <View style={[styles.shotStatusCircle, cut.isShot && { backgroundColor: accent.main, borderColor: accent.main }]}>
+          {cut.isShot ? <MaterialCommunityIcons color="#fff" name="check" size={15} /> : null}
+        </View>
+        <Text className={`text-[10px] font-black ${cut.isShot ? 'text-ink' : 'text-muted'}`}>
+          {cut.isShot ? '촬영완료' : '미촬영'}
+        </Text>
+      </Pressable>
+    </Pressable>
+  );
+}
+
+function AddCutButton({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.addCutButton}>
+      <MaterialCommunityIcons color="#8b5cf6" name="plus" size={22} />
+      <Text className="text-[15px] font-black text-violet">컷 추가</Text>
+    </Pressable>
+  );
+}
+
+function BulkActionBar({ disabled }: { disabled: boolean }) {
+  const actions = [
+    { icon: 'content-copy' as IconName, label: '복사' },
+    { icon: 'clipboard-outline' as IconName, label: '붙여넣기' },
+    { icon: 'shield-plus-outline' as IconName, label: '템플릿 추가' },
+    { icon: 'trash-can-outline' as IconName, label: '삭제', destructive: true },
+  ];
+
+  return (
+    <View style={styles.bulkActionBar}>
+      {actions.map((action) => (
+        <View key={action.label} style={[styles.bulkActionItem, disabled && styles.bulkActionItemDisabled]}>
+          <MaterialCommunityIcons
+            color={action.destructive ? '#ff4f73' : '#111827'}
+            name={action.icon}
+            size={20}
+          />
+          <Text className={`text-[12px] font-black ${action.destructive ? 'text-rose-500' : 'text-ink'}`}>
+            {action.label}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function ShootBoardBottomNav({
+  bottomInset,
+  onChecklist,
+  onShoot,
+}: {
+  bottomInset: number;
+  onChecklist: () => void;
+  onShoot: () => void;
+}) {
+  return (
+    <View style={[styles.shootBoardBottomNav, { paddingBottom: Math.max(bottomInset, 10) }]}>
+      <View style={styles.localNavItemActive}>
+        <MaterialCommunityIcons color="#8b5cf6" name="format-list-bulleted" size={25} />
+        <Text className="mt-1 text-[11px] font-black text-violet">보드</Text>
+      </View>
+
+      <Pressable accessibilityRole="button" onPress={onShoot} style={styles.localNavCenter}>
+        <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.localNavCenterIcon}>
+          <MaterialCommunityIcons color="#fff" name="video-outline" size={27} />
+        </LinearGradient>
+        <Text className="mt-1 text-[11px] font-black text-ink">촬영</Text>
+      </Pressable>
+
+      <Pressable accessibilityRole="button" onPress={onChecklist} style={styles.localNavItem}>
+        <View>
+          <MaterialCommunityIcons color="#111827" name="clipboard-check-outline" size={25} />
+          <View style={styles.checklistBadge}>
+            <Text className="text-[9px] font-black text-white">3</Text>
           </View>
         </View>
-      </ScrollView>
+        <Text className="mt-1 text-[11px] font-black text-ink">체크리스트</Text>
+      </Pressable>
     </View>
   );
 }
@@ -1123,6 +1395,61 @@ function getProductCue(language: AppLanguage, sceneIndex: number) {
   return sceneIndex === 0 ? 'Keep hidden' : 'Bring into frame';
 }
 
+function getShootBoardAccent(role: ShootBoardCut['role']) {
+  if (role === 'proof') {
+    return {
+      border: '#fb923c',
+      main: '#f97316',
+      soft: '#fff7ed',
+      tint: '#fff3e7',
+    };
+  }
+
+  if (role === 'cta') {
+    return {
+      border: '#a78bfa',
+      main: '#8b5cf6',
+      soft: '#f5f3ff',
+      tint: '#f3efff',
+    };
+  }
+
+  if (role === 'custom') {
+    return {
+      border: '#94a3b8',
+      main: '#64748b',
+      soft: '#f8fafc',
+      tint: '#f8fafc',
+    };
+  }
+
+  return {
+    border: '#fb7185',
+    main: '#ff4f73',
+    soft: '#fff1f4',
+    tint: '#fff3f6',
+  };
+}
+
+function getShootBoardProgressItems(cuts: ShootBoardCut[]) {
+  const roles: Array<{ role: ShootBoardCut['role']; title: string }> = [
+    { role: 'hook', title: 'Hook' },
+    { role: 'proof', title: 'Proof' },
+    { role: 'cta', title: 'CTA' },
+  ];
+
+  return roles.map((item) => {
+    const roleCuts = cuts.filter((cut) => cut.role === item.role);
+
+    return {
+      ...item,
+      accent: getShootBoardAccent(item.role),
+      shotCount: roleCuts.filter((cut) => cut.isShot).length,
+      totalCount: Math.max(1, roleCuts.length),
+    };
+  });
+}
+
 function getWhyItWorks(scenes: NativeRecipeScene[]) {
   const firstScene = scenes[0];
   const explicitLines = firstScene?.analysis.whyItWorks ?? [];
@@ -1143,6 +1470,383 @@ function getStructureColor(index: number) {
 }
 
 const styles = StyleSheet.create({
+  addCutButton: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#c4b5fd',
+    borderRadius: 16,
+    borderStyle: 'dashed',
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    gap: 7,
+    justifyContent: 'center',
+    minHeight: 56,
+  },
+  bulkActionBar: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.05,
+    shadowRadius: 18,
+  },
+  bulkActionItem: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  bulkActionItemDisabled: {
+    opacity: 0.42,
+  },
+  checklistBadge: {
+    alignItems: 'center',
+    backgroundColor: '#8b5cf6',
+    borderColor: '#ffffff',
+    borderRadius: 999,
+    borderWidth: 2,
+    height: 19,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: -10,
+    top: -8,
+    width: 19,
+  },
+  cutCard: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 11,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.04,
+    shadowRadius: 18,
+  },
+  cutCardComplete: {
+    backgroundColor: '#fbfdff',
+  },
+  cutNumberBadge: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  cutNumberText: {
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  cutRoleLabel: {
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.2,
+  },
+  cutShootButton: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 5,
+    justifyContent: 'center',
+    minHeight: 36,
+  },
+  cutShootText: {
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  cutThumbImage: {
+    height: '100%',
+    width: '100%',
+  },
+  cutThumbOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 42, 0.1)',
+  },
+  cutThumbTime: {
+    bottom: 7,
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '900',
+    left: 8,
+    position: 'absolute',
+    textShadowColor: 'rgba(15, 23, 42, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  cutThumbWrap: {
+    backgroundColor: '#e2e8f0',
+    borderRadius: 14,
+    height: 104,
+    overflow: 'hidden',
+    width: 76,
+  },
+  dragHandle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -4,
+    width: 16,
+  },
+  localNavCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -24,
+    width: 88,
+  },
+  localNavCenterIcon: {
+    alignItems: 'center',
+    borderColor: '#ffffff',
+    borderRadius: 999,
+    borderWidth: 4,
+    height: 66,
+    justifyContent: 'center',
+    shadowColor: '#7c3aed',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.24,
+    shadowRadius: 22,
+    width: 66,
+  },
+  localNavItem: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  localNavItemActive: {
+    alignItems: 'center',
+    backgroundColor: '#f6f1ff',
+    borderRadius: 26,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 66,
+  },
+  nextPlayButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 999,
+    height: 48,
+    justifyContent: 'center',
+    left: '50%',
+    marginLeft: -24,
+    marginTop: -24,
+    position: 'absolute',
+    top: '50%',
+    width: 48,
+  },
+  nextThumbImage: {
+    height: '100%',
+    width: '100%',
+  },
+  nextThumbOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 42, 0.08)',
+  },
+  nextThumbWrap: {
+    backgroundColor: '#e2e8f0',
+    borderRadius: 18,
+    height: 148,
+    overflow: 'hidden',
+    width: 118,
+  },
+  nextTimeBadge: {
+    backgroundColor: 'rgba(15, 23, 42, 0.78)',
+    borderRadius: 999,
+    bottom: 8,
+    left: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    position: 'absolute',
+  },
+  nextUpCard: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 12,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.06,
+    shadowRadius: 22,
+  },
+  nextUpLabel: {
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  nextUpLabelText: {
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  nextUpNumber: {
+    alignItems: 'center',
+    borderRadius: 999,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+  nextUpRole: {
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  previewButton: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 5,
+    justifyContent: 'center',
+    minHeight: 36,
+  },
+  primaryShootButton: {
+    alignItems: 'center',
+    borderRadius: 15,
+    flexDirection: 'row',
+    gap: 7,
+    justifyContent: 'center',
+    minHeight: 42,
+    paddingHorizontal: 12,
+  },
+  primaryShootButtonWrap: {
+    borderRadius: 15,
+    flex: 1.35,
+    overflow: 'hidden',
+  },
+  progressAddButton: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#cbd5e1',
+    borderRadius: 16,
+    borderStyle: 'dashed',
+    borderWidth: 1.4,
+    gap: 3,
+    height: 74,
+    justifyContent: 'center',
+    width: 72,
+  },
+  progressDash: {
+    borderColor: '#cbd5e1',
+    borderStyle: 'dashed',
+    borderTopWidth: 1.5,
+    flex: 1,
+    height: 1,
+    marginHorizontal: 7,
+  },
+  progressNode: {
+    alignItems: 'center',
+    borderRadius: 999,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  quoteBox: {
+    alignItems: 'center',
+    borderRadius: 10,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+  },
+  secondaryShootButton: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 15,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 7,
+    justifyContent: 'center',
+    minHeight: 42,
+  },
+  shootBoardBottomNav: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderColor: '#e2e8f0',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    borderTopWidth: 1,
+    bottom: 0,
+    flexDirection: 'row',
+    gap: 14,
+    left: 0,
+    minHeight: 98,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    position: 'absolute',
+    right: 0,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+  },
+  shootBoardDivider: {
+    backgroundColor: '#e2e8f0',
+    height: 1,
+  },
+  shootBoardEyebrow: {
+    color: '#667085',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  shootHeaderBackButton: {
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 999,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  shootHeaderIconButton: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 18,
+    borderWidth: 1,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  shootSectionTitle: {
+    color: '#111827',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 0.2,
+  },
+  shotStatusButton: {
+    alignItems: 'center',
+    gap: 4,
+    justifyContent: 'center',
+    minWidth: 54,
+  },
+  shotStatusCircle: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#cbd5e1',
+    borderRadius: 999,
+    borderStyle: 'dashed',
+    borderWidth: 1.5,
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
+  },
   hero: {
     minHeight: 365,
   },

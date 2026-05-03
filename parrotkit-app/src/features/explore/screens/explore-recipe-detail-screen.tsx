@@ -10,6 +10,7 @@ import type { MockRecipe, MockRecipeScene } from '@/core/mocks/parrotkit-data';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient } from '@/core/theme/colors';
 import { isVerifiedCreatorRecipe } from '@/features/recipes/lib/recipe-ownership';
+import { getShootBoardHref } from '@/features/recipes/lib/shoot-board-model';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -127,13 +128,12 @@ export function ExploreRecipeDetailScreen() {
 
   const handleStartShooting = () => {
     const targetRecipe = ensureSavedRecipe();
-    const targetScene = targetRecipe?.scenes[0];
 
-    if (!targetRecipe || !targetScene) {
+    if (!targetRecipe) {
       return;
     }
 
-    router.push(`/recipe/${targetRecipe.id}/prompter?sceneId=${targetScene.id}` as Href);
+    router.push(getShootBoardHref(targetRecipe.id) as Href);
   };
 
   if (!recipe) {
