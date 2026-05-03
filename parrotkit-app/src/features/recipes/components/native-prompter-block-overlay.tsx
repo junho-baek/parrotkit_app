@@ -12,6 +12,7 @@ import {
 import {
   clampPrompterPointToBounds,
   getBlockPoint,
+  normalizePrompterOpacity,
   normalizePrompterScale,
   type PrompterPoint,
 } from '@/features/recipes/lib/prompter-layout';
@@ -23,7 +24,7 @@ type NativePrompterBlockOverlayProps = {
   focused: boolean;
   onFocus: () => void;
   onInteractionActiveChange?: (active: boolean) => void;
-  onUpdate: (updates: Partial<Pick<PrompterBlock, 'content' | 'scale' | 'x' | 'y'>>) => void;
+  onUpdate: (updates: Partial<Pick<PrompterBlock, 'content' | 'opacity' | 'scale' | 'x' | 'y'>>) => void;
   // Bump this timestamp when a parent toolbar needs this block to enter edit mode.
   editingRequestedAt?: number;
 };
@@ -125,6 +126,7 @@ export function NativePrompterBlockOverlay({
 
   const point = clampPrompterPointToBounds(getBlockPoint(block), PROMPTER_BOUNDS);
   const scale = normalizePrompterScale(block.scale ?? 1);
+  const opacity = normalizePrompterOpacity(block.opacity);
   const safeWidth = Math.max(containerSize.width, 1);
   const safeHeight = Math.max(containerSize.height, 1);
   const fontSize = getFontSize(block);
@@ -334,6 +336,7 @@ export function NativePrompterBlockOverlay({
           focused && styles.focusedCard,
           editing && styles.editingCard,
           {
+            opacity,
             transform: [{ scale: animatedScale }],
           },
         ]}

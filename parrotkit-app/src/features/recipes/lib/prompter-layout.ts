@@ -12,6 +12,8 @@ export type PrompterPointBounds = {
 
 export const PROMPTER_SCALE_MIN = 0.65;
 export const PROMPTER_SCALE_MAX = 2.5;
+export const PROMPTER_OPACITY_MIN = 0.35;
+export const PROMPTER_OPACITY_MAX = 1;
 
 export const presetOffsetMap: Record<PrompterPositionPreset, PrompterPoint> = {
   top: { x: 0.5, y: 0.14 },
@@ -55,6 +57,44 @@ export function clampPrompterPointToBounds(
 
 export function normalizePrompterScale(value: number) {
   return clamp(finiteOrFallback(value, 1), PROMPTER_SCALE_MIN, PROMPTER_SCALE_MAX);
+}
+
+export function normalizePrompterOpacity(value: number | undefined) {
+  return clamp(finiteOrFallback(value, 0.92), PROMPTER_OPACITY_MIN, PROMPTER_OPACITY_MAX);
+}
+
+export function createPrompterDraftBlock({
+  content = 'New cue',
+  id,
+  order,
+  x = 0.5,
+  y = 0.5,
+}: {
+  content?: string;
+  id: string;
+  order: number;
+  x?: number;
+  y?: number;
+}): PrompterBlock {
+  const point = clampPrompterPoint({
+    x,
+    y,
+  });
+
+  return {
+    accentColor: 'blue',
+    content,
+    id,
+    opacity: 0.92,
+    order,
+    positionPreset: 'center',
+    scale: 1,
+    size: 'lg',
+    type: 'key_line',
+    visible: true,
+    x: point.x,
+    y: point.y,
+  };
 }
 
 export function getBlockPoint(block: PrompterBlock): PrompterPoint {

@@ -8,21 +8,24 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View, type DimensionValue } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View, type DimensionValue, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { MockProjectTake } from '@/core/mocks/parrotkit-data';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
+import { NativePrompterBlockOverlay } from '@/features/recipes/components/native-prompter-block-overlay';
+import { NativePrompterToolbar } from '@/features/recipes/components/native-prompter-toolbar';
 import { NativeRecordButton } from '@/features/recipes/components/native-record-button';
 import {
   NativeTakeReview,
   type NativeTakeReviewStatus,
 } from '@/features/recipes/components/native-take-review';
 import { NativeTakeTray } from '@/features/recipes/components/native-take-tray';
+import { createPrompterDraftBlock } from '@/features/recipes/lib/prompter-layout';
 import { ShootingSceneSwitcher } from '@/features/recipes/components/shooting-scene-switcher';
 import { normalizeNativeRecipe } from '@/features/recipes/lib/recipe-domain-normalizer';
 import { openTakeInShareSheet, saveTakeToGallery } from '@/features/recipes/lib/take-export';
-import { NativeRecipeScene } from '@/features/recipes/types/recipe-domain';
+import type { NativeRecipeScene, PrompterBlock } from '@/features/recipes/types/recipe-domain';
 
 export function RecipePrompterCameraScreen() {
   const router = useRouter();
@@ -53,6 +56,10 @@ export function RecipePrompterCameraScreen() {
   const rawRecipe = params.recipeId ? getRecipeById(params.recipeId) : null;
   const recipe = useMemo(() => (rawRecipe ? normalizeNativeRecipe(rawRecipe) : null), [rawRecipe]);
   const [activeSceneId, setActiveSceneId] = useState(params.sceneId ?? recipe?.scenes[0]?.id ?? '');
+  const [sceneBlocksById, setSceneBlocksById] = useState<Record<string, PrompterBlock[]>>({});
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [editRequestByBlockId, setEditRequestByBlockId] = useState<Record<string, number>>({});
+  const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeSceneId && recipe?.scenes[0]) {
@@ -78,6 +85,51 @@ export function RecipePrompterCameraScreen() {
   const nextScene = recipe && activeSceneIndex < recipe.scenes.length - 1 ? recipe.scenes[activeSceneIndex + 1] : null;
   const sceneTakeCollection = recipe && activeScene ? getSceneTakeCollection(recipe.id, activeScene.id) : null;
   const bestTake = recipe && activeScene ? getSceneBestTake(recipe.id, activeScene.id) : null;
+  const activeBlocks = activeScene ? sceneBlocksById[activeScene.id] ?? activeScene.prompter.blocks : [];
+  const visibleBlocks = useMemo(
+    () => activeBlocks.filter((block) => block.visible).sort((first, second) => first.order - second.order),
+    [activeBlocks]
+  );
+  const hiddenBlocks = useMemo(
+    () => activeBlocks.filter((block) => !block.visible).sort((first, second) => first.order - second.order),
+    [activeBlocks]
+  );
+  const focusedBlock = useMemo(
+    () => visibleBlocks.find((block) => block.id === focusedBlockId) ?? null,
+    [focusedBlockId, visibleBlocks]
+  );
+
+  useEffect(() => {
+    if (!recipe) return;
+
+    setSceneBlocksById((current) => {
+      const next = { ...current };
+
+      recipe.scenes.forEach((scene) => {
+        if (next[scene.id]) return;
+
+        next[scene.id] = scene.prompter.blocks.map((block) => ({
+          ...block,
+          opacity: block.opacity ?? 0.92,
+          scale: block.scale ?? 1,
+        }));
+      });
+
+      return next;
+    });
+  }, [recipe]);
+
+  useEffect(() => {
+    setFocusedBlockId(visibleBlocks[0]?.id ?? null);
+  }, [activeSceneId]);
+
+  useEffect(() => {
+    if (!focusedBlockId || visibleBlocks.some((block) => block.id === focusedBlockId)) {
+      return;
+    }
+
+    setFocusedBlockId(visibleBlocks[0]?.id ?? null);
+  }, [focusedBlockId, visibleBlocks]);
 
   const handleBack = useCallback(() => {
     if (router.canGoBack()) {
@@ -87,6 +139,97 @@ export function RecipePrompterCameraScreen() {
 
     router.replace((recipe ? `/recipe/${recipe.id}` : '/(tabs)/recipes') as Href);
   }, [recipe, router]);
+
+  const handleOverlayLayout = useCallback((event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+
+    setContainerSize((current) => {
+      if (Math.round(current.width) === Math.round(width) && Math.round(current.height) === Math.round(height)) {
+        return current;
+      }
+
+      return { height, width };
+    });
+  }, []);
+
+  const handleUpdateBlock = useCallback((blockId: string, updates: Partial<PrompterBlock>) => {
+    if (!activeScene) return;
+
+    setSceneBlocksById((current) => ({
+      ...current,
+      [activeScene.id]: (current[activeScene.id] ?? activeScene.prompter.blocks).map((block) =>
+        block.id === blockId ? { ...block, ...updates } : block
+      ),
+    }));
+  }, [activeScene]);
+
+  const requestEditForBlock = useCallback((blockId: string) => {
+    setFocusedBlockId(blockId);
+    setEditRequestByBlockId((current) => ({
+      ...current,
+      [blockId]: Date.now(),
+    }));
+  }, []);
+
+  const handleAddCue = useCallback(() => {
+    if (!activeScene) return;
+
+    setSceneBlocksById((current) => {
+      const currentBlocks = current[activeScene.id] ?? activeScene.prompter.blocks;
+      const order = currentBlocks.length;
+      const blockId = `${activeScene.id}-cue-${Date.now()}`;
+      const nextY = Math.min(0.74, 0.38 + (order % 4) * 0.1);
+      const nextBlock = createPrompterDraftBlock({
+        content: 'New cue',
+        id: blockId,
+        order,
+        y: nextY,
+      });
+
+      setFocusedBlockId(blockId);
+
+      return {
+        ...current,
+        [activeScene.id]: [...currentBlocks, nextBlock],
+      };
+    });
+  }, [activeScene]);
+
+  const handleHideFocusedCue = useCallback(() => {
+    if (!focusedBlock) return;
+
+    handleUpdateBlock(focusedBlock.id, { visible: false });
+    setFocusedBlockId(null);
+  }, [focusedBlock, handleUpdateBlock]);
+
+  const handleShowCue = useCallback((blockId: string) => {
+    handleUpdateBlock(blockId, { visible: true });
+    setFocusedBlockId(blockId);
+  }, [handleUpdateBlock]);
+
+  const handleScaleFocusedCue = useCallback((scale: number) => {
+    if (!focusedBlock) return;
+
+    handleUpdateBlock(focusedBlock.id, { scale });
+  }, [focusedBlock, handleUpdateBlock]);
+
+  const handleOpacityFocusedCue = useCallback((opacity: number) => {
+    if (!focusedBlock) return;
+
+    handleUpdateBlock(focusedBlock.id, { opacity });
+  }, [focusedBlock, handleUpdateBlock]);
+
+  const handleColorFocusedCue = useCallback((accentColor: string) => {
+    if (!focusedBlock) return;
+
+    handleUpdateBlock(focusedBlock.id, { accentColor });
+  }, [focusedBlock, handleUpdateBlock]);
+
+  const handleEditFocusedCue = useCallback(() => {
+    if (!focusedBlock) return;
+
+    requestEditForBlock(focusedBlock.id);
+  }, [focusedBlock, requestEditForBlock]);
 
   useEffect(() => {
     setReviewUri(null);
@@ -304,14 +447,28 @@ export function RecipePrompterCameraScreen() {
           </View>
         </View>
 
-        <View pointerEvents="box-none" className="flex-1">
+        <View pointerEvents="box-none" className="flex-1" onLayout={handleOverlayLayout}>
           <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-            <CameraCoachOverlay
-              recording={recording}
-              scene={activeScene}
-              sceneIndex={activeSceneIndex}
-              totalScenes={recipe.scenes.length}
-            />
+            {visibleBlocks.length > 0 ? (
+              visibleBlocks.map((block) => (
+                <NativePrompterBlockOverlay
+                  key={block.id}
+                  block={block}
+                  containerSize={containerSize}
+                  editingRequestedAt={editRequestByBlockId[block.id]}
+                  focused={block.id === focusedBlock?.id}
+                  onFocus={() => setFocusedBlockId(block.id)}
+                  onUpdate={(updates) => handleUpdateBlock(block.id, updates)}
+                />
+              ))
+            ) : hiddenBlocks.length === 0 ? (
+              <CameraCoachOverlay
+                recording={recording}
+                scene={activeScene}
+                sceneIndex={activeSceneIndex}
+                totalScenes={recipe.scenes.length}
+              />
+            ) : null}
           </View>
         </View>
 
@@ -320,17 +477,31 @@ export function RecipePrompterCameraScreen() {
           style={{ paddingBottom: insets.bottom + (Platform.OS === 'android' ? 12 : 4) }}
         >
           <View className="mb-3 flex-row items-center justify-between gap-3">
+            <NativePrompterToolbar
+              focusedBlock={focusedBlock}
+              hiddenBlocks={hiddenBlocks}
+              onAddCue={handleAddCue}
+              onColorCue={handleColorFocusedCue}
+              onEditCue={handleEditFocusedCue}
+              onHideCue={handleHideFocusedCue}
+              onOpacityCue={handleOpacityFocusedCue}
+              onScaleCue={handleScaleFocusedCue}
+              onShowCue={handleShowCue}
+            />
+            <NativeRecordButton
+              disabled={Boolean(reviewUri)}
+              onPress={handleRecordPress}
+              recording={recording}
+            />
+          </View>
+
+          <View className="mb-3 flex-row items-center justify-between gap-3">
             <PrompterStepButton
               disabled={!previousScene}
               label="Prev cut"
               onPress={() => {
                 if (previousScene) setActiveSceneId(previousScene.id);
               }}
-            />
-            <NativeRecordButton
-              disabled={Boolean(reviewUri)}
-              onPress={handleRecordPress}
-              recording={recording}
             />
             <PrompterStepButton
               disabled={!nextScene}

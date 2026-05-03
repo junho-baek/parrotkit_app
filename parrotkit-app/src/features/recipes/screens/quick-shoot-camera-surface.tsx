@@ -164,6 +164,12 @@ export function QuickShootCameraSurface({
     handleUpdateBlock(focusedBlock.id, { scale });
   }, [focusedBlock, handleUpdateBlock]);
 
+  const handleOpacityFocusedCue = useCallback((opacity: number) => {
+    if (!focusedBlock) return;
+
+    handleUpdateBlock(focusedBlock.id, { opacity });
+  }, [focusedBlock, handleUpdateBlock]);
+
   const handleColorFocusedCue = useCallback((accentColor: string) => {
     if (!focusedBlock) return;
 
@@ -414,6 +420,7 @@ export function QuickShootCameraSurface({
               onColorCue={handleColorFocusedCue}
               onEditCue={handleEditFocusedCue}
               onHideCue={handleHideFocusedCue}
+              onOpacityCue={handleOpacityFocusedCue}
               onScaleCue={handleScaleFocusedCue}
               onShowCue={handleShowCue}
             />

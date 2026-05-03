@@ -2,7 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { normalizePrompterScale } from '@/features/recipes/lib/prompter-layout';
+import { normalizePrompterOpacity, normalizePrompterScale } from '@/features/recipes/lib/prompter-layout';
 import type { PrompterBlock } from '@/features/recipes/types/recipe-domain';
 
 type NativePrompterToolbarProps = {
@@ -12,11 +12,13 @@ type NativePrompterToolbarProps = {
   onColorCue: (accentColor: string) => void;
   onEditCue: () => void;
   onHideCue: () => void;
+  onOpacityCue: (opacity: number) => void;
   onScaleCue: (scale: number) => void;
   onShowCue: (blockId: string) => void;
 };
 
 const SCALE_STEP = 0.12;
+const OPACITY_STEP = 0.14;
 const colorSwatches = [
   { accentColor: 'blue', color: '#8b5cf6' },
   { accentColor: 'coral', color: '#ff7e58' },
@@ -34,11 +36,13 @@ export function NativePrompterToolbar({
   onColorCue,
   onEditCue,
   onHideCue,
+  onOpacityCue,
   onScaleCue,
   onShowCue,
 }: NativePrompterToolbarProps) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const currentScale = normalizePrompterScale(focusedBlock?.scale ?? 1);
+  const currentOpacity = normalizePrompterOpacity(focusedBlock?.opacity);
   const nextHiddenBlock = hiddenBlocks[0] ?? null;
 
   useEffect(() => {
@@ -64,6 +68,16 @@ export function NativePrompterToolbar({
               accessibilityLabel="Edit focused cue"
               iconName="pencil-outline"
               onPress={onEditCue}
+            />
+            <ToolbarButton
+              accessibilityLabel="Make focused cue more transparent"
+              iconName="opacity"
+              onPress={() => onOpacityCue(normalizePrompterOpacity(currentOpacity - OPACITY_STEP))}
+            />
+            <ToolbarButton
+              accessibilityLabel="Make focused cue more opaque"
+              iconName="circle-opacity"
+              onPress={() => onOpacityCue(normalizePrompterOpacity(currentOpacity + OPACITY_STEP))}
             />
             <ToolbarButton
               accessibilityLabel={paletteOpen ? 'Close cue color palette' : 'Open cue color palette'}
@@ -168,7 +182,7 @@ function ToolbarButton({
       ]}
     >
       <MaterialCommunityIcons
-        color={emphasized ? '#111827' : '#ffffff'}
+        color="#ffffff"
         name={iconName}
         size={large ? 28 : 20}
       />
@@ -211,7 +225,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.22)',
   },
   emphasizedButton: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#8b5cf6',
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.22,

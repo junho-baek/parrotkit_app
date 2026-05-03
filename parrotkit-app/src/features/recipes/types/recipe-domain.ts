@@ -53,6 +53,7 @@ export type PrompterBlock = {
   visible: boolean;
   size: PrompterBlockSize;
   positionPreset: PrompterPositionPreset;
+  opacity?: number;
   scale?: number;
   x?: number;
   y?: number;

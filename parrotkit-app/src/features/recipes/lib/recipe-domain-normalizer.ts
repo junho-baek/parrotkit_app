@@ -117,6 +117,9 @@ function normalizePrompterBlocks(scene: MockRecipeScene): PrompterBlock[] {
       visible: block.visible !== false,
       size: normalizePrompterSize(block.size),
       positionPreset: normalizePrompterPosition(block.positionPreset),
+      opacity: Number.isFinite(Number((block as { opacity?: unknown }).opacity))
+        ? Number((block as { opacity?: unknown }).opacity)
+        : undefined,
       scale: Number.isFinite(Number(block.scale)) ? Number(block.scale) : 1,
       x: Number.isFinite(Number(block.x)) ? Number(block.x) : undefined,
       y: Number.isFinite(Number(block.y)) ? Number(block.y) : undefined,
