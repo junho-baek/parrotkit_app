@@ -12,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppLanguage, type AppLanguage } from '@/core/i18n/app-language';
 import type { MockRecipe } from '@/core/mocks/parrotkit-data';
@@ -47,7 +48,6 @@ type ExploreCopy = {
   title: string;
   subtitle: string;
   searchPlaceholder: string;
-  quickStart: string;
   recommended: string;
   viewAll: string;
   browse: string;
@@ -62,14 +62,6 @@ type ExploreCopy = {
   filters: Record<OriginFilter, string>;
   facets: string[];
   categories: Array<{ id: CategoryFilter; label: string; icon: IconName; tone: string }>;
-  quickCards: Array<{
-    action: () => Href;
-    badge: string;
-    icon: IconName;
-    subtitle: string;
-    title: string;
-    tone: string;
-  }>;
   brandRequest: {
     chips: string[];
     creatorHandle: string;
@@ -88,7 +80,6 @@ const exploreCopy: Record<AppLanguage, ExploreCopy> = {
     title: 'Explore',
     subtitle: 'Discover verified recipes, practical filming know-how, and shoot right away.',
     searchPlaceholder: 'Search recipes',
-    quickStart: 'Quick Start',
     recommended: 'Recommended Recipes',
     viewAll: 'View all',
     browse: 'Browse Recipes',
@@ -124,24 +115,6 @@ const exploreCopy: Record<AppLanguage, ExploreCopy> = {
       { id: 'life', label: 'Life', icon: 'home-heart', tone: '#0f766e' },
       { id: 'all', label: 'All', icon: 'dots-horizontal', tone: '#111827' },
     ],
-    quickCards: [
-      {
-        action: () => '/recipe-create?mode=reference' as Href,
-        badge: 'Guide',
-        icon: 'camera-iris',
-        subtitle: 'Easy to follow even for your first shoot',
-        title: 'Cosmetic UGC Shooting Guide',
-        tone: '#8c67ff',
-      },
-      {
-        action: () => '/recipe-create?mode=brand' as Href,
-        badge: 'Brand Request',
-        icon: 'briefcase-search-outline',
-        subtitle: 'See UGC recipes companies are looking for',
-        title: 'Browse Brand Requests',
-        tone: '#ff7a59',
-      },
-    ],
     brandRequest: {
       chips: ['Beauty', 'Brand Collab', 'Product Demo'],
       creatorHandle: '@glowbrand',
@@ -158,7 +131,6 @@ const exploreCopy: Record<AppLanguage, ExploreCopy> = {
     title: '탐색',
     subtitle: '검증된 레시피와 실전 노하우를 발견하고 바로 촬영해보세요.',
     searchPlaceholder: '레시피 검색',
-    quickStart: '빠른 시작',
     recommended: '추천 레시피',
     viewAll: '전체 보기',
     browse: '레시피 둘러보기',
@@ -194,24 +166,6 @@ const exploreCopy: Record<AppLanguage, ExploreCopy> = {
       { id: 'life', label: '라이프', icon: 'home-heart', tone: '#0f766e' },
       { id: 'all', label: '전체', icon: 'dots-horizontal', tone: '#111827' },
     ],
-    quickCards: [
-      {
-        action: () => '/recipe-create?mode=reference' as Href,
-        badge: '가이드',
-        icon: 'camera-iris',
-        subtitle: '처음 찍는 사람도 바로 따라하기',
-        title: '화장품 UGC 촬영 가이드',
-        tone: '#8c67ff',
-      },
-      {
-        action: () => '/recipe-create?mode=brand' as Href,
-        badge: '기업 요청',
-        icon: 'briefcase-search-outline',
-        subtitle: '기업이 찾는 UGC 레시피 확인',
-        title: '브랜드 요청 둘러보기',
-        tone: '#ff7a59',
-      },
-    ],
     brandRequest: {
       chips: ['뷰티', '제품 홍보', '브랜드 협업'],
       creatorHandle: '@glowbrand',
@@ -227,6 +181,7 @@ const exploreCopy: Record<AppLanguage, ExploreCopy> = {
 };
 
 export function ExploreScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { language } = useAppLanguage();
   const copy = exploreCopy[language];
@@ -321,8 +276,9 @@ export function ExploreScreen() {
   };
 
   return (
-    <AppScreenScrollView topSpacing={18}>
-      <View className="gap-6 px-5">
+    <View className="flex-1 bg-canvas">
+      <AppScreenScrollView topSpacing={18}>
+        <View className="gap-6 px-5">
         <View className="gap-1">
           <Text className="text-[32px] font-black leading-[37px] text-ink">{copy.title}</Text>
           <Text className="text-[15px] font-semibold leading-6 text-muted">{copy.subtitle}</Text>
@@ -355,19 +311,6 @@ export function ExploreScreen() {
             ))}
           </View>
         </ScrollView>
-
-        <View className="gap-3">
-          <Text className="text-[16px] font-black text-ink">{copy.quickStart}</Text>
-          <View className="flex-row gap-3">
-            {copy.quickCards.map((card) => (
-              <QuickStartCard
-                card={card}
-                key={card.title}
-                onPress={() => router.push(card.action())}
-              />
-            ))}
-          </View>
-        </View>
 
         <View className="gap-3">
           <View className="flex-row items-center justify-between">
@@ -445,8 +388,10 @@ export function ExploreScreen() {
             ))}
           </View>
         </View>
-      </View>
-    </AppScreenScrollView>
+        </View>
+      </AppScreenScrollView>
+      <View pointerEvents="none" style={[styles.safeAreaShield, { height: insets.top + 8 }]} />
+    </View>
   );
 }
 
@@ -477,33 +422,6 @@ function CategoryShortcut({
       >
         {category.label}
       </Text>
-    </Pressable>
-  );
-}
-
-function QuickStartCard({
-  card,
-  onPress,
-}: {
-  card: ExploreCopy['quickCards'][number];
-  onPress: () => void;
-}) {
-  return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.quickCard}>
-      <View style={[styles.quickIcon, { backgroundColor: `${card.tone}14` }]}>
-        <MaterialCommunityIcons color={card.tone} name={card.icon} size={21} />
-      </View>
-      <View className="min-w-0 flex-1 gap-1">
-        <View className="self-start rounded-full bg-violet/10 px-2 py-1">
-          <Text className="text-[9px] font-black text-violet">{card.badge}</Text>
-        </View>
-        <Text className="text-[13px] font-black leading-[17px] text-ink" numberOfLines={2}>
-          {card.title}
-        </Text>
-        <Text className="text-[10px] font-bold leading-4 text-muted" numberOfLines={2}>
-          {card.subtitle}
-        </Text>
-      </View>
     </Pressable>
   );
 }
@@ -814,28 +732,6 @@ const styles = StyleSheet.create({
   originPillTextSelected: {
     color: '#ffffff',
   },
-  quickCard: {
-    alignItems: 'flex-start',
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderRadius: 22,
-    borderWidth: 1,
-    flex: 1,
-    gap: 10,
-    minHeight: 144,
-    padding: 14,
-    shadowColor: '#0f172a',
-    shadowOffset: { height: 9, width: 0 },
-    shadowOpacity: 0.05,
-    shadowRadius: 16,
-  },
-  quickIcon: {
-    alignItems: 'center',
-    borderRadius: 16,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
   recipeList: {
     backgroundColor: '#ffffff',
     borderTopColor: '#e2e8f0',
@@ -880,5 +776,13 @@ const styles = StyleSheet.create({
     gap: 9,
     minHeight: 48,
     paddingHorizontal: 13,
+  },
+  safeAreaShield: {
+    backgroundColor: '#ffffff',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 32,
   },
 });
