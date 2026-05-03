@@ -40,25 +40,21 @@ type ExploreRecipeCardModel = {
   recipe?: MockRecipe;
   saveCount: number;
   title: string;
-  verified: boolean;
   viewCount: number;
 };
 
 type ExploreCopy = {
   title: string;
-  subtitle: string;
   searchPlaceholder: string;
   recommended: string;
   viewAll: string;
   browse: string;
   savedIconLabel: string;
   actions: Record<ExploreAction, string>;
-  originLabels: Record<ExploreOrigin, string>;
   stats: {
     saves: string;
     views: string;
   };
-  verified: string;
   filters: Record<OriginFilter, string>;
   facets: string[];
   categories: Array<{ id: CategoryFilter; label: string; icon: IconName; tone: string }>;
@@ -78,7 +74,6 @@ type ExploreCopy = {
 const exploreCopy: Record<AppLanguage, ExploreCopy> = {
   en: {
     title: 'Explore',
-    subtitle: 'Discover verified recipes, practical filming know-how, and shoot right away.',
     searchPlaceholder: 'Search recipes',
     recommended: 'Recommended Recipes',
     viewAll: 'View all',
@@ -90,16 +85,10 @@ const exploreCopy: Record<AppLanguage, ExploreCopy> = {
       save: 'Save',
       shoot: 'Shoot',
     },
-    originLabels: {
-      brand: 'Brand Request',
-      community: 'Community',
-      partner: 'Partner Creator',
-    },
     stats: {
       saves: 'saves',
       views: 'views',
     },
-    verified: 'Verified',
     filters: {
       all: 'All',
       partners: 'Partners',
@@ -129,7 +118,6 @@ const exploreCopy: Record<AppLanguage, ExploreCopy> = {
   },
   ko: {
     title: '탐색',
-    subtitle: '검증된 레시피와 실전 노하우를 발견하고 바로 촬영해보세요.',
     searchPlaceholder: '레시피 검색',
     recommended: '추천 레시피',
     viewAll: '전체 보기',
@@ -141,16 +129,10 @@ const exploreCopy: Record<AppLanguage, ExploreCopy> = {
       save: '저장',
       shoot: '촬영하기',
     },
-    originLabels: {
-      brand: '기업 요청',
-      community: '커뮤니티',
-      partner: '파트너 크리에이터',
-    },
     stats: {
       saves: '저장',
       views: '조회',
     },
-    verified: '인증됨',
     filters: {
       all: '전체',
       partners: '파트너',
@@ -279,9 +261,8 @@ export function ExploreScreen() {
     <View className="flex-1 bg-canvas">
       <AppScreenScrollView topSpacing={18}>
         <View className="gap-6 px-5">
-        <View className="gap-1">
+        <View>
           <Text className="text-[32px] font-black leading-[37px] text-ink">{copy.title}</Text>
-          <Text className="text-[15px] font-semibold leading-6 text-muted">{copy.subtitle}</Text>
         </View>
 
         <View style={styles.searchBox}>
@@ -446,56 +427,22 @@ function RecommendedRecipeCard({
         style={styles.recommendedBackground}
       >
         <LinearGradient
-          colors={['rgba(15,23,42,0.08)', 'rgba(15,23,42,0.55)', 'rgba(15,23,42,0.96)']}
-          locations={[0, 0.48, 1]}
+          colors={['rgba(15,23,42,0.04)', 'rgba(15,23,42,0.28)', 'rgba(15,23,42,0.92)']}
+          locations={[0, 0.42, 1]}
           style={StyleSheet.absoluteFill}
         />
 
-        <View className="flex-1 justify-between px-4 py-4">
-          <View className="flex-row flex-wrap gap-2">
-            <View style={styles.darkBadge}>
-              <Text className="text-[9px] font-black text-white">{copy.originLabels[card.origin]}</Text>
-            </View>
-            {card.verified ? (
-              <View style={styles.darkBadge}>
-                <MaterialCommunityIcons color="#fff" name="check-decagram" size={10} />
-                <Text className="text-[9px] font-black text-white">{copy.verified}</Text>
-              </View>
-            ) : null}
-          </View>
-
+        <View className="flex-1 justify-end px-4 py-4">
           <View className="gap-2">
-            <View className="gap-1">
-              <Text className="text-[20px] font-black leading-[24px] text-white" numberOfLines={2}>
-                {card.title}
-              </Text>
-              <Text className="text-[12px] font-semibold leading-5 text-white/78" numberOfLines={2}>
-                {card.description}
-              </Text>
-            </View>
+            <Text style={styles.recommendedTitle} numberOfLines={2}>
+              {card.title}
+            </Text>
 
-            <View className="flex-row flex-wrap items-center gap-x-2 gap-y-1">
-              <Text className="text-[11px] font-black text-white">{card.creatorHandle}</Text>
-              <Text className="text-[11px] font-bold text-white/72">
-                {formatCompactMetric(card.saveCount)} {copy.stats.saves}
-              </Text>
-              <Text className="text-[11px] font-bold text-white/72">
-                {formatCompactMetric(card.viewCount)} {copy.stats.views}
-              </Text>
-            </View>
+            <Text style={styles.recommendedCreator} numberOfLines={1}>
+              {card.creatorHandle}
+            </Text>
 
-            <View className="flex-row flex-wrap gap-1.5">
-              {[...card.chips.slice(0, 1), ...card.metadata.slice(0, 3)].map((tag) => (
-                <View className="rounded-full bg-white/13 px-2 py-1" key={tag}>
-                  <Text className="text-[9px] font-black text-white/92">{tag}</Text>
-                </View>
-              ))}
-            </View>
-
-            <View className="flex-row items-center justify-between gap-3">
-              <Text className="min-w-0 flex-1 text-[11px] font-black text-white/86" numberOfLines={1}>
-                {card.difficulty} · {card.metadata.includes('프롬프터 포함') || card.metadata.includes('Prompter') ? card.metadata[2] : card.metadata[0]}
-              </Text>
+            <View className="flex-row items-center justify-end">
               <Pressable accessibilityRole="button" onPress={onAction} style={styles.recommendedCta}>
                 <Text className="text-[12px] font-black text-ink">{copy.actions[card.action]}</Text>
               </Pressable>
@@ -581,7 +528,6 @@ function createRecipeCardModel(
     recipe,
     saveCount: recipe.downloadCount,
     title: getLocalizedTitle(language, recipe),
-    verified,
     viewCount: recipe.downloadCount * 6,
   };
 }
@@ -600,7 +546,6 @@ function createBrandRequestCardModel(copy: ExploreCopy): ExploreRecipeCardModel 
     origin: 'brand',
     saveCount: copy.brandRequest.saveCount,
     title: copy.brandRequest.title,
-    verified: false,
     viewCount: copy.brandRequest.viewCount,
   };
 }
@@ -704,17 +649,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 44,
   },
-  darkBadge: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.13)',
-    borderColor: 'rgba(255,255,255,0.18)',
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
   originPill: {
     backgroundColor: '#f1f5f9',
     borderRadius: 999,
@@ -753,6 +687,17 @@ const styles = StyleSheet.create({
   },
   recommendedImage: {
     borderRadius: 26,
+  },
+  recommendedCreator: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  recommendedTitle: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: '900',
+    lineHeight: 29,
   },
   rowCta: {
     backgroundColor: '#f4f0ff',

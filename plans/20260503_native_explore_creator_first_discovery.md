@@ -51,6 +51,8 @@
 - Explore가 AppScreenScrollView의 safe-area top padding을 덮어쓰던 `paddingTop`을 제거해 dynamic island/status bar 겹침 리스크를 줄였다.
 - iPhone 17 Pro Max 실기기 시뮬레이터 QA 후 Explore에서 Quick Start 섹션을 제거했다.
 - 스크롤 중 콘텐츠가 dynamic island/status bar 뒤로 비치는 문제를 줄이기 위해 Explore 전용 safe-area shield를 추가했다.
+- 추천 카드는 정보량을 줄여 title, creator, CTA만 보이게 했다. source/verification badge와 하단 메타 chips는 Browse 리스트로 역할을 넘겼다.
+- Explore header는 subtitle을 제거하고 title 다음에 바로 search가 나오도록 압축했다.
 
 ## 검증 결과
 - `cd parrotkit-app && npm install` 실행. 기존 lockfile 변경 없이 `node_modules`만 설치됨.
@@ -60,6 +62,8 @@
 - `npm run web -- --port 8082 --non-interactive`는 Expo가 `--non-interactive` 미지원 경고 후 Metro를 시작했지만 포트 응답이 없어 중단했다. 남은 Expo/curl 프로세스는 정리했다.
 - 2026-05-03 iPhone 17 Pro Max 시뮬레이터에서 `exp://127.0.0.1:8082/--/explore`로 확인했다.
 - 스크린샷: `output/playwright/iphone17promax_explore_no_quickstart_8082.png`
+- 추천 카드 간소화 후 스크린샷: `output/playwright/iphone17promax_explore_simplified_recommended_8082.png`
+- 추천 카드 badge/chip 및 header subtitle 제거 후 스크린샷: `output/playwright/iphone17promax_explore_minimal_recommended_8082.png`
 
 ## 연결 context
 - `context/context_20260503_native_explore_creator_first_discovery.md`
