@@ -16,12 +16,32 @@ import {
 import { useAppLanguage, type AppLanguage } from '@/core/i18n/app-language';
 import type { MockRecipe } from '@/core/mocks/parrotkit-data';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
-import { brandActionGradient } from '@/core/theme/colors';
 import { AppScreenScrollView } from '@/core/ui/app-screen-scroll-view';
 import { isVerifiedCreatorRecipe } from '@/features/recipes/lib/recipe-ownership';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
-type SourceFilter = 'all' | 'partners' | 'community' | 'brand';
+type OriginFilter = 'all' | 'partners' | 'community' | 'brand';
+type CategoryFilter = 'beauty' | 'food' | 'fitness' | 'tech' | 'life' | 'all';
+type ExploreAction = 'save' | 'shoot' | 'remix' | 'apply';
+type ExploreOrigin = 'partner' | 'community' | 'brand';
+
+type ExploreRecipeCardModel = {
+  action: ExploreAction;
+  category: CategoryFilter;
+  chips: string[];
+  creatorHandle: string;
+  description: string;
+  difficulty: string;
+  id: string;
+  image: string;
+  metadata: string[];
+  origin: ExploreOrigin;
+  recipe?: MockRecipe;
+  saveCount: number;
+  title: string;
+  verified: boolean;
+  viewCount: number;
+};
 
 type ExploreCopy = {
   title: string;
@@ -31,62 +51,108 @@ type ExploreCopy = {
   recommended: string;
   viewAll: string;
   browse: string;
-  popular: string;
-  save: string;
-  saved: string;
-  open: string;
+  savedIconLabel: string;
+  actions: Record<ExploreAction, string>;
+  originLabels: Record<ExploreOrigin, string>;
+  stats: {
+    saves: string;
+    views: string;
+  };
   verified: string;
-  partnerCreator: string;
-  filters: Record<SourceFilter, string>;
+  filters: Record<OriginFilter, string>;
   facets: string[];
-  categories: Array<{ id: string; label: string; icon: IconName; tone: string }>;
-  quickCards: Array<{ title: string; eyebrow: string; tag: string; image: string }>;
+  categories: Array<{ id: CategoryFilter; label: string; icon: IconName; tone: string }>;
+  quickCards: Array<{
+    action: () => Href;
+    badge: string;
+    icon: IconName;
+    subtitle: string;
+    title: string;
+    tone: string;
+  }>;
+  brandRequest: {
+    chips: string[];
+    creatorHandle: string;
+    description: string;
+    difficulty: string;
+    image: string;
+    metadata: string[];
+    saveCount: number;
+    title: string;
+    viewCount: number;
+  };
 };
 
 const exploreCopy: Record<AppLanguage, ExploreCopy> = {
   en: {
     title: 'Explore',
-    subtitle: 'Discover verified recipes and real filming know-how.',
+    subtitle: 'Discover verified recipes, practical filming know-how, and shoot right away.',
     searchPlaceholder: 'Search recipes',
     quickStart: 'Quick Start',
-    recommended: 'Recommended for you',
+    recommended: 'Recommended Recipes',
     viewAll: 'View all',
-    browse: 'Browse recipes',
-    popular: 'Popular',
-    save: 'Save',
-    saved: 'Saved',
-    open: 'Open',
+    browse: 'Browse Recipes',
+    savedIconLabel: 'Saved recipes',
+    actions: {
+      apply: 'Apply',
+      remix: 'Remix',
+      save: 'Save',
+      shoot: 'Shoot',
+    },
+    originLabels: {
+      brand: 'Brand Request',
+      community: 'Community',
+      partner: 'Partner Creator',
+    },
+    stats: {
+      saves: 'saves',
+      views: 'views',
+    },
     verified: 'Verified',
-    partnerCreator: 'Partner Creator',
     filters: {
       all: 'All',
       partners: 'Partners',
       community: 'Community',
       brand: 'Brand Requests',
     },
-    facets: ['Category', 'Format', 'Goal', 'Length', 'Level'],
+    facets: ['Category', 'Format', 'Goal', 'Length', 'Level', 'Popular'],
     categories: [
       { id: 'beauty', label: 'Beauty', icon: 'lipstick', tone: '#f43f5e' },
       { id: 'food', label: 'Food', icon: 'food-apple-outline', tone: '#ff9568' },
-      { id: 'fitness', label: 'Fitness', icon: 'dumbbell', tone: '#a855f7' },
+      { id: 'fitness', label: 'Fitness', icon: 'dumbbell', tone: '#16a34a' },
       { id: 'tech', label: 'Tech', icon: 'cellphone', tone: '#4f46e5' },
-      { id: 'lifestyle', label: 'Lifestyle', icon: 'home-heart', tone: '#64748b' },
+      { id: 'life', label: 'Life', icon: 'home-heart', tone: '#0f766e' },
       { id: 'all', label: 'All', icon: 'dots-horizontal', tone: '#111827' },
     ],
     quickCards: [
       {
+        action: () => '/recipe-create?mode=reference' as Href,
+        badge: 'Guide',
+        icon: 'camera-iris',
+        subtitle: 'Easy to follow even for your first shoot',
         title: 'Cosmetic UGC Shooting Guide',
-        eyebrow: 'From basics to pro',
-        tag: 'Guide',
-        image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80',
+        tone: '#8c67ff',
       },
       {
-        title: 'Request a Brand Promo Recipe',
-        eyebrow: 'Collab opportunities',
-        tag: 'Brand Requests',
-        image: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=300&q=80',
+        action: () => '/recipe-create?mode=brand' as Href,
+        badge: 'Brand Request',
+        icon: 'briefcase-search-outline',
+        subtitle: 'See UGC recipes companies are looking for',
+        title: 'Browse Brand Requests',
+        tone: '#ff7a59',
       },
     ],
+    brandRequest: {
+      chips: ['Beauty', 'Brand Collab', 'Product Demo'],
+      creatorHandle: '@glowbrand',
+      description: 'A brand request for filming a proof-first product demo with clear usage claims.',
+      difficulty: 'Easy',
+      image: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=900&q=80',
+      metadata: ['3 cuts', '30s', 'Prompter', 'Filming tips'],
+      saveCount: 980,
+      title: 'Serum launch UGC request',
+      viewCount: 7200,
+    },
   },
   ko: {
     title: '탐색',
@@ -96,41 +162,67 @@ const exploreCopy: Record<AppLanguage, ExploreCopy> = {
     recommended: '추천 레시피',
     viewAll: '전체 보기',
     browse: '레시피 둘러보기',
-    popular: '인기순',
-    save: '저장',
-    saved: '저장됨',
-    open: '열기',
+    savedIconLabel: '저장한 레시피',
+    actions: {
+      apply: '지원하기',
+      remix: '리믹스',
+      save: '저장',
+      shoot: '촬영하기',
+    },
+    originLabels: {
+      brand: '기업 요청',
+      community: '커뮤니티',
+      partner: '파트너 크리에이터',
+    },
+    stats: {
+      saves: '저장',
+      views: '조회',
+    },
     verified: '인증됨',
-    partnerCreator: '파트너 크리에이터',
     filters: {
       all: '전체',
       partners: '파트너',
       community: '커뮤니티',
       brand: '기업 요청',
     },
-    facets: ['카테고리', '포맷', '목적', '길이', '난이도'],
+    facets: ['카테고리', '포맷', '목적', '길이', '난이도', '인기순'],
     categories: [
       { id: 'beauty', label: '뷰티', icon: 'lipstick', tone: '#f43f5e' },
       { id: 'food', label: '푸드', icon: 'food-apple-outline', tone: '#ff9568' },
-      { id: 'fitness', label: '피트니스', icon: 'dumbbell', tone: '#a855f7' },
+      { id: 'fitness', label: '피트니스', icon: 'dumbbell', tone: '#16a34a' },
       { id: 'tech', label: '테크', icon: 'cellphone', tone: '#4f46e5' },
-      { id: 'lifestyle', label: '라이프', icon: 'home-heart', tone: '#64748b' },
+      { id: 'life', label: '라이프', icon: 'home-heart', tone: '#0f766e' },
       { id: 'all', label: '전체', icon: 'dots-horizontal', tone: '#111827' },
     ],
     quickCards: [
       {
+        action: () => '/recipe-create?mode=reference' as Href,
+        badge: '가이드',
+        icon: 'camera-iris',
+        subtitle: '처음 찍는 사람도 바로 따라하기',
         title: '화장품 UGC 촬영 가이드',
-        eyebrow: '기초부터 완성까지',
-        tag: '가이드',
-        image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80',
+        tone: '#8c67ff',
       },
       {
-        title: '기업 홍보 레시피 요청하기',
-        eyebrow: '브랜드와 협업 기회',
-        tag: '기업 요청',
-        image: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=300&q=80',
+        action: () => '/recipe-create?mode=brand' as Href,
+        badge: '기업 요청',
+        icon: 'briefcase-search-outline',
+        subtitle: '기업이 찾는 UGC 레시피 확인',
+        title: '브랜드 요청 둘러보기',
+        tone: '#ff7a59',
       },
     ],
+    brandRequest: {
+      chips: ['뷰티', '제품 홍보', '브랜드 협업'],
+      creatorHandle: '@glowbrand',
+      description: '제품 사용감과 전후 비교가 분명한 30초 UGC 데모를 찾는 브랜드 요청입니다.',
+      difficulty: '난이도 쉬움',
+      image: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=900&q=80',
+      metadata: ['3컷', '30초', '프롬프터 포함', '촬영 팁'],
+      saveCount: 980,
+      title: '세럼 런칭 UGC 요청',
+      viewCount: 7200,
+    },
   },
 };
 
@@ -139,64 +231,127 @@ export function ExploreScreen() {
   const { language } = useAppLanguage();
   const copy = exploreCopy[language];
   const {
+    downloadRecipe,
     exploreRecipes,
     isRecipeDownloaded,
   } = useMockWorkspace();
-  const [selectedFilter, setSelectedFilter] = useState<SourceFilter>('all');
+  const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
+  const [selectedFilter, setSelectedFilter] = useState<OriginFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredRecipes = useMemo(() => {
+  const cards = useMemo(
+    () => [
+      ...exploreRecipes.map((recipe) => createRecipeCardModel(recipe, language, isRecipeDownloaded(recipe.id))),
+      createBrandRequestCardModel(copy),
+    ],
+    [copy, exploreRecipes, isRecipeDownloaded, language]
+  );
+
+  const filteredCards = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
-    return exploreRecipes.filter((recipe) => {
-      const matchesSource = selectedFilter === 'all'
-        || (selectedFilter === 'partners' && isVerifiedCreatorRecipe(recipe))
-        || (selectedFilter === 'community' && !isVerifiedCreatorRecipe(recipe))
-        || (selectedFilter === 'brand' && recipe.niche.toLowerCase().includes('creator'));
+    return cards.filter((card) => {
+      const matchesOrigin = selectedFilter === 'all'
+        || (selectedFilter === 'partners' && card.origin === 'partner')
+        || (selectedFilter === 'community' && card.origin === 'community')
+        || (selectedFilter === 'brand' && card.origin === 'brand');
+      const matchesCategory = selectedCategory === 'all' || card.category === selectedCategory;
       const searchable = [
-        recipe.title,
-        recipe.summary,
-        recipe.niche,
-        recipe.goal,
-        recipe.ownerHandle,
+        card.title,
+        card.description,
+        card.creatorHandle,
+        card.chips.join(' '),
+        card.metadata.join(' '),
       ].join(' ').toLowerCase();
 
-      return matchesSource && (!query || searchable.includes(query));
+      return matchesOrigin && matchesCategory && (!query || searchable.includes(query));
     });
-  }, [exploreRecipes, searchQuery, selectedFilter]);
+  }, [cards, searchQuery, selectedCategory, selectedFilter]);
 
-  const recommendedRecipes = filteredRecipes.length > 0 ? filteredRecipes.slice(0, 2) : exploreRecipes.slice(0, 2);
-  const browseRecipes = filteredRecipes.length > 0 ? filteredRecipes : exploreRecipes;
+  const visibleCards = filteredCards.length > 0 ? filteredCards : cards;
+  const recommendedCards = prioritizeRecommendedCards(visibleCards).slice(0, 3);
 
-  const openRecipe = (recipeId: string) => {
-    router.push(`/explore-recipe/${recipeId}` as Href);
+  const openCard = (card: ExploreRecipeCardModel) => {
+    if (card.recipe) {
+      router.push(`/explore-recipe/${card.recipe.id}` as Href);
+      return;
+    }
+
+    router.push('/recipe-create?mode=brand' as Href);
+  };
+
+  const saveRecipe = (card: ExploreRecipeCardModel) => {
+    if (card.recipe) {
+      downloadRecipe(card.recipe.id);
+    }
+  };
+
+  const shootRecipe = (card: ExploreRecipeCardModel) => {
+    if (!card.recipe) return;
+
+    const targetRecipe = downloadRecipe(card.recipe.id) ?? card.recipe;
+    const targetScene = targetRecipe.scenes[0];
+
+    if (!targetScene) return;
+
+    router.push(`/recipe/${targetRecipe.id}/prompter?sceneId=${targetScene.id}` as Href);
+  };
+
+  const handleAction = (card: ExploreRecipeCardModel) => {
+    if (card.action === 'apply') {
+      router.push('/recipe-create?mode=brand' as Href);
+      return;
+    }
+
+    if (card.action === 'remix') {
+      const remixPath = card.recipe
+        ? `/recipe-create?mode=manual&remixOf=${card.recipe.id}`
+        : '/recipe-create?mode=manual';
+
+      router.push(remixPath as Href);
+      return;
+    }
+
+    if (card.action === 'shoot') {
+      shootRecipe(card);
+      return;
+    }
+
+    saveRecipe(card);
   };
 
   return (
-    <AppScreenScrollView contentContainerStyle={styles.exploreScrollContent}>
+    <AppScreenScrollView topSpacing={18}>
       <View className="gap-6 px-5">
         <View className="gap-1">
-          <Text className="text-[32px] font-black leading-[36px] text-ink">{copy.title}</Text>
+          <Text className="text-[32px] font-black leading-[37px] text-ink">{copy.title}</Text>
           <Text className="text-[15px] font-semibold leading-6 text-muted">{copy.subtitle}</Text>
         </View>
 
         <View style={styles.searchBox}>
-          <MaterialCommunityIcons color="#94a3b8" name="magnify" size={18} />
+          <MaterialCommunityIcons color="#94a3b8" name="magnify" size={19} />
           <TextInput
             autoCapitalize="none"
-            className="flex-1 text-[14px] font-semibold text-ink"
+            className="min-w-0 flex-1 text-[14px] font-semibold text-ink"
             onChangeText={setSearchQuery}
             placeholder={copy.searchPlaceholder}
             placeholderTextColor="#94a3b8"
             value={searchQuery}
           />
-          <MaterialCommunityIcons color="#334155" name="bookmark-outline" size={18} />
+          <Pressable accessibilityLabel={copy.savedIconLabel} accessibilityRole="button" hitSlop={8}>
+            <MaterialCommunityIcons color="#334155" name="bookmark-outline" size={19} />
+          </Pressable>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View className="flex-row gap-4 pr-5">
             {copy.categories.map((category) => (
-              <CategoryShortcut key={category.id} category={category} />
+              <CategoryShortcut
+                category={category}
+                key={category.id}
+                onPress={() => setSelectedCategory(category.id)}
+                selected={selectedCategory === category.id}
+              />
             ))}
           </View>
         </ScrollView>
@@ -205,7 +360,11 @@ export function ExploreScreen() {
           <Text className="text-[16px] font-black text-ink">{copy.quickStart}</Text>
           <View className="flex-row gap-3">
             {copy.quickCards.map((card) => (
-              <QuickStartCard card={card} key={card.title} />
+              <QuickStartCard
+                card={card}
+                key={card.title}
+                onPress={() => router.push(card.action())}
+              />
             ))}
           </View>
         </View>
@@ -213,21 +372,30 @@ export function ExploreScreen() {
         <View className="gap-3">
           <View className="flex-row items-center justify-between">
             <Text className="text-[18px] font-black text-ink">{copy.recommended}</Text>
-            <Text className="text-[13px] font-bold text-violet">{copy.viewAll}</Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                setSelectedCategory('all');
+                setSelectedFilter('all');
+              }}
+            >
+              <Text className="text-[13px] font-black text-violet">{copy.viewAll}</Text>
+            </Pressable>
           </View>
 
-          <View className="gap-3">
-            {recommendedRecipes.map((recipe) => (
-              <RecommendedRecipeCard
-                copy={copy}
-                downloaded={isRecipeDownloaded(recipe.id)}
-                key={recipe.id}
-                language={language}
-                onPress={() => openRecipe(recipe.id)}
-                recipe={recipe}
-              />
-            ))}
-          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View className="flex-row gap-3 pr-5">
+              {recommendedCards.map((card) => (
+                <RecommendedRecipeCard
+                  card={card}
+                  copy={copy}
+                  key={card.id}
+                  onAction={() => handleAction(card)}
+                  onPress={() => openCard(card)}
+                />
+              ))}
+            </View>
+          </ScrollView>
         </View>
 
         <View className="gap-3">
@@ -235,7 +403,7 @@ export function ExploreScreen() {
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View className="flex-row gap-2 pr-5">
-              {(Object.keys(copy.filters) as SourceFilter[]).map((filter) => {
+              {(Object.keys(copy.filters) as OriginFilter[]).map((filter) => {
                 const selected = selectedFilter === filter;
 
                 return (
@@ -243,9 +411,9 @@ export function ExploreScreen() {
                     accessibilityRole="button"
                     key={filter}
                     onPress={() => setSelectedFilter(filter)}
-                    style={[styles.sourcePill, selected ? styles.sourcePillSelected : null]}
+                    style={[styles.originPill, selected ? styles.originPillSelected : null]}
                   >
-                    <Text style={[styles.sourcePillText, selected ? styles.sourcePillTextSelected : null]}>
+                    <Text style={[styles.originPillText, selected ? styles.originPillTextSelected : null]}>
                       {copy.filters[filter]}
                     </Text>
                   </Pressable>
@@ -254,32 +422,25 @@ export function ExploreScreen() {
             </View>
           </ScrollView>
 
-          <View className="flex-row items-center justify-between">
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View className="flex-row gap-2 pr-3">
-                {copy.facets.map((facet) => (
-                  <View className="flex-row items-center gap-1 rounded-full bg-slate-100 px-3 py-2" key={facet}>
-                    <Text className="text-[11px] font-black text-slate-700">{facet}</Text>
-                    <MaterialCommunityIcons color="#64748b" name="chevron-down" size={13} />
-                  </View>
-                ))}
-              </View>
-            </ScrollView>
-
-            <View className="ml-2 flex-row items-center gap-1">
-              <Text className="text-[11px] font-black text-ink">{copy.popular}</Text>
-              <MaterialCommunityIcons color="#111827" name="chevron-down" size={13} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View className="flex-row gap-2 pr-5">
+              {copy.facets.map((facet) => (
+                <View className="flex-row items-center gap-1 rounded-full bg-slate-100 px-3 py-2" key={facet}>
+                  <Text className="text-[11px] font-black text-slate-700">{facet}</Text>
+                  <MaterialCommunityIcons color="#64748b" name="chevron-down" size={13} />
+                </View>
+              ))}
             </View>
-          </View>
+          </ScrollView>
 
           <View style={styles.recipeList}>
-            {browseRecipes.map((recipe) => (
+            {visibleCards.map((card) => (
               <BrowseRecipeRow
-                downloaded={isRecipeDownloaded(recipe.id)}
-                key={recipe.id}
-                language={language}
-                onPress={() => openRecipe(recipe.id)}
-                recipe={recipe}
+                card={card}
+                copy={copy}
+                key={card.id}
+                onAction={() => handleAction(card)}
+                onPress={() => openCard(card)}
               />
             ))}
           </View>
@@ -289,67 +450,95 @@ export function ExploreScreen() {
   );
 }
 
-function CategoryShortcut({ category }: { category: ExploreCopy['categories'][number] }) {
+function CategoryShortcut({
+  category,
+  onPress,
+  selected,
+}: {
+  category: ExploreCopy['categories'][number];
+  onPress: () => void;
+  selected: boolean;
+}) {
   return (
-    <View className="w-[52px] items-center gap-2">
-      <View style={[styles.categoryIcon, { backgroundColor: `${category.tone}14` }]}>
+    <Pressable accessibilityRole="button" className="w-[56px] items-center gap-2" onPress={onPress}>
+      <View
+        style={[
+          styles.categoryIcon,
+          { backgroundColor: `${category.tone}14` },
+          selected ? { borderColor: category.tone, borderWidth: 1.5 } : null,
+        ]}
+      >
         <MaterialCommunityIcons color={category.tone} name={category.icon} size={20} />
       </View>
-      <Text className="text-center text-[10px] font-black text-slate-600" numberOfLines={1}>
+      <Text
+        className="text-center text-[10px] font-black text-slate-600"
+        numberOfLines={1}
+        style={selected ? { color: category.tone } : null}
+      >
         {category.label}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 
-function QuickStartCard({ card }: { card: ExploreCopy['quickCards'][number] }) {
+function QuickStartCard({
+  card,
+  onPress,
+}: {
+  card: ExploreCopy['quickCards'][number];
+  onPress: () => void;
+}) {
   return (
-    <View style={styles.quickCard}>
-      <View className="flex-1 gap-1 pr-2">
-        <Text className="text-[13px] font-black leading-[16px] text-ink" numberOfLines={2}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.quickCard}>
+      <View style={[styles.quickIcon, { backgroundColor: `${card.tone}14` }]}>
+        <MaterialCommunityIcons color={card.tone} name={card.icon} size={21} />
+      </View>
+      <View className="min-w-0 flex-1 gap-1">
+        <View className="self-start rounded-full bg-violet/10 px-2 py-1">
+          <Text className="text-[9px] font-black text-violet">{card.badge}</Text>
+        </View>
+        <Text className="text-[13px] font-black leading-[17px] text-ink" numberOfLines={2}>
           {card.title}
         </Text>
-        <Text className="text-[10px] font-bold text-muted" numberOfLines={1}>
-          {card.eyebrow}
+        <Text className="text-[10px] font-bold leading-4 text-muted" numberOfLines={2}>
+          {card.subtitle}
         </Text>
-        <View className="self-start rounded-full bg-violet/10 px-2 py-1">
-          <Text className="text-[9px] font-black text-violet">{card.tag}</Text>
-        </View>
       </View>
-      <Image source={{ uri: card.image }} style={styles.quickCardImage} />
-    </View>
+    </Pressable>
   );
 }
 
 function RecommendedRecipeCard({
+  card,
   copy,
-  downloaded,
-  language,
+  onAction,
   onPress,
-  recipe,
 }: {
+  card: ExploreRecipeCardModel;
   copy: ExploreCopy;
-  downloaded: boolean;
-  language: AppLanguage;
+  onAction: () => void;
   onPress: () => void;
-  recipe: MockRecipe;
 }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.recommendedCard}>
-      <ImageBackground imageStyle={styles.recommendedImage} resizeMode="cover" source={{ uri: recipe.thumbnail }} style={styles.recommendedBackground}>
+      <ImageBackground
+        imageStyle={styles.recommendedImage}
+        resizeMode="cover"
+        source={{ uri: card.image }}
+        style={styles.recommendedBackground}
+      >
         <LinearGradient
-          colors={['rgba(15,23,42,0.18)', 'rgba(15,23,42,0.94)']}
-          end={{ x: 1, y: 1 }}
-          start={{ x: 0, y: 0 }}
+          colors={['rgba(15,23,42,0.08)', 'rgba(15,23,42,0.55)', 'rgba(15,23,42,0.96)']}
+          locations={[0, 0.48, 1]}
           style={StyleSheet.absoluteFill}
         />
 
-        <View className="flex-1 gap-2 px-4 py-4">
-          <View className="flex-row items-center gap-2">
+        <View className="flex-1 justify-between px-4 py-4">
+          <View className="flex-row flex-wrap gap-2">
             <View style={styles.darkBadge}>
-              <Text className="text-[9px] font-black text-white">{copy.partnerCreator}</Text>
+              <Text className="text-[9px] font-black text-white">{copy.originLabels[card.origin]}</Text>
             </View>
-            {isVerifiedCreatorRecipe(recipe) ? (
+            {card.verified ? (
               <View style={styles.darkBadge}>
                 <MaterialCommunityIcons color="#fff" name="check-decagram" size={10} />
                 <Text className="text-[9px] font-black text-white">{copy.verified}</Text>
@@ -357,27 +546,41 @@ function RecommendedRecipeCard({
             ) : null}
           </View>
 
-          <View className="mt-auto gap-1.5">
-            <Text className="text-[18px] font-black leading-[22px] text-white" numberOfLines={1}>
-              {getLocalizedTitle(language, recipe)}
-            </Text>
-            <Text className="text-[12px] font-semibold leading-4 text-white/75" numberOfLines={1}>
-              {recipe.summary}
-            </Text>
-            <View className="flex-row items-center gap-2">
-              <Text className="text-[11px] font-bold text-white/80">{recipe.ownerHandle}</Text>
-              <Text className="text-[11px] font-bold text-white/70">♡ {formatCompactMetric(recipe.downloadCount)} {language === 'ko' ? '저장' : 'saves'}</Text>
-              <Text className="text-[11px] font-bold text-white/70">◦ {formatCompactMetric(recipe.downloadCount * 6)} {language === 'ko' ? '조회' : 'views'}</Text>
+          <View className="gap-2">
+            <View className="gap-1">
+              <Text className="text-[20px] font-black leading-[24px] text-white" numberOfLines={2}>
+                {card.title}
+              </Text>
+              <Text className="text-[12px] font-semibold leading-5 text-white/78" numberOfLines={2}>
+                {card.description}
+              </Text>
             </View>
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row flex-wrap gap-1.5">
-                {getRecipeTags(recipe, language).slice(0, 4).map((tag) => (
-                  <View className="rounded-full bg-white/12 px-2 py-1" key={tag}>
-                    <Text className="text-[9px] font-black text-white/90">{tag}</Text>
-                  </View>
-                ))}
-              </View>
-              <Text className="text-[11px] font-black text-white">{downloaded ? copy.open : copy.save}</Text>
+
+            <View className="flex-row flex-wrap items-center gap-x-2 gap-y-1">
+              <Text className="text-[11px] font-black text-white">{card.creatorHandle}</Text>
+              <Text className="text-[11px] font-bold text-white/72">
+                {formatCompactMetric(card.saveCount)} {copy.stats.saves}
+              </Text>
+              <Text className="text-[11px] font-bold text-white/72">
+                {formatCompactMetric(card.viewCount)} {copy.stats.views}
+              </Text>
+            </View>
+
+            <View className="flex-row flex-wrap gap-1.5">
+              {[...card.chips.slice(0, 1), ...card.metadata.slice(0, 3)].map((tag) => (
+                <View className="rounded-full bg-white/13 px-2 py-1" key={tag}>
+                  <Text className="text-[9px] font-black text-white/92">{tag}</Text>
+                </View>
+              ))}
+            </View>
+
+            <View className="flex-row items-center justify-between gap-3">
+              <Text className="min-w-0 flex-1 text-[11px] font-black text-white/86" numberOfLines={1}>
+                {card.difficulty} · {card.metadata.includes('프롬프터 포함') || card.metadata.includes('Prompter') ? card.metadata[2] : card.metadata[0]}
+              </Text>
+              <Pressable accessibilityRole="button" onPress={onAction} style={styles.recommendedCta}>
+                <Text className="text-[12px] font-black text-ink">{copy.actions[card.action]}</Text>
+              </Pressable>
             </View>
           </View>
         </View>
@@ -387,46 +590,183 @@ function RecommendedRecipeCard({
 }
 
 function BrowseRecipeRow({
-  downloaded,
-  language,
+  card,
+  copy,
+  onAction,
   onPress,
-  recipe,
 }: {
-  downloaded: boolean;
-  language: AppLanguage;
+  card: ExploreRecipeCardModel;
+  copy: ExploreCopy;
+  onAction: () => void;
   onPress: () => void;
-  recipe: MockRecipe;
 }) {
   return (
     <Pressable accessibilityRole="button" className="flex-row gap-3 py-3" onPress={onPress}>
-      <Image source={{ uri: recipe.thumbnail }} style={styles.rowImage} />
-      <View className="flex-1 gap-1">
+      <Image source={{ uri: card.image }} style={styles.rowImage} />
+      <View className="min-w-0 flex-1 gap-1">
         <View className="flex-row items-start justify-between gap-2">
-          <Text className="flex-1 text-[15px] font-black leading-[19px] text-ink" numberOfLines={2}>
-            {getLocalizedTitle(language, recipe)}
+          <Text className="min-w-0 flex-1 text-[15px] font-black leading-[19px] text-ink" numberOfLines={2}>
+            {card.title}
           </Text>
-          {downloaded ? <MaterialCommunityIcons color="#8c67ff" name="bookmark" size={16} /> : null}
+          <MaterialCommunityIcons
+            color={card.action === 'shoot' ? '#8c67ff' : '#94a3b8'}
+            name={card.action === 'shoot' ? 'bookmark' : 'bookmark-outline'}
+            size={17}
+          />
         </View>
-        <Text className="text-[11px] font-semibold leading-4 text-muted" numberOfLines={1}>
-          {recipe.summary}
+        <Text className="text-[11px] font-semibold leading-4 text-muted" numberOfLines={2}>
+          {card.description}
         </Text>
         <Text className="text-[11px] font-bold text-slate-500" numberOfLines={1}>
-          {recipe.ownerHandle} · {recipe.totalSceneCount} {language === 'ko' ? '씬' : 'scenes'} · 30s
+          {card.creatorHandle} · {card.metadata[0]} · {card.metadata[1]}
         </Text>
         <View className="flex-row flex-wrap gap-1.5">
-          {getRecipeTags(recipe, language).slice(0, 3).map((tag) => (
+          {card.chips.slice(0, 3).map((tag) => (
             <View className="rounded-full bg-violet/10 px-2 py-1" key={tag}>
               <Text className="text-[9px] font-black text-violet">{tag}</Text>
             </View>
           ))}
         </View>
-        <View className="flex-row gap-3">
-          <Text className="text-[10px] font-bold text-muted">♡ {formatCompactMetric(recipe.downloadCount)}</Text>
-          <Text className="text-[10px] font-bold text-muted">◦ {formatCompactMetric(recipe.downloadCount * 6)}</Text>
+        <View className="flex-row items-center justify-between gap-2">
+          <View className="min-w-0 flex-1 flex-row gap-3">
+            <Text className="text-[10px] font-bold text-muted">{formatCompactMetric(card.saveCount)} {copy.stats.saves}</Text>
+            <Text className="text-[10px] font-bold text-muted">{formatCompactMetric(card.viewCount)} {copy.stats.views}</Text>
+          </View>
+          <Pressable accessibilityRole="button" onPress={onAction} style={styles.rowCta}>
+            <Text className="text-[11px] font-black text-violet">{copy.actions[card.action]}</Text>
+          </Pressable>
         </View>
       </View>
     </Pressable>
   );
+}
+
+function createRecipeCardModel(
+  recipe: MockRecipe,
+  language: AppLanguage,
+  downloaded: boolean
+): ExploreRecipeCardModel {
+  const verified = isVerifiedCreatorRecipe(recipe);
+  const action: ExploreAction = downloaded ? 'shoot' : verified ? 'save' : 'remix';
+
+  return {
+    action,
+    category: getRecipeCategory(recipe),
+    chips: getRecipeChips(recipe, language),
+    creatorHandle: recipe.ownerHandle,
+    description: getLocalizedDescription(language, recipe),
+    difficulty: getDifficulty(language, recipe),
+    id: recipe.id,
+    image: recipe.thumbnail,
+    metadata: getRecipeMetadata(language, recipe),
+    origin: verified ? 'partner' : 'community',
+    recipe,
+    saveCount: recipe.downloadCount,
+    title: getLocalizedTitle(language, recipe),
+    verified,
+    viewCount: recipe.downloadCount * 6,
+  };
+}
+
+function createBrandRequestCardModel(copy: ExploreCopy): ExploreRecipeCardModel {
+  return {
+    action: 'apply',
+    category: 'beauty',
+    chips: copy.brandRequest.chips,
+    creatorHandle: copy.brandRequest.creatorHandle,
+    description: copy.brandRequest.description,
+    difficulty: copy.brandRequest.difficulty,
+    id: 'brand-request-serum-launch',
+    image: copy.brandRequest.image,
+    metadata: copy.brandRequest.metadata,
+    origin: 'brand',
+    saveCount: copy.brandRequest.saveCount,
+    title: copy.brandRequest.title,
+    verified: false,
+    viewCount: copy.brandRequest.viewCount,
+  };
+}
+
+function prioritizeRecommendedCards(cards: ExploreRecipeCardModel[]) {
+  const order: Record<ExploreOrigin, number> = {
+    partner: 0,
+    brand: 1,
+    community: 2,
+  };
+
+  return [...cards].sort((first, second) => order[first.origin] - order[second.origin]);
+}
+
+function getRecipeCategory(recipe: MockRecipe): CategoryFilter {
+  if (recipe.niche === 'Beauty') return 'beauty';
+  if (recipe.niche === 'Fitness') return 'fitness';
+  if (recipe.niche === 'Cooking') return 'food';
+  if (recipe.id.includes('founder') || recipe.goal.toLowerCase().includes('product')) return 'tech';
+  return 'life';
+}
+
+function getLocalizedTitle(language: AppLanguage, recipe: MockRecipe) {
+  if (language === 'en') {
+    if (recipe.id.includes('beauty-proof-routine')) return 'Glowy Skin Routine';
+    if (recipe.id.includes('core-control-proof')) return 'Home Upper Body Workout';
+    if (recipe.id.includes('founder-problem-hook')) return 'New App Launch Promo Recipe';
+    return recipe.title;
+  }
+
+  if (recipe.id.includes('beauty-proof-routine')) return '광채 피부 표현 루틴';
+  if (recipe.id.includes('core-control-proof')) return '집에서 하는 상체 운동 루틴';
+  if (recipe.id.includes('founder-problem-hook')) return '새로운 앱 런칭 홍보 레시피';
+  return recipe.title;
+}
+
+function getLocalizedDescription(language: AppLanguage, recipe: MockRecipe) {
+  if (language === 'ko') {
+    if (recipe.id.includes('beauty-proof-routine')) {
+      return 'A verified creator recipe for turning a routine into a proof-first product story.';
+    }
+
+    if (recipe.id.includes('core-control-proof')) {
+      return 'A verified fitness recipe for making form correction feel easy to follow.';
+    }
+
+    if (recipe.id.includes('founder-problem-hook')) {
+      return 'A community recipe for explaining a product problem and showing the solution.';
+    }
+  }
+
+  return recipe.summary;
+}
+
+function getRecipeChips(recipe: MockRecipe, language: AppLanguage) {
+  if (language === 'ko') {
+    if (recipe.id.includes('beauty-proof-routine')) return ['뷰티', '제품 홍보', '프롬프터 포함'];
+    if (recipe.id.includes('core-control-proof')) return ['피트니스', '운동 루틴', '난이도 쉬움'];
+    if (recipe.id.includes('founder-problem-hook')) return ['크리에이터', '앱 홍보', '30초'];
+  }
+
+  if (recipe.id.includes('beauty-proof-routine')) return ['Beauty', 'Product Promo', 'Prompter'];
+  if (recipe.id.includes('core-control-proof')) return ['Fitness', 'Workout Routine', 'Easy'];
+  if (recipe.id.includes('founder-problem-hook')) return ['Creator', 'App Promo', '30s'];
+
+  return [recipe.niche, recipe.goal.split(' ').slice(0, 2).join(' '), 'Prompter'];
+}
+
+function getRecipeMetadata(language: AppLanguage, recipe: MockRecipe) {
+  const cutCount = language === 'ko' ? `${recipe.totalSceneCount}컷` : `${recipe.totalSceneCount} cuts`;
+
+  return language === 'ko'
+    ? [cutCount, '30초', '프롬프터 포함', '예시 영상', '촬영 팁', getDifficulty(language, recipe)]
+    : [cutCount, '30s', 'Prompter', 'Example video', 'Filming tips', getDifficulty(language, recipe)];
+}
+
+function getDifficulty(language: AppLanguage, recipe: MockRecipe) {
+  const easy = recipe.id.includes('core') || recipe.id.includes('beauty');
+
+  if (language === 'ko') {
+    return easy ? '난이도 쉬움' : '난이도 보통';
+  }
+
+  return easy ? 'Easy' : 'Medium';
 }
 
 function formatCompactMetric(value: number) {
@@ -437,47 +777,14 @@ function formatCompactMetric(value: number) {
   return String(value);
 }
 
-function getLocalizedTitle(language: AppLanguage, recipe: MockRecipe) {
-  if (language === 'en') {
-    if (recipe.id === 'market-recipe-beauty-proof-routine') return 'Glowy Skin Routine';
-    if (recipe.id === 'market-recipe-core-control-proof') return 'Home Upper Body Workout';
-    if (recipe.id === 'market-recipe-founder-problem-hook') return 'New App Launch Promo';
-    return recipe.title;
-  }
-
-  if (recipe.id === 'market-recipe-beauty-proof-routine') return '광채 피부 표현 루틴';
-  if (recipe.id === 'market-recipe-core-control-proof') return '집에서 하는 상체 운동 루틴';
-  if (recipe.id === 'market-recipe-founder-problem-hook') return '새로운 앱 런칭 홍보 레시피';
-  return recipe.title;
-}
-
-function getRecipeTags(recipe: MockRecipe, language: AppLanguage) {
-  const enTags = [recipe.niche, recipe.goal.split(' ').slice(0, 2).join(' '), '30s', isVerifiedCreatorRecipe(recipe) ? 'Verified' : 'Community'];
-  const koNiche: Record<string, string> = {
-    Beauty: '뷰티',
-    Creator: '크리에이터',
-    Fitness: '피트니스',
-  };
-  const koTags = [
-    koNiche[recipe.niche] ?? recipe.niche,
-    recipe.id.includes('beauty') ? '제품 홍보' : recipe.id.includes('core') ? '운동 루틴' : '앱 홍보',
-    '30초',
-    isVerifiedCreatorRecipe(recipe) ? '인증' : '커뮤니티',
-  ];
-
-  return language === 'ko' ? koTags : enTags;
-}
-
 const styles = StyleSheet.create({
   categoryIcon: {
     alignItems: 'center',
-    borderRadius: 15,
-    height: 42,
+    borderColor: 'transparent',
+    borderRadius: 16,
+    height: 44,
     justifyContent: 'center',
-    width: 42,
-  },
-  exploreScrollContent: {
-    paddingTop: 52,
+    width: 44,
   },
   darkBadge: {
     alignItems: 'center',
@@ -490,22 +797,44 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
+  originPill: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 999,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+  },
+  originPillSelected: {
+    backgroundColor: '#8c67ff',
+  },
+  originPillText: {
+    color: '#64748b',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  originPillTextSelected: {
+    color: '#ffffff',
+  },
   quickCard: {
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    alignItems: 'flex-start',
+    backgroundColor: '#ffffff',
     borderColor: '#e2e8f0',
-    borderRadius: 18,
+    borderRadius: 22,
     borderWidth: 1,
     flex: 1,
-    flexDirection: 'row',
-    minHeight: 92,
-    padding: 12,
+    gap: 10,
+    minHeight: 144,
+    padding: 14,
+    shadowColor: '#0f172a',
+    shadowOffset: { height: 9, width: 0 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
   },
-  quickCardImage: {
-    backgroundColor: '#e2e8f0',
-    borderRadius: 999,
-    height: 44,
-    width: 44,
+  quickIcon: {
+    alignItems: 'center',
+    borderRadius: 16,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
   },
   recipeList: {
     backgroundColor: '#ffffff',
@@ -513,47 +842,43 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
   },
   recommendedBackground: {
-    minHeight: 138,
+    height: 260,
   },
   recommendedCard: {
-    borderRadius: 20,
+    borderRadius: 26,
     overflow: 'hidden',
+    width: 286,
+  },
+  recommendedCta: {
+    backgroundColor: '#ffffff',
+    borderRadius: 999,
+    paddingHorizontal: 15,
+    paddingVertical: 9,
   },
   recommendedImage: {
-    borderRadius: 20,
+    borderRadius: 26,
+  },
+  rowCta: {
+    backgroundColor: '#f4f0ff',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
   rowImage: {
     backgroundColor: '#e2e8f0',
-    borderRadius: 14,
-    height: 82,
-    width: 82,
+    borderRadius: 16,
+    height: 92,
+    width: 92,
   },
   searchBox: {
     alignItems: 'center',
     backgroundColor: '#f8fafc',
     borderColor: '#eef2f7',
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: 8,
-    minHeight: 44,
-    paddingHorizontal: 12,
-  },
-  sourcePill: {
-    backgroundColor: '#f1f5f9',
-    borderRadius: 999,
+    gap: 9,
+    minHeight: 48,
     paddingHorizontal: 13,
-    paddingVertical: 8,
-  },
-  sourcePillSelected: {
-    backgroundColor: '#8c67ff',
-  },
-  sourcePillText: {
-    color: '#64748b',
-    fontSize: 11,
-    fontWeight: '900',
-  },
-  sourcePillTextSelected: {
-    color: '#ffffff',
   },
 });
