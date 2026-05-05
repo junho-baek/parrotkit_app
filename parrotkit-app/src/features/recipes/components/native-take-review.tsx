@@ -12,6 +12,8 @@ type NativeTakeReviewProps = {
   onOpenIn: () => void;
   onRetry: () => void;
   onSaveToGallery: () => void;
+  retryIconName?: ReviewIconName;
+  retryLabel?: string;
   status: NativeTakeReviewStatus;
   statusMessage?: string;
   uri: string;
@@ -24,6 +26,8 @@ export function NativeTakeReview({
   onOpenIn,
   onRetry,
   onSaveToGallery,
+  retryIconName = 'restart',
+  retryLabel = 'Retry',
   status,
   statusMessage,
   uri,
@@ -81,8 +85,8 @@ export function NativeTakeReview({
       <View style={styles.actions}>
         <ReviewButton
           disabled={exporting}
-          iconName="restart"
-          label="Retry"
+          iconName={retryIconName}
+          label={retryLabel}
           onPress={onRetry}
           tone="ghost"
         />

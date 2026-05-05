@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppLanguage, type AppLanguage } from '@/core/i18n/app-language';
 import type { MockRecipe } from '@/core/mocks/parrotkit-data';
+import { ugcMedia } from '@/core/mocks/ugc-media';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { AppScreenScrollView } from '@/core/ui/app-screen-scroll-view';
 import { isVerifiedCreatorRecipe } from '@/features/recipes/lib/recipe-ownership';
@@ -75,10 +76,10 @@ type ExploreCopy = {
 const exploreCopy: Record<AppLanguage, ExploreCopy> = {
   en: {
     title: 'Explore',
-    searchPlaceholder: 'Search recipes',
-    recommended: 'Recommended Recipes',
+    searchPlaceholder: 'Search shooting guides',
+    recommended: 'Recommended Shooting Guides',
     viewAll: 'View all',
-    browse: 'Browse Recipes',
+    browse: 'Browse Guides',
     savedIconLabel: 'Saved recipes',
     actions: {
       apply: 'Apply',
@@ -108,21 +109,21 @@ const exploreCopy: Record<AppLanguage, ExploreCopy> = {
     brandRequest: {
       chips: ['Beauty', 'Brand Collab', 'Product Demo'],
       creatorHandle: '@glowbrand',
-      description: 'A brand request for filming a proof-first product demo with clear usage claims.',
+      description: 'A brand-ready shooting guide for proving product value before the sales message.',
       difficulty: 'Easy',
-      image: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=900&q=80',
+      image: ugcMedia.beautyResult.image,
       metadata: ['3 cuts', '30s', 'Prompter', 'Filming tips'],
       saveCount: 980,
-      title: 'Serum launch UGC request',
+      title: 'Beauty Product Conversion Guide',
       viewCount: 7200,
     },
   },
   ko: {
     title: '탐색',
-    searchPlaceholder: '레시피 검색',
-    recommended: '추천 레시피',
+    searchPlaceholder: '촬영 가이드 검색',
+    recommended: '추천 촬영 가이드',
     viewAll: '전체 보기',
-    browse: '레시피 둘러보기',
+    browse: '가이드 둘러보기',
     savedIconLabel: '저장한 레시피',
     actions: {
       apply: '지원하기',
@@ -152,12 +153,12 @@ const exploreCopy: Record<AppLanguage, ExploreCopy> = {
     brandRequest: {
       chips: ['뷰티', '제품 홍보', '브랜드 협업'],
       creatorHandle: '@glowbrand',
-      description: '제품 사용감과 전후 비교가 분명한 30초 UGC 데모를 찾는 브랜드 요청입니다.',
+      description: '판매 메시지 전에 제품 가치를 먼저 증명하는 브랜드용 촬영 가이드입니다.',
       difficulty: '난이도 쉬움',
-      image: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=900&q=80',
+      image: ugcMedia.beautyResult.image,
       metadata: ['3컷', '30초', '프롬프터 포함', '촬영 팁'],
       saveCount: 980,
-      title: '세럼 런칭 UGC 요청',
+      title: '화장품 구매율 높이는 전환 가이드',
       viewCount: 7200,
     },
   },
@@ -567,30 +568,30 @@ function getRecipeCategory(recipe: MockRecipe): CategoryFilter {
 
 function getLocalizedTitle(language: AppLanguage, recipe: MockRecipe) {
   if (language === 'en') {
-    if (recipe.id.includes('beauty-proof-routine')) return 'Glowy Skin Routine';
-    if (recipe.id.includes('core-control-proof')) return 'Home Upper Body Workout';
-    if (recipe.id.includes('founder-problem-hook')) return 'New App Launch Promo Recipe';
+    if (recipe.id.includes('beauty-proof-routine')) return 'Beauty Conversion Hook Guide';
+    if (recipe.id.includes('core-control-proof')) return 'Food Promo Shooting Guide';
+    if (recipe.id.includes('founder-problem-hook')) return 'Problem Hook App Demo Guide';
     return recipe.title;
   }
 
-  if (recipe.id.includes('beauty-proof-routine')) return '광채 피부 표현 루틴';
-  if (recipe.id.includes('core-control-proof')) return '집에서 하는 상체 운동 루틴';
-  if (recipe.id.includes('founder-problem-hook')) return '새로운 앱 런칭 홍보 레시피';
+  if (recipe.id.includes('beauty-proof-routine')) return '화장품 구매율 높이는 훅 전환형 가이드';
+  if (recipe.id.includes('core-control-proof')) return '음식 홍보 촬영 가이드';
+  if (recipe.id.includes('founder-problem-hook')) return '문제제기형 앱 데모 가이드';
   return recipe.title;
 }
 
 function getLocalizedDescription(language: AppLanguage, recipe: MockRecipe) {
   if (language === 'ko') {
     if (recipe.id.includes('beauty-proof-routine')) {
-      return 'A verified creator recipe for turning a routine into a proof-first product story.';
+      return '피부 결과를 먼저 보여주고 제품 신뢰를 쌓는 뷰티 UGC 촬영 가이드입니다.';
     }
 
     if (recipe.id.includes('core-control-proof')) {
-      return 'A verified fitness recipe for making form correction feel easy to follow.';
+      return '먹고 싶은 장면, 질감 증거, 저장 CTA로 이어지는 음식 홍보 가이드입니다.';
     }
 
     if (recipe.id.includes('founder-problem-hook')) {
-      return 'A community recipe for explaining a product problem and showing the solution.';
+      return '불편한 순간을 먼저 보여주고 앱 화면으로 해결을 증명하는 가이드입니다.';
     }
   }
 
@@ -599,14 +600,14 @@ function getLocalizedDescription(language: AppLanguage, recipe: MockRecipe) {
 
 function getRecipeChips(recipe: MockRecipe, language: AppLanguage) {
   if (language === 'ko') {
-    if (recipe.id.includes('beauty-proof-routine')) return ['뷰티', '제품 홍보', '프롬프터 포함'];
-    if (recipe.id.includes('core-control-proof')) return ['피트니스', '운동 루틴', '난이도 쉬움'];
-    if (recipe.id.includes('founder-problem-hook')) return ['크리에이터', '앱 홍보', '30초'];
+    if (recipe.id.includes('beauty-proof-routine')) return ['뷰티', '구매 전환', '훅 전환'];
+    if (recipe.id.includes('core-control-proof')) return ['푸드', '제품 홍보', '질감 증거'];
+    if (recipe.id.includes('founder-problem-hook')) return ['앱 데모', '문제 훅', '해결 제시'];
   }
 
-  if (recipe.id.includes('beauty-proof-routine')) return ['Beauty', 'Product Promo', 'Prompter'];
-  if (recipe.id.includes('core-control-proof')) return ['Fitness', 'Workout Routine', 'Easy'];
-  if (recipe.id.includes('founder-problem-hook')) return ['Creator', 'App Promo', '30s'];
+  if (recipe.id.includes('beauty-proof-routine')) return ['Beauty', 'Conversion', 'Hook Shift'];
+  if (recipe.id.includes('core-control-proof')) return ['Food', 'Product Promo', 'Texture Proof'];
+  if (recipe.id.includes('founder-problem-hook')) return ['App Demo', 'Problem Hook', 'Solution'];
 
   return [recipe.niche, recipe.goal.split(' ').slice(0, 2).join(' '), 'Prompter'];
 }

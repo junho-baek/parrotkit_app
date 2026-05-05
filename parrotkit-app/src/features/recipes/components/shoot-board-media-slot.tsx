@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import type { ComponentProps } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 export type ShootBoardMediaSlotStatus =
   | "empty"
@@ -44,7 +44,19 @@ export function ShootBoardMediaSlot({
         style={({ pressed }) => [styles.pressable, pressed && styles.pressed]}
       >
         <View style={styles.preview}>
-          <View style={styles.emptyPreview}>
+          {!empty ? (
+            <>
+              <Image
+                accessibilityIgnoresInvertColors
+                resizeMode="cover"
+                source={{ uri: thumbnailUrl ?? "" }}
+                style={styles.previewImage}
+              />
+              <View style={styles.previewShade} />
+            </>
+          ) : null}
+
+          <View style={empty ? styles.emptyPreview : styles.playPreview}>
             <MaterialCommunityIcons
               color={statusStyle.iconColor}
               name={empty ? "plus" : "play"}
@@ -147,7 +159,7 @@ const styles = StyleSheet.create({
   },
   preview: {
     backgroundColor: "#f8fafc",
-    flex: 1,
+    height: 67,
     overflow: "hidden",
     position: "relative",
     width: "100%",
@@ -157,6 +169,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#f8fafc",
     justifyContent: "center",
+  },
+  playPreview: {
+    alignItems: "center",
+    alignSelf: "center",
+    backgroundColor: "rgba(255,255,255,0.88)",
+    borderRadius: 999,
+    height: 24,
+    left: "50%",
+    marginLeft: -12,
+    marginTop: -12,
+    position: "absolute",
+    top: "50%",
+    justifyContent: "center",
+    width: 24,
+  },
+  previewImage: {
+    ...StyleSheet.absoluteFillObject,
+    height: "100%",
+    width: "100%",
+  },
+  previewShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(2,6,23,0.08)",
   },
   timePill: {
     backgroundColor: "rgba(2, 6, 23, 0.72)",

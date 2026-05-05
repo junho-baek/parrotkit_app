@@ -374,7 +374,19 @@ export function RecipeDetailScreen() {
       return;
     }
 
-    router.push(getRecipePrompterHref(targetRecipe.id, targetSceneId) as Href);
+    const lineToSay =
+      language === "ko"
+        ? (cut.speakingLineKo ?? cut.speakingLine)
+        : cut.speakingLine;
+    const shootingGuideline =
+      language === "ko"
+        ? (cut.shootingGuidelineKo || cut.shootingGuideline)
+        : cut.shootingGuideline;
+    const query = `lineToSay=${encodeURIComponent(lineToSay)}&shootingGuideline=${encodeURIComponent(shootingGuideline)}`;
+
+    router.push(
+      `${getRecipePrompterHref(targetRecipe.id, targetSceneId)}&${query.toString()}` as Href,
+    );
   };
 
   const updateBoard = (
@@ -1444,19 +1456,21 @@ function formatCompactMetric(value: number) {
 
 function getDetailTitle(language: AppLanguage, recipe: MockRecipe) {
   if (language === "en") {
-    if (recipe.id.includes("beauty-proof-routine")) return "Glowy Skin Routine";
+    if (recipe.id.includes("beauty-proof-routine"))
+      return "Beauty Conversion Hook Guide";
     if (recipe.id.includes("core-control-proof"))
-      return "Home Upper Body Workout";
+      return "Food Promo Shooting Guide";
     if (recipe.id.includes("founder-problem-hook"))
-      return "New App Launch Promo";
+      return "Problem Hook App Demo Guide";
     return recipe.title;
   }
 
-  if (recipe.id.includes("beauty-proof-routine")) return "광채 피부 표현 루틴";
+  if (recipe.id.includes("beauty-proof-routine"))
+    return "화장품 구매율 높이는 훅 전환형 가이드";
   if (recipe.id.includes("core-control-proof"))
-    return "집에서 하는 상체 운동 루틴";
+    return "음식 홍보 촬영 가이드";
   if (recipe.id.includes("founder-problem-hook"))
-    return "새로운 앱 런칭 홍보 레시피";
+    return "문제제기형 앱 데모 가이드";
   return recipe.title;
 }
 
@@ -1465,14 +1479,14 @@ function getDetailTags(language: AppLanguage, recipe: MockRecipe) {
     return [
       recipe.niche === "Beauty"
         ? "뷰티"
-        : recipe.niche === "Fitness"
-          ? "피트니스"
+        : recipe.niche === "Cooking"
+          ? "푸드"
           : "크리에이터",
       recipe.id.includes("beauty")
-        ? "제품 홍보"
+        ? "구매 전환"
         : recipe.id.includes("core")
-          ? "운동 루틴"
-          : "앱 홍보",
+          ? "음식 홍보"
+          : "문제 훅",
       "30초",
       recipe.verification === "verified_creator" ? "인증" : "커뮤니티",
     ];

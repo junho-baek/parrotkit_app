@@ -17,8 +17,8 @@ type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 const previewCopy = {
   en: {
     back: 'Back',
-    partnerCreator: 'Partner Creator',
-    communityRecipe: 'Community Recipe',
+    partnerCreator: 'Partner Guide',
+    communityRecipe: 'Community Guide',
     verified: 'Verified',
     keyHook: 'Key Hook',
     included: 'Included',
@@ -30,8 +30,8 @@ const previewCopy = {
     saves: 'saves',
     views: 'views',
     scenes: 'scenes',
-    notFound: 'Recipe not found',
-    notFoundBody: 'This recipe may have moved from Explore.',
+    notFound: 'Guide not found',
+    notFoundBody: 'This guide may have moved from Explore.',
     includedItems: [
       { icon: 'play-box-outline' as IconName, label: 'Reference breakdown' },
       { icon: 'format-list-checks' as IconName, label: 'Shot list' },
@@ -41,8 +41,8 @@ const previewCopy = {
   },
   ko: {
     back: '뒤로',
-    partnerCreator: '파트너 크리에이터',
-    communityRecipe: '커뮤니티 레시피',
+    partnerCreator: '파트너 가이드',
+    communityRecipe: '커뮤니티 가이드',
     verified: '인증됨',
     keyHook: '핵심 훅',
     included: '포함됨',
@@ -54,8 +54,8 @@ const previewCopy = {
     saves: '저장',
     views: '조회',
     scenes: '씬',
-    notFound: '레시피를 찾을 수 없어요',
-    notFoundBody: '탐색 레시피가 이동했을 수 있어요.',
+    notFound: '가이드를 찾을 수 없어요',
+    notFoundBody: '탐색 가이드가 이동했을 수 있어요.',
     includedItems: [
       { icon: 'play-box-outline' as IconName, label: '레퍼런스 분석' },
       { icon: 'format-list-checks' as IconName, label: '촬영 리스트' },
@@ -346,30 +346,30 @@ function formatCompactMetric(value: number) {
 
 function getPreviewTitle(language: AppLanguage, recipe: MockRecipe) {
   if (language === 'en') {
-    if (recipe.id.includes('beauty-proof-routine')) return 'Glowy Skin Routine';
-    if (recipe.id.includes('core-control-proof')) return 'Home Upper Body Workout';
-    if (recipe.id.includes('founder-problem-hook')) return 'New App Launch Promo';
+    if (recipe.id.includes('beauty-proof-routine')) return 'Beauty Conversion Hook Guide';
+    if (recipe.id.includes('core-control-proof')) return 'Food Promo Shooting Guide';
+    if (recipe.id.includes('founder-problem-hook')) return 'Problem Hook App Demo Guide';
     return recipe.title;
   }
 
-  if (recipe.id.includes('beauty-proof-routine')) return '광채 피부 표현 루틴';
-  if (recipe.id.includes('core-control-proof')) return '집에서 하는 상체 운동 루틴';
-  if (recipe.id.includes('founder-problem-hook')) return '새로운 앱 런칭 홍보 레시피';
+  if (recipe.id.includes('beauty-proof-routine')) return '화장품 구매율 높이는 훅 전환형 가이드';
+  if (recipe.id.includes('core-control-proof')) return '음식 홍보 촬영 가이드';
+  if (recipe.id.includes('founder-problem-hook')) return '문제제기형 앱 데모 가이드';
   return recipe.title;
 }
 
 function getPreviewSummary(language: AppLanguage, recipe: MockRecipe) {
   if (language === 'ko') {
     if (recipe.id.includes('beauty-proof-routine')) {
-      return '완성된 결과를 먼저 보여주고, 제품은 두 번째 씬에서 자연스럽게 등장시키는 3씬 뷰티 UGC 레시피.';
+      return '피부 결과를 먼저 보여주고 제품 신뢰와 구매 전환으로 이어지게 만드는 뷰티 UGC 촬영 가이드.';
     }
 
     if (recipe.id.includes('core-control-proof')) {
-      return '잘못된 자세와 교정된 자세를 바로 비교해 신뢰를 만드는 3씬 피트니스 레시피.';
+      return '먹고 싶은 장면, 질감 증거, 저장 CTA로 이어지는 음식 홍보 촬영 가이드.';
     }
 
     if (recipe.id.includes('founder-problem-hook')) {
-      return '제품을 먼저 말하지 않고, 사용자가 겪는 문제부터 납득시키는 3씬 런칭 레시피.';
+      return '제품을 먼저 말하지 않고, 사용자가 겪는 문제부터 보여준 뒤 앱 화면으로 해결을 증명하는 가이드.';
     }
   }
 
@@ -378,14 +378,14 @@ function getPreviewSummary(language: AppLanguage, recipe: MockRecipe) {
 
 function getPreviewTags(language: AppLanguage, recipe: MockRecipe) {
   if (language === 'ko') {
-    if (recipe.id.includes('beauty-proof-routine')) return ['뷰티', '제품 홍보', '전환', '30초'];
-    if (recipe.id.includes('core-control-proof')) return ['피트니스', '자세 교정', '교육', '30초'];
-    if (recipe.id.includes('founder-problem-hook')) return ['테크', '문제 훅', '런칭', '30초'];
+    if (recipe.id.includes('beauty-proof-routine')) return ['뷰티', '구매 전환', '훅 전환', '30초'];
+    if (recipe.id.includes('core-control-proof')) return ['푸드', '제품 홍보', '질감 증거', '30초'];
+    if (recipe.id.includes('founder-problem-hook')) return ['앱 데모', '문제 훅', '해결 제시', '30초'];
   }
 
-  if (recipe.id.includes('beauty-proof-routine')) return ['Beauty', 'Product Promo', 'Conversion', '30s'];
-  if (recipe.id.includes('core-control-proof')) return ['Fitness', 'Form Check', 'Education', '30s'];
-  if (recipe.id.includes('founder-problem-hook')) return ['Tech', 'Problem Hook', 'Launch', '30s'];
+  if (recipe.id.includes('beauty-proof-routine')) return ['Beauty', 'Conversion', 'Hook Shift', '30s'];
+  if (recipe.id.includes('core-control-proof')) return ['Food', 'Product Promo', 'Texture Proof', '30s'];
+  if (recipe.id.includes('founder-problem-hook')) return ['App Demo', 'Problem Hook', 'Solution', '30s'];
 
   return [recipe.niche, recipe.goal.split(' ').slice(0, 2).join(' '), '30s'];
 }
@@ -393,22 +393,22 @@ function getPreviewTags(language: AppLanguage, recipe: MockRecipe) {
 function getCreatorNotes(language: AppLanguage, recipe: MockRecipe) {
   if (language === 'ko') {
     if (recipe.id.includes('beauty-proof-routine')) {
-      return '제품명은 2씬 이후에만 노출하고, 과장된 효능 표현은 피하세요. 자연광과 피부 텍스처 클로즈업이 핵심입니다.';
+      return '제품명은 결과를 보여준 뒤에 노출하세요. 과장된 효능 표현은 피하고 자연광, 피부 결, 사용감 클로즈업을 우선하세요.';
     }
 
     if (recipe.id.includes('core-control-proof')) {
-      return '카메라 각도를 유지한 채 잘못된 자세와 교정 자세를 비교하세요. 통증/치료 표현은 피하고 폼 체크로 말하세요.';
+      return '음식이 먼저 맛있어 보이게 시작하세요. 제품 설명은 짧게, 질감/한입/완성 장면을 증거처럼 사용하세요.';
     }
 
-    return '제품명보다 문제가 먼저 보이게 구성하세요. 기능 설명은 마지막에 짧게 붙이고, 현재 방식의 불편함을 구체적으로 보여주세요.';
+    return '앱 이름보다 문제가 먼저 보이게 구성하세요. 기능 설명은 마지막에 짧게 붙이고, 현재 방식의 불편함을 구체적으로 보여주세요.';
   }
 
   if (recipe.id.includes('beauty-proof-routine')) {
-    return 'Reveal the product after scene 2, avoid exaggerated claims, and use natural light with one texture close-up.';
+    return 'Reveal the product after the result, avoid exaggerated claims, and use natural light with one texture close-up.';
   }
 
   if (recipe.id.includes('core-control-proof')) {
-    return 'Keep the camera angle consistent, compare before/after form, and avoid medical or pain-cure language.';
+    return 'Open with appetite, keep product explanation short, and use texture or bite shots as proof.';
   }
 
   return 'Lead with the specific problem before naming the product. Keep feature language short and visual.';

@@ -88,7 +88,7 @@ export function ShootBoardDraggableList({
 
   return (
     <DraggableFlatList
-      activationDistance={4}
+      activationDistance={18}
       autoscrollSpeed={90}
       autoscrollThreshold={90}
       containerStyle={styles.list}

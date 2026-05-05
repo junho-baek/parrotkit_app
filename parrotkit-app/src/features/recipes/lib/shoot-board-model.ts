@@ -1,3 +1,4 @@
+import { ugcMedia } from "@/core/mocks/ugc-media";
 import type {
   NativeRecipe,
   NativeRecipeScene,
@@ -68,7 +69,8 @@ export type ShootBoardCut = {
   requiredChecks: string[];
   requiredChecksKo?: string[];
   thumbnailUrl: string;
-  referenceVideoUrl?: string;
+  takeThumbnailUrl?: string;
+  referenceVideoUrl?: string | number;
   isShot: boolean;
   shotCount?: number;
   notes?: string;
@@ -128,6 +130,7 @@ type CutDefinition = {
   instructionKo: string;
   purpose: string;
   purposeKo: string;
+  referenceThumbnailUrl?: string;
   requiredChecklist: ChecklistDefinition[];
   role: ShootBoardCutRole;
   sceneIndex: number;
@@ -136,6 +139,7 @@ type CutDefinition = {
   speakingLine: string;
   speakingLineKo: string;
   startSeconds: number;
+  takeThumbnailUrl?: string;
   takeStatus?: ShootBoardTakeStatus;
   takes?: ShootBoardTake[];
   templateLine: string;
@@ -248,6 +252,7 @@ const koreanDietCutDefinitions: CutDefinition[] = [
         labelKo: "첫 문장이 추가 설명 없이 결과를 말함",
       },
     ],
+    referenceThumbnailUrl: ugcMedia.foodPromo.image,
     role: "hook",
     sceneIndex: 0,
     shootingGuideline:
@@ -257,6 +262,7 @@ const koreanDietCutDefinitions: CutDefinition[] = [
     speakingLine: "Here is the {payoff/result} from {product}.",
     speakingLineKo: "{product}로 만든 {payoff/result}입니다.",
     startSeconds: 0,
+    takeThumbnailUrl: ugcMedia.beautyHero.image,
     templateLine:
       'Start with {payoff/result}: "{product} helped me get {payoff/result} without the usual {before state}."',
     templateLineKo:
@@ -287,6 +293,7 @@ const koreanDietCutDefinitions: CutDefinition[] = [
         labelKo: "증거가 나오기 전 긴 공백이 없음",
       },
     ],
+    referenceThumbnailUrl: ugcMedia.foodPromo.image,
     role: "proof",
     sceneIndex: 1,
     shootingGuideline:
@@ -296,6 +303,7 @@ const koreanDietCutDefinitions: CutDefinition[] = [
     speakingLine: "The proof is {proof visual}.",
     speakingLineKo: "증거는 {proof visual}입니다.",
     startSeconds: 5,
+    takeThumbnailUrl: ugcMedia.beautyResult.image,
     takeStatus: "saved",
     takes: [
       {
@@ -343,6 +351,7 @@ const koreanDietCutDefinitions: CutDefinition[] = [
         labelKo: "각 컷에 핵심 행동이 하나만 있음",
       },
     ],
+    referenceThumbnailUrl: ugcMedia.foodPromo.image,
     role: "scene",
     sceneIndex: 1,
     shootingGuideline:
@@ -354,6 +363,7 @@ const koreanDietCutDefinitions: CutDefinition[] = [
     speakingLineKo:
       "{before state}, {main item}, {after state} 순서로 반복하세요.",
     startSeconds: 13,
+    takeThumbnailUrl: ugcMedia.appDemo.image,
     templateLine:
       'Show the method: "{before state} first, then {main item}, then the {after state} payoff."',
     templateLineKo:
@@ -384,6 +394,7 @@ const koreanDietCutDefinitions: CutDefinition[] = [
         labelKo: "자막이나 버튼이 들어갈 여백이 있음",
       },
     ],
+    referenceThumbnailUrl: ugcMedia.foodPromo.image,
     role: "cta",
     sceneIndex: 2,
     shootingGuideline:
@@ -393,6 +404,7 @@ const koreanDietCutDefinitions: CutDefinition[] = [
     speakingLine: "Save this for the next time you want {payoff/result}.",
     speakingLineKo: "다음에 {payoff/result}가 필요할 때 저장하세요.",
     startSeconds: 25,
+    takeThumbnailUrl: ugcMedia.beautyResult.image,
     takeStatus: "needs_reshoot",
     takes: [
       {
@@ -741,6 +753,7 @@ export function createAddedShootBoardCut(
     speakingLine: "",
     speakingLineKo: "",
     takeStatus: "none",
+    takeThumbnailUrl: board.cuts[board.cuts.length - 1]?.takeThumbnailUrl,
     takes: [],
     templateLine: "",
     templateLineKo: "",
@@ -829,7 +842,7 @@ function createShootBoardCut({
     prompterLine: definition.speakingLineKo,
     purpose: definition.purpose,
     purposeKo: definition.purposeKo,
-    referenceVideoUrl: recipe.sourceUrl,
+    referenceVideoUrl: recipe.referenceVideoSource ?? recipe.sourceUrl,
     requiredChecklist,
     requiredChecks: requiredChecklist.map((item) => item.label),
     requiredChecksKo: requiredChecklist.map((item) => item.labelKo),
@@ -846,7 +859,10 @@ function createShootBoardCut({
     takes,
     templateLine: definition.templateLine,
     templateLineKo: definition.templateLineKo,
-    thumbnailUrl: scene?.thumbnail || recipe.thumbnail,
+    takeThumbnailUrl:
+      definition.takeThumbnailUrl ?? scene?.thumbnail ?? recipe.thumbnail,
+    thumbnailUrl:
+      definition.referenceThumbnailUrl ?? scene?.thumbnail ?? recipe.thumbnail,
     timeRangeLabel: createTimeRangeLabel(
       definition.startSeconds,
       definition.startSeconds + definition.durationSeconds,
@@ -895,7 +911,7 @@ function createShootBoardCutFromScene(
       scene.recipe.objective ||
       `Show why {target viewer} should care about {payoff/result}.`,
     purposeKo: roleDefinition.instructionKo,
-    referenceVideoUrl: recipe.sourceUrl,
+    referenceVideoUrl: recipe.referenceVideoSource ?? recipe.sourceUrl,
     requiredChecklist,
     requiredChecks: requiredChecklist.map((item) => item.label),
     requiredChecksKo: requiredChecklist.map((item) => item.labelKo),
@@ -913,6 +929,7 @@ function createShootBoardCutFromScene(
     takes: [],
     templateLine: speakingLine || roleDefinition.speakingLine,
     templateLineKo: speakingLine || roleDefinition.speakingLineKo,
+    takeThumbnailUrl: recipe.thumbnail,
     thumbnailUrl: scene.thumbnail || recipe.thumbnail,
     timeRangeLabel: getSceneTimeRangeLabel(scene),
     title: createSceneTitle(index + 1, roleDefinition.label),
@@ -938,7 +955,7 @@ function getShootBoardSummary(
 
 function getShootBoardTitle(recipe: NativeRecipe) {
   if (recipe.id === "recipe-korean-diet-hook") {
-    return "Korean Diet Viral Recipe";
+    return recipe.title;
   }
 
   return recipe.title;

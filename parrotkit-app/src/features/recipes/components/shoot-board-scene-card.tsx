@@ -58,9 +58,8 @@ export function ShootBoardSceneCard({
           activeOpacity={0.72}
           accessibilityLabel={language === "ko" ? "드래그 핸들" : "Drag handle"}
           accessibilityRole="button"
-          delayLongPress={90}
+          delayLongPress={180}
           onLongPress={onDragStart}
-          onPressIn={onDragStart}
           style={styles.dragHandle}
         >
           <MaterialCommunityIcons
@@ -278,7 +277,7 @@ export function ShootBoardSceneCard({
                 onPress={onTake}
                 status={getTakeSlotStatus(cut)}
                 thumbnailUrl={
-                  cut.takes.length > 0 ? cut.thumbnailUrl : undefined
+                  cut.takes.length > 0 ? cut.takeThumbnailUrl : undefined
                 }
                 timeRangeLabel={undefined}
               />

@@ -10,7 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { AppLanguage } from "@/core/i18n/app-language";
 import { brandActionGradient } from "@/core/theme/colors";
@@ -47,6 +47,7 @@ export function TakeReviewViewerModal({
   visible,
 }: TakeReviewViewerModalProps) {
   const copy = takeCopy[language];
+  const insets = useSafeAreaInsets();
   const initialTakeId = selectedTakeId ?? cut.finalTakeId ?? cut.takes[0]?.id;
   const [activeTakeId, setActiveTakeId] = useState<string | undefined>(
     initialTakeId,
@@ -74,12 +75,17 @@ export function TakeReviewViewerModal({
       presentationStyle="fullScreen"
       visible={visible}
     >
-      <SafeAreaView style={styles.root}>
-        <View style={styles.header}>
+      <View style={styles.root}>
+        <View
+          style={[
+            styles.header,
+            { paddingTop: Math.max(insets.top + 12, 66) },
+          ]}
+        >
           <Pressable
             accessibilityLabel={copy.close}
             accessibilityRole="button"
-            hitSlop={10}
+            hitSlop={20}
             onPress={onClose}
             style={styles.iconButton}
           >
@@ -112,7 +118,7 @@ export function TakeReviewViewerModal({
           <Pressable
             accessibilityLabel={copy.retake}
             accessibilityRole="button"
-            hitSlop={10}
+            hitSlop={20}
             onPress={() => onRetake(cut)}
             style={styles.iconButton}
           >
@@ -126,9 +132,9 @@ export function TakeReviewViewerModal({
 
         <View style={styles.main}>
           <View style={styles.previewFrame}>
-            {cut.thumbnailUrl ? (
+            {(cut.takeThumbnailUrl ?? cut.thumbnailUrl) ? (
               <Image
-                source={{ uri: cut.thumbnailUrl }}
+                source={{ uri: cut.takeThumbnailUrl ?? cut.thumbnailUrl }}
                 style={styles.previewImage}
               />
             ) : (
@@ -162,7 +168,7 @@ export function TakeReviewViewerModal({
           </View>
         </View>
 
-        <View style={styles.bottom}>
+        <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <ScrollView
             horizontal
             contentContainerStyle={styles.carousel}
@@ -176,7 +182,7 @@ export function TakeReviewViewerModal({
                 language={language}
                 onPress={() => handleSelectTake(take)}
                 take={take}
-                thumbnailUrl={cut.thumbnailUrl}
+                thumbnailUrl={cut.takeThumbnailUrl ?? cut.thumbnailUrl}
               />
             ))}
             <Pressable
@@ -287,7 +293,7 @@ export function TakeReviewViewerModal({
             </Pressable>
           </View>
         </View>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }
@@ -427,13 +433,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     paddingHorizontal: 14,
-    paddingTop: 6,
+    zIndex: 10,
   },
   iconButton: {
     alignItems: "center",
-    height: 42,
+    backgroundColor: "rgba(2, 6, 23, 0.48)",
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 50,
     justifyContent: "center",
-    width: 42,
+    width: 50,
   },
   headerTitleWrap: {
     flex: 1,

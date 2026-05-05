@@ -13,9 +13,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { MockProjectTake } from '@/core/mocks/parrotkit-data';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
-import { NativePrompterBlockOverlay } from '@/features/recipes/components/native-prompter-block-overlay';
-import { NativePrompterToolbar } from '@/features/recipes/components/native-prompter-toolbar';
-import { NativeRecordButton } from '@/features/recipes/components/native-record-button';
 import {
   NativeTakeReview,
   type NativeTakeReviewStatus,
@@ -30,7 +27,12 @@ import type { NativeRecipeScene, PrompterBlock } from '@/features/recipes/types/
 export function RecipePrompterCameraScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ recipeId?: string; sceneId?: string }>();
+  const params = useLocalSearchParams<{
+    lineToSay?: string;
+    recipeId?: string;
+    sceneId?: string;
+    shootingGuideline?: string;
+  }>();
   const {
     addSceneProjectTake,
     deleteSceneProjectTake,
@@ -448,70 +450,28 @@ export function RecipePrompterCameraScreen() {
         </View>
 
         <View pointerEvents="box-none" className="flex-1" onLayout={handleOverlayLayout}>
-          <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-            {visibleBlocks.length > 0 ? (
-              visibleBlocks.map((block) => (
-                <NativePrompterBlockOverlay
-                  key={block.id}
-                  block={block}
-                  containerSize={containerSize}
-                  editingRequestedAt={editRequestByBlockId[block.id]}
-                  focused={block.id === focusedBlock?.id}
-                  onFocus={() => setFocusedBlockId(block.id)}
-                  onUpdate={(updates) => handleUpdateBlock(block.id, updates)}
-                />
-              ))
-            ) : hiddenBlocks.length === 0 ? (
-              <CameraCoachOverlay
-                recording={recording}
-                scene={activeScene}
-                sceneIndex={activeSceneIndex}
-                totalScenes={recipe.scenes.length}
-              />
-            ) : null}
-          </View>
+          <CameraCoachOverlay
+            lineToSay={
+              params.sceneId === activeScene.id && typeof params.lineToSay === 'string'
+                ? params.lineToSay
+                : undefined
+            }
+            recording={recording}
+            scene={activeScene}
+            sceneIndex={activeSceneIndex}
+            shootingGuideline={
+              params.sceneId === activeScene.id && typeof params.shootingGuideline === 'string'
+                ? params.shootingGuideline
+                : undefined
+            }
+            totalScenes={recipe.scenes.length}
+          />
         </View>
 
         <View
-          className="rounded-t-[30px] border border-white/10 bg-slate-950/72 px-4 pt-4"
+          className="rounded-t-[30px] border border-white/10 bg-slate-950/78 px-4 pt-4"
           style={{ paddingBottom: insets.bottom + (Platform.OS === 'android' ? 12 : 4) }}
         >
-          <View className="mb-3 flex-row items-center justify-between gap-3">
-            <NativePrompterToolbar
-              focusedBlock={focusedBlock}
-              hiddenBlocks={hiddenBlocks}
-              onAddCue={handleAddCue}
-              onColorCue={handleColorFocusedCue}
-              onEditCue={handleEditFocusedCue}
-              onHideCue={handleHideFocusedCue}
-              onOpacityCue={handleOpacityFocusedCue}
-              onScaleCue={handleScaleFocusedCue}
-              onShowCue={handleShowCue}
-            />
-            <NativeRecordButton
-              disabled={Boolean(reviewUri)}
-              onPress={handleRecordPress}
-              recording={recording}
-            />
-          </View>
-
-          <View className="mb-3 flex-row items-center justify-between gap-3">
-            <PrompterStepButton
-              disabled={!previousScene}
-              label="Prev cut"
-              onPress={() => {
-                if (previousScene) setActiveSceneId(previousScene.id);
-              }}
-            />
-            <PrompterStepButton
-              disabled={!nextScene}
-              label="Next cut"
-              onPress={() => {
-                if (nextScene) setActiveSceneId(nextScene.id);
-              }}
-            />
-          </View>
-
           {statusLabel ? (
             <Text style={styles.statusLabel}>
               {statusLabel}
@@ -536,6 +496,28 @@ export function RecipePrompterCameraScreen() {
             onSelectScene={setActiveSceneId}
             scenes={recipe.scenes}
           />
+
+          <View style={styles.cameraControlRow}>
+            <PrompterStepButton
+              disabled={!previousScene}
+              label="Prev cut"
+              onPress={() => {
+                if (previousScene) setActiveSceneId(previousScene.id);
+              }}
+            />
+            <CenterRecordButton
+              disabled={Boolean(reviewUri)}
+              onPress={handleRecordPress}
+              recording={recording}
+            />
+            <PrompterStepButton
+              disabled={!nextScene}
+              label="Next cut"
+              onPress={() => {
+                if (nextScene) setActiveSceneId(nextScene.id);
+              }}
+            />
+          </View>
         </View>
       </View>
 
@@ -543,11 +525,13 @@ export function RecipePrompterCameraScreen() {
         <View style={styles.reviewOverlay}>
           <NativeTakeReview
             keepDisabled={savingTake}
-            keepLabel={savingTake ? 'Keeping...' : 'Keep'}
+            keepLabel={savingTake ? 'Saving...' : 'Use take'}
             onKeep={handleKeepTake}
             onOpenIn={handleOpenReviewIn}
             onRetry={handleRetryReview}
             onSaveToGallery={handleSaveReviewToGallery}
+            retryIconName="arrow-left"
+            retryLabel="Back"
             status={reviewStatus}
             statusMessage={reviewStatusMessage}
             uri={reviewUri}
@@ -559,54 +543,86 @@ export function RecipePrompterCameraScreen() {
 }
 
 function CameraCoachOverlay({
+  lineToSay,
   recording,
   scene,
   sceneIndex,
+  shootingGuideline,
   totalScenes,
 }: {
+  lineToSay?: string;
   recording: boolean;
   scene: NativeRecipeScene;
   sceneIndex: number;
+  shootingGuideline?: string;
   totalScenes: number;
 }) {
-  const primaryLine = getCameraPrimaryLine(scene);
-  const actionLine = getCameraActionLine(scene);
-  const nextLine = getCameraNextLine(scene);
+  const primaryLine = lineToSay?.trim() || getCameraPrimaryLine(scene);
+  const actionLine = shootingGuideline?.trim() || getCameraActionLine(scene);
   const progress = `${Math.max(12, ((sceneIndex + 1) / totalScenes) * 100)}%` as DimensionValue;
 
   return (
     <View pointerEvents="none" style={styles.coachOverlay}>
-      <View style={styles.coachTopRow}>
-        <View style={styles.scenePill}>
-          <Text style={styles.scenePillText}>
-            Scene {sceneIndex + 1}/{totalScenes} · {getCameraSceneRole(sceneIndex, totalScenes)}
-          </Text>
+      <View>
+        <View style={styles.coachTopRow}>
+          <View style={styles.scenePill}>
+            <Text style={styles.scenePillText}>
+              Scene {sceneIndex + 1}/{totalScenes} · {getCameraSceneRole(sceneIndex, totalScenes)}
+            </Text>
+          </View>
+          <View style={[styles.recPill, recording ? styles.recPillActive : null]}>
+            <View style={styles.recDot} />
+            <Text style={styles.recText}>{recording ? 'REC' : 'READY'}</Text>
+          </View>
         </View>
-        <View style={[styles.recPill, recording ? styles.recPillActive : null]}>
-          <View style={styles.recDot} />
-          <Text style={styles.recText}>{recording ? 'REC' : 'READY'}</Text>
+
+        <View style={styles.progressRail}>
+          <View style={[styles.progressFill, { width: progress }]} />
         </View>
       </View>
 
-      <View style={styles.progressRail}>
-        <View style={[styles.progressFill, { width: progress }]} />
-      </View>
+      <View style={styles.coachPromptStack}>
+        <View style={styles.actionCue}>
+          <Text style={styles.coachLabel}>SHOOTING GUIDELINE</Text>
+          <Text style={styles.actionText}>{actionLine}</Text>
+        </View>
 
-      <View style={styles.actionCue}>
-        <Text style={styles.coachLabel}>ACTION</Text>
-        <Text style={styles.actionText}>{actionLine}</Text>
-      </View>
-
-      <View style={styles.sayNowBlock}>
-        <Text style={styles.sayNowLabel}>SAY NOW</Text>
-        <Text style={styles.sayNowText}>{primaryLine}</Text>
-      </View>
-
-      <View style={styles.nextCue}>
-        <Text style={styles.coachLabel}>NEXT</Text>
-        <Text style={styles.nextCueText}>{nextLine}</Text>
+        <View style={styles.sayNowBlock}>
+          <Text style={styles.sayNowLabel}>LINE TO SAY</Text>
+          <Text style={styles.sayNowText}>{primaryLine}</Text>
+        </View>
       </View>
     </View>
+  );
+}
+
+function CenterRecordButton({
+  disabled,
+  onPress,
+  recording,
+}: {
+  disabled: boolean;
+  onPress: () => void;
+  recording: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={recording ? 'Stop recording' : 'Record'}
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.centerRecord,
+        recording && styles.centerRecordActive,
+        disabled && styles.centerRecordDisabled,
+        pressed && styles.centerRecordPressed,
+      ]}
+    >
+      <View style={[styles.centerRecordCore, recording && styles.centerRecordCoreActive]} />
+      <Text style={styles.centerRecordLabel}>
+        {recording ? 'Stop' : 'Record'}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -745,21 +761,61 @@ const styles = StyleSheet.create({
     maxWidth: 330,
   },
   actionCue: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(15, 23, 42, 0.7)',
-    borderColor: 'rgba(255, 255, 255, 0.14)',
-    borderRadius: 20,
+    backgroundColor: 'rgba(249, 115, 22, 0.24)',
+    borderColor: 'rgba(251, 146, 60, 0.58)',
+    borderRadius: 22,
     borderWidth: 1,
-    maxWidth: 320,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
+    paddingHorizontal: 18,
+    paddingVertical: 15,
   },
   actionText: {
     color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '800',
-    lineHeight: 21,
-    marginTop: 4,
+    fontSize: 17,
+    fontWeight: '900',
+    lineHeight: 24,
+    marginTop: 6,
+  },
+  cameraControlRow: {
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  centerRecord: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 82,
+  },
+  centerRecordActive: {
+    opacity: 0.98,
+  },
+  centerRecordCore: {
+    backgroundColor: '#ef4444',
+    borderColor: 'rgba(255, 255, 255, 0.88)',
+    borderRadius: 999,
+    borderWidth: 5,
+    height: 66,
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    width: 66,
+  },
+  centerRecordCoreActive: {
+    backgroundColor: '#991b1b',
+    borderRadius: 18,
+  },
+  centerRecordDisabled: {
+    opacity: 0.45,
+  },
+  centerRecordLabel: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
+    marginTop: 6,
+  },
+  centerRecordPressed: {
+    transform: [{ scale: 0.96 }],
   },
   coachLabel: {
     color: 'rgba(255, 255, 255, 0.58)',
@@ -768,12 +824,17 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   coachOverlay: {
-    bottom: 24,
-    gap: 14,
+    bottom: 16,
+    justifyContent: 'space-between',
     left: 18,
     position: 'absolute',
     right: 18,
     top: 18,
+  },
+  coachPromptStack: {
+    gap: 16,
+    justifyContent: 'center',
+    marginBottom: 18,
   },
   coachTopRow: {
     alignItems: 'center',
@@ -806,6 +867,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.18)',
     borderRadius: 999,
     height: 3,
+    marginTop: 14,
     overflow: 'hidden',
   },
   recDot: {
@@ -838,13 +900,12 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   sayNowBlock: {
-    backgroundColor: 'rgba(2, 6, 23, 0.66)',
-    borderColor: 'rgba(255, 255, 255, 0.16)',
+    backgroundColor: 'rgba(2, 6, 23, 0.74)',
+    borderColor: 'rgba(255, 255, 255, 0.72)',
     borderRadius: 28,
-    borderWidth: 1,
-    marginTop: 'auto',
-    paddingHorizontal: 20,
-    paddingVertical: 18,
+    borderWidth: 2,
+    paddingHorizontal: 22,
+    paddingVertical: 20,
   },
   sayNowLabel: {
     color: '#a78bfa',
@@ -854,9 +915,9 @@ const styles = StyleSheet.create({
   },
   sayNowText: {
     color: '#ffffff',
-    fontSize: 31,
+    fontSize: 30,
     fontWeight: '900',
-    lineHeight: 40,
+    lineHeight: 39,
     marginTop: 8,
   },
   scenePill: {

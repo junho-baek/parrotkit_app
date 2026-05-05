@@ -1,5 +1,6 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
+import { VideoView, useVideoPlayer } from "expo-video";
 import {
   Image,
   Modal,
@@ -9,7 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { AppLanguage } from "@/core/i18n/app-language";
 import { brandActionGradient } from "@/core/theme/colors";
@@ -37,6 +38,7 @@ export function ReferenceViewerModal({
   visible,
 }: ReferenceViewerModalProps) {
   const copy = referenceCopy[language];
+  const insets = useSafeAreaInsets();
   const speakingLine = getSpeakingLine(language, cut);
 
   return (
@@ -46,12 +48,17 @@ export function ReferenceViewerModal({
       presentationStyle="fullScreen"
       visible={visible}
     >
-      <SafeAreaView style={styles.root}>
-        <View style={styles.header}>
+      <View style={styles.root}>
+        <View
+          style={[
+            styles.header,
+            { paddingTop: Math.max(insets.top + 12, 66) },
+          ]}
+        >
           <Pressable
             accessibilityLabel={copy.close}
             accessibilityRole="button"
-            hitSlop={10}
+            hitSlop={20}
             onPress={onClose}
             style={styles.iconButton}
           >
@@ -79,7 +86,7 @@ export function ReferenceViewerModal({
           <Pressable
             accessibilityLabel={copy.bookmark}
             accessibilityRole="button"
-            hitSlop={10}
+            hitSlop={20}
             style={styles.iconButton}
           >
             <MaterialCommunityIcons
@@ -92,27 +99,10 @@ export function ReferenceViewerModal({
 
         <View style={styles.main}>
           <View style={styles.previewFrame}>
-            {cut.thumbnailUrl ? (
-              <Image
-                source={{ uri: cut.thumbnailUrl }}
-                style={styles.previewImage}
-              />
-            ) : (
-              <View style={styles.emptyPreview}>
-                <MaterialCommunityIcons
-                  color="rgba(255,255,255,0.48)"
-                  name="image-outline"
-                  size={42}
-                />
-              </View>
-            )}
+            <ReferenceMedia cut={cut} />
             <View style={styles.previewShade} />
             <View style={styles.playButton}>
-              <MaterialCommunityIcons
-                color="#ffffff"
-                name={cut.referenceVideoUrl ? "play" : "image-outline"}
-                size={28}
-              />
+              <MaterialCommunityIcons color="#ffffff" name="play" size={28} />
             </View>
             <View style={styles.linePanel}>
               <Text numberOfLines={1} style={styles.previewTime}>
@@ -125,7 +115,7 @@ export function ReferenceViewerModal({
           </View>
         </View>
 
-        <View style={styles.bottom}>
+        <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <ScrollView
             horizontal
             contentContainerStyle={styles.carousel}
@@ -188,8 +178,64 @@ export function ReferenceViewerModal({
             </Pressable>
           </View>
         </View>
-      </SafeAreaView>
+      </View>
     </Modal>
+  );
+}
+
+function ReferenceMedia({ cut }: { cut: ShootBoardCut }) {
+  if (isPlayableReferenceVideoSource(cut.referenceVideoUrl)) {
+    return (
+      <ReferenceVideoPlayer
+        key={`${cut.id}-${String(cut.referenceVideoUrl)}`}
+        source={cut.referenceVideoUrl}
+      />
+    );
+  }
+
+  if (cut.thumbnailUrl) {
+    return <Image source={{ uri: cut.thumbnailUrl }} style={styles.previewImage} />;
+  }
+
+  return (
+    <View style={styles.emptyPreview}>
+      <MaterialCommunityIcons
+        color="rgba(255,255,255,0.48)"
+        name="image-outline"
+        size={42}
+      />
+    </View>
+  );
+}
+
+function isPlayableReferenceVideoSource(
+  source: ShootBoardCut["referenceVideoUrl"],
+): source is string | number {
+  if (typeof source === "number") return true;
+  if (!source) return false;
+  return (
+    source.startsWith("file://") ||
+    source.startsWith("asset://") ||
+    /\.(m3u8|mov|mp4)(\?|$)/i.test(source)
+  );
+}
+
+function ReferenceVideoPlayer({ source }: { source: string | number }) {
+  const player = useVideoPlayer(source, (videoPlayer) => {
+    videoPlayer.loop = true;
+    videoPlayer.muted = true;
+    videoPlayer.play();
+  });
+
+  return (
+    <VideoView
+      allowsPictureInPicture={false}
+      contentFit="cover"
+      fullscreenOptions={{ enable: false }}
+      nativeControls={false}
+      player={player}
+      style={styles.previewImage}
+    />
   );
 }
 
@@ -282,13 +328,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     paddingHorizontal: 14,
-    paddingTop: 6,
+    zIndex: 10,
   },
   iconButton: {
     alignItems: "center",
-    height: 42,
+    backgroundColor: "rgba(2, 6, 23, 0.48)",
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 50,
     justifyContent: "center",
-    width: 42,
+    width: 50,
   },
   headerTitleWrap: {
     flex: 1,

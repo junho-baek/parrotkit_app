@@ -89,6 +89,7 @@ export type NativeRecipe = {
   thumbnail: string;
   savedAt: string;
   sourceUrl: string;
+  referenceVideoSource?: string | number;
   summary: string;
   niche: string;
   goal: string;
