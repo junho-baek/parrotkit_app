@@ -1,14 +1,17 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
-import { ComponentProps, type ReactNode, useEffect, useMemo, useState } from 'react';
+import { ComponentProps, useEffect, useMemo, useState } from 'react';
 import { Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppLanguage, type AppLanguage } from '@/core/i18n/app-language';
-import type { MockRecipe } from '@/core/mocks/parrotkit-data';
+import type { MockProjectTake, MockRecipe } from '@/core/mocks/parrotkit-data';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient } from '@/core/theme/colors';
+import { ShootBoardDraggableList } from '@/features/recipes/components/shoot-board-draggable-list';
+import { ShootBoardNoteCta } from '@/features/recipes/components/shoot-board-note-cta';
+import { ShootBoardStickyHeader } from '@/features/recipes/components/shoot-board-sticky-header';
 import { normalizeNativeRecipe } from '@/features/recipes/lib/recipe-domain-normalizer';
 import { getSceneCardSummary, getSceneStrategyMeta } from '@/features/recipes/lib/scene-strategy-meta';
 import {
@@ -16,9 +19,12 @@ import {
   createAddedShootBoardCut,
   createShootBoardRecipe,
   getRecipePrompterHref,
-  toggleShootBoardCutStatus,
+  reorderShootBoardCuts,
+  setShootBoardChecklistItem,
+  setShootBoardCutCompletion,
   type ShootBoardCut,
   type ShootBoardRecipe,
+  type ShootBoardTake,
 } from '@/features/recipes/lib/shoot-board-model';
 import { NativeRecipeScene } from '@/features/recipes/types/recipe-domain';
 
@@ -159,6 +165,7 @@ export function RecipeDetailScreen() {
   const {
     downloadRecipe,
     getRecipeById,
+    getSceneTakeCollection,
     isRecipeDownloaded,
   } = useMockWorkspace();
   const recipe = params.recipeId ? getRecipeById(params.recipeId) : null;
@@ -166,11 +173,10 @@ export function RecipeDetailScreen() {
 
   const [activeTab, setActiveTab] = useState<DetailTab>('recipe');
   const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null);
-  const [shotCutIds, setShotCutIds] = useState<string[]>([]);
-  const [addedCuts, setAddedCuts] = useState<ShootBoardCut[]>([]);
+  const [boardState, setBoardState] = useState<ShootBoardRecipe | null>(null);
   const [reorderMode, setReorderMode] = useState(false);
   const [expandedCutIds, setExpandedCutIds] = useState<string[]>([]);
-  const [checkedRequirementMap, setCheckedRequirementMap] = useState<Record<string, number[]>>({});
+  const recipeSaved = recipe ? isRecipeSaved(recipe, isRecipeDownloaded(recipe.id)) : false;
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -206,26 +212,27 @@ export function RecipeDetailScreen() {
   }, [nativeRecipe, params.sceneId, params.tab]);
 
   useEffect(() => {
-    setShotCutIds([]);
-    setAddedCuts([]);
-    setReorderMode(false);
-    setExpandedCutIds([]);
-    setCheckedRequirementMap({});
-  }, [nativeRecipe?.id]);
-
-  const recipeSaved = recipe ? isRecipeSaved(recipe, isRecipeDownloaded(recipe.id)) : false;
-  const shootBoard = useMemo(() => {
     if (!nativeRecipe) {
-      return null;
+      setBoardState(null);
+      return;
     }
 
-    const baseBoard = createShootBoardRecipe(nativeRecipe, {
+    setBoardState(createShootBoardRecipe(nativeRecipe, {
       isSaved: recipeSaved,
-      shotCutIds,
-    });
+      shotCutIds: [],
+    }));
+    setReorderMode(false);
+    setExpandedCutIds([]);
+  }, [nativeRecipe, recipeSaved]);
 
-    return addedCuts.reduce((board, cut) => appendShootBoardCut(board, cut), baseBoard);
-  }, [addedCuts, nativeRecipe, recipeSaved, shotCutIds]);
+  const shootBoard = boardState;
+  const renderedShootBoard = useMemo(() => {
+    if (!shootBoard || !nativeRecipe) {
+      return shootBoard;
+    }
+
+    return hydrateShootBoardWithWorkspaceTakes(shootBoard, nativeRecipe.id, getSceneTakeCollection);
+  }, [getSceneTakeCollection, nativeRecipe, shootBoard]);
 
   useEffect(() => {
     if (!shootBoard?.cuts.length) {
@@ -325,7 +332,7 @@ export function RecipeDetailScreen() {
       return;
     }
 
-    const targetSceneId = cut.sceneId ?? targetRecipe.scenes[0]?.id;
+    const targetSceneId = cut.sceneId;
 
     if (!targetSceneId) {
       return;
@@ -334,22 +341,32 @@ export function RecipeDetailScreen() {
     router.push(getRecipePrompterHref(targetRecipe.id, targetSceneId) as Href);
   };
 
-  const toggleCutStatus = (cutId: string) => {
-    if (!shootBoard) {
-      return;
-    }
+  const updateBoard = (updater: (board: ShootBoardRecipe) => ShootBoardRecipe) => {
+    setBoardState((current) => (current ? updater(current) : current));
+  };
 
-    const updatedBoard = toggleShootBoardCutStatus(shootBoard, cutId);
-    const updatedCut = updatedBoard.cuts.find((cut) => cut.id === cutId);
-    const nextCut = updatedCut?.isShot
-      ? updatedBoard.cuts.find((cut) => !cut.isShot) ?? updatedBoard.cuts[0]
-      : updatedCut;
+  const handleReorderCut = (cutId: string, targetOrder: number) => {
+    updateBoard((board) => reorderShootBoardCuts(board, cutId, targetOrder));
+  };
 
-    setShotCutIds(updatedBoard.cuts.filter((cut) => cut.isShot).map((cut) => cut.id));
+  const toggleSceneCompletion = (cutId: string, complete: boolean) => {
+    updateBoard((board) => {
+      const updatedBoard = setShootBoardCutCompletion(board, cutId, complete);
+      const updatedCut = updatedBoard.cuts.find((cut) => cut.id === cutId);
+      const nextCut = updatedCut?.isShot
+        ? updatedBoard.cuts.find((cut) => !cut.isShot) ?? updatedBoard.cuts[0]
+        : updatedCut;
 
-    if (nextCut) {
-      setExpandedCutIds([nextCut.id]);
-    }
+      if (nextCut) {
+        setExpandedCutIds([nextCut.id]);
+      }
+
+      return updatedBoard;
+    });
+  };
+
+  const toggleRequiredCheck = (cutId: string, checklistItemId: string, checked: boolean) => {
+    updateBoard((board) => setShootBoardChecklistItem(board, cutId, checklistItemId, checked));
   };
 
   const addCut = () => {
@@ -357,33 +374,21 @@ export function RecipeDetailScreen() {
       return;
     }
 
-    const newCut = createAddedShootBoardCut(
-      shootBoard,
-      language === 'ko' ? '새 촬영 지시를 추가하세요.' : 'Add a new filming cue.'
-    );
+    updateBoard((board) => {
+      const newCut = createAddedShootBoardCut(
+        board,
+        language === 'ko' ? '새 장면의 재사용 가능한 촬영 지시를 추가하세요.' : 'Add a reusable filming cue for this scene.'
+      );
 
-    setAddedCuts((current) => [...current, newCut]);
-    setExpandedCutIds([newCut.id]);
+      setExpandedCutIds([newCut.id]);
+      return appendShootBoardCut(board, newCut);
+    });
   };
 
   const toggleExpandedCut = (cutId: string) => {
     setExpandedCutIds((current) => (
       current.includes(cutId) ? current.filter((id) => id !== cutId) : [...current, cutId]
     ));
-  };
-
-  const toggleRequiredCheck = (cutId: string, checkIndex: number) => {
-    setCheckedRequirementMap((current) => {
-      const currentChecks = current[cutId] ?? [];
-      const nextChecks = currentChecks.includes(checkIndex)
-        ? currentChecks.filter((index) => index !== checkIndex)
-        : [...currentChecks, checkIndex];
-
-      return {
-        ...current,
-        [cutId]: nextChecks,
-      };
-    });
   };
 
   if (selectedScene) {
@@ -517,16 +522,14 @@ export function RecipeDetailScreen() {
     );
   }
 
-  if (!shootBoard) {
+  if (!renderedShootBoard) {
     return null;
   }
-
-  const nextCut = shootBoard.cuts.find((cut) => !cut.isShot) ?? shootBoard.cuts[0] ?? null;
 
   return (
     <View className="flex-1 bg-canvas">
       <CutBoardHeader
-        board={shootBoard}
+        board={renderedShootBoard}
         copy={boardCopy}
         language={language}
         onBack={handleBack}
@@ -539,40 +542,28 @@ export function RecipeDetailScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 112 }}
         contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[1]}
       >
-        <View className="gap-3 px-4 pb-4 pt-4">
-          <View className="flex-row items-center justify-between">
-            <Text style={styles.cutBoardSectionTitle}>{boardCopy.cutsBoard}</Text>
-            <Pressable
-              accessibilityRole="button"
-              className="flex-row items-center gap-1.5 rounded-full px-2 py-1"
-              onPress={() => setReorderMode((current) => !current)}
-            >
-              <MaterialCommunityIcons color="#64748b" name={reorderMode ? 'check' : 'swap-vertical'} size={17} />
-              <Text className="text-[13px] font-black text-muted">{reorderMode ? boardCopy.done : boardCopy.reorder}</Text>
-            </Pressable>
-          </View>
-
-          <View className="gap-3">
-            {shootBoard.cuts.map((cut) => (
-              <CutBoardCard
-                active={cut.id === nextCut?.id}
-                checkedRequirementIndexes={checkedRequirementMap[cut.id] ?? []}
-                copy={boardCopy}
-                cut={cut}
-                expanded={expandedCutIds.includes(cut.id)}
-                key={cut.id}
-                language={language}
-                onMore={() => setReorderMode((current) => !current)}
-                onPreview={() => openCutWorkspace(cut, 'analysis')}
-                onShoot={() => openPrompterForCut(cut)}
-                onToggleExpanded={() => toggleExpandedCut(cut.id)}
-                onToggleRequiredCheck={(index) => toggleRequiredCheck(cut.id, index)}
-                onToggleShot={() => toggleCutStatus(cut.id)}
-                reorderMode={reorderMode}
-              />
-            ))}
-          </View>
+        <ShootBoardNoteCta language={language} />
+        <ShootBoardStickyHeader
+          language={language}
+          onToggleReorder={() => setReorderMode((current) => !current)}
+          reorderMode={reorderMode}
+        />
+        <View className="px-4 pb-4 pt-3">
+          <ShootBoardDraggableList
+            cuts={renderedShootBoard.cuts}
+            expandedCutIds={expandedCutIds}
+            language={language}
+            onPreview={(cut) => openCutWorkspace(cut, 'analysis')}
+            onReorder={handleReorderCut}
+            onResult={(cut) => openCutWorkspace(cut, 'shoot')}
+            onShoot={(cut) => openPrompterForCut(cut)}
+            onToggleExpanded={toggleExpandedCut}
+            onToggleRequiredCheck={toggleRequiredCheck}
+            onToggleSceneComplete={toggleSceneCompletion}
+            reorderMode={reorderMode}
+          />
         </View>
       </ScrollView>
 
@@ -622,164 +613,6 @@ function CutBoardHeader({
       <Pressable accessibilityLabel={copy.more} accessibilityRole="button" onPress={onMore} style={styles.cutBoardMoreButton}>
         <MaterialCommunityIcons color="#111827" name="dots-horizontal" size={24} />
       </Pressable>
-    </View>
-  );
-}
-
-function CutBoardCard({
-  active,
-  checkedRequirementIndexes,
-  copy,
-  cut,
-  expanded,
-  language,
-  onMore,
-  onPreview,
-  onShoot,
-  onToggleExpanded,
-  onToggleRequiredCheck,
-  onToggleShot,
-  reorderMode,
-}: {
-  active: boolean;
-  checkedRequirementIndexes: number[];
-  copy: ShootBoardCopy;
-  cut: ShootBoardCut;
-  expanded: boolean;
-  language: AppLanguage;
-  onMore: () => void;
-  onPreview: () => void;
-  onShoot: () => void;
-  onToggleExpanded: () => void;
-  onToggleRequiredCheck: (index: number) => void;
-  onToggleShot: () => void;
-  reorderMode: boolean;
-}) {
-  const accent = getShootBoardAccent(cut.role);
-  const instruction = getLocalizedCutInstruction(language, cut);
-  const speakingLine = getLocalizedCutSpeakingLine(language, cut);
-  const shootingDirections = getLocalizedCutDirections(language, cut);
-  const requiredChecks = getLocalizedCutChecks(language, cut);
-
-  return (
-    <View
-      style={[
-        styles.v2CutCard,
-        active && { borderColor: accent.border },
-        expanded && styles.v2CutCardExpanded,
-        cut.isShot && styles.v2CutCardComplete,
-      ]}
-    >
-      <View className="flex-row items-start gap-2">
-        <View style={styles.v2DragHandle}>
-          <MaterialCommunityIcons color={reorderMode ? accent.main : '#94a3b8'} name="drag-vertical" size={22} />
-        </View>
-
-        <Pressable
-          accessibilityRole="button"
-          className="mt-0.5 h-8 w-8 items-center justify-center rounded-full"
-          onPress={onToggleExpanded}
-        >
-          <MaterialCommunityIcons color="#111827" name={expanded ? 'chevron-down' : 'chevron-right'} size={22} />
-        </Pressable>
-
-        <Pressable accessibilityRole="button" className="min-w-0 flex-1" onPress={onToggleExpanded}>
-          <View className="flex-row flex-wrap items-center gap-1.5">
-            <Text style={[styles.v2CutNumber, { color: accent.main }]}>#{cut.order}</Text>
-            <Text className="text-[14px] font-black text-ink">{cut.roleLabel}</Text>
-            <Text className="text-[14px] font-black text-muted">·</Text>
-            <Text className="text-[13px] font-black text-muted">{formatCutDuration(language, cut.durationSeconds)}</Text>
-          </View>
-          <Text className="mt-1 text-[13px] font-semibold leading-5 text-ink" numberOfLines={expanded ? 3 : 1}>
-            {instruction}
-          </Text>
-        </Pressable>
-
-        <Pressable
-          accessibilityLabel={cut.isShot ? copy.shootComplete : copy.shootIncomplete}
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: cut.isShot }}
-          onPress={onToggleShot}
-          style={[styles.v2ShotCircle, cut.isShot && { backgroundColor: accent.main, borderColor: accent.main }]}
-        >
-          {cut.isShot ? <MaterialCommunityIcons color="#fff" name="check" size={16} /> : null}
-        </Pressable>
-      </View>
-
-      {expanded ? (
-        <View style={styles.v2ExpandedBody}>
-          <CutBoardDetailBlock title={copy.speakingLine}>
-            <Text className="text-[13px] font-semibold leading-5 text-ink">“{speakingLine}”</Text>
-          </CutBoardDetailBlock>
-
-          <CutBoardDetailBlock title={copy.shootingDirections}>
-            <View className="gap-1.5">
-              {shootingDirections.map((line, index) => (
-                <View className="flex-row gap-2" key={`${cut.id}-direction-${index}`}>
-                  <Text className="text-[12px] font-black text-ink">•</Text>
-                  <Text className="min-w-0 flex-1 text-[13px] font-semibold leading-5 text-ink">{line}</Text>
-                </View>
-              ))}
-            </View>
-          </CutBoardDetailBlock>
-
-          <CutBoardDetailBlock title={copy.requiredChecks}>
-            <View className="gap-2">
-              {requiredChecks.map((line, index) => {
-                const checked = checkedRequirementIndexes.includes(index);
-
-                return (
-                  <Pressable
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked }}
-                    className="flex-row items-center gap-2"
-                    key={`${cut.id}-check-${index}`}
-                    onPress={() => onToggleRequiredCheck(index)}
-                  >
-                    <View style={[styles.v2RequiredCheckBox, checked && { backgroundColor: accent.main, borderColor: accent.main }]}>
-                      {checked ? <MaterialCommunityIcons color="#fff" name="check" size={13} /> : null}
-                    </View>
-                    <Text className="min-w-0 flex-1 text-[13px] font-semibold leading-5 text-ink">{line}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </CutBoardDetailBlock>
-
-          <View className="mt-1 flex-row items-center gap-2">
-            <Pressable accessibilityRole="button" onPress={onPreview} style={styles.v2PreviewButton}>
-              <MaterialCommunityIcons color="#111827" name="play-outline" size={17} />
-              <Text className="text-[13px] font-black text-ink">{copy.preview}</Text>
-            </Pressable>
-
-            <Pressable accessibilityRole="button" onPress={onShoot} style={styles.v2ShootButtonWrap}>
-              <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.v2ShootButton}>
-                <MaterialCommunityIcons color="#fff" name="video-outline" size={17} />
-                <Text className="text-[13px] font-black text-white">{copy.shoot}</Text>
-              </LinearGradient>
-            </Pressable>
-
-            <Pressable accessibilityLabel={copy.more} accessibilityRole="button" onPress={onMore} style={styles.v2CardMoreButton}>
-              <MaterialCommunityIcons color="#111827" name="dots-horizontal" size={21} />
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function CutBoardDetailBlock({
-  children,
-  title,
-}: {
-  children: ReactNode;
-  title: string;
-}) {
-  return (
-    <View className="gap-2">
-      <Text className="text-[12px] font-black text-ink">{title}</Text>
-      {children}
     </View>
   );
 }
@@ -1188,28 +1021,60 @@ function formatShootBoardMeta(language: AppLanguage, board: ShootBoardRecipe) {
   return `${board.totalCuts} cuts · ${board.totalDurationSeconds}s · ${board.shotCount} / ${board.totalCuts} shot`;
 }
 
-function formatCutDuration(language: AppLanguage, durationSeconds: number) {
-  return language === 'ko' ? `${durationSeconds}초` : `${durationSeconds}s`;
-}
+function hydrateShootBoardWithWorkspaceTakes(
+  board: ShootBoardRecipe,
+  recipeId: string,
+  getSceneTakeCollection: ReturnType<typeof useMockWorkspace>['getSceneTakeCollection']
+): ShootBoardRecipe {
+  let foundWorkspaceTakes = false;
+  const cuts = board.cuts.map((cut) => {
+    if (!cut.sceneId) return cut;
 
-function getLocalizedCutInstruction(language: AppLanguage, cut: ShootBoardCut) {
-  return language === 'ko' ? cut.instructionKo ?? cut.instruction : cut.instruction;
-}
+    const collection = getSceneTakeCollection(recipeId, cut.sceneId);
+    if (!collection.takes.length) return cut;
 
-function getLocalizedCutSpeakingLine(language: AppLanguage, cut: ShootBoardCut) {
-  if (language === 'ko') {
-    return cut.speakingLineKo ?? cut.prompterLine ?? cut.speakingLine;
+    foundWorkspaceTakes = true;
+    const finalTakeId = collection.bestTakeId ?? collection.takes[0]?.id;
+    const requiredChecklist = cut.requiredChecklist.map((item) => ({
+      ...item,
+      checked: true,
+    }));
+
+    return {
+      ...cut,
+      finalTakeId,
+      isShot: true,
+      requiredChecklist,
+      requiredChecks: requiredChecklist.map((item) => item.label),
+      requiredChecksKo: requiredChecklist.map((item) => item.labelKo),
+      takeStatus: finalTakeId ? 'final' as const : 'saved' as const,
+      takes: collection.takes.map((take) => mapWorkspaceTakeToBoardTake(take, cut, finalTakeId)),
+    };
+  });
+
+  if (!foundWorkspaceTakes) {
+    return board;
   }
 
-  return cut.speakingLine;
+  return {
+    ...board,
+    cuts,
+    shotCount: cuts.filter((cut) => cut.isShot).length,
+  };
 }
 
-function getLocalizedCutDirections(language: AppLanguage, cut: ShootBoardCut) {
-  return language === 'ko' ? cut.shootingDirectionsKo ?? cut.shootingDirections : cut.shootingDirections;
-}
-
-function getLocalizedCutChecks(language: AppLanguage, cut: ShootBoardCut) {
-  return language === 'ko' ? cut.requiredChecksKo ?? cut.requiredChecks : cut.requiredChecks;
+function mapWorkspaceTakeToBoardTake(
+  take: MockProjectTake,
+  cut: ShootBoardCut,
+  finalTakeId?: string
+): ShootBoardTake {
+  return {
+    durationSeconds: cut.durationSeconds,
+    id: take.id,
+    label: take.label,
+    recordedAtLabel: take.createdAt,
+    status: take.id === finalTakeId ? 'final' : 'saved',
+  };
 }
 
 function isRecipeSaved(recipe: MockRecipe, downloadedFromExplore: boolean) {
@@ -1399,51 +1264,6 @@ function getProductCue(language: AppLanguage, sceneIndex: number) {
   return sceneIndex === 0 ? 'Keep hidden' : 'Bring into frame';
 }
 
-function getShootBoardAccent(role: ShootBoardCut['role']) {
-  if (role === 'proof') {
-    return {
-      border: '#fb923c',
-      main: '#f97316',
-      soft: '#fff7ed',
-      tint: '#fff3e7',
-    };
-  }
-
-  if (role === 'cta') {
-    return {
-      border: '#a78bfa',
-      main: '#8b5cf6',
-      soft: '#f5f3ff',
-      tint: '#f3efff',
-    };
-  }
-
-  if (role === 'scene') {
-    return {
-      border: '#93c5fd',
-      main: '#6366f1',
-      soft: '#eef2ff',
-      tint: '#eef4ff',
-    };
-  }
-
-  if (role === 'custom') {
-    return {
-      border: '#94a3b8',
-      main: '#64748b',
-      soft: '#f8fafc',
-      tint: '#f8fafc',
-    };
-  }
-
-  return {
-    border: '#fb7185',
-    main: '#ff4f73',
-    soft: '#fff1f4',
-    tint: '#fff3f6',
-  };
-}
-
 function getStructureColor(index: number) {
   const colors = ['#fb7185', '#fb923c', '#8b5cf6', '#38bdf8'];
   return colors[index % colors.length];
@@ -1480,59 +1300,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 42,
   },
-  cutBoardSectionTitle: {
-    color: '#111827',
-    fontSize: 18,
-    fontWeight: '900',
-    letterSpacing: 0.2,
-  },
-  v2CardMoreButton: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    borderWidth: 1,
-    height: 42,
-    justifyContent: 'center',
-    width: 46,
-  },
-  v2CutCard: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.035,
-    shadowRadius: 14,
-  },
-  v2CutCardComplete: {
-    backgroundColor: '#fbfdff',
-  },
-  v2CutCardExpanded: {
-    paddingBottom: 14,
-  },
-  v2CutNumber: {
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  v2DragHandle: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: -5,
-    marginTop: 3,
-    width: 17,
-  },
-  v2ExpandedBody: {
-    borderTopColor: '#e2e8f0',
-    borderTopWidth: 1,
-    gap: 14,
-    marginLeft: 41,
-    marginTop: 12,
-    paddingTop: 13,
-  },
   v2FloatingAddButton: {
     alignItems: 'center',
     backgroundColor: '#111827',
@@ -1547,53 +1314,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.2,
     shadowRadius: 22,
-  },
-  v2PreviewButton: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    borderWidth: 1,
-    flex: 1,
-    flexDirection: 'row',
-    gap: 6,
-    justifyContent: 'center',
-    minHeight: 42,
-  },
-  v2RequiredCheckBox: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#cbd5e1',
-    borderRadius: 5,
-    borderWidth: 1.3,
-    height: 18,
-    justifyContent: 'center',
-    width: 18,
-  },
-  v2ShootButton: {
-    alignItems: 'center',
-    borderRadius: 12,
-    flexDirection: 'row',
-    gap: 6,
-    justifyContent: 'center',
-    minHeight: 42,
-    paddingHorizontal: 10,
-  },
-  v2ShootButtonWrap: {
-    borderRadius: 12,
-    flex: 1,
-    overflow: 'hidden',
-  },
-  v2ShotCircle: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#94a3b8',
-    borderRadius: 999,
-    borderWidth: 1.5,
-    height: 24,
-    justifyContent: 'center',
-    marginTop: 4,
-    width: 24,
   },
   hero: {
     minHeight: 365,
