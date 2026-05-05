@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
-import { ComponentProps, useEffect, useMemo, useState } from 'react';
+import { ComponentProps, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -19,12 +19,15 @@ import {
   createAddedShootBoardCut,
   createShootBoardRecipe,
   getRecipePrompterHref,
-  reorderShootBoardCuts,
+  moveShootBoardCut,
+  resetShootBoardCut,
   setShootBoardChecklistItem,
   setShootBoardCutCompletion,
   type ShootBoardCut,
+  type ShootBoardCutTextPatch,
   type ShootBoardRecipe,
   type ShootBoardTake,
+  updateShootBoardCutText,
 } from '@/features/recipes/lib/shoot-board-model';
 import { NativeRecipeScene } from '@/features/recipes/types/recipe-domain';
 
@@ -175,7 +178,9 @@ export function RecipeDetailScreen() {
   const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null);
   const [boardState, setBoardState] = useState<ShootBoardRecipe | null>(null);
   const [reorderMode, setReorderMode] = useState(false);
+  const [boardDragActive, setBoardDragActive] = useState(false);
   const [expandedCutIds, setExpandedCutIds] = useState<string[]>([]);
+  const originalCutSnapshotsRef = useRef<Record<string, ShootBoardCut>>({});
   const recipeSaved = recipe ? isRecipeSaved(recipe, isRecipeDownloaded(recipe.id)) : false;
 
   const handleBack = () => {
@@ -217,11 +222,15 @@ export function RecipeDetailScreen() {
       return;
     }
 
-    setBoardState(createShootBoardRecipe(nativeRecipe, {
+    const nextBoard = createShootBoardRecipe(nativeRecipe, {
       isSaved: recipeSaved,
       shotCutIds: [],
-    }));
+    });
+
+    originalCutSnapshotsRef.current = Object.fromEntries(nextBoard.cuts.map((cut) => [cut.id, cut]));
+    setBoardState(nextBoard);
     setReorderMode(false);
+    setBoardDragActive(false);
     setExpandedCutIds([]);
   }, [nativeRecipe, recipeSaved]);
 
@@ -345,8 +354,8 @@ export function RecipeDetailScreen() {
     setBoardState((current) => (current ? updater(current) : current));
   };
 
-  const handleReorderCut = (cutId: string, targetOrder: number) => {
-    updateBoard((board) => reorderShootBoardCuts(board, cutId, targetOrder));
+  const handleMoveCut = (cutId: string, direction: -1 | 1) => {
+    updateBoard((board) => moveShootBoardCut(board, cutId, direction));
   };
 
   const toggleSceneCompletion = (cutId: string, complete: boolean) => {
@@ -369,6 +378,17 @@ export function RecipeDetailScreen() {
     updateBoard((board) => setShootBoardChecklistItem(board, cutId, checklistItemId, checked));
   };
 
+  const updateCutText = (cutId: string, patch: ShootBoardCutTextPatch) => {
+    updateBoard((board) => updateShootBoardCutText(board, cutId, patch));
+  };
+
+  const resetCutText = (cutId: string) => {
+    updateBoard((board) => {
+      const originalCut = originalCutSnapshotsRef.current[cutId];
+      return originalCut ? resetShootBoardCut(board, originalCut) : board;
+    });
+  };
+
   const addCut = () => {
     if (!shootBoard) {
       return;
@@ -380,6 +400,7 @@ export function RecipeDetailScreen() {
         language === 'ko' ? '새 장면의 재사용 가능한 촬영 지시를 추가하세요.' : 'Add a reusable filming cue for this scene.'
       );
 
+      originalCutSnapshotsRef.current[newCut.id] = newCut;
       setExpandedCutIds([newCut.id]);
       return appendShootBoardCut(board, newCut);
     });
@@ -541,6 +562,7 @@ export function RecipeDetailScreen() {
         className="flex-1"
         contentContainerStyle={{ paddingBottom: insets.bottom + 112 }}
         contentInsetAdjustmentBehavior="never"
+        scrollEnabled={!boardDragActive}
         showsVerticalScrollIndicator={false}
         stickyHeaderIndices={[1]}
       >
@@ -555,13 +577,16 @@ export function RecipeDetailScreen() {
             cuts={renderedShootBoard.cuts}
             expandedCutIds={expandedCutIds}
             language={language}
+            onDragStateChange={setBoardDragActive}
+            onMoveCut={handleMoveCut}
             onPreview={(cut) => openCutWorkspace(cut, 'analysis')}
-            onReorder={handleReorderCut}
+            onResetCut={resetCutText}
             onResult={(cut) => openCutWorkspace(cut, 'shoot')}
             onShoot={(cut) => openPrompterForCut(cut)}
             onToggleExpanded={toggleExpandedCut}
             onToggleRequiredCheck={toggleRequiredCheck}
             onToggleSceneComplete={toggleSceneCompletion}
+            onUpdateCutText={updateCutText}
             reorderMode={reorderMode}
           />
         </View>

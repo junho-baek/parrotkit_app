@@ -83,6 +83,20 @@ export type ShootBoardRecipe = {
   cuts: ShootBoardCut[];
 };
 
+export type ShootBoardCutTextPatch = {
+  instruction?: string;
+  instructionKo?: string;
+  requiredChecklist?: Array<{
+    id: string;
+    label?: string;
+    labelKo?: string;
+  }>;
+  shootingGuideline?: string;
+  shootingGuidelineKo?: string;
+  speakingLine?: string;
+  speakingLineKo?: string;
+};
+
 type CreateShootBoardRecipeOptions = {
   isSaved?: boolean;
   shotCutIds?: string[];
@@ -470,10 +484,11 @@ export function reorderShootBoardCuts(
   cutId: string,
   targetOrder: number
 ): ShootBoardRecipe {
-  const currentIndex = board.cuts.findIndex((cut) => cut.id === cutId);
+  const orderedCuts = [...board.cuts].sort((a, b) => a.order - b.order);
+  const currentIndex = orderedCuts.findIndex((cut) => cut.id === cutId);
   if (currentIndex < 0) return board;
 
-  const nextCuts = [...board.cuts];
+  const nextCuts = [...orderedCuts];
   const [movedCut] = nextCuts.splice(currentIndex, 1);
   const targetIndex = Math.min(Math.max(targetOrder - 1, 0), nextCuts.length);
   nextCuts.splice(targetIndex, 0, movedCut);
@@ -482,6 +497,96 @@ export function reorderShootBoardCuts(
     board,
     nextCuts.map((cut, index) => renumberShootBoardCut(cut, index + 1))
   );
+}
+
+export function moveShootBoardCut(
+  board: ShootBoardRecipe,
+  cutId: string,
+  direction: -1 | 1
+): ShootBoardRecipe {
+  const orderedCuts = [...board.cuts].sort((a, b) => a.order - b.order);
+  const currentIndex = orderedCuts.findIndex((cut) => cut.id === cutId);
+  if (currentIndex < 0) return board;
+
+  const targetOrder = currentIndex + 1 + direction;
+  if (targetOrder < 1 || targetOrder > orderedCuts.length) return board;
+
+  return reorderShootBoardCuts(board, cutId, targetOrder);
+}
+
+export function updateShootBoardCutText(
+  board: ShootBoardRecipe,
+  cutId: string,
+  patch: ShootBoardCutTextPatch
+): ShootBoardRecipe {
+  const cuts = board.cuts.map((cut) => {
+    if (cut.id !== cutId) return cut;
+
+    const requiredChecklist = patch.requiredChecklist
+      ? cut.requiredChecklist.map((item) => {
+          const itemPatch = patch.requiredChecklist?.find((nextItem) => nextItem.id === item.id);
+          if (!itemPatch) return item;
+
+          return {
+            ...item,
+            label: itemPatch.label ?? item.label,
+            labelKo: itemPatch.labelKo ?? item.labelKo,
+          };
+        })
+      : cut.requiredChecklist;
+
+    return syncLegacyChecks({
+      ...cut,
+      instruction: patch.instruction ?? cut.instruction,
+      instructionKo: patch.instructionKo ?? cut.instructionKo,
+      prompterLine: patch.speakingLineKo ?? cut.prompterLine,
+      requiredChecklist,
+      shootingGuideline: patch.shootingGuideline ?? cut.shootingGuideline,
+      shootingGuidelineKo: patch.shootingGuidelineKo ?? cut.shootingGuidelineKo,
+      speakingLine: patch.speakingLine ?? cut.speakingLine,
+      speakingLineKo: patch.speakingLineKo ?? cut.speakingLineKo,
+    });
+  });
+
+  return updateBoardCuts(board, cuts);
+}
+
+export function resetShootBoardCut(
+  board: ShootBoardRecipe,
+  originalCut: ShootBoardCut
+): ShootBoardRecipe {
+  const cuts = board.cuts.map((cut) => {
+    if (cut.id !== originalCut.id) return cut;
+
+    const requiredChecklist = cut.requiredChecklist.map((item, index) => {
+      const originalItem = originalCut.requiredChecklist.find((nextItem) => nextItem.id === item.id)
+        ?? originalCut.requiredChecklist[index];
+
+      return originalItem
+        ? {
+            ...item,
+            label: originalItem.label,
+            labelKo: originalItem.labelKo,
+          }
+        : item;
+    });
+
+    return syncLegacyChecks({
+      ...cut,
+      instruction: originalCut.instruction,
+      instructionKo: originalCut.instructionKo,
+      prompterLine: originalCut.prompterLine,
+      requiredChecklist,
+      shootingGuideline: originalCut.shootingGuideline,
+      shootingGuidelineKo: originalCut.shootingGuidelineKo,
+      speakingLine: originalCut.speakingLine,
+      speakingLineKo: originalCut.speakingLineKo,
+      templateLine: originalCut.templateLine,
+      templateLineKo: originalCut.templateLineKo,
+    });
+  });
+
+  return updateBoardCuts(board, cuts);
 }
 
 export function toggleShootBoardCutStatus(board: ShootBoardRecipe, cutId: string): ShootBoardRecipe {

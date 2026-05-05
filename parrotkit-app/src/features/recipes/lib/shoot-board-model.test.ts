@@ -7,11 +7,14 @@ import {
   getRecipePrompterHref,
   getShootBoardCutCompletionState,
   getShootBoardHref,
+  moveShootBoardCut,
   reorderShootBoardCuts,
+  resetShootBoardCut,
   selectShootBoardFinalTake,
   setShootBoardChecklistItem,
   setShootBoardCutCompletion,
   toggleShootBoardCutStatus,
+  updateShootBoardCutText,
 } from '@/features/recipes/lib/shoot-board-model';
 
 const sourceRecipe = normalizeNativeRecipe(
@@ -91,6 +94,16 @@ if (reorderedBoard.cuts[0]?.takes !== fourthCutTakes) {
   throw new Error('Reordering should keep saved takes attached to the moved scene by reference.');
 }
 
+const movedDownBoard = moveShootBoardCut(board, board.cuts[0].id, 1);
+if (movedDownBoard.cuts[1]?.id !== board.cuts[0].id || movedDownBoard.cuts[1]?.title !== 'Scene #2: Hook') {
+  throw new Error('Moving a scene down should change its position and recalculate the scene number.');
+}
+
+const movedBackUpBoard = moveShootBoardCut(movedDownBoard, board.cuts[0].id, -1);
+if (movedBackUpBoard.cuts[0]?.id !== board.cuts[0].id || movedBackUpBoard.cuts[0]?.title !== 'Scene #1: Hook') {
+  throw new Error('Moving a scene up should change its position and recalculate the scene number.');
+}
+
 const afterFirstShot = toggleShootBoardCutStatus(board, board.cuts[0].id);
 
 if (afterFirstShot.shotCount !== 1 || afterFirstShot.cuts[0]?.isShot !== true) {
@@ -112,6 +125,41 @@ if (addedCut.order !== 5 || addedCut.role !== 'custom' || addedCut.instruction !
 const boardWithAddedCut = appendShootBoardCut(board, addedCut);
 if (boardWithAddedCut.summary.estimatedLengthSeconds !== boardWithAddedCut.totalDurationSeconds) {
   throw new Error('Summary estimated length should stay in sync after adding scenes.');
+}
+
+const editedBoard = updateShootBoardCutText(board, board.cuts[0].id, {
+  instruction: 'Edited instruction',
+  instructionKo: '수정된 지시',
+  requiredChecklist: [
+    {
+      id: board.cuts[0].requiredChecklist[0].id,
+      label: 'Edited checklist item',
+      labelKo: '수정된 체크 항목',
+    },
+  ],
+  shootingGuideline: 'Edited shooting guideline',
+  shootingGuidelineKo: '수정된 촬영 가이드',
+  speakingLine: 'Edited line to say',
+  speakingLineKo: '수정된 말할 문장',
+});
+
+if (
+  editedBoard.cuts[0]?.instruction !== 'Edited instruction'
+  || editedBoard.cuts[0]?.speakingLine !== 'Edited line to say'
+  || editedBoard.cuts[0]?.shootingGuideline !== 'Edited shooting guideline'
+  || editedBoard.cuts[0]?.requiredChecklist[0]?.label !== 'Edited checklist item'
+) {
+  throw new Error('Editing a scene should update the detailed card text.');
+}
+
+const resetBoard = resetShootBoardCut(editedBoard, board.cuts[0]);
+if (
+  resetBoard.cuts[0]?.instruction !== board.cuts[0].instruction
+  || resetBoard.cuts[0]?.speakingLine !== board.cuts[0].speakingLine
+  || resetBoard.cuts[0]?.shootingGuideline !== board.cuts[0].shootingGuideline
+  || resetBoard.cuts[0]?.requiredChecklist[0]?.label !== board.cuts[0].requiredChecklist[0].label
+) {
+  throw new Error('Resetting a scene should restore that card text from its original snapshot.');
 }
 
 if (getShootBoardHref(board.id) !== '/recipe/recipe-korean-diet-hook') {

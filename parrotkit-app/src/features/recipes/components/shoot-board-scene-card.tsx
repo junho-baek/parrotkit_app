@@ -4,6 +4,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   type GestureResponderHandlers,
   View,
 } from 'react-native';
@@ -13,6 +14,7 @@ import { brandActionGradient } from '@/core/theme/colors';
 import {
   getShootBoardCutCompletionState,
   type ShootBoardCut,
+  type ShootBoardCutTextPatch,
 } from '@/features/recipes/lib/shoot-board-model';
 
 export function ShootBoardSceneCard({
@@ -21,11 +23,13 @@ export function ShootBoardSceneCard({
   expanded,
   language,
   onPreview,
+  onReset,
   onResult,
   onShoot,
   onToggleExpanded,
   onToggleRequiredCheck,
   onToggleSceneComplete,
+  onUpdateText,
   reorderMode,
 }: {
   cut: ShootBoardCut;
@@ -33,11 +37,13 @@ export function ShootBoardSceneCard({
   expanded: boolean;
   language: AppLanguage;
   onPreview: () => void;
+  onReset: () => void;
   onResult: () => void;
   onShoot: () => void;
   onToggleExpanded: () => void;
   onToggleRequiredCheck: (checklistItemId: string, checked: boolean) => void;
   onToggleSceneComplete: (complete: boolean) => void;
+  onUpdateText: (patch: ShootBoardCutTextPatch) => void;
   reorderMode: boolean;
 }) {
   const completionState = getShootBoardCutCompletionState(cut);
@@ -92,32 +98,63 @@ export function ShootBoardSceneCard({
 
       {expanded ? (
         <View style={styles.expandedBody}>
-          <DetailBlock
+          <View className="flex-row items-center justify-between gap-3">
+            <Text className="text-[12px] font-black uppercase tracking-[1.6px] text-muted">
+              {language === 'ko' ? '텍스트 수정' : 'Edit text'}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              className="flex-row items-center gap-1 rounded-full border border-stroke bg-white px-3 py-1.5"
+              onPress={onReset}
+            >
+              <MaterialCommunityIcons color="#64748b" name="restore" size={14} />
+              <Text className="text-[11px] font-black text-muted">
+                {language === 'ko' ? '원래대로' : 'Reset'}
+              </Text>
+            </Pressable>
+          </View>
+
+          <DetailInput
+            title={language === 'ko' ? '장면 지시' : 'Instruction'}
+            value={language === 'ko' ? cut.instructionKo : cut.instruction}
+            onChangeText={(value) => onUpdateText(language === 'ko' ? { instructionKo: value } : { instruction: value })}
+          />
+          <DetailInput
             title="Line to say"
             value={getLineToSay(language, cut)}
+            onChangeText={(value) => onUpdateText(language === 'ko' ? { speakingLineKo: value } : { speakingLine: value })}
           />
-          <DetailBlock
+          <DetailInput
             title={language === 'ko' ? '촬영 가이드' : 'Shooting guideline'}
             value={language === 'ko' ? cut.shootingGuidelineKo : cut.shootingGuideline}
+            onChangeText={(value) => onUpdateText(language === 'ko' ? { shootingGuidelineKo: value } : { shootingGuideline: value })}
           />
 
           <View className="gap-2">
             <Text className="text-[12px] font-black text-ink">{language === 'ko' ? '필수 체크' : 'Required checklist'}</Text>
             {cut.requiredChecklist.map((item) => (
-              <Pressable
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: item.checked }}
-                className="flex-row items-center gap-2"
-                key={item.id}
-                onPress={() => onToggleRequiredCheck(item.id, !item.checked)}
-              >
-                <View style={[styles.checkBox, item.checked && { backgroundColor: accent.main, borderColor: accent.main }]}>
+              <View className="flex-row items-center gap-2" key={item.id}>
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: item.checked }}
+                  onPress={() => onToggleRequiredCheck(item.id, !item.checked)}
+                  style={[styles.checkBox, item.checked && { backgroundColor: accent.main, borderColor: accent.main }]}
+                >
                   {item.checked ? <MaterialCommunityIcons color="#fff" name="check" size={13} /> : null}
-                </View>
-                <Text className="min-w-0 flex-1 text-[13px] font-semibold leading-5 text-ink">
-                  {language === 'ko' ? item.labelKo : item.label}
-                </Text>
-              </Pressable>
+                </Pressable>
+                <TextInput
+                  multiline
+                  onChangeText={(value) => onUpdateText({
+                    requiredChecklist: [
+                      language === 'ko'
+                        ? { id: item.id, labelKo: value }
+                        : { id: item.id, label: value },
+                    ],
+                  })}
+                  style={styles.inlineInput}
+                  value={language === 'ko' ? item.labelKo : item.label}
+                />
+              </View>
             ))}
           </View>
 
@@ -151,11 +188,24 @@ export function ShootBoardSceneCard({
   );
 }
 
-function DetailBlock({ title, value }: { title: string; value: string }) {
+function DetailInput({
+  onChangeText,
+  title,
+  value,
+}: {
+  onChangeText: (value: string) => void;
+  title: string;
+  value: string;
+}) {
   return (
     <View className="gap-1.5">
       <Text className="text-[12px] font-black text-ink">{title}</Text>
-      <Text className="text-[13px] font-semibold leading-5 text-ink">{value}</Text>
+      <TextInput
+        multiline
+        onChangeText={onChangeText}
+        style={styles.detailInput}
+        value={value}
+      />
     </View>
   );
 }
@@ -235,8 +285,33 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 13,
   },
+  detailInput: {
+    borderBottomColor: '#e2e8f0',
+    borderBottomWidth: 1,
+    color: '#111827',
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 20,
+    minHeight: 30,
+    paddingBottom: 7,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+  },
   finalCard: {
     shadowOpacity: 0.08,
+  },
+  inlineInput: {
+    borderBottomColor: '#e2e8f0',
+    borderBottomWidth: 1,
+    color: '#111827',
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 20,
+    minHeight: 26,
+    paddingBottom: 5,
+    paddingHorizontal: 0,
+    paddingTop: 0,
   },
   partialDash: {
     borderRadius: 999,

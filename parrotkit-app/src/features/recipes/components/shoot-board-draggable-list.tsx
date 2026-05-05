@@ -3,7 +3,7 @@ import { PanResponder, type LayoutChangeEvent, View } from 'react-native';
 
 import type { AppLanguage } from '@/core/i18n/app-language';
 import { ShootBoardSceneCard } from '@/features/recipes/components/shoot-board-scene-card';
-import type { ShootBoardCut } from '@/features/recipes/lib/shoot-board-model';
+import type { ShootBoardCut, ShootBoardCutTextPatch } from '@/features/recipes/lib/shoot-board-model';
 
 type RowLayout = {
   height: number;
@@ -14,29 +14,35 @@ export function ShootBoardDraggableList({
   cuts,
   expandedCutIds,
   language,
+  onDragStateChange,
+  onMoveCut,
   onPreview,
-  onReorder,
+  onResetCut,
   onResult,
   onShoot,
   onToggleExpanded,
   onToggleRequiredCheck,
   onToggleSceneComplete,
+  onUpdateCutText,
   reorderMode,
 }: {
   cuts: ShootBoardCut[];
   expandedCutIds: string[];
   language: AppLanguage;
+  onDragStateChange?: (dragging: boolean) => void;
+  onMoveCut: (cutId: string, direction: -1 | 1) => void;
   onPreview: (cut: ShootBoardCut) => void;
-  onReorder: (cutId: string, targetOrder: number) => void;
+  onResetCut: (cutId: string) => void;
   onResult: (cut: ShootBoardCut) => void;
   onShoot: (cut: ShootBoardCut) => void;
   onToggleExpanded: (cutId: string) => void;
   onToggleRequiredCheck: (cutId: string, checklistItemId: string, checked: boolean) => void;
   onToggleSceneComplete: (cutId: string, complete: boolean) => void;
+  onUpdateCutText: (cutId: string, patch: ShootBoardCutTextPatch) => void;
   reorderMode: boolean;
 }) {
   const [draggingCutId, setDraggingCutId] = useState<string | null>(null);
-  const dragStartYRef = useRef(0);
+  const lastDragStepRef = useRef(0);
   const layoutsRef = useRef<Record<string, RowLayout>>({});
 
   const orderedCuts = useMemo(() => [...cuts].sort((a, b) => a.order - b.order), [cuts]);
@@ -45,21 +51,36 @@ export function ShootBoardDraggableList({
     <View className="gap-3">
       {orderedCuts.map((cut) => {
         const panResponder = PanResponder.create({
-          onMoveShouldSetPanResponder: (_, gestureState) => reorderMode && Math.abs(gestureState.dy) > 4,
+          onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 3,
+          onMoveShouldSetPanResponderCapture: (_, gestureState) => Math.abs(gestureState.dy) > 3,
           onPanResponderGrant: () => {
             setDraggingCutId(cut.id);
-            dragStartYRef.current = layoutsRef.current[cut.id]?.y ?? 0;
+            lastDragStepRef.current = 0;
+            onDragStateChange?.(true);
           },
-          onPanResponderRelease: (_, gestureState) => {
-            const targetY = dragStartYRef.current + gestureState.dy;
-            const targetOrder = getTargetOrderFromY(cut, orderedCuts, layoutsRef.current, targetY);
+          onPanResponderMove: (_, gestureState) => {
+            const rowHeight = layoutsRef.current[cut.id]?.height ?? 104;
+            const step = Math.max(56, rowHeight * 0.45);
+            const nextStep = Math.trunc(gestureState.dy / step);
+
+            if (nextStep === lastDragStepRef.current) {
+              return;
+            }
+
+            const direction = nextStep > lastDragStepRef.current ? 1 : -1;
+            lastDragStepRef.current = nextStep;
+            onMoveCut(cut.id, direction);
+          },
+          onPanResponderRelease: () => {
             setDraggingCutId(null);
-            onReorder(cut.id, targetOrder);
+            onDragStateChange?.(false);
           },
           onPanResponderTerminate: () => {
             setDraggingCutId(null);
+            onDragStateChange?.(false);
           },
-          onStartShouldSetPanResponder: () => reorderMode,
+          onStartShouldSetPanResponder: () => true,
+          onStartShouldSetPanResponderCapture: () => true,
         });
         const dragging = draggingCutId === cut.id;
 
@@ -77,37 +98,18 @@ export function ShootBoardDraggableList({
               expanded={expandedCutIds.includes(cut.id)}
               language={language}
               onPreview={() => onPreview(cut)}
+              onReset={() => onResetCut(cut.id)}
               onResult={() => onResult(cut)}
               onShoot={() => onShoot(cut)}
               onToggleExpanded={() => onToggleExpanded(cut.id)}
               onToggleRequiredCheck={(checklistItemId, checked) => onToggleRequiredCheck(cut.id, checklistItemId, checked)}
               onToggleSceneComplete={(complete) => onToggleSceneComplete(cut.id, complete)}
-              reorderMode={reorderMode}
+              onUpdateText={(patch) => onUpdateCutText(cut.id, patch)}
+              reorderMode={reorderMode || dragging}
             />
           </View>
         );
       })}
     </View>
   );
-}
-
-function getTargetOrderFromY(
-  movingCut: ShootBoardCut,
-  cuts: ShootBoardCut[],
-  layouts: Record<string, RowLayout>,
-  targetY: number
-) {
-  const targetCut = cuts.find((cut) => {
-    if (cut.id === movingCut.id) return false;
-
-    const layout = layouts[cut.id];
-    if (!layout) return false;
-
-    const midpoint = layout.y + layout.height / 2;
-    return targetY < midpoint;
-  });
-
-  if (!targetCut) return cuts.length;
-
-  return targetCut.order > movingCut.order ? targetCut.order - 1 : targetCut.order;
 }
