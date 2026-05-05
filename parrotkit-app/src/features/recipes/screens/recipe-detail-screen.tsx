@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
-import { ComponentProps, useEffect, useMemo, useState } from 'react';
+import { ComponentProps, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -114,12 +114,48 @@ const detailCopy = {
 
 type DetailCopy = (typeof detailCopy)['en'];
 
+const shootBoardCopy = {
+  en: {
+    addScene: 'Add scene',
+    back: 'Back',
+    cutsBoard: 'CUTS BOARD',
+    done: 'Done',
+    more: 'More',
+    preview: 'View example',
+    reorder: 'Reorder',
+    requiredChecks: 'Required checks',
+    shootingDirections: 'Shooting directions',
+    shoot: 'Shoot',
+    shootComplete: 'Shot',
+    shootIncomplete: 'Unshot',
+    speakingLine: 'Line to say',
+  },
+  ko: {
+    addScene: '장면 추가',
+    back: '뒤로',
+    cutsBoard: 'CUTS BOARD',
+    done: '완료',
+    more: '더보기',
+    preview: '예시 보기',
+    reorder: '순서 변경',
+    requiredChecks: '필수 체크',
+    shootingDirections: '촬영 지시',
+    shoot: '촬영하기',
+    shootComplete: '촬영완료',
+    shootIncomplete: '미촬영',
+    speakingLine: '말할 문장',
+  },
+} satisfies Record<AppLanguage, Record<string, string>>;
+
+type ShootBoardCopy = (typeof shootBoardCopy)['en'];
+
 export function RecipeDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ recipeId?: string; sceneId?: string; tab?: DetailTab }>();
   const { language } = useAppLanguage();
   const copy = detailCopy[language];
+  const boardCopy = shootBoardCopy[language];
   const {
     downloadRecipe,
     getRecipeById,
@@ -133,6 +169,8 @@ export function RecipeDetailScreen() {
   const [shotCutIds, setShotCutIds] = useState<string[]>([]);
   const [addedCuts, setAddedCuts] = useState<ShootBoardCut[]>([]);
   const [reorderMode, setReorderMode] = useState(false);
+  const [expandedCutIds, setExpandedCutIds] = useState<string[]>([]);
+  const [checkedRequirementMap, setCheckedRequirementMap] = useState<Record<string, number[]>>({});
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -171,6 +209,8 @@ export function RecipeDetailScreen() {
     setShotCutIds([]);
     setAddedCuts([]);
     setReorderMode(false);
+    setExpandedCutIds([]);
+    setCheckedRequirementMap({});
   }, [nativeRecipe?.id]);
 
   const recipeSaved = recipe ? isRecipeSaved(recipe, isRecipeDownloaded(recipe.id)) : false;
@@ -186,6 +226,22 @@ export function RecipeDetailScreen() {
 
     return addedCuts.reduce((board, cut) => appendShootBoardCut(board, cut), baseBoard);
   }, [addedCuts, nativeRecipe, recipeSaved, shotCutIds]);
+
+  useEffect(() => {
+    if (!shootBoard?.cuts.length) {
+      return;
+    }
+
+    setExpandedCutIds((current) => {
+      if (current.some((cutId) => shootBoard.cuts.some((cut) => cut.id === cutId))) {
+        return current;
+      }
+
+      const nextCut = shootBoard.cuts.find((cut) => !cut.isShot) ?? shootBoard.cuts[0];
+
+      return nextCut ? [nextCut.id] : [];
+    });
+  }, [shootBoard?.id, shootBoard?.totalCuts]);
 
   if (!nativeRecipe) {
     return (
@@ -243,27 +299,6 @@ export function RecipeDetailScreen() {
     return recipe;
   };
 
-  const handleStartRecipe = () => {
-    const targetRecipe = saveRecipe();
-    const firstScene = targetRecipe?.scenes[0];
-
-    if (!targetRecipe || !firstScene) {
-      return;
-    }
-
-    router.push(getRecipePrompterHref(targetRecipe.id, firstScene.id) as Href);
-  };
-
-  const handleStartScene = (scene: NativeRecipeScene) => {
-    const targetRecipe = saveRecipe();
-
-    if (!targetRecipe) {
-      return;
-    }
-
-    router.push(getRecipePrompterHref(targetRecipe.id, scene.id) as Href);
-  };
-
   const findSceneForCut = (cut: ShootBoardCut) => (
     cut.sceneId ? nativeRecipe.scenes.find((scene) => scene.id === cut.sceneId) ?? null : null
   );
@@ -305,7 +340,16 @@ export function RecipeDetailScreen() {
     }
 
     const updatedBoard = toggleShootBoardCutStatus(shootBoard, cutId);
+    const updatedCut = updatedBoard.cuts.find((cut) => cut.id === cutId);
+    const nextCut = updatedCut?.isShot
+      ? updatedBoard.cuts.find((cut) => !cut.isShot) ?? updatedBoard.cuts[0]
+      : updatedCut;
+
     setShotCutIds(updatedBoard.cuts.filter((cut) => cut.isShot).map((cut) => cut.id));
+
+    if (nextCut) {
+      setExpandedCutIds([nextCut.id]);
+    }
   };
 
   const addCut = () => {
@@ -313,7 +357,33 @@ export function RecipeDetailScreen() {
       return;
     }
 
-    setAddedCuts((current) => [...current, createAddedShootBoardCut(shootBoard, 'Custom filming cue')]);
+    const newCut = createAddedShootBoardCut(
+      shootBoard,
+      language === 'ko' ? '새 촬영 지시를 추가하세요.' : 'Add a new filming cue.'
+    );
+
+    setAddedCuts((current) => [...current, newCut]);
+    setExpandedCutIds([newCut.id]);
+  };
+
+  const toggleExpandedCut = (cutId: string) => {
+    setExpandedCutIds((current) => (
+      current.includes(cutId) ? current.filter((id) => id !== cutId) : [...current, cutId]
+    ));
+  };
+
+  const toggleRequiredCheck = (cutId: string, checkIndex: number) => {
+    setCheckedRequirementMap((current) => {
+      const currentChecks = current[cutId] ?? [];
+      const nextChecks = currentChecks.includes(checkIndex)
+        ? currentChecks.filter((index) => index !== checkIndex)
+        : [...currentChecks, checkIndex];
+
+      return {
+        ...current,
+        [cutId]: nextChecks,
+      };
+    });
   };
 
   if (selectedScene) {
@@ -455,381 +525,283 @@ export function RecipeDetailScreen() {
 
   return (
     <View className="flex-1 bg-canvas">
+      <CutBoardHeader
+        board={shootBoard}
+        copy={boardCopy}
+        language={language}
+        onBack={handleBack}
+        onMore={() => setReorderMode((current) => !current)}
+        topInset={insets.top}
+      />
+
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: insets.bottom + 142 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 112 }}
         contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
       >
-        <View className="gap-4 px-4 pb-4" style={{ paddingTop: insets.top + 18 }}>
-          <ShootBoardHeader
-            board={shootBoard}
-            onBack={handleBack}
-            onMore={() => setReorderMode((current) => !current)}
-            onSave={saveRecipe}
-          />
-
-          <NextUpCard
-            cut={nextCut}
-            onOpenPrompter={() => openCutWorkspace(nextCut, 'recipe')}
-            onShoot={() => openPrompterForCut(nextCut)}
-          />
-
-          <ProgressSection
-            cuts={shootBoard.cuts}
-            onAddCut={addCut}
-          />
-
-          <View style={styles.shootBoardDivider} />
+        <View className="gap-3 px-4 pb-4 pt-4">
+          <View className="flex-row items-center justify-between">
+            <Text style={styles.cutBoardSectionTitle}>{boardCopy.cutsBoard}</Text>
+            <Pressable
+              accessibilityRole="button"
+              className="flex-row items-center gap-1.5 rounded-full px-2 py-1"
+              onPress={() => setReorderMode((current) => !current)}
+            >
+              <MaterialCommunityIcons color="#64748b" name={reorderMode ? 'check' : 'swap-vertical'} size={17} />
+              <Text className="text-[13px] font-black text-muted">{reorderMode ? boardCopy.done : boardCopy.reorder}</Text>
+            </Pressable>
+          </View>
 
           <View className="gap-3">
-            <View className="flex-row items-center justify-between">
-              <Text style={styles.shootSectionTitle}>CUTS BOARD</Text>
-              <Pressable accessibilityRole="button" className="flex-row items-center gap-1.5" onPress={() => setReorderMode((current) => !current)}>
-                <MaterialCommunityIcons color="#64748b" name={reorderMode ? 'check' : 'swap-vertical'} size={18} />
-                <Text className="text-[13px] font-black text-muted">{reorderMode ? '완료' : '순서 변경'}</Text>
-              </Pressable>
-            </View>
-
-            <View className="gap-2.5">
-              {shootBoard.cuts.map((cut) => (
-                <ShootBoardCutCard
-                  active={cut.id === nextCut?.id}
-                  cut={cut}
-                  key={cut.id}
-                  onOpen={() => openCutWorkspace(cut, 'analysis')}
-                  onPreview={() => openCutWorkspace(cut, 'analysis')}
-                  onShoot={() => openPrompterForCut(cut)}
-                  onToggleShot={() => toggleCutStatus(cut.id)}
-                  reorderMode={reorderMode}
-                />
-              ))}
-            </View>
-
-            <AddCutButton onPress={addCut} />
-            <BulkActionBar disabled />
+            {shootBoard.cuts.map((cut) => (
+              <CutBoardCard
+                active={cut.id === nextCut?.id}
+                checkedRequirementIndexes={checkedRequirementMap[cut.id] ?? []}
+                copy={boardCopy}
+                cut={cut}
+                expanded={expandedCutIds.includes(cut.id)}
+                key={cut.id}
+                language={language}
+                onMore={() => setReorderMode((current) => !current)}
+                onPreview={() => openCutWorkspace(cut, 'analysis')}
+                onShoot={() => openPrompterForCut(cut)}
+                onToggleExpanded={() => toggleExpandedCut(cut.id)}
+                onToggleRequiredCheck={(index) => toggleRequiredCheck(cut.id, index)}
+                onToggleShot={() => toggleCutStatus(cut.id)}
+                reorderMode={reorderMode}
+              />
+            ))}
           </View>
         </View>
       </ScrollView>
 
-      <ShootBoardBottomNav
+      <FloatingAddSceneButton
         bottomInset={insets.bottom}
-        onChecklist={() => {
-          if (nextCut) {
-            openCutWorkspace(nextCut, 'shoot');
-          }
-        }}
-        onShoot={() => openPrompterForCut(nextCut)}
+        copy={boardCopy}
+        onPress={addCut}
       />
+
     </View>
   );
 }
 
-function ShootBoardHeader({
+function CutBoardHeader({
   board,
+  copy,
+  language,
   onBack,
   onMore,
-  onSave,
+  topInset,
 }: {
   board: ShootBoardRecipe;
+  copy: ShootBoardCopy;
+  language: AppLanguage;
   onBack: () => void;
   onMore: () => void;
-  onSave: () => void;
+  topInset: number;
 }) {
   return (
-    <View className="flex-row items-center gap-3">
-      <Pressable accessibilityLabel="뒤로" accessibilityRole="button" onPress={onBack} style={styles.shootHeaderBackButton}>
-        <MaterialCommunityIcons color="#111827" name="arrow-left" size={26} />
+    <View style={[styles.cutBoardHeaderShell, { paddingTop: topInset + 12 }]}>
+      <Pressable accessibilityLabel={copy.back} accessibilityRole="button" onPress={onBack} style={styles.cutBoardBackButton}>
+        <MaterialCommunityIcons color="#111827" name="arrow-left" size={24} />
       </Pressable>
 
-      <View className="min-w-0 flex-1">
+      <View className="min-w-0 flex-1 px-2">
         <View className="flex-row items-center gap-1">
-          <Text className="min-w-0 flex-shrink text-[18px] font-black leading-6 text-ink" numberOfLines={1}>
+          <Text className="min-w-0 flex-shrink text-[17px] font-black leading-6 text-ink" numberOfLines={1}>
             {board.title}
           </Text>
-          <MaterialCommunityIcons color="#111827" name="chevron-down" size={18} />
+          <MaterialCommunityIcons color="#111827" name="chevron-down" size={17} />
         </View>
-        <Text className="mt-0.5 text-[13px] font-bold text-muted">
-          {board.totalCuts} cuts · {board.totalDurationSeconds}s total · {board.shotCount} / {board.totalCuts} shot
+        <Text className="mt-0.5 text-[13px] font-bold text-muted" numberOfLines={1}>
+          {formatShootBoardMeta(language, board)}
         </Text>
       </View>
 
-      <View className="flex-row gap-2">
-        <Pressable accessibilityLabel="저장" accessibilityRole="button" onPress={onSave} style={styles.shootHeaderIconButton}>
-          <MaterialCommunityIcons color="#111827" name={board.isSaved ? 'bookmark' : 'bookmark-outline'} size={22} />
-        </Pressable>
-        <Pressable accessibilityLabel="더보기" accessibilityRole="button" onPress={onMore} style={styles.shootHeaderIconButton}>
-          <MaterialCommunityIcons color="#111827" name="dots-horizontal" size={25} />
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
-function NextUpCard({
-  cut,
-  onOpenPrompter,
-  onShoot,
-}: {
-  cut: ShootBoardCut | null;
-  onOpenPrompter: () => void;
-  onShoot: () => void;
-}) {
-  if (!cut) {
-    return null;
-  }
-
-  const accent = getShootBoardAccent(cut.role);
-
-  return (
-    <View style={styles.nextUpCard}>
-      <View className="min-w-0 flex-1 gap-3">
-        <View className="flex-row items-center gap-2">
-          <View style={[styles.nextUpLabel, { backgroundColor: `${accent.soft}` }]}>
-            <Text style={[styles.nextUpLabelText, { color: accent.main }]}>NEXT UP</Text>
-          </View>
-        </View>
-
-        <View className="flex-row items-center gap-2">
-          <View style={[styles.nextUpNumber, { backgroundColor: accent.main }]}>
-            <Text className="text-[13px] font-black text-white">#{cut.order}</Text>
-          </View>
-          <Text style={[styles.nextUpRole, { color: accent.main }]}>{cut.roleLabel}</Text>
-          <Text style={[styles.nextUpRole, { color: accent.main }]}>·</Text>
-          <Text style={[styles.nextUpRole, { color: accent.main }]}>{cut.durationSeconds}s</Text>
-        </View>
-
-        <View className="gap-1.5">
-          <Text className="text-[18px] font-black leading-[22px] text-ink" numberOfLines={2}>
-            {cut.instruction}
-          </Text>
-          <Text className="text-[14px] font-black leading-[18px] text-muted" numberOfLines={2}>
-            “{cut.prompterLine}”
-          </Text>
-        </View>
-
-        <View className="flex-row gap-2">
-          <Pressable accessibilityRole="button" onPress={onOpenPrompter} style={styles.secondaryShootButton}>
-            <MaterialCommunityIcons color="#111827" name="message-text-outline" size={17} />
-            <Text className="text-[13px] font-black text-ink">프롬프터</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={onShoot} style={styles.primaryShootButtonWrap}>
-            <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.primaryShootButton}>
-              <MaterialCommunityIcons color="#fff" name="video-outline" size={18} />
-              <Text className="text-[13px] font-black text-white">촬영 시작</Text>
-            </LinearGradient>
-          </Pressable>
-        </View>
-      </View>
-
-      <Pressable accessibilityRole="button" onPress={onOpenPrompter} style={styles.nextThumbWrap}>
-        <Image source={{ uri: cut.thumbnailUrl }} style={styles.nextThumbImage} />
-        <View style={styles.nextThumbOverlay} />
-        <View style={styles.nextPlayButton}>
-          <MaterialCommunityIcons color="#111827" name="play" size={24} />
-        </View>
-        <View style={styles.nextTimeBadge}>
-          <Text className="text-[11px] font-black text-white">{cut.timeRangeLabel}</Text>
-        </View>
+      <Pressable accessibilityLabel={copy.more} accessibilityRole="button" onPress={onMore} style={styles.cutBoardMoreButton}>
+        <MaterialCommunityIcons color="#111827" name="dots-horizontal" size={24} />
       </Pressable>
     </View>
   );
 }
 
-function ProgressSection({
-  cuts,
-  onAddCut,
-}: {
-  cuts: ShootBoardCut[];
-  onAddCut: () => void;
-}) {
-  const progressItems = getShootBoardProgressItems(cuts);
-
-  return (
-    <View className="gap-3">
-      <Text style={styles.shootBoardEyebrow}>PROGRESS</Text>
-      <View className="flex-row items-start justify-between gap-2">
-        {progressItems.map((item, index) => (
-          <View className="flex-1" key={item.role}>
-            <View className="flex-row items-center">
-              <View style={[styles.progressNode, { backgroundColor: item.accent.main }]}>
-                <Text className="text-[14px] font-black text-white">{index + 1}</Text>
-              </View>
-              {index < progressItems.length - 1 ? <View style={styles.progressDash} /> : null}
-            </View>
-            <Text className="mt-2 text-center text-[13px] font-black text-ink">{item.title}</Text>
-            <Text className="mt-0.5 text-center text-[12px] font-bold text-muted">
-              {item.shotCount} / {item.totalCount} shot
-            </Text>
-          </View>
-        ))}
-
-        <Pressable accessibilityRole="button" onPress={onAddCut} style={styles.progressAddButton}>
-          <MaterialCommunityIcons color="#111827" name="plus" size={28} />
-          <Text className="text-[13px] font-black text-ink">컷 추가</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
-function ShootBoardCutCard({
+function CutBoardCard({
   active,
+  checkedRequirementIndexes,
+  copy,
   cut,
-  onOpen,
+  expanded,
+  language,
+  onMore,
   onPreview,
   onShoot,
+  onToggleExpanded,
+  onToggleRequiredCheck,
   onToggleShot,
   reorderMode,
 }: {
   active: boolean;
+  checkedRequirementIndexes: number[];
+  copy: ShootBoardCopy;
   cut: ShootBoardCut;
-  onOpen: () => void;
+  expanded: boolean;
+  language: AppLanguage;
+  onMore: () => void;
   onPreview: () => void;
   onShoot: () => void;
+  onToggleExpanded: () => void;
+  onToggleRequiredCheck: (index: number) => void;
   onToggleShot: () => void;
   reorderMode: boolean;
 }) {
   const accent = getShootBoardAccent(cut.role);
+  const instruction = getLocalizedCutInstruction(language, cut);
+  const speakingLine = getLocalizedCutSpeakingLine(language, cut);
+  const shootingDirections = getLocalizedCutDirections(language, cut);
+  const requiredChecks = getLocalizedCutChecks(language, cut);
 
+  return (
+    <View
+      style={[
+        styles.v2CutCard,
+        active && { borderColor: accent.border },
+        expanded && styles.v2CutCardExpanded,
+        cut.isShot && styles.v2CutCardComplete,
+      ]}
+    >
+      <View className="flex-row items-start gap-2">
+        <View style={styles.v2DragHandle}>
+          <MaterialCommunityIcons color={reorderMode ? accent.main : '#94a3b8'} name="drag-vertical" size={22} />
+        </View>
+
+        <Pressable
+          accessibilityRole="button"
+          className="mt-0.5 h-8 w-8 items-center justify-center rounded-full"
+          onPress={onToggleExpanded}
+        >
+          <MaterialCommunityIcons color="#111827" name={expanded ? 'chevron-down' : 'chevron-right'} size={22} />
+        </Pressable>
+
+        <Pressable accessibilityRole="button" className="min-w-0 flex-1" onPress={onToggleExpanded}>
+          <View className="flex-row flex-wrap items-center gap-1.5">
+            <Text style={[styles.v2CutNumber, { color: accent.main }]}>#{cut.order}</Text>
+            <Text className="text-[14px] font-black text-ink">{cut.roleLabel}</Text>
+            <Text className="text-[14px] font-black text-muted">·</Text>
+            <Text className="text-[13px] font-black text-muted">{formatCutDuration(language, cut.durationSeconds)}</Text>
+          </View>
+          <Text className="mt-1 text-[13px] font-semibold leading-5 text-ink" numberOfLines={expanded ? 3 : 1}>
+            {instruction}
+          </Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityLabel={cut.isShot ? copy.shootComplete : copy.shootIncomplete}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: cut.isShot }}
+          onPress={onToggleShot}
+          style={[styles.v2ShotCircle, cut.isShot && { backgroundColor: accent.main, borderColor: accent.main }]}
+        >
+          {cut.isShot ? <MaterialCommunityIcons color="#fff" name="check" size={16} /> : null}
+        </Pressable>
+      </View>
+
+      {expanded ? (
+        <View style={styles.v2ExpandedBody}>
+          <CutBoardDetailBlock title={copy.speakingLine}>
+            <Text className="text-[13px] font-semibold leading-5 text-ink">“{speakingLine}”</Text>
+          </CutBoardDetailBlock>
+
+          <CutBoardDetailBlock title={copy.shootingDirections}>
+            <View className="gap-1.5">
+              {shootingDirections.map((line, index) => (
+                <View className="flex-row gap-2" key={`${cut.id}-direction-${index}`}>
+                  <Text className="text-[12px] font-black text-ink">•</Text>
+                  <Text className="min-w-0 flex-1 text-[13px] font-semibold leading-5 text-ink">{line}</Text>
+                </View>
+              ))}
+            </View>
+          </CutBoardDetailBlock>
+
+          <CutBoardDetailBlock title={copy.requiredChecks}>
+            <View className="gap-2">
+              {requiredChecks.map((line, index) => {
+                const checked = checkedRequirementIndexes.includes(index);
+
+                return (
+                  <Pressable
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked }}
+                    className="flex-row items-center gap-2"
+                    key={`${cut.id}-check-${index}`}
+                    onPress={() => onToggleRequiredCheck(index)}
+                  >
+                    <View style={[styles.v2RequiredCheckBox, checked && { backgroundColor: accent.main, borderColor: accent.main }]}>
+                      {checked ? <MaterialCommunityIcons color="#fff" name="check" size={13} /> : null}
+                    </View>
+                    <Text className="min-w-0 flex-1 text-[13px] font-semibold leading-5 text-ink">{line}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </CutBoardDetailBlock>
+
+          <View className="mt-1 flex-row items-center gap-2">
+            <Pressable accessibilityRole="button" onPress={onPreview} style={styles.v2PreviewButton}>
+              <MaterialCommunityIcons color="#111827" name="play-outline" size={17} />
+              <Text className="text-[13px] font-black text-ink">{copy.preview}</Text>
+            </Pressable>
+
+            <Pressable accessibilityRole="button" onPress={onShoot} style={styles.v2ShootButtonWrap}>
+              <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.v2ShootButton}>
+                <MaterialCommunityIcons color="#fff" name="video-outline" size={17} />
+                <Text className="text-[13px] font-black text-white">{copy.shoot}</Text>
+              </LinearGradient>
+            </Pressable>
+
+            <Pressable accessibilityLabel={copy.more} accessibilityRole="button" onPress={onMore} style={styles.v2CardMoreButton}>
+              <MaterialCommunityIcons color="#111827" name="dots-horizontal" size={21} />
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function CutBoardDetailBlock({
+  children,
+  title,
+}: {
+  children: ReactNode;
+  title: string;
+}) {
+  return (
+    <View className="gap-2">
+      <Text className="text-[12px] font-black text-ink">{title}</Text>
+      {children}
+    </View>
+  );
+}
+
+function FloatingAddSceneButton({
+  bottomInset,
+  copy,
+  onPress,
+}: {
+  bottomInset: number;
+  copy: ShootBoardCopy;
+  onPress: () => void;
+}) {
   return (
     <Pressable
       accessibilityRole="button"
-      onPress={onOpen}
-      style={[
-        styles.cutCard,
-        active && { borderColor: accent.border, shadowOpacity: 0.08 },
-        cut.isShot && styles.cutCardComplete,
-      ]}
+      onPress={onPress}
+      style={[styles.v2FloatingAddButton, { bottom: Math.max(bottomInset, 12) + 10 }]}
     >
-      <View style={styles.dragHandle}>
-        <MaterialCommunityIcons color={reorderMode ? accent.main : '#94a3b8'} name="drag-vertical" size={22} />
-      </View>
-
-      <View style={styles.cutThumbWrap}>
-        <Image source={{ uri: cut.thumbnailUrl }} style={styles.cutThumbImage} />
-        <View style={styles.cutThumbOverlay} />
-        <Text style={styles.cutThumbTime}>{cut.timeRangeLabel}</Text>
-      </View>
-
-      <View className="min-w-0 flex-1 gap-2">
-        <View className="flex-row items-center justify-between gap-2">
-          <View className="min-w-0 flex-1 flex-row items-center gap-2">
-            <View style={[styles.cutNumberBadge, { borderColor: accent.border, backgroundColor: accent.soft }]}>
-              <Text style={[styles.cutNumberText, { color: accent.main }]}>#{cut.order}</Text>
-            </View>
-            <Text style={[styles.cutRoleLabel, { color: accent.main }]}>{cut.roleLabel}</Text>
-          </View>
-          <View className="flex-row items-center gap-1">
-            <MaterialCommunityIcons color="#111827" name="clock-outline" size={16} />
-            <Text className="text-[12px] font-black text-ink">{cut.durationSeconds}s</Text>
-          </View>
-          <MaterialCommunityIcons color="#94a3b8" name="dots-horizontal" size={20} />
-        </View>
-
-        <Text className="text-[14px] font-black leading-[18px] text-ink" numberOfLines={2}>
-          {cut.instruction}
-        </Text>
-
-        <View style={[styles.quoteBox, { backgroundColor: accent.tint }]}>
-          <MaterialCommunityIcons color={accent.main} name="format-quote-open" size={14} />
-          <Text className="min-w-0 flex-1 text-[12px] font-black leading-4 text-ink" numberOfLines={2}>
-            “{cut.prompterLine}”
-          </Text>
-        </View>
-
-        <View className="flex-row gap-2">
-          <Pressable accessibilityRole="button" onPress={onPreview} style={styles.previewButton}>
-            <MaterialCommunityIcons color="#111827" name="play-outline" size={17} />
-            <Text className="text-[12px] font-black text-ink">미리보기</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={onShoot} style={[styles.cutShootButton, { borderColor: accent.border }]}>
-            <MaterialCommunityIcons color={accent.main} name="video-outline" size={17} />
-            <Text style={[styles.cutShootText, { color: accent.main }]}>촬영</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: cut.isShot }} onPress={onToggleShot} style={styles.shotStatusButton}>
-        <View style={[styles.shotStatusCircle, cut.isShot && { backgroundColor: accent.main, borderColor: accent.main }]}>
-          {cut.isShot ? <MaterialCommunityIcons color="#fff" name="check" size={15} /> : null}
-        </View>
-        <Text className={`text-[10px] font-black ${cut.isShot ? 'text-ink' : 'text-muted'}`}>
-          {cut.isShot ? '촬영완료' : '미촬영'}
-        </Text>
-      </Pressable>
+      <MaterialCommunityIcons color="#fff" name="plus" size={24} />
+      <Text className="text-[16px] font-black text-white">{copy.addScene}</Text>
     </Pressable>
-  );
-}
-
-function AddCutButton({ onPress }: { onPress: () => void }) {
-  return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.addCutButton}>
-      <MaterialCommunityIcons color="#8b5cf6" name="plus" size={22} />
-      <Text className="text-[15px] font-black text-violet">컷 추가</Text>
-    </Pressable>
-  );
-}
-
-function BulkActionBar({ disabled }: { disabled: boolean }) {
-  const actions = [
-    { icon: 'content-copy' as IconName, label: '복사' },
-    { icon: 'clipboard-outline' as IconName, label: '붙여넣기' },
-    { icon: 'shield-plus-outline' as IconName, label: '템플릿 추가' },
-    { icon: 'trash-can-outline' as IconName, label: '삭제', destructive: true },
-  ];
-
-  return (
-    <View style={styles.bulkActionBar}>
-      {actions.map((action) => (
-        <View key={action.label} style={[styles.bulkActionItem, disabled && styles.bulkActionItemDisabled]}>
-          <MaterialCommunityIcons
-            color={action.destructive ? '#ff4f73' : '#111827'}
-            name={action.icon}
-            size={20}
-          />
-          <Text className={`text-[12px] font-black ${action.destructive ? 'text-rose-500' : 'text-ink'}`}>
-            {action.label}
-          </Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-function ShootBoardBottomNav({
-  bottomInset,
-  onChecklist,
-  onShoot,
-}: {
-  bottomInset: number;
-  onChecklist: () => void;
-  onShoot: () => void;
-}) {
-  return (
-    <View style={[styles.shootBoardBottomNav, { paddingBottom: Math.max(bottomInset, 10) }]}>
-      <View style={styles.localNavItemActive}>
-        <MaterialCommunityIcons color="#8b5cf6" name="format-list-bulleted" size={25} />
-        <Text className="mt-1 text-[11px] font-black text-violet">보드</Text>
-      </View>
-
-      <Pressable accessibilityRole="button" onPress={onShoot} style={styles.localNavCenter}>
-        <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.localNavCenterIcon}>
-          <MaterialCommunityIcons color="#fff" name="video-outline" size={27} />
-        </LinearGradient>
-        <Text className="mt-1 text-[11px] font-black text-ink">촬영</Text>
-      </Pressable>
-
-      <Pressable accessibilityRole="button" onPress={onChecklist} style={styles.localNavItem}>
-        <View>
-          <MaterialCommunityIcons color="#111827" name="clipboard-check-outline" size={25} />
-          <View style={styles.checklistBadge}>
-            <Text className="text-[9px] font-black text-white">3</Text>
-          </View>
-        </View>
-        <Text className="mt-1 text-[11px] font-black text-ink">체크리스트</Text>
-      </Pressable>
-    </View>
   );
 }
 
@@ -1208,6 +1180,38 @@ function ShotGuidePill({
   );
 }
 
+function formatShootBoardMeta(language: AppLanguage, board: ShootBoardRecipe) {
+  if (language === 'ko') {
+    return `${board.totalCuts}컷 · ${board.totalDurationSeconds}초 · ${board.shotCount} / ${board.totalCuts} 촬영`;
+  }
+
+  return `${board.totalCuts} cuts · ${board.totalDurationSeconds}s · ${board.shotCount} / ${board.totalCuts} shot`;
+}
+
+function formatCutDuration(language: AppLanguage, durationSeconds: number) {
+  return language === 'ko' ? `${durationSeconds}초` : `${durationSeconds}s`;
+}
+
+function getLocalizedCutInstruction(language: AppLanguage, cut: ShootBoardCut) {
+  return language === 'ko' ? cut.instructionKo ?? cut.instruction : cut.instruction;
+}
+
+function getLocalizedCutSpeakingLine(language: AppLanguage, cut: ShootBoardCut) {
+  if (language === 'ko') {
+    return cut.speakingLineKo ?? cut.prompterLine ?? cut.speakingLine;
+  }
+
+  return cut.speakingLine;
+}
+
+function getLocalizedCutDirections(language: AppLanguage, cut: ShootBoardCut) {
+  return language === 'ko' ? cut.shootingDirectionsKo ?? cut.shootingDirections : cut.shootingDirections;
+}
+
+function getLocalizedCutChecks(language: AppLanguage, cut: ShootBoardCut) {
+  return language === 'ko' ? cut.requiredChecksKo ?? cut.requiredChecks : cut.requiredChecks;
+}
+
 function isRecipeSaved(recipe: MockRecipe, downloadedFromExplore: boolean) {
   return recipe.id.startsWith('downloaded-') || recipe.ownership !== 'community' || downloadedFromExplore;
 }
@@ -1414,6 +1418,15 @@ function getShootBoardAccent(role: ShootBoardCut['role']) {
     };
   }
 
+  if (role === 'scene') {
+    return {
+      border: '#93c5fd',
+      main: '#6366f1',
+      soft: '#eef2ff',
+      tint: '#eef4ff',
+    };
+  }
+
   if (role === 'custom') {
     return {
       border: '#94a3b8',
@@ -1431,421 +1444,156 @@ function getShootBoardAccent(role: ShootBoardCut['role']) {
   };
 }
 
-function getShootBoardProgressItems(cuts: ShootBoardCut[]) {
-  const roles: Array<{ role: ShootBoardCut['role']; title: string }> = [
-    { role: 'hook', title: 'Hook' },
-    { role: 'proof', title: 'Proof' },
-    { role: 'cta', title: 'CTA' },
-  ];
-
-  return roles.map((item) => {
-    const roleCuts = cuts.filter((cut) => cut.role === item.role);
-
-    return {
-      ...item,
-      accent: getShootBoardAccent(item.role),
-      shotCount: roleCuts.filter((cut) => cut.isShot).length,
-      totalCount: Math.max(1, roleCuts.length),
-    };
-  });
-}
-
-function getWhyItWorks(scenes: NativeRecipeScene[]) {
-  const firstScene = scenes[0];
-  const explicitLines = firstScene?.analysis.whyItWorks ?? [];
-
-  if (explicitLines.length > 0) {
-    return explicitLines.slice(0, 2);
-  }
-
-  return scenes
-    .flatMap((scene) => scene.analysis.whyItWorks)
-    .filter(Boolean)
-    .slice(0, 2);
-}
-
 function getStructureColor(index: number) {
   const colors = ['#fb7185', '#fb923c', '#8b5cf6', '#38bdf8'];
   return colors[index % colors.length];
 }
 
 const styles = StyleSheet.create({
-  addCutButton: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#c4b5fd',
-    borderRadius: 16,
-    borderStyle: 'dashed',
-    borderWidth: 1.5,
-    flexDirection: 'row',
-    gap: 7,
-    justifyContent: 'center',
-    minHeight: 56,
-  },
-  bulkActionBar: {
+  cutBoardBackButton: {
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderColor: '#e2e8f0',
-    borderRadius: 16,
-    borderWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.05,
-    shadowRadius: 18,
-  },
-  bulkActionItem: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 6,
-  },
-  bulkActionItemDisabled: {
-    opacity: 0.42,
-  },
-  checklistBadge: {
-    alignItems: 'center',
-    backgroundColor: '#8b5cf6',
-    borderColor: '#ffffff',
-    borderRadius: 999,
-    borderWidth: 2,
-    height: 19,
-    justifyContent: 'center',
-    position: 'absolute',
-    right: -10,
-    top: -8,
-    width: 19,
-  },
-  cutCard: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderRadius: 18,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 11,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.04,
-    shadowRadius: 18,
-  },
-  cutCardComplete: {
-    backgroundColor: '#fbfdff',
-  },
-  cutNumberBadge: {
     borderRadius: 999,
     borderWidth: 1,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-  },
-  cutNumberText: {
-    fontSize: 11,
-    fontWeight: '900',
-  },
-  cutRoleLabel: {
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 0.2,
-  },
-  cutShootButton: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    borderWidth: 1,
-    flex: 1,
-    flexDirection: 'row',
-    gap: 5,
-    justifyContent: 'center',
-    minHeight: 36,
-  },
-  cutShootText: {
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  cutThumbImage: {
-    height: '100%',
-    width: '100%',
-  },
-  cutThumbOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.1)',
-  },
-  cutThumbTime: {
-    bottom: 7,
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '900',
-    left: 8,
-    position: 'absolute',
-    textShadowColor: 'rgba(15, 23, 42, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  cutThumbWrap: {
-    backgroundColor: '#e2e8f0',
-    borderRadius: 14,
-    height: 104,
-    overflow: 'hidden',
-    width: 76,
-  },
-  dragHandle: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: -4,
-    width: 16,
-  },
-  localNavCenter: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -24,
-    width: 88,
-  },
-  localNavCenterIcon: {
-    alignItems: 'center',
-    borderColor: '#ffffff',
-    borderRadius: 999,
-    borderWidth: 4,
-    height: 66,
-    justifyContent: 'center',
-    shadowColor: '#7c3aed',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.24,
-    shadowRadius: 22,
-    width: 66,
-  },
-  localNavItem: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
-  },
-  localNavItemActive: {
-    alignItems: 'center',
-    backgroundColor: '#f6f1ff',
-    borderRadius: 26,
-    flex: 1,
-    justifyContent: 'center',
-    minHeight: 66,
-  },
-  nextPlayButton: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderRadius: 999,
-    height: 48,
-    justifyContent: 'center',
-    left: '50%',
-    marginLeft: -24,
-    marginTop: -24,
-    position: 'absolute',
-    top: '50%',
-    width: 48,
-  },
-  nextThumbImage: {
-    height: '100%',
-    width: '100%',
-  },
-  nextThumbOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.08)',
-  },
-  nextThumbWrap: {
-    backgroundColor: '#e2e8f0',
-    borderRadius: 18,
-    height: 148,
-    overflow: 'hidden',
-    width: 118,
-  },
-  nextTimeBadge: {
-    backgroundColor: 'rgba(15, 23, 42, 0.78)',
-    borderRadius: 999,
-    bottom: 8,
-    left: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    position: 'absolute',
-  },
-  nextUpCard: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderRadius: 20,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 12,
-    padding: 12,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.06,
-    shadowRadius: 22,
-  },
-  nextUpLabel: {
-    borderRadius: 999,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-  },
-  nextUpLabelText: {
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0.3,
-  },
-  nextUpNumber: {
-    alignItems: 'center',
-    borderRadius: 999,
-    height: 34,
-    justifyContent: 'center',
-    width: 34,
-  },
-  nextUpRole: {
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  previewButton: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    borderWidth: 1,
-    flex: 1,
-    flexDirection: 'row',
-    gap: 5,
-    justifyContent: 'center',
-    minHeight: 36,
-  },
-  primaryShootButton: {
-    alignItems: 'center',
-    borderRadius: 15,
-    flexDirection: 'row',
-    gap: 7,
-    justifyContent: 'center',
-    minHeight: 42,
-    paddingHorizontal: 12,
-  },
-  primaryShootButtonWrap: {
-    borderRadius: 15,
-    flex: 1.35,
-    overflow: 'hidden',
-  },
-  progressAddButton: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#cbd5e1',
-    borderRadius: 16,
-    borderStyle: 'dashed',
-    borderWidth: 1.4,
-    gap: 3,
-    height: 74,
-    justifyContent: 'center',
-    width: 72,
-  },
-  progressDash: {
-    borderColor: '#cbd5e1',
-    borderStyle: 'dashed',
-    borderTopWidth: 1.5,
-    flex: 1,
-    height: 1,
-    marginHorizontal: 7,
-  },
-  progressNode: {
-    alignItems: 'center',
-    borderRadius: 999,
     height: 42,
     justifyContent: 'center',
     width: 42,
   },
-  quoteBox: {
+  cutBoardHeaderShell: {
     alignItems: 'center',
-    borderRadius: 10,
+    backgroundColor: '#ffffff',
+    borderBottomColor: '#e2e8f0',
+    borderBottomWidth: 1,
     flexDirection: 'row',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 7,
+    gap: 10,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
   },
-  secondaryShootButton: {
+  cutBoardMoreButton: {
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderColor: '#e2e8f0',
-    borderRadius: 15,
+    borderRadius: 14,
     borderWidth: 1,
-    flex: 1,
-    flexDirection: 'row',
-    gap: 7,
+    height: 42,
     justifyContent: 'center',
-    minHeight: 42,
+    width: 42,
   },
-  shootBoardBottomNav: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.96)',
-    borderColor: '#e2e8f0',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    borderTopWidth: 1,
-    bottom: 0,
-    flexDirection: 'row',
-    gap: 14,
-    left: 0,
-    minHeight: 98,
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    position: 'absolute',
-    right: 0,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: -10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-  },
-  shootBoardDivider: {
-    backgroundColor: '#e2e8f0',
-    height: 1,
-  },
-  shootBoardEyebrow: {
-    color: '#667085',
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  shootHeaderBackButton: {
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderRadius: 999,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
-  },
-  shootHeaderIconButton: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderRadius: 18,
-    borderWidth: 1,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
-  },
-  shootSectionTitle: {
+  cutBoardSectionTitle: {
     color: '#111827',
     fontSize: 18,
     fontWeight: '900',
     letterSpacing: 0.2,
   },
-  shotStatusButton: {
+  v2CardMoreButton: {
     alignItems: 'center',
-    gap: 4,
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 42,
     justifyContent: 'center',
-    minWidth: 54,
+    width: 46,
   },
-  shotStatusCircle: {
+  v2CutCard: {
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.035,
+    shadowRadius: 14,
+  },
+  v2CutCardComplete: {
+    backgroundColor: '#fbfdff',
+  },
+  v2CutCardExpanded: {
+    paddingBottom: 14,
+  },
+  v2CutNumber: {
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  v2DragHandle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -5,
+    marginTop: 3,
+    width: 17,
+  },
+  v2ExpandedBody: {
+    borderTopColor: '#e2e8f0',
+    borderTopWidth: 1,
+    gap: 14,
+    marginLeft: 41,
+    marginTop: 12,
+    paddingTop: 13,
+  },
+  v2FloatingAddButton: {
+    alignItems: 'center',
+    backgroundColor: '#111827',
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 8,
+    minHeight: 58,
+    paddingHorizontal: 22,
+    position: 'absolute',
+    right: 18,
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.2,
+    shadowRadius: 22,
+  },
+  v2PreviewButton: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+    minHeight: 42,
+  },
+  v2RequiredCheckBox: {
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderColor: '#cbd5e1',
-    borderRadius: 999,
-    borderStyle: 'dashed',
-    borderWidth: 1.5,
-    height: 32,
+    borderRadius: 5,
+    borderWidth: 1.3,
+    height: 18,
     justifyContent: 'center',
-    width: 32,
+    width: 18,
+  },
+  v2ShootButton: {
+    alignItems: 'center',
+    borderRadius: 12,
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+    minHeight: 42,
+    paddingHorizontal: 10,
+  },
+  v2ShootButtonWrap: {
+    borderRadius: 12,
+    flex: 1,
+    overflow: 'hidden',
+  },
+  v2ShotCircle: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#94a3b8',
+    borderRadius: 999,
+    borderWidth: 1.5,
+    height: 24,
+    justifyContent: 'center',
+    marginTop: 4,
+    width: 24,
   },
   hero: {
     minHeight: 365,

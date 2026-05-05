@@ -17,20 +17,30 @@ const board = createShootBoardRecipe(sourceRecipe, {
   shotCutIds: [],
 });
 
-if (board.title !== 'Korean Diet Viral Hook') {
-  throw new Error('Shoot Board should preserve the recipe title.');
+if (board.title !== 'Korean Diet Viral Recipe') {
+  throw new Error('Shoot Board v2 should use the execution-board title from the directive.');
 }
 
-if (board.totalCuts !== 3 || board.totalDurationSeconds !== 30 || board.shotCount !== 0) {
-  throw new Error('Shoot Board should initialize 3 cuts, 30s total, and 0 shots for a fresh board.');
+if (board.totalCuts !== 4 || board.totalDurationSeconds !== 40 || board.shotCount !== 0) {
+  throw new Error('Shoot Board v2 should initialize 4 cuts, 40s total, and 0 shots for a fresh board.');
 }
 
-if (board.cuts[0]?.roleLabel !== 'HOOK' || board.cuts[1]?.roleLabel !== 'PROOF' || board.cuts[2]?.roleLabel !== 'CTA') {
-  throw new Error('Shoot Board should map the first three cuts to HOOK, PROOF, and CTA roles.');
+const roleLabels = board.cuts.map((cut) => cut.roleLabel).join(',');
+
+if (roleLabels !== 'Hook,Proof,Scene,CTA') {
+  throw new Error('Shoot Board v2 should map cuts to Hook, Proof, Scene, and CTA.');
 }
 
-if (board.cuts[0]?.instruction !== 'Lead with the payoff.') {
-  throw new Error('Shoot Board should use compact filming instructions instead of long scene summaries.');
+if (board.cuts[0]?.instruction !== 'Lead with the payoff.' || board.cuts[0]?.instructionKo !== '결과를 먼저 보여준다.') {
+  throw new Error('Shoot Board v2 should provide English and Korean cut instructions.');
+}
+
+if (board.cuts[0]?.speakingLineKo !== '이렇게 먹으니까 오래 갔어요.') {
+  throw new Error('Shoot Board v2 should preserve the Korean prompter line for Korean UI.');
+}
+
+if (!board.cuts[0]?.shootingDirectionsKo?.length || !board.cuts[0]?.requiredChecksKo?.length) {
+  throw new Error('Shoot Board v2 should include Korean shooting directions and required checks.');
 }
 
 const afterFirstShot = toggleShootBoardCutStatus(board, board.cuts[0].id);
@@ -41,20 +51,20 @@ if (afterFirstShot.shotCount !== 1 || afterFirstShot.cuts[0]?.isShot !== true) {
 
 const nextUnshot = afterFirstShot.cuts.find((cut) => !cut.isShot);
 
-if (nextUnshot?.roleLabel !== 'PROOF') {
-  throw new Error('Next unshot cut should move to PROOF after the HOOK cut is completed.');
+if (nextUnshot?.roleLabel !== 'Proof') {
+  throw new Error('Next unshot cut should move to Proof after the Hook cut is completed.');
 }
 
 const addedCut = createAddedShootBoardCut(board, 'Custom reminder');
 
-if (addedCut.order !== 4 || addedCut.role !== 'custom' || addedCut.instruction !== 'Custom reminder') {
-  throw new Error('Added cuts should be appended as custom cuts after the existing board cuts.');
+if (addedCut.order !== 5 || addedCut.role !== 'custom' || addedCut.instruction !== 'Custom reminder') {
+  throw new Error('Added scenes should be appended as custom cuts after the existing board cuts.');
 }
 
 if (getShootBoardHref(board.id) !== '/recipe/recipe-korean-diet-hook') {
   throw new Error('Start Shooting entry points should route to the Shoot Board, not directly to camera.');
 }
 
-if (getRecipePrompterHref(board.id, board.cuts[0].id) !== '/recipe/recipe-korean-diet-hook/prompter?sceneId=scene-1') {
-  throw new Error('Cut shooting actions should route to the prompter for the selected cut.');
+if (getRecipePrompterHref(board.id, board.cuts[0].sceneId) !== '/recipe/recipe-korean-diet-hook/prompter?sceneId=scene-1') {
+  throw new Error('Cut shooting actions should route to the prompter for the selected cut scene.');
 }
