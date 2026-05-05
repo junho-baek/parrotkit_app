@@ -23,6 +23,9 @@
   - expanded card에 subtle inline text input을 추가했다.
   - `Instruction`, `Line to say`, `Shooting guideline`, checklist labels를 수정할 수 있다.
   - 각 card에 `Reset` / `원래대로` action을 추가했다.
+  - 후속 UI 피드백으로 `EDIT TEXT` 라벨을 제거하고, 기본 상태는 읽기 모드로 바꿨다.
+  - `Edit` 버튼을 눌렀을 때만 text input이 나타난다.
+  - expanded card 내부 구분선/underline을 제거했다.
 - `parrotkit-app/src/features/recipes/screens/recipe-detail-screen.tsx`
   - original cut snapshot ref를 유지해 기존/신규 scene reset을 지원한다.
   - card text edit/reset/move handlers를 board state에 연결했다.
@@ -43,6 +46,7 @@
 - iPhone 17 Pro visual QA:
   - URL: `exp://localhost:8081/--/recipe/recipe-korean-diet-hook`
   - Screenshot: `output/playwright/iphone17pro_shoot_board_editing_before_drag.png`
+  - Follow-up screenshot: `output/playwright/iphone17pro_shoot_board_edit_button_read_mode.png`
 
 ## 남은 리스크
 - Manual PanResponder reorder는 전용 DnD 라이브러리보다 단순하다.

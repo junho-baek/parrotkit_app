@@ -1,26 +1,40 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Href, useLocalSearchParams, useRouter } from 'expo-router';
-import { ComponentProps, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { LinearGradient } from "expo-linear-gradient";
+import { Href, useLocalSearchParams, useRouter } from "expo-router";
+import { ComponentProps, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Image,
+  ImageBackground,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useAppLanguage, type AppLanguage } from '@/core/i18n/app-language';
-import type { MockProjectTake, MockRecipe } from '@/core/mocks/parrotkit-data';
-import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
-import { brandActionGradient } from '@/core/theme/colors';
-import { ShootBoardDraggableList } from '@/features/recipes/components/shoot-board-draggable-list';
-import { ShootBoardNoteCta } from '@/features/recipes/components/shoot-board-note-cta';
-import { ShootBoardStickyHeader } from '@/features/recipes/components/shoot-board-sticky-header';
-import { normalizeNativeRecipe } from '@/features/recipes/lib/recipe-domain-normalizer';
-import { getSceneCardSummary, getSceneStrategyMeta } from '@/features/recipes/lib/scene-strategy-meta';
+import { useAppLanguage, type AppLanguage } from "@/core/i18n/app-language";
+import type { MockProjectTake, MockRecipe } from "@/core/mocks/parrotkit-data";
+import { useMockWorkspace } from "@/core/providers/mock-workspace-provider";
+import { brandActionGradient } from "@/core/theme/colors";
+import { ReferenceViewerModal } from "@/features/recipes/components/reference-viewer-modal";
+import { ShootBoardDraggableList } from "@/features/recipes/components/shoot-board-draggable-list";
+import { ShootBoardNoteCta } from "@/features/recipes/components/shoot-board-note-cta";
+import { ShootBoardStickyHeader } from "@/features/recipes/components/shoot-board-sticky-header";
+import { TakeReviewViewerModal } from "@/features/recipes/components/take-review-viewer-modal";
+import { normalizeNativeRecipe } from "@/features/recipes/lib/recipe-domain-normalizer";
+import {
+  getSceneCardSummary,
+  getSceneStrategyMeta,
+} from "@/features/recipes/lib/scene-strategy-meta";
 import {
   appendShootBoardCut,
   createAddedShootBoardCut,
   createShootBoardRecipe,
   getRecipePrompterHref,
-  moveShootBoardCut,
+  replaceShootBoardCutOrder,
   resetShootBoardCut,
+  selectShootBoardFinalTake,
   setShootBoardChecklistItem,
   setShootBoardCutCompletion,
   type ShootBoardCut,
@@ -28,140 +42,144 @@ import {
   type ShootBoardRecipe,
   type ShootBoardTake,
   updateShootBoardCutText,
-} from '@/features/recipes/lib/shoot-board-model';
-import { NativeRecipeScene } from '@/features/recipes/types/recipe-domain';
+} from "@/features/recipes/lib/shoot-board-model";
+import { NativeRecipeScene } from "@/features/recipes/types/recipe-domain";
 
-type DetailTab = 'analysis' | 'recipe' | 'shoot';
-type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
+type DetailTab = "analysis" | "recipe" | "shoot";
+type IconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
 
 const detailTabs: Array<{ id: DetailTab; label: string }> = [
-  { id: 'analysis', label: 'Analysis' },
-  { id: 'recipe', label: 'Recipe' },
-  { id: 'shoot', label: 'Shoot' },
+  { id: "analysis", label: "Analysis" },
+  { id: "recipe", label: "Recipe" },
+  { id: "shoot", label: "Shoot" },
 ];
 
 const detailCopy = {
   en: {
-    back: 'Back',
-    partnerCreator: 'Partner Creator',
-    verified: 'Verified',
-    keyHook: 'Key Hook',
-    structurePreview: 'Structure Preview',
-    whyItWorks: 'Why it works',
-    scenes: 'Scene details',
-    save: 'Save',
-    saved: 'Saved',
-    startShooting: 'Start Shooting',
-    startScene: 'Start Scene',
-    openScene: 'Open workspace',
-    saves: 'saves',
-    views: 'views',
-    sceneCount: 'scenes',
-    prepSnapshot: 'Ready-to-shoot brief',
-    sceneTimeline: 'Scene timeline',
-    referenceVideo: 'Reference clip',
-    whyThisWorks: 'Why this works',
-    copyThis: 'Copy this',
-    avoidThis: 'Avoid this',
-    sceneGoal: 'Scene Goal',
-    creatorDirection: 'Creator Direction',
-    prompterLines: 'Prompter Lines',
-    onScreenText: 'On-screen Text',
-    brandNotes: 'Brand Notes',
-    toneVariants: 'Tone Variants',
-    shotGuide: 'Shot guide',
-    checklist: 'Before recording',
-    cameraAngle: 'Camera angle',
-    lighting: 'Lighting',
-    productCue: 'Product cue',
-    say: 'Say',
-    show: 'Show',
-    avoid: 'Avoid',
-    previous: 'Previous',
-    next: 'Next',
+    back: "Back",
+    partnerCreator: "Partner Creator",
+    verified: "Verified",
+    keyHook: "Key Hook",
+    structurePreview: "Structure Preview",
+    whyItWorks: "Why it works",
+    scenes: "Scene details",
+    save: "Save",
+    saved: "Saved",
+    startShooting: "Start Shooting",
+    startScene: "Start Scene",
+    openScene: "Open workspace",
+    saves: "saves",
+    views: "views",
+    sceneCount: "scenes",
+    prepSnapshot: "Ready-to-shoot brief",
+    sceneTimeline: "Scene timeline",
+    referenceVideo: "Reference clip",
+    whyThisWorks: "Why this works",
+    copyThis: "Copy this",
+    avoidThis: "Avoid this",
+    sceneGoal: "Scene Goal",
+    creatorDirection: "Creator Direction",
+    prompterLines: "Prompter Lines",
+    onScreenText: "On-screen Text",
+    brandNotes: "Brand Notes",
+    toneVariants: "Tone Variants",
+    shotGuide: "Shot guide",
+    checklist: "Before recording",
+    cameraAngle: "Camera angle",
+    lighting: "Lighting",
+    productCue: "Product cue",
+    say: "Say",
+    show: "Show",
+    avoid: "Avoid",
+    previous: "Previous",
+    next: "Next",
   },
   ko: {
-    back: '뒤로',
-    partnerCreator: '파트너 크리에이터',
-    verified: '인증됨',
-    keyHook: '핵심 훅',
-    structurePreview: '구성 미리보기',
-    whyItWorks: '활용 포인트',
-    scenes: '씬 상세',
-    save: '저장',
-    saved: '저장됨',
-    startShooting: '촬영 시작',
-    startScene: '씬 시작',
-    openScene: '작업실 열기',
-    saves: '저장',
-    views: '조회',
-    sceneCount: '씬',
-    prepSnapshot: '촬영 준비 브리프',
-    sceneTimeline: '씬 타임라인',
-    referenceVideo: '예시 영상',
-    whyThisWorks: '왜 먹히는지',
-    copyThis: '이렇게 따라하기',
-    avoidThis: '피할 것',
-    sceneGoal: '씬 목표',
-    creatorDirection: '크리에이터 지시',
-    prompterLines: '프롬프터 문장',
-    onScreenText: '화면 자막',
-    brandNotes: '브랜드 노트',
-    toneVariants: '말투 변경',
-    shotGuide: '촬영 가이드',
-    checklist: '촬영 전 체크',
-    cameraAngle: '카메라 앵글',
-    lighting: '조명',
-    productCue: '제품 타이밍',
-    say: '대사',
-    show: '화면',
-    avoid: '피하기',
-    previous: '이전 씬',
-    next: '다음 씬',
+    back: "뒤로",
+    partnerCreator: "파트너 크리에이터",
+    verified: "인증됨",
+    keyHook: "핵심 훅",
+    structurePreview: "구성 미리보기",
+    whyItWorks: "활용 포인트",
+    scenes: "씬 상세",
+    save: "저장",
+    saved: "저장됨",
+    startShooting: "촬영 시작",
+    startScene: "씬 시작",
+    openScene: "작업실 열기",
+    saves: "저장",
+    views: "조회",
+    sceneCount: "씬",
+    prepSnapshot: "촬영 준비 브리프",
+    sceneTimeline: "씬 타임라인",
+    referenceVideo: "예시 영상",
+    whyThisWorks: "왜 먹히는지",
+    copyThis: "이렇게 따라하기",
+    avoidThis: "피할 것",
+    sceneGoal: "씬 목표",
+    creatorDirection: "크리에이터 지시",
+    prompterLines: "프롬프터 문장",
+    onScreenText: "화면 자막",
+    brandNotes: "브랜드 노트",
+    toneVariants: "말투 변경",
+    shotGuide: "촬영 가이드",
+    checklist: "촬영 전 체크",
+    cameraAngle: "카메라 앵글",
+    lighting: "조명",
+    productCue: "제품 타이밍",
+    say: "대사",
+    show: "화면",
+    avoid: "피하기",
+    previous: "이전 씬",
+    next: "다음 씬",
   },
 } satisfies Record<AppLanguage, Record<string, string>>;
 
-type DetailCopy = (typeof detailCopy)['en'];
+type DetailCopy = (typeof detailCopy)["en"];
 
 const shootBoardCopy = {
   en: {
-    addScene: 'Add scene',
-    back: 'Back',
-    cutsBoard: 'CUTS BOARD',
-    done: 'Done',
-    more: 'More',
-    preview: 'View example',
-    reorder: 'Reorder',
-    requiredChecks: 'Required checks',
-    shootingDirections: 'Shooting directions',
-    shoot: 'Shoot',
-    shootComplete: 'Shot',
-    shootIncomplete: 'Unshot',
-    speakingLine: 'Line to say',
+    addScene: "Add scene",
+    back: "Back",
+    cutsBoard: "CUTS BOARD",
+    done: "Done",
+    more: "More",
+    preview: "View example",
+    reorder: "Reorder",
+    requiredChecks: "Required checks",
+    shootingDirections: "Shooting directions",
+    shoot: "Shoot",
+    shootComplete: "Shot",
+    shootIncomplete: "Unshot",
+    speakingLine: "Line to say",
   },
   ko: {
-    addScene: '장면 추가',
-    back: '뒤로',
-    cutsBoard: 'CUTS BOARD',
-    done: '완료',
-    more: '더보기',
-    preview: '예시 보기',
-    reorder: '순서 변경',
-    requiredChecks: '필수 체크',
-    shootingDirections: '촬영 지시',
-    shoot: '촬영하기',
-    shootComplete: '촬영완료',
-    shootIncomplete: '미촬영',
-    speakingLine: '말할 문장',
+    addScene: "장면 추가",
+    back: "뒤로",
+    cutsBoard: "CUTS BOARD",
+    done: "완료",
+    more: "더보기",
+    preview: "예시 보기",
+    reorder: "순서 변경",
+    requiredChecks: "필수 체크",
+    shootingDirections: "촬영 지시",
+    shoot: "촬영하기",
+    shootComplete: "촬영완료",
+    shootIncomplete: "미촬영",
+    speakingLine: "말할 문장",
   },
 } satisfies Record<AppLanguage, Record<string, string>>;
 
-type ShootBoardCopy = (typeof shootBoardCopy)['en'];
+type ShootBoardCopy = (typeof shootBoardCopy)["en"];
 
 export function RecipeDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ recipeId?: string; sceneId?: string; tab?: DetailTab }>();
+  const params = useLocalSearchParams<{
+    recipeId?: string;
+    sceneId?: string;
+    tab?: DetailTab;
+  }>();
   const { language } = useAppLanguage();
   const copy = detailCopy[language];
   const boardCopy = shootBoardCopy[language];
@@ -172,16 +190,25 @@ export function RecipeDetailScreen() {
     isRecipeDownloaded,
   } = useMockWorkspace();
   const recipe = params.recipeId ? getRecipeById(params.recipeId) : null;
-  const nativeRecipe = useMemo(() => (recipe ? normalizeNativeRecipe(recipe) : null), [recipe]);
+  const nativeRecipe = useMemo(
+    () => (recipe ? normalizeNativeRecipe(recipe) : null),
+    [recipe],
+  );
 
-  const [activeTab, setActiveTab] = useState<DetailTab>('recipe');
+  const [activeTab, setActiveTab] = useState<DetailTab>("recipe");
   const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null);
   const [boardState, setBoardState] = useState<ShootBoardRecipe | null>(null);
   const [reorderMode, setReorderMode] = useState(false);
   const [boardDragActive, setBoardDragActive] = useState(false);
   const [expandedCutIds, setExpandedCutIds] = useState<string[]>([]);
+  const [referenceViewerCutId, setReferenceViewerCutId] = useState<
+    string | null
+  >(null);
+  const [takeViewerCutId, setTakeViewerCutId] = useState<string | null>(null);
   const originalCutSnapshotsRef = useRef<Record<string, ShootBoardCut>>({});
-  const recipeSaved = recipe ? isRecipeSaved(recipe, isRecipeDownloaded(recipe.id)) : false;
+  const recipeSaved = recipe
+    ? isRecipeSaved(recipe, isRecipeDownloaded(recipe.id))
+    : false;
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -189,7 +216,7 @@ export function RecipeDetailScreen() {
       return;
     }
 
-    router.replace('/explore' as Href);
+    router.replace("/explore" as Href);
   };
 
   useEffect(() => {
@@ -227,11 +254,15 @@ export function RecipeDetailScreen() {
       shotCutIds: [],
     });
 
-    originalCutSnapshotsRef.current = Object.fromEntries(nextBoard.cuts.map((cut) => [cut.id, cut]));
+    originalCutSnapshotsRef.current = Object.fromEntries(
+      nextBoard.cuts.map((cut) => [cut.id, cut]),
+    );
     setBoardState(nextBoard);
     setReorderMode(false);
     setBoardDragActive(false);
     setExpandedCutIds([]);
+    setReferenceViewerCutId(null);
+    setTakeViewerCutId(null);
   }, [nativeRecipe, recipeSaved]);
 
   const shootBoard = boardState;
@@ -240,7 +271,11 @@ export function RecipeDetailScreen() {
       return shootBoard;
     }
 
-    return hydrateShootBoardWithWorkspaceTakes(shootBoard, nativeRecipe.id, getSceneTakeCollection);
+    return hydrateShootBoardWithWorkspaceTakes(
+      shootBoard,
+      nativeRecipe.id,
+      getSceneTakeCollection,
+    );
   }, [getSceneTakeCollection, nativeRecipe, shootBoard]);
 
   useEffect(() => {
@@ -249,11 +284,14 @@ export function RecipeDetailScreen() {
     }
 
     setExpandedCutIds((current) => {
-      if (current.some((cutId) => shootBoard.cuts.some((cut) => cut.id === cutId))) {
+      if (
+        current.some((cutId) => shootBoard.cuts.some((cut) => cut.id === cutId))
+      ) {
         return current;
       }
 
-      const nextCut = shootBoard.cuts.find((cut) => !cut.isShot) ?? shootBoard.cuts[0];
+      const nextCut =
+        shootBoard.cuts.find((cut) => !cut.isShot) ?? shootBoard.cuts[0];
 
       return nextCut ? [nextCut.id] : [];
     });
@@ -262,8 +300,13 @@ export function RecipeDetailScreen() {
   if (!nativeRecipe) {
     return (
       <View className="flex-1 items-center justify-center bg-canvas px-6">
-        <Text className="text-[26px] font-black text-ink">Recipe not found</Text>
-        <Pressable className="mt-5 rounded-full bg-violet px-5 py-3" onPress={handleBack}>
+        <Text className="text-[26px] font-black text-ink">
+          Recipe not found
+        </Text>
+        <Pressable
+          className="mt-5 rounded-full bg-violet px-5 py-3"
+          onPress={handleBack}
+        >
           <Text className="text-sm font-bold text-white">Back</Text>
         </Pressable>
       </View>
@@ -271,7 +314,8 @@ export function RecipeDetailScreen() {
   }
 
   const selectedScene = selectedSceneId
-    ? nativeRecipe.scenes.find((scene) => scene.id === selectedSceneId) ?? null
+    ? (nativeRecipe.scenes.find((scene) => scene.id === selectedSceneId) ??
+      null)
     : null;
 
   const selectedSceneIndex = selectedScene
@@ -280,12 +324,12 @@ export function RecipeDetailScreen() {
 
   const openScene = (scene: NativeRecipeScene) => {
     setSelectedSceneId(scene.id);
-    setActiveTab('analysis');
+    setActiveTab("analysis");
   };
 
   const closeScene = () => {
     setSelectedSceneId(null);
-    setActiveTab('recipe');
+    setActiveTab("recipe");
   };
 
   const handleOpenPrompter = () => {
@@ -293,7 +337,9 @@ export function RecipeDetailScreen() {
       return;
     }
 
-    router.push(getRecipePrompterHref(nativeRecipe.id, selectedScene.id) as Href);
+    router.push(
+      getRecipePrompterHref(nativeRecipe.id, selectedScene.id) as Href,
+    );
   };
 
   const saveRecipe = () => {
@@ -315,25 +361,6 @@ export function RecipeDetailScreen() {
     return recipe;
   };
 
-  const findSceneForCut = (cut: ShootBoardCut) => (
-    cut.sceneId ? nativeRecipe.scenes.find((scene) => scene.id === cut.sceneId) ?? null : null
-  );
-
-  const openCutWorkspace = (cut: ShootBoardCut | null, tab: DetailTab = 'analysis') => {
-    if (!cut) {
-      return;
-    }
-
-    const scene = findSceneForCut(cut);
-
-    if (!scene) {
-      return;
-    }
-
-    setSelectedSceneId(scene.id);
-    setActiveTab(tab);
-  };
-
   const openPrompterForCut = (cut: ShootBoardCut | null) => {
     const targetRecipe = saveRecipe();
 
@@ -350,12 +377,28 @@ export function RecipeDetailScreen() {
     router.push(getRecipePrompterHref(targetRecipe.id, targetSceneId) as Href);
   };
 
-  const updateBoard = (updater: (board: ShootBoardRecipe) => ShootBoardRecipe) => {
+  const updateBoard = (
+    updater: (board: ShootBoardRecipe) => ShootBoardRecipe,
+  ) => {
     setBoardState((current) => (current ? updater(current) : current));
   };
 
-  const handleMoveCut = (cutId: string, direction: -1 | 1) => {
-    updateBoard((board) => moveShootBoardCut(board, cutId, direction));
+  const handleReorderCuts = (cuts: ShootBoardCut[]) => {
+    updateBoard((board) => replaceShootBoardCutOrder(board, cuts));
+  };
+
+  const openReferenceViewer = (cut: ShootBoardCut | null) => {
+    if (!cut) return;
+    setReferenceViewerCutId(cut.id);
+  };
+
+  const openTakeViewer = (cut: ShootBoardCut | null) => {
+    if (!cut) return;
+    setTakeViewerCutId(cut.id);
+  };
+
+  const selectFinalTake = (cut: ShootBoardCut, takeId: string) => {
+    updateBoard((board) => selectShootBoardFinalTake(board, cut.id, takeId));
   };
 
   const toggleSceneCompletion = (cutId: string, complete: boolean) => {
@@ -363,7 +406,7 @@ export function RecipeDetailScreen() {
       const updatedBoard = setShootBoardCutCompletion(board, cutId, complete);
       const updatedCut = updatedBoard.cuts.find((cut) => cut.id === cutId);
       const nextCut = updatedCut?.isShot
-        ? updatedBoard.cuts.find((cut) => !cut.isShot) ?? updatedBoard.cuts[0]
+        ? (updatedBoard.cuts.find((cut) => !cut.isShot) ?? updatedBoard.cuts[0])
         : updatedCut;
 
       if (nextCut) {
@@ -374,8 +417,14 @@ export function RecipeDetailScreen() {
     });
   };
 
-  const toggleRequiredCheck = (cutId: string, checklistItemId: string, checked: boolean) => {
-    updateBoard((board) => setShootBoardChecklistItem(board, cutId, checklistItemId, checked));
+  const toggleRequiredCheck = (
+    cutId: string,
+    checklistItemId: string,
+    checked: boolean,
+  ) => {
+    updateBoard((board) =>
+      setShootBoardChecklistItem(board, cutId, checklistItemId, checked),
+    );
   };
 
   const updateCutText = (cutId: string, patch: ShootBoardCutTextPatch) => {
@@ -395,10 +444,7 @@ export function RecipeDetailScreen() {
     }
 
     updateBoard((board) => {
-      const newCut = createAddedShootBoardCut(
-        board,
-        language === 'ko' ? '새 장면의 재사용 가능한 촬영 지시를 추가하세요.' : 'Add a reusable filming cue for this scene.'
-      );
+      const newCut = createAddedShootBoardCut(board);
 
       originalCutSnapshotsRef.current[newCut.id] = newCut;
       setExpandedCutIds([newCut.id]);
@@ -407,17 +453,28 @@ export function RecipeDetailScreen() {
   };
 
   const toggleExpandedCut = (cutId: string) => {
-    setExpandedCutIds((current) => (
-      current.includes(cutId) ? current.filter((id) => id !== cutId) : [...current, cutId]
-    ));
+    setExpandedCutIds((current) =>
+      current.includes(cutId)
+        ? current.filter((id) => id !== cutId)
+        : [...current, cutId],
+    );
   };
 
   if (selectedScene) {
-    const previousScene = selectedSceneIndex > 0 ? nativeRecipe.scenes[selectedSceneIndex - 1] : null;
-    const nextScene = selectedSceneIndex >= 0 && selectedSceneIndex < nativeRecipe.scenes.length - 1
-      ? nativeRecipe.scenes[selectedSceneIndex + 1]
-      : null;
-    const sceneRole = getSceneRoleLabel(language, selectedSceneIndex, nativeRecipe.scenes.length);
+    const previousScene =
+      selectedSceneIndex > 0
+        ? nativeRecipe.scenes[selectedSceneIndex - 1]
+        : null;
+    const nextScene =
+      selectedSceneIndex >= 0 &&
+      selectedSceneIndex < nativeRecipe.scenes.length - 1
+        ? nativeRecipe.scenes[selectedSceneIndex + 1]
+        : null;
+    const sceneRole = getSceneRoleLabel(
+      language,
+      selectedSceneIndex,
+      nativeRecipe.scenes.length,
+    );
 
     return (
       <View className="flex-1 bg-canvas">
@@ -430,14 +487,25 @@ export function RecipeDetailScreen() {
               className="h-10 w-10 items-center justify-center rounded-full border border-stroke bg-canvas"
               onPress={closeScene}
             >
-              <MaterialCommunityIcons color="#111827" name="arrow-left" size={20} />
+              <MaterialCommunityIcons
+                color="#111827"
+                name="arrow-left"
+                size={20}
+              />
             </Pressable>
 
             <View className="min-w-0 flex-1 px-3">
-              <Text className="text-center text-[12px] font-black text-violet" numberOfLines={1}>
-                #{selectedScene.sceneNumber} · {sceneRole} · {getSceneDuration(selectedScene)}
+              <Text
+                className="text-center text-[12px] font-black text-violet"
+                numberOfLines={1}
+              >
+                #{selectedScene.sceneNumber} · {sceneRole} ·{" "}
+                {getSceneDuration(selectedScene)}
               </Text>
-              <Text className="text-center text-[14px] font-black text-ink" numberOfLines={1}>
+              <Text
+                className="text-center text-[14px] font-black text-ink"
+                numberOfLines={1}
+              >
                 {selectedScene.title}
               </Text>
             </View>
@@ -446,7 +514,11 @@ export function RecipeDetailScreen() {
               className="h-10 w-10 items-center justify-center rounded-full bg-ink"
               onPress={handleOpenPrompter}
             >
-              <MaterialCommunityIcons color="#fff" name="camera-outline" size={18} />
+              <MaterialCommunityIcons
+                color="#fff"
+                name="camera-outline"
+                size={18}
+              />
             </Pressable>
           </View>
         </View>
@@ -465,10 +537,12 @@ export function RecipeDetailScreen() {
                 return (
                   <Pressable
                     key={tab.id}
-                    className={`flex-1 rounded-[18px] px-3 py-2.5 ${active ? 'bg-ink' : 'bg-transparent'}`}
+                    className={`flex-1 rounded-[18px] px-3 py-2.5 ${active ? "bg-ink" : "bg-transparent"}`}
                     onPress={() => setActiveTab(tab.id)}
                   >
-                    <Text className={`text-center text-[12px] font-semibold ${active ? 'text-white' : 'text-muted'}`}>
+                    <Text
+                      className={`text-center text-[12px] font-semibold ${active ? "text-white" : "text-muted"}`}
+                    >
                       {getTabLabel(language, tab.id)}
                     </Text>
                   </Pressable>
@@ -476,7 +550,7 @@ export function RecipeDetailScreen() {
               })}
             </View>
 
-            {activeTab === 'analysis' ? (
+            {activeTab === "analysis" ? (
               <SceneWatchPanel
                 copy={copy}
                 language={language}
@@ -484,7 +558,7 @@ export function RecipeDetailScreen() {
                 sceneIndex={selectedSceneIndex}
                 totalScenes={nativeRecipe.scenes.length}
               />
-            ) : activeTab === 'recipe' ? (
+            ) : activeTab === "recipe" ? (
               <ScenePlanPanel
                 copy={copy}
                 language={language}
@@ -507,7 +581,9 @@ export function RecipeDetailScreen() {
             <View className="flex-row gap-3">
               <Pressable
                 className={`flex-1 rounded-[20px] border px-4 py-3 ${
-                  previousScene ? 'border-stroke bg-surface' : 'border-stroke/60 bg-surface/60'
+                  previousScene
+                    ? "border-stroke bg-surface"
+                    : "border-stroke/60 bg-surface/60"
                 }`}
                 disabled={!previousScene}
                 onPress={() => {
@@ -516,14 +592,18 @@ export function RecipeDetailScreen() {
                   }
                 }}
               >
-                <Text className={`text-center text-[13px] font-black ${previousScene ? 'text-ink' : 'text-muted'}`}>
+                <Text
+                  className={`text-center text-[13px] font-black ${previousScene ? "text-ink" : "text-muted"}`}
+                >
                   {copy.previous}
                 </Text>
               </Pressable>
 
               <Pressable
                 className={`flex-1 rounded-[20px] border px-4 py-3 ${
-                  nextScene ? 'border-stroke bg-surface' : 'border-stroke/60 bg-surface/60'
+                  nextScene
+                    ? "border-stroke bg-surface"
+                    : "border-stroke/60 bg-surface/60"
                 }`}
                 disabled={!nextScene}
                 onPress={() => {
@@ -532,7 +612,9 @@ export function RecipeDetailScreen() {
                   }
                 }}
               >
-                <Text className={`text-center text-[13px] font-black ${nextScene ? 'text-ink' : 'text-muted'}`}>
+                <Text
+                  className={`text-center text-[13px] font-black ${nextScene ? "text-ink" : "text-muted"}`}
+                >
                   {copy.next}
                 </Text>
               </Pressable>
@@ -547,6 +629,15 @@ export function RecipeDetailScreen() {
     return null;
   }
 
+  const referenceViewerCut = referenceViewerCutId
+    ? (renderedShootBoard.cuts.find((cut) => cut.id === referenceViewerCutId) ??
+      null)
+    : null;
+  const takeViewerCut = takeViewerCutId
+    ? (renderedShootBoard.cuts.find((cut) => cut.id === takeViewerCutId) ??
+      null)
+    : null;
+
   return (
     <View className="flex-1 bg-canvas">
       <CutBoardHeader
@@ -558,39 +649,33 @@ export function RecipeDetailScreen() {
         topInset={insets.top}
       />
 
-      <ScrollView
-        className="flex-1"
+      <ShootBoardDraggableList
         contentContainerStyle={{ paddingBottom: insets.bottom + 112 }}
-        contentInsetAdjustmentBehavior="never"
-        scrollEnabled={!boardDragActive}
-        showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[1]}
-      >
-        <ShootBoardNoteCta language={language} />
-        <ShootBoardStickyHeader
-          language={language}
-          onToggleReorder={() => setReorderMode((current) => !current)}
-          reorderMode={reorderMode}
-        />
-        <View className="px-4 pb-4 pt-3">
-          <ShootBoardDraggableList
-            cuts={renderedShootBoard.cuts}
-            expandedCutIds={expandedCutIds}
-            language={language}
-            onDragStateChange={setBoardDragActive}
-            onMoveCut={handleMoveCut}
-            onPreview={(cut) => openCutWorkspace(cut, 'analysis')}
-            onResetCut={resetCutText}
-            onResult={(cut) => openCutWorkspace(cut, 'shoot')}
-            onShoot={(cut) => openPrompterForCut(cut)}
-            onToggleExpanded={toggleExpandedCut}
-            onToggleRequiredCheck={toggleRequiredCheck}
-            onToggleSceneComplete={toggleSceneCompletion}
-            onUpdateCutText={updateCutText}
-            reorderMode={reorderMode}
-          />
-        </View>
-      </ScrollView>
+        cuts={renderedShootBoard.cuts}
+        expandedCutIds={expandedCutIds}
+        language={language}
+        ListHeaderComponent={
+          <>
+            <ShootBoardNoteCta language={language} />
+            <ShootBoardStickyHeader
+              language={language}
+              onToggleReorder={() => setReorderMode((current) => !current)}
+              reorderMode={reorderMode}
+            />
+          </>
+        }
+        onDragStateChange={setBoardDragActive}
+        onPreview={openReferenceViewer}
+        onReorderCuts={handleReorderCuts}
+        onResetCut={resetCutText}
+        onShoot={openPrompterForCut}
+        onTake={openTakeViewer}
+        onToggleExpanded={toggleExpandedCut}
+        onToggleRequiredCheck={toggleRequiredCheck}
+        onToggleSceneComplete={toggleSceneCompletion}
+        onUpdateCutText={updateCutText}
+        reorderMode={reorderMode || boardDragActive}
+      />
 
       <FloatingAddSceneButton
         bottomInset={insets.bottom}
@@ -598,6 +683,41 @@ export function RecipeDetailScreen() {
         onPress={addCut}
       />
 
+      {referenceViewerCut ? (
+        <ReferenceViewerModal
+          cut={referenceViewerCut}
+          cuts={[...renderedShootBoard.cuts].sort((a, b) => a.order - b.order)}
+          language={language}
+          onClose={() => setReferenceViewerCutId(null)}
+          onSelectCut={(cut) => setReferenceViewerCutId(cut.id)}
+          onShoot={(cut) => {
+            setReferenceViewerCutId(null);
+            openPrompterForCut(cut);
+          }}
+          onUseAsGuide={(cut) => {
+            setReferenceViewerCutId(null);
+            setExpandedCutIds([cut.id]);
+          }}
+          visible={referenceViewerCutId !== null}
+        />
+      ) : null}
+
+      {takeViewerCut ? (
+        <TakeReviewViewerModal
+          cut={takeViewerCut}
+          cuts={[...renderedShootBoard.cuts].sort((a, b) => a.order - b.order)}
+          language={language}
+          onClose={() => setTakeViewerCutId(null)}
+          onRetake={(cut) => {
+            setTakeViewerCutId(null);
+            openPrompterForCut(cut);
+          }}
+          onSelectCut={(cut) => setTakeViewerCutId(cut.id)}
+          onSelectFinal={(take, cut) => selectFinalTake(cut, take.id)}
+          onSelectTake={() => undefined}
+          visible={takeViewerCutId !== null}
+        />
+      ) : null}
     </View>
   );
 }
@@ -619,24 +739,48 @@ function CutBoardHeader({
 }) {
   return (
     <View style={[styles.cutBoardHeaderShell, { paddingTop: topInset + 12 }]}>
-      <Pressable accessibilityLabel={copy.back} accessibilityRole="button" onPress={onBack} style={styles.cutBoardBackButton}>
+      <Pressable
+        accessibilityLabel={copy.back}
+        accessibilityRole="button"
+        onPress={onBack}
+        style={styles.cutBoardBackButton}
+      >
         <MaterialCommunityIcons color="#111827" name="arrow-left" size={24} />
       </Pressable>
 
       <View className="min-w-0 flex-1 px-2">
         <View className="flex-row items-center gap-1">
-          <Text className="min-w-0 flex-shrink text-[17px] font-black leading-6 text-ink" numberOfLines={1}>
+          <Text
+            className="min-w-0 flex-shrink text-[17px] font-black leading-6 text-ink"
+            numberOfLines={1}
+          >
             {board.title}
           </Text>
-          <MaterialCommunityIcons color="#111827" name="chevron-down" size={17} />
+          <MaterialCommunityIcons
+            color="#111827"
+            name="chevron-down"
+            size={17}
+          />
         </View>
-        <Text className="mt-0.5 text-[13px] font-bold text-muted" numberOfLines={1}>
+        <Text
+          className="mt-0.5 text-[13px] font-bold text-muted"
+          numberOfLines={1}
+        >
           {formatShootBoardMeta(language, board)}
         </Text>
       </View>
 
-      <Pressable accessibilityLabel={copy.more} accessibilityRole="button" onPress={onMore} style={styles.cutBoardMoreButton}>
-        <MaterialCommunityIcons color="#111827" name="dots-horizontal" size={24} />
+      <Pressable
+        accessibilityLabel={copy.more}
+        accessibilityRole="button"
+        onPress={onMore}
+        style={styles.cutBoardMoreButton}
+      >
+        <MaterialCommunityIcons
+          color="#111827"
+          name="dots-horizontal"
+          size={24}
+        />
       </Pressable>
     </View>
   );
@@ -655,7 +799,10 @@ function FloatingAddSceneButton({
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={[styles.v2FloatingAddButton, { bottom: Math.max(bottomInset, 12) + 10 }]}
+      style={[
+        styles.v2FloatingAddButton,
+        { bottom: Math.max(bottomInset, 12) + 10 },
+      ]}
     >
       <MaterialCommunityIcons color="#fff" name="plus" size={24} />
       <Text className="text-[16px] font-black text-white">{copy.addScene}</Text>
@@ -674,14 +821,25 @@ function RecipePrepSnapshot({
 }) {
   return (
     <View className="gap-3">
-      <Text className="text-[16px] font-black text-ink">{copy.prepSnapshot}</Text>
+      <Text className="text-[16px] font-black text-ink">
+        {copy.prepSnapshot}
+      </Text>
       <View className="flex-row flex-wrap gap-2">
         {getRecipePrepItems(language, recipe).map((item) => (
           <View key={item.label} style={styles.prepChip}>
-            <MaterialCommunityIcons color="#8c67ff" name={item.icon} size={16} />
+            <MaterialCommunityIcons
+              color="#8c67ff"
+              name={item.icon}
+              size={16}
+            />
             <View className="min-w-0 flex-1">
-              <Text className="text-[10px] font-black text-muted">{item.label}</Text>
-              <Text className="text-[12px] font-black leading-4 text-ink" numberOfLines={2}>
+              <Text className="text-[10px] font-black text-muted">
+                {item.label}
+              </Text>
+              <Text
+                className="text-[12px] font-black leading-4 text-ink"
+                numberOfLines={2}
+              >
                 {item.value}
               </Text>
             </View>
@@ -689,7 +847,9 @@ function RecipePrepSnapshot({
         ))}
       </View>
       <View className="rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3">
-        <Text className="text-[12px] font-black text-amber-900">{copy.brandNotes}</Text>
+        <Text className="text-[12px] font-black text-amber-900">
+          {copy.brandNotes}
+        </Text>
         <Text className="mt-1 text-[12px] font-semibold leading-5 text-amber-900/80">
           {getRecipeBrandNote(language, recipe)}
         </Text>
@@ -721,35 +881,63 @@ function SceneTimelineCard({
   return (
     <View className="overflow-hidden rounded-[24px] border border-stroke bg-surface">
       <View className="flex-row gap-3 p-3">
-        <Pressable className="overflow-hidden rounded-[18px]" onPress={onOpen} style={styles.timelineThumb}>
-          <ImageBackground resizeMode="cover" source={{ uri: scene.thumbnail }} style={styles.timelineThumb}>
+        <Pressable
+          className="overflow-hidden rounded-[18px]"
+          onPress={onOpen}
+          style={styles.timelineThumb}
+        >
+          <ImageBackground
+            resizeMode="cover"
+            source={{ uri: scene.thumbnail }}
+            style={styles.timelineThumb}
+          >
             <LinearGradient
-              colors={['rgba(15,23,42,0)', 'rgba(15,23,42,0.72)']}
+              colors={["rgba(15,23,42,0)", "rgba(15,23,42,0.72)"]}
               style={StyleSheet.absoluteFill}
             />
             <View className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-1">
-              <Text className="text-[10px] font-black text-white">#{scene.sceneNumber}</Text>
+              <Text className="text-[10px] font-black text-white">
+                #{scene.sceneNumber}
+              </Text>
             </View>
             <View className="absolute bottom-2 left-2 right-2 rounded-full bg-white/90 px-2 py-1">
-              <Text className="text-center text-[10px] font-black text-ink">{getSceneDuration(scene)}</Text>
+              <Text className="text-center text-[10px] font-black text-ink">
+                {getSceneDuration(scene)}
+              </Text>
             </View>
           </ImageBackground>
         </Pressable>
 
         <View className="min-w-0 flex-1 gap-2">
           <View className="flex-row items-center gap-2">
-            <View style={[styles.roleDot, { backgroundColor: getStructureColor(sceneIndex) }]} />
+            <View
+              style={[
+                styles.roleDot,
+                { backgroundColor: getStructureColor(sceneIndex) },
+              ]}
+            />
             <Text className="text-[11px] font-black uppercase tracking-[1px] text-violet">
               {role}
             </Text>
           </View>
-          <Text className="text-[16px] font-black leading-[20px] text-ink" numberOfLines={2}>
+          <Text
+            className="text-[16px] font-black leading-[20px] text-ink"
+            numberOfLines={2}
+          >
             {summary}
           </Text>
-          <Text className="text-[12px] font-semibold leading-5 text-muted" numberOfLines={2}>
-            {scene.recipe.keyAction || scene.analysis.motionDescription || scene.summary}
+          <Text
+            className="text-[12px] font-semibold leading-5 text-muted"
+            numberOfLines={2}
+          >
+            {scene.recipe.keyAction ||
+              scene.analysis.motionDescription ||
+              scene.summary}
           </Text>
-          <Text className="text-[12px] font-black leading-5 text-ink" numberOfLines={2}>
+          <Text
+            className="text-[12px] font-black leading-5 text-ink"
+            numberOfLines={2}
+          >
             "{getPrimaryPrompterLine(scene)}"
           </Text>
 
@@ -759,12 +947,29 @@ function SceneTimelineCard({
               className="flex-1 rounded-full border border-stroke bg-canvas px-3 py-2.5"
               onPress={onOpen}
             >
-              <Text className="text-center text-[11px] font-black text-ink">{copy.openScene}</Text>
+              <Text className="text-center text-[11px] font-black text-ink">
+                {copy.openScene}
+              </Text>
             </Pressable>
-            <Pressable accessibilityRole="button" className="flex-1 overflow-hidden rounded-full" onPress={onShoot}>
-              <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.timelineShootButton}>
-                <MaterialCommunityIcons color="#fff" name="camera-outline" size={14} />
-                <Text className="text-[11px] font-black text-white">{copy.startScene}</Text>
+            <Pressable
+              accessibilityRole="button"
+              className="flex-1 overflow-hidden rounded-full"
+              onPress={onShoot}
+            >
+              <LinearGradient
+                colors={brandActionGradient}
+                end={{ x: 1, y: 1 }}
+                start={{ x: 0, y: 0 }}
+                style={styles.timelineShootButton}
+              >
+                <MaterialCommunityIcons
+                  color="#fff"
+                  name="camera-outline"
+                  size={14}
+                />
+                <Text className="text-[11px] font-black text-white">
+                  {copy.startScene}
+                </Text>
               </LinearGradient>
             </Pressable>
           </View>
@@ -788,19 +993,34 @@ function SceneWatchPanel({
   totalScenes: number;
 }) {
   const role = getSceneRoleLabel(language, sceneIndex, totalScenes);
-  const whyLines = scene.analysis.whyItWorks.length ? scene.analysis.whyItWorks.slice(0, 3) : [scene.analysis.motionDescription || scene.summary || scene.recipe.objective];
+  const whyLines = scene.analysis.whyItWorks.length
+    ? scene.analysis.whyItWorks.slice(0, 3)
+    : [
+        scene.analysis.motionDescription ||
+          scene.summary ||
+          scene.recipe.objective,
+      ];
 
   return (
     <View className="gap-4">
       <View className="gap-2">
-        <Text className="text-[12px] font-black text-muted">{copy.referenceVideo}</Text>
-        <ImageBackground imageStyle={{ borderRadius: 24 }} resizeMode="cover" source={{ uri: scene.thumbnail }} style={styles.referencePlayer}>
+        <Text className="text-[12px] font-black text-muted">
+          {copy.referenceVideo}
+        </Text>
+        <ImageBackground
+          imageStyle={{ borderRadius: 24 }}
+          resizeMode="cover"
+          source={{ uri: scene.thumbnail }}
+          style={styles.referencePlayer}
+        >
           <LinearGradient
-            colors={['rgba(15,23,42,0.05)', 'rgba(15,23,42,0.78)']}
+            colors={["rgba(15,23,42,0.05)", "rgba(15,23,42,0.78)"]}
             style={StyleSheet.absoluteFill}
           />
           <View className="absolute left-4 top-4 rounded-full bg-black/55 px-3 py-1.5">
-            <Text className="text-[11px] font-black text-white">#{scene.sceneNumber} · {role}</Text>
+            <Text className="text-[11px] font-black text-white">
+              #{scene.sceneNumber} · {role}
+            </Text>
           </View>
           <View className="items-center justify-center">
             <View className="h-14 w-14 items-center justify-center rounded-full bg-white/90">
@@ -809,9 +1029,18 @@ function SceneWatchPanel({
           </View>
           <View className="absolute bottom-4 left-4 right-4">
             <View className="h-1.5 overflow-hidden rounded-full bg-white/25">
-              <View style={[styles.referenceProgress, { width: `${Math.min(100, ((sceneIndex + 1) / totalScenes) * 100)}%` }]} />
+              <View
+                style={[
+                  styles.referenceProgress,
+                  {
+                    width: `${Math.min(100, ((sceneIndex + 1) / totalScenes) * 100)}%`,
+                  },
+                ]}
+              />
             </View>
-            <Text className="mt-2 text-[11px] font-black text-white/85">{getSceneDuration(scene)}</Text>
+            <Text className="mt-2 text-[11px] font-black text-white/85">
+              {getSceneDuration(scene)}
+            </Text>
           </View>
         </ImageBackground>
       </View>
@@ -854,34 +1083,70 @@ function ScenePlanPanel({
   totalScenes: number;
 }) {
   const role = getSceneRoleLabel(language, sceneIndex, totalScenes);
-  const prompterLines = [getPrimaryPrompterLine(scene), ...scene.recipe.scriptLines.slice(1, 3)]
+  const prompterLines = [
+    getPrimaryPrompterLine(scene),
+    ...scene.recipe.scriptLines.slice(1, 3),
+  ]
     .filter(Boolean)
     .slice(0, 3);
 
   return (
     <View className="gap-4">
       <View className="rounded-[24px] border border-violet/25 bg-violet/5 px-4 py-4">
-        <Text className="text-[12px] font-black text-violet">#{scene.sceneNumber} · {role}</Text>
+        <Text className="text-[12px] font-black text-violet">
+          #{scene.sceneNumber} · {role}
+        </Text>
         <Text className="mt-2 text-[24px] font-black leading-[30px] text-ink">
           {scene.recipe.keyLine || scene.recipe.appealPoint}
         </Text>
         <Text className="mt-2 text-[13px] font-semibold leading-5 text-muted">
-          {scene.recipe.keyMood || (language === 'ko' ? '자연스럽고 확신 있게' : 'Natural, confident, and ready to shoot.')}
+          {scene.recipe.keyMood ||
+            (language === "ko"
+              ? "자연스럽고 확신 있게"
+              : "Natural, confident, and ready to shoot.")}
         </Text>
       </View>
 
-      <PlanRow icon="target" title={copy.sceneGoal} value={scene.recipe.objective || scene.summary || scene.title} />
-      <PlanRow icon="gesture-tap" title={copy.creatorDirection} value={scene.recipe.keyAction || scene.analysis.motionDescription || scene.title} />
-      <PlanRow icon="script-text-outline" title={copy.prompterLines} value={prompterLines.join('\n')} />
-      <PlanRow icon="closed-caption-outline" title={copy.onScreenText} value={getOnScreenText(language, scene)} />
-      <PlanRow icon="shield-check-outline" title={copy.brandNotes} value={getSceneBrandNote(language, recipe.notes)} />
+      <PlanRow
+        icon="target"
+        title={copy.sceneGoal}
+        value={scene.recipe.objective || scene.summary || scene.title}
+      />
+      <PlanRow
+        icon="gesture-tap"
+        title={copy.creatorDirection}
+        value={
+          scene.recipe.keyAction ||
+          scene.analysis.motionDescription ||
+          scene.title
+        }
+      />
+      <PlanRow
+        icon="script-text-outline"
+        title={copy.prompterLines}
+        value={prompterLines.join("\n")}
+      />
+      <PlanRow
+        icon="closed-caption-outline"
+        title={copy.onScreenText}
+        value={getOnScreenText(language, scene)}
+      />
+      <PlanRow
+        icon="shield-check-outline"
+        title={copy.brandNotes}
+        value={getSceneBrandNote(language, recipe.notes)}
+      />
 
       <View className="gap-2">
-        <Text className="text-[12px] font-black text-muted">{copy.toneVariants}</Text>
+        <Text className="text-[12px] font-black text-muted">
+          {copy.toneVariants}
+        </Text>
         <View className="flex-row flex-wrap gap-2">
           {getToneVariants(language).map((variant) => (
             <View className="rounded-full bg-slate-100 px-3 py-2" key={variant}>
-              <Text className="text-[11px] font-black text-slate-700">{variant}</Text>
+              <Text className="text-[11px] font-black text-slate-700">
+                {variant}
+              </Text>
             </View>
           ))}
         </View>
@@ -909,7 +1174,9 @@ function SceneShootPanel({
     <View className="gap-4">
       <View className="rounded-[24px] border border-stroke bg-surface px-4 py-4">
         <Text className="text-[12px] font-black text-violet">
-          Scene {scene.sceneNumber}/{totalScenes} · {getSceneRoleLabel(language, sceneIndex, totalScenes)} · {getSceneDuration(scene)}
+          Scene {scene.sceneNumber}/{totalScenes} ·{" "}
+          {getSceneRoleLabel(language, sceneIndex, totalScenes)} ·{" "}
+          {getSceneDuration(scene)}
         </Text>
         <Text className="mt-2 text-[20px] font-black leading-[26px] text-ink">
           {copy.say}
@@ -920,11 +1187,29 @@ function SceneShootPanel({
       </View>
 
       <View className="gap-3">
-        <Text className="text-[12px] font-black text-muted">{copy.shotGuide}</Text>
+        <Text className="text-[12px] font-black text-muted">
+          {copy.shotGuide}
+        </Text>
         <View className="flex-row flex-wrap gap-2">
-          <ShotGuidePill icon="camera-outline" label={copy.cameraAngle} value={getCameraGuide(language, sceneIndex)} />
-          <ShotGuidePill icon="white-balance-sunny" label={copy.lighting} value={language === 'ko' ? '자연광 + 보조등' : 'Natural light + soft fill'} />
-          <ShotGuidePill icon="cube-outline" label={copy.productCue} value={getProductCue(language, sceneIndex)} />
+          <ShotGuidePill
+            icon="camera-outline"
+            label={copy.cameraAngle}
+            value={getCameraGuide(language, sceneIndex)}
+          />
+          <ShotGuidePill
+            icon="white-balance-sunny"
+            label={copy.lighting}
+            value={
+              language === "ko"
+                ? "자연광 + 보조등"
+                : "Natural light + soft fill"
+            }
+          />
+          <ShotGuidePill
+            icon="cube-outline"
+            label={copy.productCue}
+            value={getProductCue(language, sceneIndex)}
+          />
         </View>
       </View>
 
@@ -935,14 +1220,42 @@ function SceneShootPanel({
       />
 
       <View className="flex-row gap-3">
-        <MiniBriefCard icon="eye-outline" title={copy.show} value={scene.recipe.keyAction || scene.analysis.motionDescription || scene.summary || scene.title} />
-        <MiniBriefCard icon="close-octagon-outline" title={copy.avoid} value={getAvoidLine(language, scene)} />
+        <MiniBriefCard
+          icon="eye-outline"
+          title={copy.show}
+          value={
+            scene.recipe.keyAction ||
+            scene.analysis.motionDescription ||
+            scene.summary ||
+            scene.title
+          }
+        />
+        <MiniBriefCard
+          icon="close-octagon-outline"
+          title={copy.avoid}
+          value={getAvoidLine(language, scene)}
+        />
       </View>
 
-      <Pressable accessibilityRole="button" className="overflow-hidden rounded-full" onPress={onStart}>
-        <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.workspaceStartButton}>
-          <MaterialCommunityIcons color="#fff" name="camera-outline" size={20} />
-          <Text className="text-[15px] font-black text-white">{copy.startShooting}</Text>
+      <Pressable
+        accessibilityRole="button"
+        className="overflow-hidden rounded-full"
+        onPress={onStart}
+      >
+        <LinearGradient
+          colors={brandActionGradient}
+          end={{ x: 1, y: 1 }}
+          start={{ x: 0, y: 0 }}
+          style={styles.workspaceStartButton}
+        >
+          <MaterialCommunityIcons
+            color="#fff"
+            name="camera-outline"
+            size={20}
+          />
+          <Text className="text-[15px] font-black text-white">
+            {copy.startShooting}
+          </Text>
         </LinearGradient>
       </Pressable>
     </View>
@@ -968,7 +1281,9 @@ function InsightBlock({
         {lines.filter(Boolean).map((line, index) => (
           <View className="flex-row gap-2" key={`${title}-${index}`}>
             <Text className="text-[12px] font-black text-violet">✓</Text>
-            <Text className="flex-1 text-[13px] font-semibold leading-5 text-slate-700">{line}</Text>
+            <Text className="flex-1 text-[13px] font-semibold leading-5 text-slate-700">
+              {line}
+            </Text>
           </View>
         ))}
       </View>
@@ -989,7 +1304,10 @@ function MiniBriefCard({
     <View className="min-w-0 flex-1 rounded-[20px] border border-stroke bg-surface px-3 py-3">
       <MaterialCommunityIcons color="#8c67ff" name={icon} size={18} />
       <Text className="mt-2 text-[11px] font-black text-muted">{title}</Text>
-      <Text className="mt-1 text-[12px] font-black leading-5 text-ink" numberOfLines={4}>
+      <Text
+        className="mt-1 text-[12px] font-black leading-5 text-ink"
+        numberOfLines={4}
+      >
         {value}
       </Text>
     </View>
@@ -1012,7 +1330,9 @@ function PlanRow({
       </View>
       <View className="min-w-0 flex-1">
         <Text className="text-[12px] font-black text-muted">{title}</Text>
-        <Text className="mt-1 text-[13px] font-semibold leading-5 text-ink">{value}</Text>
+        <Text className="mt-1 text-[13px] font-semibold leading-5 text-ink">
+          {value}
+        </Text>
       </View>
     </View>
   );
@@ -1039,7 +1359,7 @@ function ShotGuidePill({
 }
 
 function formatShootBoardMeta(language: AppLanguage, board: ShootBoardRecipe) {
-  if (language === 'ko') {
+  if (language === "ko") {
     return `${board.totalCuts}컷 · ${board.totalDurationSeconds}초 · ${board.shotCount} / ${board.totalCuts} 촬영`;
   }
 
@@ -1049,7 +1369,9 @@ function formatShootBoardMeta(language: AppLanguage, board: ShootBoardRecipe) {
 function hydrateShootBoardWithWorkspaceTakes(
   board: ShootBoardRecipe,
   recipeId: string,
-  getSceneTakeCollection: ReturnType<typeof useMockWorkspace>['getSceneTakeCollection']
+  getSceneTakeCollection: ReturnType<
+    typeof useMockWorkspace
+  >["getSceneTakeCollection"],
 ): ShootBoardRecipe {
   let foundWorkspaceTakes = false;
   const cuts = board.cuts.map((cut) => {
@@ -1072,8 +1394,10 @@ function hydrateShootBoardWithWorkspaceTakes(
       requiredChecklist,
       requiredChecks: requiredChecklist.map((item) => item.label),
       requiredChecksKo: requiredChecklist.map((item) => item.labelKo),
-      takeStatus: finalTakeId ? 'final' as const : 'saved' as const,
-      takes: collection.takes.map((take) => mapWorkspaceTakeToBoardTake(take, cut, finalTakeId)),
+      takeStatus: finalTakeId ? ("final" as const) : ("saved" as const),
+      takes: collection.takes.map((take) =>
+        mapWorkspaceTakeToBoardTake(take, cut, finalTakeId),
+      ),
     };
   });
 
@@ -1091,19 +1415,23 @@ function hydrateShootBoardWithWorkspaceTakes(
 function mapWorkspaceTakeToBoardTake(
   take: MockProjectTake,
   cut: ShootBoardCut,
-  finalTakeId?: string
+  finalTakeId?: string,
 ): ShootBoardTake {
   return {
     durationSeconds: cut.durationSeconds,
     id: take.id,
     label: take.label,
     recordedAtLabel: take.createdAt,
-    status: take.id === finalTakeId ? 'final' : 'saved',
+    status: take.id === finalTakeId ? "final" : "saved",
   };
 }
 
 function isRecipeSaved(recipe: MockRecipe, downloadedFromExplore: boolean) {
-  return recipe.id.startsWith('downloaded-') || recipe.ownership !== 'community' || downloadedFromExplore;
+  return (
+    recipe.id.startsWith("downloaded-") ||
+    recipe.ownership !== "community" ||
+    downloadedFromExplore
+  );
 }
 
 function formatCompactMetric(value: number) {
@@ -1115,53 +1443,69 @@ function formatCompactMetric(value: number) {
 }
 
 function getDetailTitle(language: AppLanguage, recipe: MockRecipe) {
-  if (language === 'en') {
-    if (recipe.id.includes('beauty-proof-routine')) return 'Glowy Skin Routine';
-    if (recipe.id.includes('core-control-proof')) return 'Home Upper Body Workout';
-    if (recipe.id.includes('founder-problem-hook')) return 'New App Launch Promo';
+  if (language === "en") {
+    if (recipe.id.includes("beauty-proof-routine")) return "Glowy Skin Routine";
+    if (recipe.id.includes("core-control-proof"))
+      return "Home Upper Body Workout";
+    if (recipe.id.includes("founder-problem-hook"))
+      return "New App Launch Promo";
     return recipe.title;
   }
 
-  if (recipe.id.includes('beauty-proof-routine')) return '광채 피부 표현 루틴';
-  if (recipe.id.includes('core-control-proof')) return '집에서 하는 상체 운동 루틴';
-  if (recipe.id.includes('founder-problem-hook')) return '새로운 앱 런칭 홍보 레시피';
+  if (recipe.id.includes("beauty-proof-routine")) return "광채 피부 표현 루틴";
+  if (recipe.id.includes("core-control-proof"))
+    return "집에서 하는 상체 운동 루틴";
+  if (recipe.id.includes("founder-problem-hook"))
+    return "새로운 앱 런칭 홍보 레시피";
   return recipe.title;
 }
 
 function getDetailTags(language: AppLanguage, recipe: MockRecipe) {
-  if (language === 'ko') {
+  if (language === "ko") {
     return [
-      recipe.niche === 'Beauty' ? '뷰티' : recipe.niche === 'Fitness' ? '피트니스' : '크리에이터',
-      recipe.id.includes('beauty') ? '제품 홍보' : recipe.id.includes('core') ? '운동 루틴' : '앱 홍보',
-      '30초',
-      recipe.verification === 'verified_creator' ? '인증' : '커뮤니티',
+      recipe.niche === "Beauty"
+        ? "뷰티"
+        : recipe.niche === "Fitness"
+          ? "피트니스"
+          : "크리에이터",
+      recipe.id.includes("beauty")
+        ? "제품 홍보"
+        : recipe.id.includes("core")
+          ? "운동 루틴"
+          : "앱 홍보",
+      "30초",
+      recipe.verification === "verified_creator" ? "인증" : "커뮤니티",
     ];
   }
 
   return [
     recipe.niche,
-    recipe.goal.split(' ').slice(0, 2).join(' '),
-    '30s',
-    recipe.verification === 'verified_creator' ? 'Verified' : 'Community',
+    recipe.goal.split(" ").slice(0, 2).join(" "),
+    "30s",
+    recipe.verification === "verified_creator" ? "Verified" : "Community",
   ];
 }
 
 function getTabLabel(language: AppLanguage, tab: DetailTab) {
-  if (language === 'ko') {
-    return tab === 'analysis' ? '예시' : tab === 'recipe' ? '준비' : '촬영';
+  if (language === "ko") {
+    return tab === "analysis" ? "예시" : tab === "recipe" ? "준비" : "촬영";
   }
 
-  return tab === 'analysis' ? 'Watch' : tab === 'recipe' ? 'Plan' : 'Shoot';
+  return tab === "analysis" ? "Watch" : tab === "recipe" ? "Plan" : "Shoot";
 }
 
 function isDetailTab(value: string): value is DetailTab {
-  return value === 'analysis' || value === 'recipe' || value === 'shoot';
+  return value === "analysis" || value === "recipe" || value === "shoot";
 }
 
-function getSceneRoleLabel(language: AppLanguage, sceneIndex: number, totalScenes: number) {
-  if (sceneIndex === 0) return language === 'ko' ? 'Hook' : 'Hook';
-  if (sceneIndex === totalScenes - 1) return language === 'ko' ? 'CTA' : 'CTA';
-  return language === 'ko' ? 'Proof' : 'Proof';
+function getSceneRoleLabel(
+  language: AppLanguage,
+  sceneIndex: number,
+  totalScenes: number,
+) {
+  if (sceneIndex === 0) return language === "ko" ? "Hook" : "Hook";
+  if (sceneIndex === totalScenes - 1) return language === "ko" ? "CTA" : "CTA";
+  return language === "ko" ? "Proof" : "Proof";
 }
 
 function getSceneDuration(scene: NativeRecipeScene) {
@@ -1170,28 +1514,34 @@ function getSceneDuration(scene: NativeRecipeScene) {
 
 function getPrimaryPrompterLine(scene: NativeRecipeScene) {
   return (
-    scene.recipe.keyLine.trim()
-    || scene.prompter.blocks.find((block) => block.type === 'key_line')?.content.trim()
-    || scene.recipe.scriptLines[0]?.trim()
-    || scene.recipe.appealPoint.trim()
-    || scene.title
+    scene.recipe.keyLine.trim() ||
+    scene.prompter.blocks
+      .find((block) => block.type === "key_line")
+      ?.content.trim() ||
+    scene.recipe.scriptLines[0]?.trim() ||
+    scene.recipe.appealPoint.trim() ||
+    scene.title
   );
 }
 
 function getNextLine(scene: NativeRecipeScene) {
   return (
-    scene.prompter.blocks.find((block) => block.type === 'action')?.content.trim()
-    || scene.recipe.keyAction.trim()
-    || scene.recipe.scriptLines[1]?.trim()
-    || scene.analysis.motionDescription?.trim()
-    || scene.title
+    scene.prompter.blocks
+      .find((block) => block.type === "action")
+      ?.content.trim() ||
+    scene.recipe.keyAction.trim() ||
+    scene.recipe.scriptLines[1]?.trim() ||
+    scene.analysis.motionDescription?.trim() ||
+    scene.title
   );
 }
 
 function getAvoidLine(language: AppLanguage, scene: NativeRecipeScene) {
   return (
-    scene.recipe.mustAvoid[0]
-    || (language === 'ko' ? '제품 설명부터 시작하지 않기' : 'Do not start by explaining the product.')
+    scene.recipe.mustAvoid[0] ||
+    (language === "ko"
+      ? "제품 설명부터 시작하지 않기"
+      : "Do not start by explaining the product.")
   );
 }
 
@@ -1201,40 +1551,67 @@ function getOnScreenText(language: AppLanguage, scene: NativeRecipeScene) {
   }
 
   if (scene.sceneNumber === 1) {
-    return language === 'ko' ? 'Finished look first' : 'Finished look first';
+    return language === "ko" ? "Finished look first" : "Finished look first";
   }
 
   return scene.recipe.appealPoint || scene.title;
 }
 
-function getRecipePrepItems(language: AppLanguage, recipe: MockRecipe): Array<{ icon: IconName; label: string; value: string }> {
-  if (language === 'ko') {
+function getRecipePrepItems(
+  language: AppLanguage,
+  recipe: MockRecipe,
+): Array<{ icon: IconName; label: string; value: string }> {
+  if (language === "ko") {
     return [
-      { icon: 'clock-outline', label: '예상 시간', value: `${Math.max(12, recipe.totalSceneCount * 5)}분` },
-      { icon: 'map-marker-outline', label: '장소', value: recipe.niche === 'Beauty' ? '자연광 거울 앞' : '집/작업 공간' },
-      { icon: 'face-woman-outline', label: '얼굴 노출', value: recipe.niche === 'Beauty' ? '권장' : '선택' },
-      { icon: 'cube-outline', label: '제품 등장', value: '2씬 이후' },
+      {
+        icon: "clock-outline",
+        label: "예상 시간",
+        value: `${Math.max(12, recipe.totalSceneCount * 5)}분`,
+      },
+      {
+        icon: "map-marker-outline",
+        label: "장소",
+        value: recipe.niche === "Beauty" ? "자연광 거울 앞" : "집/작업 공간",
+      },
+      {
+        icon: "face-woman-outline",
+        label: "얼굴 노출",
+        value: recipe.niche === "Beauty" ? "권장" : "선택",
+      },
+      { icon: "cube-outline", label: "제품 등장", value: "2씬 이후" },
     ];
   }
 
   return [
-    { icon: 'clock-outline', label: 'Shoot time', value: `${Math.max(12, recipe.totalSceneCount * 5)} min` },
-    { icon: 'map-marker-outline', label: 'Location', value: recipe.niche === 'Beauty' ? 'Window light mirror' : 'Home setup' },
-    { icon: 'face-woman-outline', label: 'Face on camera', value: recipe.niche === 'Beauty' ? 'Recommended' : 'Optional' },
-    { icon: 'cube-outline', label: 'Product reveal', value: 'After scene 1' },
+    {
+      icon: "clock-outline",
+      label: "Shoot time",
+      value: `${Math.max(12, recipe.totalSceneCount * 5)} min`,
+    },
+    {
+      icon: "map-marker-outline",
+      label: "Location",
+      value: recipe.niche === "Beauty" ? "Window light mirror" : "Home setup",
+    },
+    {
+      icon: "face-woman-outline",
+      label: "Face on camera",
+      value: recipe.niche === "Beauty" ? "Recommended" : "Optional",
+    },
+    { icon: "cube-outline", label: "Product reveal", value: "After scene 1" },
   ];
 }
 
 function getRecipeBrandNote(language: AppLanguage, recipe: MockRecipe) {
-  if (language === 'ko') {
-    return recipe.niche === 'Beauty'
-      ? '제품명은 2씬 이후 노출. 과장된 효능 표현은 피하고 텍스처/전후 맥락을 보여주세요.'
-      : '광고처럼 들리지 않게 실제 루틴 맥락에서 보여주고, 결과를 먼저 증명하세요.';
+  if (language === "ko") {
+    return recipe.niche === "Beauty"
+      ? "제품명은 2씬 이후 노출. 과장된 효능 표현은 피하고 텍스처/전후 맥락을 보여주세요."
+      : "광고처럼 들리지 않게 실제 루틴 맥락에서 보여주고, 결과를 먼저 증명하세요.";
   }
 
-  return recipe.niche === 'Beauty'
-    ? 'Reveal the product after scene 1. Avoid exaggerated claims; show texture and before/after context.'
-    : 'Keep it inside a real routine, not an ad. Prove the result before explaining the product.';
+  return recipe.niche === "Beauty"
+    ? "Reveal the product after scene 1. Avoid exaggerated claims; show texture and before/after context."
+    : "Keep it inside a real routine, not an ad. Prove the result before explaining the product.";
 }
 
 function getSceneBrandNote(language: AppLanguage, recipeNotes: string) {
@@ -1242,29 +1619,38 @@ function getSceneBrandNote(language: AppLanguage, recipeNotes: string) {
     return recipeNotes;
   }
 
-  return language === 'ko'
-    ? '브랜드명/제품명은 자연스럽게, 효능 과장은 피하고 실제 사용 맥락을 보여주세요.'
-    : 'Mention the brand naturally, avoid hard claims, and keep the shot grounded in real use.';
+  return language === "ko"
+    ? "브랜드명/제품명은 자연스럽게, 효능 과장은 피하고 실제 사용 맥락을 보여주세요."
+    : "Mention the brand naturally, avoid hard claims, and keep the shot grounded in real use.";
 }
 
 function getToneVariants(language: AppLanguage) {
-  return language === 'ko'
-    ? ['자연스럽게', '후킹 세게', '브랜드톤', '짧게']
-    : ['Natural', 'Punchier', 'Brand-safe', 'Shorter'];
+  return language === "ko"
+    ? ["자연스럽게", "후킹 세게", "브랜드톤", "짧게"]
+    : ["Natural", "Punchier", "Brand-safe", "Shorter"];
 }
 
-function getShootChecklist(language: AppLanguage, scene: NativeRecipeScene, sceneIndex: number) {
-  const base = language === 'ko'
-    ? [
-        '말할 문장을 한 번 소리 내서 읽기',
-        sceneIndex === 0 ? '제품을 바로 보여주지 않기' : '제품/소품을 프레임 가까이에 두기',
-        '컷 끝에서 1초 멈추기',
-      ]
-    : [
-        'Read the line once before recording.',
-        sceneIndex === 0 ? 'Do not reveal the product too early.' : 'Keep product or prop within reach.',
-        'Hold the final beat for one second.',
-      ];
+function getShootChecklist(
+  language: AppLanguage,
+  scene: NativeRecipeScene,
+  sceneIndex: number,
+) {
+  const base =
+    language === "ko"
+      ? [
+          "말할 문장을 한 번 소리 내서 읽기",
+          sceneIndex === 0
+            ? "제품을 바로 보여주지 않기"
+            : "제품/소품을 프레임 가까이에 두기",
+          "컷 끝에서 1초 멈추기",
+        ]
+      : [
+          "Read the line once before recording.",
+          sceneIndex === 0
+            ? "Do not reveal the product too early."
+            : "Keep product or prop within reach.",
+          "Hold the final beat for one second.",
+        ];
 
   if (scene.recipe.mustInclude[0]) {
     return [scene.recipe.mustInclude[0], ...base].slice(0, 4);
@@ -1274,68 +1660,68 @@ function getShootChecklist(language: AppLanguage, scene: NativeRecipeScene, scen
 }
 
 function getCameraGuide(language: AppLanguage, sceneIndex: number) {
-  if (language === 'ko') {
-    return sceneIndex === 0 ? '정면 클로즈업' : '손/제품 클로즈업';
+  if (language === "ko") {
+    return sceneIndex === 0 ? "정면 클로즈업" : "손/제품 클로즈업";
   }
 
-  return sceneIndex === 0 ? 'Front close-up' : 'Hand/product close-up';
+  return sceneIndex === 0 ? "Front close-up" : "Hand/product close-up";
 }
 
 function getProductCue(language: AppLanguage, sceneIndex: number) {
-  if (language === 'ko') {
-    return sceneIndex === 0 ? '아직 숨기기' : '프레임 안에 등장';
+  if (language === "ko") {
+    return sceneIndex === 0 ? "아직 숨기기" : "프레임 안에 등장";
   }
 
-  return sceneIndex === 0 ? 'Keep hidden' : 'Bring into frame';
+  return sceneIndex === 0 ? "Keep hidden" : "Bring into frame";
 }
 
 function getStructureColor(index: number) {
-  const colors = ['#fb7185', '#fb923c', '#8b5cf6', '#38bdf8'];
+  const colors = ["#fb7185", "#fb923c", "#8b5cf6", "#38bdf8"];
   return colors[index % colors.length];
 }
 
 const styles = StyleSheet.create({
   cutBoardBackButton: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderColor: "#e2e8f0",
     borderRadius: 999,
     borderWidth: 1,
     height: 42,
-    justifyContent: 'center',
+    justifyContent: "center",
     width: 42,
   },
   cutBoardHeaderShell: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderBottomColor: '#e2e8f0',
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderBottomColor: "#e2e8f0",
     borderBottomWidth: 1,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
     paddingBottom: 12,
     paddingHorizontal: 16,
   },
   cutBoardMoreButton: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderColor: "#e2e8f0",
     borderRadius: 14,
     borderWidth: 1,
     height: 42,
-    justifyContent: 'center',
+    justifyContent: "center",
     width: 42,
   },
   v2FloatingAddButton: {
-    alignItems: 'center',
-    backgroundColor: '#111827',
+    alignItems: "center",
+    backgroundColor: "#111827",
     borderRadius: 999,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
     minHeight: 58,
     paddingHorizontal: 22,
-    position: 'absolute',
+    position: "absolute",
     right: 18,
-    shadowColor: '#111827',
+    shadowColor: "#111827",
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.2,
     shadowRadius: 22,
@@ -1344,12 +1730,12 @@ const styles = StyleSheet.create({
     minHeight: 365,
   },
   heroBadge: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(15,23,42,0.34)',
-    borderColor: 'rgba(255,255,255,0.2)',
+    alignItems: "center",
+    backgroundColor: "rgba(15,23,42,0.34)",
+    borderColor: "rgba(255,255,255,0.2)",
     borderRadius: 999,
     borderWidth: 1,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 5,
@@ -1359,105 +1745,105 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 28,
   },
   heroMeta: {
-    color: 'rgba(255,255,255,0.72)',
+    color: "rgba(255,255,255,0.72)",
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   heroMetaStrong: {
-    color: 'rgba(255,255,255,0.86)',
+    color: "rgba(255,255,255,0.86)",
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: "900",
   },
   heroSummary: {
-    color: 'rgba(255,255,255,0.78)',
+    color: "rgba(255,255,255,0.78)",
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
     lineHeight: 20,
   },
   heroTag: {
-    backgroundColor: 'rgba(255,255,255,0.13)',
+    backgroundColor: "rgba(255,255,255,0.13)",
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   heroTagText: {
-    color: 'rgba(255,255,255,0.9)',
+    color: "rgba(255,255,255,0.9)",
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: "900",
   },
   startButton: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: 8,
-    justifyContent: 'center',
+    justifyContent: "center",
     minHeight: 50,
     paddingHorizontal: 16,
   },
   executionFlowCard: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
+    backgroundColor: "#ffffff",
+    borderColor: "#e2e8f0",
     borderRadius: 22,
     borderWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
   executionStartButton: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: 8,
-    justifyContent: 'center',
+    justifyContent: "center",
     minHeight: 48,
     paddingHorizontal: 16,
   },
   executionTag: {
-    backgroundColor: '#f3f0ff',
+    backgroundColor: "#f3f0ff",
     borderRadius: 999,
     paddingHorizontal: 9,
     paddingVertical: 5,
   },
   executionTagText: {
-    color: '#6d4df2',
+    color: "#6d4df2",
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: "900",
   },
   executionThumb: {
     borderRadius: 20,
     height: 112,
-    overflow: 'hidden',
+    overflow: "hidden",
     width: 84,
   },
   executionThumbImage: {
     borderRadius: 20,
   },
   flowNode: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: 999,
     height: 34,
-    justifyContent: 'center',
+    justifyContent: "center",
     width: 34,
   },
   prepChip: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderColor: "#e2e8f0",
     borderRadius: 18,
     borderWidth: 1,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
     minHeight: 58,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    width: '48%',
+    width: "48%",
   },
   referencePlayer: {
     height: 210,
-    justifyContent: 'center',
-    overflow: 'hidden',
+    justifyContent: "center",
+    overflow: "hidden",
   },
   referenceProgress: {
-    backgroundColor: '#a78bfa',
+    backgroundColor: "#a78bfa",
     borderRadius: 999,
-    height: '100%',
+    height: "100%",
   },
   roleDot: {
     borderRadius: 999,
@@ -1465,8 +1851,8 @@ const styles = StyleSheet.create({
     width: 8,
   },
   structureCard: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
+    backgroundColor: "#ffffff",
+    borderColor: "#e2e8f0",
     borderRadius: 18,
     borderWidth: 1,
     gap: 6,
@@ -1475,10 +1861,10 @@ const styles = StyleSheet.create({
     width: 136,
   },
   timelineShootButton: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: 5,
-    justifyContent: 'center',
+    justifyContent: "center",
     minHeight: 38,
     paddingHorizontal: 10,
   },
@@ -1492,10 +1878,10 @@ const styles = StyleSheet.create({
     width: 4,
   },
   workspaceStartButton: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: 8,
-    justifyContent: 'center',
+    justifyContent: "center",
     minHeight: 54,
     paddingHorizontal: 18,
   },

@@ -1,115 +1,128 @@
-import { useMemo, useRef, useState } from 'react';
-import { PanResponder, type LayoutChangeEvent, View } from 'react-native';
+import { useMemo, type ReactElement } from "react";
+import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import DraggableFlatList, {
+  ScaleDecorator,
+  type RenderItemParams,
+} from "react-native-draggable-flatlist";
 
-import type { AppLanguage } from '@/core/i18n/app-language';
-import { ShootBoardSceneCard } from '@/features/recipes/components/shoot-board-scene-card';
-import type { ShootBoardCut, ShootBoardCutTextPatch } from '@/features/recipes/lib/shoot-board-model';
-
-type RowLayout = {
-  height: number;
-  y: number;
-};
+import type { AppLanguage } from "@/core/i18n/app-language";
+import { ShootBoardSceneCard } from "@/features/recipes/components/shoot-board-scene-card";
+import type {
+  ShootBoardCut,
+  ShootBoardCutTextPatch,
+} from "@/features/recipes/lib/shoot-board-model";
 
 export function ShootBoardDraggableList({
+  contentContainerStyle,
   cuts,
   expandedCutIds,
   language,
+  ListHeaderComponent,
   onDragStateChange,
-  onMoveCut,
   onPreview,
+  onReorderCuts,
   onResetCut,
-  onResult,
   onShoot,
+  onTake,
   onToggleExpanded,
   onToggleRequiredCheck,
   onToggleSceneComplete,
   onUpdateCutText,
   reorderMode,
 }: {
+  contentContainerStyle?: StyleProp<ViewStyle>;
   cuts: ShootBoardCut[];
   expandedCutIds: string[];
   language: AppLanguage;
+  ListHeaderComponent?: ReactElement;
   onDragStateChange?: (dragging: boolean) => void;
-  onMoveCut: (cutId: string, direction: -1 | 1) => void;
   onPreview: (cut: ShootBoardCut) => void;
+  onReorderCuts: (cuts: ShootBoardCut[]) => void;
   onResetCut: (cutId: string) => void;
-  onResult: (cut: ShootBoardCut) => void;
   onShoot: (cut: ShootBoardCut) => void;
+  onTake: (cut: ShootBoardCut) => void;
   onToggleExpanded: (cutId: string) => void;
-  onToggleRequiredCheck: (cutId: string, checklistItemId: string, checked: boolean) => void;
+  onToggleRequiredCheck: (
+    cutId: string,
+    checklistItemId: string,
+    checked: boolean,
+  ) => void;
   onToggleSceneComplete: (cutId: string, complete: boolean) => void;
   onUpdateCutText: (cutId: string, patch: ShootBoardCutTextPatch) => void;
   reorderMode: boolean;
 }) {
-  const [draggingCutId, setDraggingCutId] = useState<string | null>(null);
-  const lastDragStepRef = useRef(0);
-  const layoutsRef = useRef<Record<string, RowLayout>>({});
+  const orderedCuts = useMemo(
+    () => [...cuts].sort((a, b) => a.order - b.order),
+    [cuts],
+  );
 
-  const orderedCuts = useMemo(() => [...cuts].sort((a, b) => a.order - b.order), [cuts]);
+  const renderItem = ({
+    drag,
+    isActive,
+    item: cut,
+  }: RenderItemParams<ShootBoardCut>) => (
+    <ScaleDecorator>
+      <View style={[styles.row, isActive && styles.activeRow]}>
+        <ShootBoardSceneCard
+          cut={cut}
+          expanded={expandedCutIds.includes(cut.id)}
+          language={language}
+          onDragStart={drag}
+          onPreview={() => onPreview(cut)}
+          onReset={() => onResetCut(cut.id)}
+          onShoot={() => onShoot(cut)}
+          onTake={() => onTake(cut)}
+          onToggleExpanded={() => onToggleExpanded(cut.id)}
+          onToggleRequiredCheck={(checklistItemId, checked) =>
+            onToggleRequiredCheck(cut.id, checklistItemId, checked)
+          }
+          onToggleSceneComplete={(complete) =>
+            onToggleSceneComplete(cut.id, complete)
+          }
+          onUpdateText={(patch) => onUpdateCutText(cut.id, patch)}
+          reorderMode={reorderMode || isActive}
+        />
+      </View>
+    </ScaleDecorator>
+  );
 
   return (
-    <View className="gap-3">
-      {orderedCuts.map((cut) => {
-        const panResponder = PanResponder.create({
-          onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 3,
-          onMoveShouldSetPanResponderCapture: (_, gestureState) => Math.abs(gestureState.dy) > 3,
-          onPanResponderGrant: () => {
-            setDraggingCutId(cut.id);
-            lastDragStepRef.current = 0;
-            onDragStateChange?.(true);
-          },
-          onPanResponderMove: (_, gestureState) => {
-            const rowHeight = layoutsRef.current[cut.id]?.height ?? 104;
-            const step = Math.max(56, rowHeight * 0.45);
-            const nextStep = Math.trunc(gestureState.dy / step);
-
-            if (nextStep === lastDragStepRef.current) {
-              return;
-            }
-
-            const direction = nextStep > lastDragStepRef.current ? 1 : -1;
-            lastDragStepRef.current = nextStep;
-            onMoveCut(cut.id, direction);
-          },
-          onPanResponderRelease: () => {
-            setDraggingCutId(null);
-            onDragStateChange?.(false);
-          },
-          onPanResponderTerminate: () => {
-            setDraggingCutId(null);
-            onDragStateChange?.(false);
-          },
-          onStartShouldSetPanResponder: () => true,
-          onStartShouldSetPanResponderCapture: () => true,
-        });
-        const dragging = draggingCutId === cut.id;
-
-        return (
-          <View
-            key={cut.id}
-            onLayout={(event: LayoutChangeEvent) => {
-              layoutsRef.current[cut.id] = event.nativeEvent.layout;
-            }}
-            style={{ opacity: dragging ? 0.72 : 1, transform: [{ scale: dragging ? 0.99 : 1 }] }}
-          >
-            <ShootBoardSceneCard
-              cut={cut}
-              dragHandleProps={panResponder.panHandlers}
-              expanded={expandedCutIds.includes(cut.id)}
-              language={language}
-              onPreview={() => onPreview(cut)}
-              onReset={() => onResetCut(cut.id)}
-              onResult={() => onResult(cut)}
-              onShoot={() => onShoot(cut)}
-              onToggleExpanded={() => onToggleExpanded(cut.id)}
-              onToggleRequiredCheck={(checklistItemId, checked) => onToggleRequiredCheck(cut.id, checklistItemId, checked)}
-              onToggleSceneComplete={(complete) => onToggleSceneComplete(cut.id, complete)}
-              onUpdateText={(patch) => onUpdateCutText(cut.id, patch)}
-              reorderMode={reorderMode || dragging}
-            />
-          </View>
-        );
-      })}
-    </View>
+    <DraggableFlatList
+      activationDistance={4}
+      autoscrollSpeed={90}
+      autoscrollThreshold={90}
+      containerStyle={styles.list}
+      contentContainerStyle={contentContainerStyle}
+      data={orderedCuts}
+      dragItemOverflow
+      keyExtractor={(cut) => cut.id}
+      keyboardShouldPersistTaps="handled"
+      ListHeaderComponent={ListHeaderComponent}
+      onDragBegin={() => onDragStateChange?.(true)}
+      onDragEnd={({ data }) => {
+        onDragStateChange?.(false);
+        onReorderCuts(data);
+      }}
+      onRelease={() => onDragStateChange?.(false)}
+      renderItem={renderItem}
+      showsVerticalScrollIndicator={false}
+    />
   );
 }
+
+const styles = StyleSheet.create({
+  activeRow: {
+    opacity: 0.96,
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.14,
+    shadowRadius: 22,
+  },
+  list: {
+    flex: 1,
+  },
+  row: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+  },
+});

@@ -26,6 +26,7 @@
   - Shooting guideline
   - checklist item labels
 - 각 card에 reset action을 제공해 해당 scene만 원본 텍스트로 되돌린다.
+- 후속 UI 피드백에 따라 `EDIT TEXT` 라벨과 내부 구분선은 제거하고, 기본 읽기 모드에서 `Edit` 버튼을 눌렀을 때만 편집할 수 있게 한다.
 - add scene으로 만든 card도 수정/복원이 가능하다.
 - route contract를 context에 남긴다:
   - Shoot Board: `/recipe/[recipeId]`
@@ -84,6 +85,7 @@
 - [x] Implement model helpers.
 - [x] Wire drag live reorder and scroll disabling.
 - [x] Add inline editing and reset UI.
+- [x] Remove edit label/dividers and gate inputs behind an Edit button.
 - [x] Update context.
 - [x] Run final verification and fetch remote.
-- [ ] Commit and push.
+- [x] Commit and push.
