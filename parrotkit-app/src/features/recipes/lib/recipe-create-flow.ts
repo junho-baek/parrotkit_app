@@ -1,4 +1,4 @@
-import { ugcMedia } from "@/core/mocks/ugc-media";
+import { recipeCreateVisuals } from "@/features/recipes/lib/recipe-create-visuals";
 
 export type RecipeCreateMode = "manual" | "reference" | "brand";
 export type RecipeCreateNicheId =
@@ -35,31 +35,31 @@ export const recipeCreateNiches: Array<{
 }> = [
   {
     id: "beauty",
-    imageUrl: ugcMedia.beautyHero.image,
+    imageUrl: recipeCreateVisuals.nicheBeauty,
     label: "Beauty",
     labelKo: "뷰티",
   },
   {
     id: "food",
-    imageUrl: ugcMedia.foodPromo.image,
+    imageUrl: recipeCreateVisuals.nicheFood,
     label: "Food",
     labelKo: "푸드",
   },
   {
     id: "fitness",
-    imageUrl: ugcMedia.beautyResult.image,
+    imageUrl: recipeCreateVisuals.nicheFitness,
     label: "Fitness",
     labelKo: "피트니스",
   },
   {
     id: "home",
-    imageUrl: ugcMedia.appDemo.image,
+    imageUrl: recipeCreateVisuals.nicheHome,
     label: "Home",
     labelKo: "홈",
   },
   {
     id: "tech",
-    imageUrl: ugcMedia.appDemo.image,
+    imageUrl: recipeCreateVisuals.nicheTech,
     label: "Tech",
     labelKo: "테크",
   },
@@ -78,37 +78,37 @@ export const recipeCreateGoals: Array<{
 }> = [
   {
     id: "ad",
-    imageUrl: ugcMedia.beautyResult.image,
+    imageUrl: recipeCreateVisuals.goalAd,
     label: "Ad",
     labelKo: "광고",
   },
   {
     id: "sell",
-    imageUrl: ugcMedia.beautyHero.image,
+    imageUrl: recipeCreateVisuals.goalSell,
     label: "Sell",
     labelKo: "판매",
   },
   {
     id: "recipe-product",
-    imageUrl: ugcMedia.foodPromo.image,
+    imageUrl: recipeCreateVisuals.goalRecipeProduct,
     label: "UGC Recipe 판매",
     labelKo: "UGC Recipe 판매",
   },
   {
     id: "personal",
-    imageUrl: ugcMedia.appDemo.image,
+    imageUrl: recipeCreateVisuals.goalPersonal,
     label: "Personal",
     labelKo: "개인용",
   },
   {
     id: "viral",
-    imageUrl: ugcMedia.beautyHero.image,
+    imageUrl: recipeCreateVisuals.goalViral,
     label: "Viral",
     labelKo: "바이럴용",
   },
   {
     id: "conversion",
-    imageUrl: ugcMedia.beautyResult.image,
+    imageUrl: recipeCreateVisuals.goalConversion,
     label: "Conversion",
     labelKo: "전환용",
   },

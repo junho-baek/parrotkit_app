@@ -118,7 +118,7 @@ export function RecipeCreateScreen() {
         style={[
           styles.sheet,
           {
-            maxHeight: '94%',
+            maxHeight: '96%',
             paddingBottom: Math.max(insets.bottom, 12),
           },
         ]}
@@ -221,7 +221,11 @@ function CreateModeTab({
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={[styles.modeTab, selected ? styles.modeTabActive : null]}
+      style={[
+        styles.modeTab,
+        isRecipeCreateModePro(mode) ? styles.modeTabPro : null,
+        selected ? styles.modeTabActive : null,
+      ]}
     >
       <MaterialCommunityIcons color={selected ? '#8c67ff' : '#64748b'} name={item.icon} size={23} />
       <Text style={[styles.modeTabText, selected ? styles.modeTabTextActive : null]}>{item.tab}</Text>
@@ -379,12 +383,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
   },
   footer: {
-    paddingHorizontal: 25,
-    paddingTop: 16,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 26,
+    paddingTop: 14,
   },
   goalCard: {
-    aspectRatio: 0.72,
-    borderRadius: 18,
+    aspectRatio: 0.76,
+    borderRadius: 17,
     justifyContent: 'flex-end',
     overflow: 'hidden',
   },
@@ -397,7 +402,7 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
   },
   goalCardPressable: {
-    flexBasis: '30.8%',
+    flexBasis: '30.6%',
   },
   goalCheck: {
     alignItems: 'center',
@@ -413,15 +418,15 @@ const styles = StyleSheet.create({
   },
   goalCopy: {
     alignItems: 'center',
-    gap: 6,
-    paddingBottom: 14,
-    paddingHorizontal: 8,
+    gap: 5,
+    paddingBottom: 12,
+    paddingHorizontal: 6,
     zIndex: 1,
   },
   goalGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 14,
+    gap: 12,
     paddingBottom: 8,
   },
   goalImage: {
@@ -429,10 +434,10 @@ const styles = StyleSheet.create({
   },
   goalLabel: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '900',
     letterSpacing: 0,
-    lineHeight: 18,
+    lineHeight: 16,
     textAlign: 'center',
   },
   handle: {
@@ -446,11 +451,11 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     flexDirection: 'row',
-    minHeight: 52,
-    paddingHorizontal: 24,
+    minHeight: 50,
+    paddingHorizontal: 26,
   },
   modeInputSpacer: {
-    height: 22,
+    height: 16,
   },
   modeTab: {
     alignItems: 'center',
@@ -459,10 +464,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flex: 1,
     flexDirection: 'row',
-    gap: 8,
+    gap: 7,
     justifyContent: 'center',
-    minHeight: 48,
-    paddingHorizontal: 10,
+    minHeight: 46,
+    paddingHorizontal: 8,
     position: 'relative',
   },
   modeTabActive: {
@@ -475,49 +480,55 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '900',
     letterSpacing: 0,
+    lineHeight: 18,
   },
   modeTabTextActive: {
     color: '#05070d',
   },
   modeTabs: {
     flexDirection: 'row',
-    gap: 14,
-    marginTop: 28,
+    gap: 12,
+    marginTop: 26,
+  },
+  modeTabPro: {
+    paddingRight: 14,
   },
   nicheCheck: {
     alignItems: 'center',
     backgroundColor: '#8c67ff',
     borderRadius: 999,
-    height: 28,
+    height: 24,
     justifyContent: 'center',
     position: 'absolute',
-    right: 5,
-    width: 28,
+    right: -3,
+    top: 15,
+    width: 24,
   },
   nicheFallback: {
     alignItems: 'center',
     backgroundColor: '#eef2f7',
-    borderRadius: 18,
-    height: 46,
+    borderRadius: 15,
+    height: 38,
     justifyContent: 'center',
-    width: 46,
+    width: 38,
   },
   nicheGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
   nicheImage: {
-    borderRadius: 18,
-    height: 46,
-    width: 46,
+    borderRadius: 15,
+    height: 38,
+    width: 38,
   },
   nicheLabel: {
     color: '#05070d',
     flexShrink: 1,
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '900',
     letterSpacing: 0,
+    lineHeight: 16,
   },
   nicheLabelActive: {
     color: '#8c67ff',
@@ -525,14 +536,14 @@ const styles = StyleSheet.create({
   nicheOption: {
     alignItems: 'center',
     borderColor: '#e4e8f0',
-    borderRadius: 24,
+    borderRadius: 22,
     borderWidth: 1,
-    flexBasis: '30.8%',
+    flexBasis: '30.6%',
     flexDirection: 'row',
-    gap: 10,
-    minHeight: 60,
-    paddingLeft: 6,
-    paddingRight: 18,
+    gap: 7,
+    minHeight: 54,
+    paddingLeft: 5,
+    paddingRight: 8,
   },
   nicheOptionActive: {
     borderColor: '#8c67ff',
@@ -557,8 +568,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 3,
     position: 'absolute',
-    right: 5,
-    top: 4,
+    right: 8,
+    top: -9,
   },
   proBadgeText: {
     color: '#ffffff',
@@ -572,12 +583,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
     letterSpacing: 0,
-    marginBottom: 18,
-    marginTop: 32,
+    marginBottom: 16,
+    marginTop: 28,
   },
   scrollContent: {
-    paddingBottom: 18,
-    paddingHorizontal: 25,
+    paddingBottom: 112,
+    paddingHorizontal: 26,
   },
   sheet: {
     alignSelf: 'center',
@@ -593,7 +604,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0,
     lineHeight: 38,
-    marginTop: 6,
+    marginTop: 4,
   },
   underlineInput: {
     color: '#111827',
@@ -610,8 +621,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1.5,
     flexDirection: 'row',
     gap: 16,
-    marginTop: 34,
-    minHeight: 50,
+    marginTop: 30,
+    minHeight: 48,
     paddingBottom: 10,
   },
 });
