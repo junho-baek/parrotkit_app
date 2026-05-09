@@ -288,6 +288,179 @@ export const recentReferencesSeed: MockReference[] = [
   },
 ];
 
+const englishExpertShortcutHook =
+  'Everyone, here is the [method] I learned after spending [cost/time] with [expert/place] that makes [problem/struggle] disappear.';
+const englishExpertShortcutSaveLine =
+  'Save this and just do it during [repeat schedule/situation], and I seriously guarantee [specific benefit/change].';
+const englishExpertShortcutWarning = 'Never [what not to do].';
+
+function createEnglishExpertShortcutScenes(): MockRecipeScene[] {
+  return [
+    {
+      id: 'english-expert-shortcut-1',
+      sceneNumber: 1,
+      title: 'Promise the expert shortcut',
+      summary: 'Open with the expert/place, the cost paid, and the problem that disappears.',
+      startTime: '00:00',
+      endTime: '00:06',
+      thumbnail: ugcMedia.appDemo.image,
+      analysisLines: [
+        'The hook leads with authority, sunk cost, and a concrete problem before explaining the method.',
+        'The save line turns the template into a repeatable habit instead of a one-off tip.',
+      ],
+      recipeLines: [
+        englishExpertShortcutHook,
+        'I will show it to you right now.',
+        englishExpertShortcutSaveLine,
+      ],
+      prompterLines: [
+        'Name the expert/place and cost in one breath.',
+        'Make the disappearing problem feel specific.',
+      ],
+      analysis: {
+        transcriptOriginal: [
+          englishExpertShortcutHook,
+          'I will show it to you right now.',
+          englishExpertShortcutSaveLine,
+        ],
+        transcriptSnippet: englishExpertShortcutHook,
+        motionDescription: 'Start tight on the creator or result, then cut to the object or place that proves the claim.',
+        whyItWorks: [
+          'The first sentence borrows trust from the expert/place and makes the payoff feel earned.',
+          'The save instruction gives the viewer a reason to keep the template.',
+        ],
+        referenceSignals: [
+          { type: 'hook', text: 'Authority plus cost paid plus problem solved' },
+          { type: 'cta', text: 'Save this and repeat it in a specific situation' },
+        ],
+      },
+      recipe: {
+        objective: 'Turn a learned expert shortcut into a clear English hook.',
+        appealPoint: 'Lead with the authority, the time or money spent, and the problem that disappears.',
+        keyLine: englishExpertShortcutHook,
+        scriptLines: [
+          englishExpertShortcutHook,
+          'I will show it to you right now.',
+          englishExpertShortcutSaveLine,
+        ],
+        keyMood: 'Confident, helpful, direct',
+        keyAction: 'Show the result or the tool before explaining the steps.',
+        mustInclude: ['Expert/place', 'Cost/time spent', 'Problem that disappears'],
+        mustAvoid: ['Do not start with a long backstory'],
+        cta: englishExpertShortcutSaveLine,
+      },
+    },
+    {
+      id: 'english-expert-shortcut-2',
+      sceneNumber: 2,
+      title: 'Show the accessible tool',
+      summary: 'Make the method feel cheap, simple, and grounded in one hidden cause.',
+      startTime: '00:06',
+      endTime: '00:15',
+      thumbnail: ugcMedia.appDemo.image,
+      analysisLines: [
+        'The accessible tool lowers resistance after the authority-heavy hook.',
+        'The hidden term gives the advice a reason and makes the tip feel less random.',
+      ],
+      recipeLines: [
+        'All you need is one [common object/tool]. It only costs [cheap price/accessibility].',
+        'If you do not have it, just use [free alternative]; the effect is the same.',
+        'Do not do this randomly. The key is [technical term/hidden area].',
+        'If this is in a [problem cause] state, no matter how hard you try, you will get [negative result].',
+      ],
+      prompterLines: ['Hold the object/tool close to camera.', 'Point to the hidden area or label it on screen.'],
+      recipe: {
+        objective: 'Explain why the low-cost tool works.',
+        appealPoint: 'Make the solution feel accessible before giving the steps.',
+        keyLine: 'All you need is one [common object/tool]. It only costs [cheap price/accessibility].',
+        scriptLines: [
+          'All you need is one [common object/tool]. It only costs [cheap price/accessibility].',
+          'If you do not have it, just use [free alternative]; the effect is the same.',
+          'Do not do this randomly. The key is [technical term/hidden area].',
+          'If this is in a [problem cause] state, no matter how hard you try, you will get [negative result].',
+        ],
+        keyMood: 'Practical and reassuring',
+        keyAction: 'Show the tool, then show or point to the hidden area.',
+        mustInclude: ['Common object/tool', 'Free alternative', 'Technical term/hidden area'],
+        mustAvoid: ['Do not make the tool feel expensive or hard to find'],
+        cta: '',
+      },
+    },
+    {
+      id: 'english-expert-shortcut-3',
+      sceneNumber: 3,
+      title: 'Walk through three steps',
+      summary: 'Use a simple first, second, final structure with one immediate reaction.',
+      startTime: '00:15',
+      endTime: '00:30',
+      thumbnail: ugcMedia.appDemo.image,
+      analysisLines: [
+        'Numbered steps make the template easy to copy while filming.',
+        'The immediate reaction line gives the viewer proof inside the tutorial.',
+      ],
+      recipeLines: [
+        'First, [action] the [part/target]. Wow... you can feel [immediate feeling/reaction] right away, right?',
+        'Second, now do [variation action/deeper check].',
+        'Do not push too hard. Keep it at a [action intensity/detail] feeling.',
+        'Finally, third: finish with [finishing action], and that is it.',
+      ],
+      prompterLines: ['Count the steps on fingers or captions.', 'Pause after the immediate reaction line.'],
+      recipe: {
+        objective: 'Turn the method into three easy filmed actions.',
+        appealPoint: 'Make each step visible and low-pressure.',
+        keyLine: 'First, [action] the [part/target]. Wow... you can feel [immediate feeling/reaction] right away, right?',
+        scriptLines: [
+          'First, [action] the [part/target]. Wow... you can feel [immediate feeling/reaction] right away, right?',
+          'Second, now do [variation action/deeper check].',
+          'Do not push too hard. Keep it at a [action intensity/detail] feeling.',
+          'Finally, third: finish with [finishing action], and that is it.',
+        ],
+        keyMood: 'Step-by-step, light, encouraging',
+        keyAction: 'Demonstrate each action with a clear hand or body movement.',
+        mustInclude: ['First action', 'Variation action', 'Finishing action'],
+        mustAvoid: ['Do not rush through all three steps in one shot'],
+        cta: '',
+      },
+    },
+    {
+      id: 'english-expert-shortcut-4',
+      sceneNumber: 4,
+      title: 'Close with result and warning',
+      summary: 'Promise the expected effect, then add the one thing the viewer must avoid.',
+      startTime: '00:30',
+      endTime: '00:42',
+      thumbnail: ugcMedia.appDemo.image,
+      analysisLines: [
+        'The warning raises perceived expertise and keeps the close from feeling generic.',
+        'Ending with the expected result gives the viewer a clear reason to try it.',
+      ],
+      recipeLines: [
+        'If you keep doing this, [expected effect] will absolutely happen.',
+        englishExpertShortcutWarning,
+        'If you do it wrong, it can actually cause [side effect].',
+        'Just watch that one thing and get [expected result]. Bye.',
+      ],
+      prompterLines: ['Slow down on the warning.', 'End with a short, friendly sign-off.'],
+      recipe: {
+        objective: 'Close with confidence while protecting the viewer from the common mistake.',
+        appealPoint: 'Give one clear warning before the final expected result.',
+        keyLine: englishExpertShortcutWarning,
+        scriptLines: [
+          'If you keep doing this, [expected effect] will absolutely happen.',
+          englishExpertShortcutWarning,
+          'If you do it wrong, it can actually cause [side effect].',
+          'Just watch that one thing and get [expected result]. Bye.',
+        ],
+        keyMood: 'Confident, careful, friendly',
+        keyAction: 'Use a clear stop gesture or warning caption, then soften into the final result.',
+        mustInclude: ['Expected effect', 'Thing not to do', 'Side effect'],
+        mustAvoid: ['Do not skip the warning'],
+        cta: 'Just watch that one thing and get [expected result].',
+      },
+    },
+  ];
+}
+
 export const recipesSeed: MockRecipe[] = [
   {
     id: 'recipe-korean-diet-hook',
@@ -425,6 +598,29 @@ export const recipesSeed: MockRecipe[] = [
     ],
   },
   {
+    id: 'recipe-english-expert-shortcut',
+    title: 'English Expert Shortcut Template',
+    creator: '@template.lab',
+    platform: 'Instagram Reels',
+    thumbnail: ugcMedia.appDemo.image,
+    savedAt: 'Saved now',
+    sourceUrl: 'mock://english-expert-shortcut-template',
+    referenceVideoSource: ugcMedia.appDemo.video,
+    summary: 'An English version of the expert/place, cost/time, hidden-cause shortcut template for quick educational reels.',
+    niche: 'Creator',
+    goal: 'Film an English educational shortcut script',
+    notes: 'Use this when you want the Korean expert-shortcut format translated into an English shootable recipe.',
+    ownership: 'owned',
+    verification: 'verified_creator',
+    ownerHandle: '@template.lab',
+    ownerName: 'Template Lab',
+    downloadCount: 520,
+    shootStatus: 'ready',
+    shotSceneCount: 0,
+    totalSceneCount: 4,
+    scenes: createEnglishExpertShortcutScenes(),
+  },
+  {
     id: 'recipe-airfryer-stack',
     title: 'Problem Hook Food Demo Guide',
     creator: '@kitchen.frames',
@@ -493,6 +689,29 @@ export const recipesSeed: MockRecipe[] = [
 ];
 
 export const exploreRecipeSeeds: MockRecipe[] = [
+  {
+    id: 'market-recipe-english-expert-shortcut',
+    title: 'English Expert Shortcut Template',
+    creator: '@template.lab',
+    platform: 'Instagram Reels',
+    thumbnail: ugcMedia.appDemo.image,
+    savedAt: 'Verified recipe',
+    sourceUrl: 'mock://english-expert-shortcut-template',
+    referenceVideoSource: ugcMedia.appDemo.video,
+    summary: 'An English template for turning expert/place advice, cost/time spent, and a hidden cause into a shootable shortcut video.',
+    niche: 'Creator',
+    goal: 'Translate a Korean educational hook into English',
+    notes: 'Downloaded recipes keep the placeholder structure so you can swap in your own expert, tool, and warning.',
+    ownership: 'community',
+    verification: 'verified_creator',
+    ownerHandle: '@template.lab',
+    ownerName: 'Template Lab',
+    downloadCount: 980,
+    shootStatus: 'ready',
+    shotSceneCount: 0,
+    totalSceneCount: 4,
+    scenes: createEnglishExpertShortcutScenes(),
+  },
   {
     id: 'market-recipe-beauty-proof-routine',
     title: 'Beauty Purchase Conversion Hook Guide',
