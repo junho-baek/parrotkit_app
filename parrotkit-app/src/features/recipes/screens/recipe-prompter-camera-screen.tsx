@@ -8,7 +8,19 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View, type DimensionValue, type LayoutChangeEvent } from 'react-native';
+import {
+  Animated,
+  Modal,
+  PanResponder,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type DimensionValue,
+  type GestureResponderEvent,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { MockProjectTake } from '@/core/mocks/parrotkit-data';
@@ -17,12 +29,21 @@ import {
   NativeTakeReview,
   type NativeTakeReviewStatus,
 } from '@/features/recipes/components/native-take-review';
-import { NativeTakeTray } from '@/features/recipes/components/native-take-tray';
 import { createPrompterDraftBlock } from '@/features/recipes/lib/prompter-layout';
-import { ShootingSceneSwitcher } from '@/features/recipes/components/shooting-scene-switcher';
 import { normalizeNativeRecipe } from '@/features/recipes/lib/recipe-domain-normalizer';
 import { openTakeInShareSheet, saveTakeToGallery } from '@/features/recipes/lib/take-export';
 import type { NativeRecipeScene, PrompterBlock } from '@/features/recipes/types/recipe-domain';
+
+type PrompterColorPreset = 'white' | 'purple' | 'yellow' | 'blue';
+type PrompterStylePreset = 'clean' | 'bold' | 'caption' | 'teleprompter';
+type PrompterMode = 'center' | 'top';
+
+const PROMPTER_SPEEDS = [0.5, 1, 1.25, 1.5, 2] as const;
+const PROMPTER_OPACITIES = [0.32, 0.48, 0.64, 0.78] as const;
+const PROMPTER_COLORS: PrompterColorPreset[] = ['white', 'purple', 'yellow', 'blue'];
+const PROMPTER_STYLES: PrompterStylePreset[] = ['clean', 'bold', 'caption', 'teleprompter'];
+const MIN_PROMPTER_FONT_SIZE = 28;
+const MAX_PROMPTER_FONT_SIZE = 72;
 
 export function RecipePrompterCameraScreen() {
   const router = useRouter();
@@ -47,6 +68,10 @@ export function RecipePrompterCameraScreen() {
   const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
   const cameraRef = useRef<CameraView>(null);
   const recordingPromiseRef = useRef<Promise<{ uri: string } | undefined> | null>(null);
+  const scriptScrollY = useRef(new Animated.Value(0)).current;
+  const lastScriptTapAtRef = useRef(0);
+  const pinchDistanceRef = useRef<number | null>(null);
+  const pinchFontSizeRef = useRef(36);
   const [facing, setFacing] = useState<CameraType>('front');
   const [recording, setRecording] = useState(false);
   const [reviewUri, setReviewUri] = useState<string | null>(null);
@@ -59,9 +84,19 @@ export function RecipePrompterCameraScreen() {
   const recipe = useMemo(() => (rawRecipe ? normalizeNativeRecipe(rawRecipe) : null), [rawRecipe]);
   const [activeSceneId, setActiveSceneId] = useState(params.sceneId ?? recipe?.scenes[0]?.id ?? '');
   const [sceneBlocksById, setSceneBlocksById] = useState<Record<string, PrompterBlock[]>>({});
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-  const [editRequestByBlockId, setEditRequestByBlockId] = useState<Record<string, number>>({});
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
+  const [prompterMode, setPrompterMode] = useState<PrompterMode>('center');
+  const [prompterSpeed, setPrompterSpeed] = useState(1.25);
+  const [prompterPaused, setPrompterPaused] = useState(false);
+  const [prompterFontSize, setPrompterFontSize] = useState(36);
+  const [prompterOpacity, setPrompterOpacity] = useState(0.48);
+  const [prompterColor, setPrompterColor] = useState<PrompterColorPreset>('white');
+  const [prompterStyle, setPrompterStyle] = useState<PrompterStylePreset>('teleprompter');
+  const [scriptEditVisible, setScriptEditVisible] = useState(false);
+  const [scriptEditDraft, setScriptEditDraft] = useState('');
+  const [newClueVisible, setNewClueVisible] = useState(false);
+  const [newClueDraft, setNewClueDraft] = useState('');
+  const [teleprompterHintVisible, setTeleprompterHintVisible] = useState(true);
 
   useEffect(() => {
     if (!activeSceneId && recipe?.scenes[0]) {
@@ -92,14 +127,18 @@ export function RecipePrompterCameraScreen() {
     () => activeBlocks.filter((block) => block.visible).sort((first, second) => first.order - second.order),
     [activeBlocks]
   );
-  const hiddenBlocks = useMemo(
-    () => activeBlocks.filter((block) => !block.visible).sort((first, second) => first.order - second.order),
-    [activeBlocks]
-  );
   const focusedBlock = useMemo(
     () => visibleBlocks.find((block) => block.id === focusedBlockId) ?? null,
     [focusedBlockId, visibleBlocks]
   );
+  const currentScript = useMemo(
+    () => activeScene ? getTeleprompterScript(activeScene, visibleBlocks, params) : '',
+    [activeScene, params, visibleBlocks]
+  );
+  const nextScript = nextScene ? getCameraPrimaryLine(nextScene) : '촬영 완료 후 마음에 드는 take를 저장하세요.';
+  const progress = `${Math.max(6, (((activeSceneIndex + 1) / Math.max(recipe?.scenes.length ?? 1, 1)) * 100))}%` as DimensionValue;
+  const prompterTheme = getPrompterTheme(prompterColor, prompterOpacity);
+  const prompterTypography = getPrompterTypography(prompterStyle, prompterFontSize);
 
   useEffect(() => {
     if (!recipe) return;
@@ -142,18 +181,6 @@ export function RecipePrompterCameraScreen() {
     router.replace((recipe ? `/recipe/${recipe.id}` : '/(tabs)/recipes') as Href);
   }, [recipe, router]);
 
-  const handleOverlayLayout = useCallback((event: LayoutChangeEvent) => {
-    const { width, height } = event.nativeEvent.layout;
-
-    setContainerSize((current) => {
-      if (Math.round(current.width) === Math.round(width) && Math.round(current.height) === Math.round(height)) {
-        return current;
-      }
-
-      return { height, width };
-    });
-  }, []);
-
   const handleUpdateBlock = useCallback((blockId: string, updates: Partial<PrompterBlock>) => {
     if (!activeScene) return;
 
@@ -165,27 +192,61 @@ export function RecipePrompterCameraScreen() {
     }));
   }, [activeScene]);
 
-  const requestEditForBlock = useCallback((blockId: string) => {
-    setFocusedBlockId(blockId);
-    setEditRequestByBlockId((current) => ({
-      ...current,
-      [blockId]: Date.now(),
-    }));
-  }, []);
+  const openScriptEditor = useCallback(() => {
+    setScriptEditDraft(focusedBlock?.content ?? currentScript);
+    setScriptEditVisible(true);
+  }, [currentScript, focusedBlock]);
 
-  const handleAddCue = useCallback(() => {
+  const saveScriptEdit = useCallback(() => {
     if (!activeScene) return;
+
+    const nextContent = scriptEditDraft.trim();
+    if (!nextContent) {
+      setScriptEditVisible(false);
+      return;
+    }
+
+    if (focusedBlock) {
+      handleUpdateBlock(focusedBlock.id, { content: nextContent });
+    } else {
+      const blockId = `${activeScene.id}-line-${Date.now()}`;
+      setSceneBlocksById((current) => {
+        const currentBlocks = current[activeScene.id] ?? activeScene.prompter.blocks;
+        return {
+          ...current,
+          [activeScene.id]: [
+            ...currentBlocks,
+            createPrompterDraftBlock({
+              content: nextContent,
+              id: blockId,
+              order: currentBlocks.length,
+            }),
+          ],
+        };
+      });
+      setFocusedBlockId(blockId);
+    }
+
+    setScriptEditVisible(false);
+  }, [activeScene, focusedBlock, handleUpdateBlock, scriptEditDraft]);
+
+  const saveNewClue = useCallback(() => {
+    if (!activeScene) return;
+
+    const content = newClueDraft.trim();
+    if (!content) {
+      setNewClueVisible(false);
+      return;
+    }
 
     setSceneBlocksById((current) => {
       const currentBlocks = current[activeScene.id] ?? activeScene.prompter.blocks;
-      const order = currentBlocks.length;
-      const blockId = `${activeScene.id}-cue-${Date.now()}`;
-      const nextY = Math.min(0.74, 0.38 + (order % 4) * 0.1);
+      const blockId = `${activeScene.id}-clue-${Date.now()}`;
       const nextBlock = createPrompterDraftBlock({
-        content: 'New cue',
+        content,
         id: blockId,
-        order,
-        y: nextY,
+        order: currentBlocks.length,
+        y: 0.62,
       });
 
       setFocusedBlockId(blockId);
@@ -195,43 +256,9 @@ export function RecipePrompterCameraScreen() {
         [activeScene.id]: [...currentBlocks, nextBlock],
       };
     });
-  }, [activeScene]);
-
-  const handleHideFocusedCue = useCallback(() => {
-    if (!focusedBlock) return;
-
-    handleUpdateBlock(focusedBlock.id, { visible: false });
-    setFocusedBlockId(null);
-  }, [focusedBlock, handleUpdateBlock]);
-
-  const handleShowCue = useCallback((blockId: string) => {
-    handleUpdateBlock(blockId, { visible: true });
-    setFocusedBlockId(blockId);
-  }, [handleUpdateBlock]);
-
-  const handleScaleFocusedCue = useCallback((scale: number) => {
-    if (!focusedBlock) return;
-
-    handleUpdateBlock(focusedBlock.id, { scale });
-  }, [focusedBlock, handleUpdateBlock]);
-
-  const handleOpacityFocusedCue = useCallback((opacity: number) => {
-    if (!focusedBlock) return;
-
-    handleUpdateBlock(focusedBlock.id, { opacity });
-  }, [focusedBlock, handleUpdateBlock]);
-
-  const handleColorFocusedCue = useCallback((accentColor: string) => {
-    if (!focusedBlock) return;
-
-    handleUpdateBlock(focusedBlock.id, { accentColor });
-  }, [focusedBlock, handleUpdateBlock]);
-
-  const handleEditFocusedCue = useCallback(() => {
-    if (!focusedBlock) return;
-
-    requestEditForBlock(focusedBlock.id);
-  }, [focusedBlock, requestEditForBlock]);
+    setNewClueDraft('');
+    setNewClueVisible(false);
+  }, [activeScene, newClueDraft]);
 
   useEffect(() => {
     setReviewUri(null);
@@ -240,7 +267,121 @@ export function RecipePrompterCameraScreen() {
     setSavingTake(false);
     setSaveMessage('');
     setBusyTakeId(null);
+    scriptScrollY.setValue(0);
   }, [activeSceneId]);
+
+  useEffect(() => {
+    scriptScrollY.stopAnimation();
+    scriptScrollY.setValue(0);
+
+    if (!recording || prompterPaused) {
+      return;
+    }
+
+    const duration = Math.max(5800, Math.round((currentScript.length * 86) / prompterSpeed));
+    const animation = Animated.timing(scriptScrollY, {
+      duration,
+      toValue: -42,
+      useNativeDriver: true,
+    });
+
+    animation.start(({ finished }) => {
+      if (finished && nextScene) {
+        setActiveSceneId(nextScene.id);
+      }
+    });
+
+    return () => {
+      animation.stop();
+    };
+  }, [currentScript, nextScene, prompterPaused, prompterSpeed, recording, scriptScrollY]);
+
+  const prompterPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (event, gestureState) =>
+          event.nativeEvent.touches.length > 1 ||
+          Math.abs(gestureState.dy) > 12,
+        onPanResponderGrant: (event) => {
+          if (event.nativeEvent.touches.length >= 2) {
+            pinchDistanceRef.current = getTouchDistance(event);
+            pinchFontSizeRef.current = prompterFontSize;
+          }
+        },
+        onPanResponderMove: (event, gestureState) => {
+          if (event.nativeEvent.touches.length >= 2) {
+            const initialDistance = pinchDistanceRef.current;
+            const currentDistance = getTouchDistance(event);
+
+            if (initialDistance && currentDistance) {
+              const ratio = currentDistance / initialDistance;
+              setPrompterFontSize(clampPrompterFontSize(pinchFontSizeRef.current * ratio));
+            }
+            return;
+          }
+
+          if (gestureState.dy < -56) {
+            setTeleprompterHintVisible(false);
+            setPrompterMode('top');
+          }
+
+          if (gestureState.dy > 56) {
+            setPrompterMode('center');
+          }
+        },
+        onPanResponderRelease: (_event, gestureState) => {
+          if (gestureState.dy < -42) {
+            setPrompterMode('top');
+          }
+
+          if (gestureState.dy > 42) {
+            setPrompterMode('center');
+          }
+
+          pinchDistanceRef.current = null;
+        },
+      }),
+    [prompterFontSize],
+  );
+
+  const handleScriptPress = useCallback(() => {
+    const now = Date.now();
+
+    if (now - lastScriptTapAtRef.current < 520) {
+      openScriptEditor();
+    }
+
+    lastScriptTapAtRef.current = now;
+  }, [openScriptEditor]);
+
+  const adjustPrompterSpeed = useCallback((direction: -1 | 1) => {
+    setPrompterSpeed((current) => {
+      const currentIndex = PROMPTER_SPEEDS.findIndex((speed) => speed === current);
+      const safeIndex = currentIndex >= 0 ? currentIndex : 2;
+      const nextIndex = Math.min(PROMPTER_SPEEDS.length - 1, Math.max(0, safeIndex + direction));
+
+      return PROMPTER_SPEEDS[nextIndex];
+    });
+  }, []);
+
+  const goToScene = useCallback((scene: NativeRecipeScene | null) => {
+    if (!scene) return;
+
+    setActiveSceneId(scene.id);
+    setPrompterPaused(false);
+  }, []);
+
+  const cyclePrompterOpacity = useCallback(() => {
+    setPrompterOpacity((current) => getNextValue(PROMPTER_OPACITIES, current));
+  }, []);
+
+  const cyclePrompterColor = useCallback(() => {
+    setPrompterColor((current) => getNextValue(PROMPTER_COLORS, current));
+  }, []);
+
+  const cyclePrompterStyle = useCallback(() => {
+    setPrompterStyle((current) => getNextValue(PROMPTER_STYLES, current));
+  }, []);
 
   const handleRecordPress = useCallback(async () => {
     if (recording) {
@@ -430,93 +571,117 @@ export function RecipePrompterCameraScreen() {
         style={styles.bottomFade}
       />
 
-      <View className="flex-1 justify-between" style={styles.content}>
-        <View className="px-4" style={{ paddingTop: insets.top + (Platform.OS === 'android' ? 14 : 6) }}>
-          <View className="flex-row items-center justify-between">
-            <OverlayIconButton accessibilityLabel="Go back" iconName="arrow-left" onPress={handleBack} />
+      <View style={styles.content}>
+        <View style={[styles.teleprompterTopBar, { paddingTop: insets.top + (Platform.OS === 'android' ? 14 : 6) }]}>
+          <OverlayIconButton accessibilityLabel="Close shooting" iconName="close" onPress={handleBack} />
 
-            <View className="max-w-[230px] rounded-full border border-white/15 bg-black/35 px-3 py-1.5">
-              <Text className="text-[12px] font-semibold text-white/85" numberOfLines={1}>
-                #{activeScene.sceneNumber} · {getCameraSceneRole(activeSceneIndex, recipe.scenes.length)} · {activeScene.endTime}
+          <View style={styles.teleprompterSceneCluster}>
+            <View style={styles.teleprompterScenePill}>
+              <Text style={styles.teleprompterSceneText}>
+                씬 {activeSceneIndex + 1}/{recipe.scenes.length}
               </Text>
+              <View style={styles.teleprompterSceneDot} />
             </View>
-
-            <OverlayIconButton
-              accessibilityLabel="Flip camera"
-              iconName="camera-flip-outline"
-              onPress={() => setFacing((current) => (current === 'back' ? 'front' : 'back'))}
-            />
+            <View style={styles.teleprompterProgressRail}>
+              <View style={[styles.teleprompterProgressFill, { width: progress }]} />
+            </View>
           </View>
-        </View>
 
-        <View pointerEvents="box-none" className="flex-1" onLayout={handleOverlayLayout}>
-          <CameraCoachOverlay
-            lineToSay={
-              params.sceneId === activeScene.id && typeof params.lineToSay === 'string'
-                ? params.lineToSay
-                : undefined
-            }
-            recording={recording}
-            scene={activeScene}
-            sceneIndex={activeSceneIndex}
-            shootingGuideline={
-              params.sceneId === activeScene.id && typeof params.shootingGuideline === 'string'
-                ? params.shootingGuideline
-                : undefined
-            }
-            totalScenes={recipe.scenes.length}
+          <OverlayIconButton
+            accessibilityLabel="Flip camera"
+            iconName="camera-flip-outline"
+            onPress={() => setFacing((current) => (current === 'back' ? 'front' : 'back'))}
           />
         </View>
 
         <View
-          className="rounded-t-[30px] border border-white/10 bg-slate-950/78 px-4 pt-4"
-          style={{ paddingBottom: insets.bottom + (Platform.OS === 'android' ? 12 : 4) }}
+          pointerEvents="box-none"
+          style={[
+            styles.teleprompterStage,
+            prompterMode === 'top' ? styles.teleprompterStageTop : styles.teleprompterStageCenter,
+          ]}
         >
-          {statusLabel ? (
-            <Text style={styles.statusLabel}>
-              {statusLabel}
-            </Text>
-          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            onPress={handleScriptPress}
+            style={[
+              styles.scriptPanel,
+              {
+                backgroundColor: prompterTheme.panelBackground,
+                borderColor: prompterTheme.borderColor,
+              },
+              prompterMode === 'top' ? styles.scriptPanelTop : null,
+            ]}
+            {...prompterPanResponder.panHandlers}
+          >
+            <View style={styles.dragHandle} />
+            {teleprompterHintVisible ? (
+              <Text style={styles.teleprompterHint}>위로 올리면 텔레프롬프터 모드</Text>
+            ) : null}
+            <Animated.View style={{ transform: [{ translateY: scriptScrollY }] }}>
+              <Text
+                style={[
+                  styles.scriptText,
+                  {
+                    color: prompterTheme.textColor,
+                    fontSize: prompterTypography.fontSize,
+                    fontWeight: prompterTypography.fontWeight,
+                    lineHeight: prompterTypography.lineHeight,
+                  },
+                ]}
+              >
+                {currentScript}
+              </Text>
+            </Animated.View>
+            <View style={styles.nextScriptBlock}>
+              <Text style={styles.nextScriptLabel}>다음 컷 자동 이어짐</Text>
+              <Text numberOfLines={3} style={styles.nextScriptText}>{nextScript}</Text>
+            </View>
+          </Pressable>
+        </View>
 
-          {sceneTakeCollection ? (
-            <NativeTakeTray
-              bestTakeId={sceneTakeCollection.bestTakeId}
-              busyTakeId={busyTakeId}
-              onDeleteTake={handleDeleteTake}
-              onOpenIn={handleOpenTakeIn}
-              onSaveToGallery={handleSaveTakeToGallery}
-              onSetBestTake={handleSetBestTake}
-              takes={sceneTakeCollection.takes}
-              title="Scene takes"
+        <View style={[styles.teleprompterBottomDock, { paddingBottom: insets.bottom + (Platform.OS === 'android' ? 12 : 8) }]}>
+          {statusLabel ? <Text style={styles.statusLabel}>{statusLabel}</Text> : null}
+
+          <View style={styles.speedDock}>
+            <View>
+              <Text style={styles.speedLabel}>속도</Text>
+              <Text style={styles.speedValue}>{prompterSpeed.toFixed(prompterSpeed % 1 === 0 ? 1 : 2)}x</Text>
+            </View>
+            <RoundControlButton iconName="minus" onPress={() => adjustPrompterSpeed(-1)} />
+            <RoundControlButton
+              iconName={prompterPaused ? 'play' : 'pause'}
+              onPress={() => setPrompterPaused((current) => !current)}
+              prominent
             />
-          ) : null}
+            <RoundControlButton iconName="plus" onPress={() => adjustPrompterSpeed(1)} />
+          </View>
 
-          <ShootingSceneSwitcher
-            activeSceneId={activeScene.id}
-            onSelectScene={setActiveSceneId}
-            scenes={recipe.scenes}
-          />
-
-          <View style={styles.cameraControlRow}>
-            <PrompterStepButton
+          <View style={styles.recordDock}>
+            <CutStepButton
               disabled={!previousScene}
-              label="Prev cut"
-              onPress={() => {
-                if (previousScene) setActiveSceneId(previousScene.id);
-              }}
+              iconName="skip-previous-outline"
+              label="이전 컷"
+              onPress={() => goToScene(previousScene)}
             />
             <CenterRecordButton
               disabled={Boolean(reviewUri)}
               onPress={handleRecordPress}
               recording={recording}
             />
-            <PrompterStepButton
+            <CutStepButton
               disabled={!nextScene}
-              label="Next cut"
-              onPress={() => {
-                if (nextScene) setActiveSceneId(nextScene.id);
-              }}
+              iconName="skip-next-outline"
+              label="다음 컷"
+              onPress={() => goToScene(nextScene)}
             />
+          </View>
+
+          <View style={styles.paletteDock}>
+            <PaletteButton iconName="plus" label="New clue" onPress={() => setNewClueVisible(true)} />
+            <PaletteButton iconName="checkerboard" label="투명도" onPress={cyclePrompterOpacity} />
+            <PaletteButton iconName="circle" label="색상" onPress={cyclePrompterColor} tint={prompterTheme.textColor} />
+            <PaletteButton iconName="format-letter-case" label="스타일" onPress={cyclePrompterStyle} />
           </View>
         </View>
       </View>
@@ -538,6 +703,27 @@ export function RecipePrompterCameraScreen() {
           />
         </View>
       ) : null}
+
+      <PromptTextModal
+        ctaLabel="완료"
+        onChangeText={setScriptEditDraft}
+        onClose={() => setScriptEditVisible(false)}
+        onSubmit={saveScriptEdit}
+        placeholder="대본을 수정하세요"
+        title="대본 수정"
+        value={scriptEditDraft}
+        visible={scriptEditVisible}
+      />
+      <PromptTextModal
+        ctaLabel="추가"
+        onChangeText={setNewClueDraft}
+        onClose={() => setNewClueVisible(false)}
+        onSubmit={saveNewClue}
+        placeholder="어떤 멘트를 추가할까요?"
+        title="New clue"
+        value={newClueDraft}
+        visible={newClueVisible}
+      />
     </View>
   );
 }
@@ -626,12 +812,34 @@ function CenterRecordButton({
   );
 }
 
-function PrompterStepButton({
+function RoundControlButton({
+  iconName,
+  onPress,
+  prominent = false,
+}: {
+  iconName: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+  onPress: () => void;
+  prominent?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={[styles.roundControlButton, prominent ? styles.roundControlButtonProminent : null]}
+    >
+      <MaterialCommunityIcons color="#ffffff" name={iconName} size={22} />
+    </Pressable>
+  );
+}
+
+function CutStepButton({
   disabled,
+  iconName,
   label,
   onPress,
 }: {
   disabled: boolean;
+  iconName: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   label: string;
   onPress: () => void;
 }) {
@@ -640,12 +848,83 @@ function PrompterStepButton({
       accessibilityRole="button"
       disabled={disabled}
       onPress={onPress}
-      style={[styles.stepButton, disabled ? styles.stepButtonDisabled : styles.stepButtonEnabled]}
+      style={[styles.cutStepButton, disabled ? styles.cutStepButtonDisabled : null]}
     >
-      <Text style={[styles.stepButtonText, disabled ? styles.stepButtonTextDisabled : styles.stepButtonTextEnabled]}>
+      <MaterialCommunityIcons color={disabled ? 'rgba(255,255,255,0.28)' : '#ffffff'} name={iconName} size={22} />
+      <Text style={[styles.cutStepText, disabled ? styles.cutStepTextDisabled : null]}>
         {label}
       </Text>
     </Pressable>
+  );
+}
+
+function PaletteButton({
+  iconName,
+  label,
+  onPress,
+  tint = '#a78bfa',
+}: {
+  iconName: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+  label: string;
+  onPress: () => void;
+  tint?: string;
+}) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.paletteButton}>
+      <View style={styles.paletteIconBubble}>
+        <MaterialCommunityIcons color={tint} name={iconName} size={20} />
+      </View>
+      <Text style={styles.paletteLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function PromptTextModal({
+  ctaLabel,
+  onChangeText,
+  onClose,
+  onSubmit,
+  placeholder,
+  title,
+  value,
+  visible,
+}: {
+  ctaLabel: string;
+  onChangeText: (value: string) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+  placeholder: string;
+  title: string;
+  value: string;
+  visible: boolean;
+}) {
+  return (
+    <Modal animationType="fade" onRequestClose={onClose} transparent visible={visible}>
+      <View style={styles.promptModalOverlay}>
+        <Pressable onPress={onClose} style={StyleSheet.absoluteFillObject} />
+        <View style={styles.promptModalCard}>
+          <Text style={styles.promptModalTitle}>{title}</Text>
+          <TextInput
+            autoFocus
+            multiline
+            onChangeText={onChangeText}
+            placeholder={placeholder}
+            placeholderTextColor="rgba(255,255,255,0.42)"
+            returnKeyType="done"
+            style={styles.promptModalInput}
+            value={value}
+          />
+          <View style={styles.promptModalActions}>
+            <Pressable accessibilityRole="button" onPress={onClose} style={styles.promptModalSecondary}>
+              <Text style={styles.promptModalSecondaryText}>취소</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={onSubmit} style={styles.promptModalPrimary}>
+              <Text style={styles.promptModalPrimaryText}>{ctaLabel}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -712,6 +991,95 @@ function getCameraNextLine(scene: NativeRecipeScene) {
   );
 }
 
+function getTeleprompterScript(
+  scene: NativeRecipeScene,
+  visibleBlocks: PrompterBlock[],
+  params: { lineToSay?: string; sceneId?: string },
+) {
+  if (params.sceneId === scene.id && typeof params.lineToSay === 'string' && params.lineToSay.trim()) {
+    return params.lineToSay.trim();
+  }
+
+  const blockLines = visibleBlocks
+    .map((block) => block.content.trim())
+    .filter(Boolean);
+
+  if (blockLines.length > 0) {
+    return blockLines.slice(0, 4).join('\n');
+  }
+
+  return getCameraPrimaryLine(scene);
+}
+
+function getPrompterTheme(color: PrompterColorPreset, opacity: number) {
+  const textColorByPreset: Record<PrompterColorPreset, string> = {
+    blue: '#bfdbfe',
+    purple: '#c4b5fd',
+    white: '#ffffff',
+    yellow: '#fde68a',
+  };
+
+  return {
+    borderColor: color === 'white' ? 'rgba(255,255,255,0.28)' : `${textColorByPreset[color]}99`,
+    panelBackground: `rgba(2,6,23,${opacity})`,
+    textColor: textColorByPreset[color],
+  };
+}
+
+function getPrompterTypography(style: PrompterStylePreset, fontSize: number) {
+  if (style === 'clean') {
+    return {
+      fontSize: clampPrompterFontSize(fontSize - 4),
+      fontWeight: '700' as const,
+      lineHeight: Math.round((fontSize - 4) * 1.24),
+    };
+  }
+
+  if (style === 'caption') {
+    return {
+      fontSize: clampPrompterFontSize(fontSize - 8),
+      fontWeight: '900' as const,
+      lineHeight: Math.round((fontSize - 8) * 1.18),
+    };
+  }
+
+  if (style === 'bold') {
+    return {
+      fontSize: clampPrompterFontSize(fontSize + 2),
+      fontWeight: '900' as const,
+      lineHeight: Math.round((fontSize + 2) * 1.2),
+    };
+  }
+
+  return {
+    fontSize,
+    fontWeight: '900' as const,
+    lineHeight: Math.round(fontSize * 1.22),
+  };
+}
+
+function getTouchDistance(event: GestureResponderEvent) {
+  const [firstTouch, secondTouch] = event.nativeEvent.touches;
+
+  if (!firstTouch || !secondTouch) {
+    return null;
+  }
+
+  const dx = firstTouch.pageX - secondTouch.pageX;
+  const dy = firstTouch.pageY - secondTouch.pageY;
+
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function clampPrompterFontSize(value: number) {
+  return Math.round(Math.min(MAX_PROMPTER_FONT_SIZE, Math.max(MIN_PROMPTER_FONT_SIZE, value)));
+}
+
+function getNextValue<T>(values: readonly T[], current: T) {
+  const index = values.findIndex((value) => value === current);
+  return values[index >= 0 && index < values.length - 1 ? index + 1 : 0];
+}
+
 function OverlayIconButton({
   iconName,
   onPress,
@@ -738,6 +1106,8 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   content: {
+    flex: 1,
+    justifyContent: 'space-between',
     zIndex: 2,
   },
   bottomFade: {
@@ -759,6 +1129,267 @@ const styles = StyleSheet.create({
   emptyCueState: {
     top: '42%',
     maxWidth: 330,
+  },
+  cutStepButton: {
+    alignItems: 'center',
+    gap: 6,
+    minWidth: 78,
+  },
+  cutStepButtonDisabled: {
+    opacity: 0.42,
+  },
+  cutStepText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  cutStepTextDisabled: {
+    color: 'rgba(255,255,255,0.34)',
+  },
+  dragHandle: {
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    borderRadius: 999,
+    height: 4,
+    marginBottom: 14,
+    width: 48,
+  },
+  nextScriptBlock: {
+    borderTopColor: 'rgba(255,255,255,0.16)',
+    borderTopWidth: 1,
+    marginTop: 18,
+    paddingTop: 12,
+  },
+  nextScriptLabel: {
+    color: '#a78bfa',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0,
+  },
+  nextScriptText: {
+    color: 'rgba(255,255,255,0.38)',
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 25,
+    marginTop: 8,
+  },
+  paletteButton: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 7,
+    justifyContent: 'center',
+    minHeight: 62,
+  },
+  paletteDock: {
+    backgroundColor: 'rgba(10,12,18,0.68)',
+    borderColor: 'rgba(255,255,255,0.13)',
+    borderRadius: 26,
+    borderWidth: 1,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  paletteIconBubble: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 999,
+    height: 28,
+    justifyContent: 'center',
+    width: 28,
+  },
+  paletteLabel: {
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  promptModalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  promptModalCard: {
+    backgroundColor: 'rgba(15,23,42,0.96)',
+    borderColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 26,
+    borderWidth: 1,
+    padding: 18,
+    width: '88%',
+  },
+  promptModalInput: {
+    borderColor: 'rgba(167,139,250,0.6)',
+    borderRadius: 18,
+    borderWidth: 1,
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 0,
+    lineHeight: 26,
+    marginTop: 14,
+    minHeight: 112,
+    padding: 14,
+    textAlignVertical: 'top',
+  },
+  promptModalOverlay: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.58)',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  promptModalPrimary: {
+    alignItems: 'center',
+    backgroundColor: '#8b5cf6',
+    borderRadius: 16,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 50,
+  },
+  promptModalPrimaryText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  promptModalSecondary: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 50,
+  },
+  promptModalSecondaryText: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  promptModalTitle: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: 0,
+  },
+  recordDock: {
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+  },
+  roundControlButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  roundControlButtonProminent: {
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    height: 58,
+    width: 58,
+  },
+  scriptPanel: {
+    borderLeftWidth: 3,
+    borderRadius: 28,
+    maxHeight: 374,
+    overflow: 'hidden',
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    width: '100%',
+  },
+  scriptPanelTop: {
+    maxHeight: 336,
+  },
+  scriptText: {
+    letterSpacing: 0,
+  },
+  speedDock: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: 'rgba(10,12,18,0.58)',
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 22,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 14,
+    minHeight: 76,
+    paddingHorizontal: 18,
+  },
+  speedLabel: {
+    color: 'rgba(255,255,255,0.62)',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  speedValue: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  teleprompterBottomDock: {
+    gap: 14,
+    paddingHorizontal: 18,
+  },
+  teleprompterHint: {
+    color: 'rgba(255,255,255,0.46)',
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  teleprompterProgressFill: {
+    backgroundColor: '#a78bfa',
+    borderRadius: 999,
+    height: '100%',
+  },
+  teleprompterProgressRail: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 999,
+    height: 3,
+    marginTop: 8,
+    overflow: 'hidden',
+    width: 126,
+  },
+  teleprompterSceneCluster: {
+    alignItems: 'center',
+  },
+  teleprompterSceneDot: {
+    backgroundColor: '#a78bfa',
+    borderRadius: 999,
+    height: 8,
+    width: 8,
+  },
+  teleprompterScenePill: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(10,12,18,0.58)',
+    borderColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  teleprompterSceneText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  teleprompterStage: {
+    left: 18,
+    position: 'absolute',
+    right: 18,
+  },
+  teleprompterStageCenter: {
+    top: '20%',
+  },
+  teleprompterStageTop: {
+    top: '11%',
+  },
+  teleprompterTopBar: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
   },
   actionCue: {
     backgroundColor: 'rgba(249, 115, 22, 0.24)',
