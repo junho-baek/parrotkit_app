@@ -2,7 +2,7 @@ import type { Href } from "expo-router";
 
 import type { MockRecipe } from "@/core/mocks/parrotkit-data";
 
-export type RecipeProductDemoModeId = "reuse" | "sell";
+export type RecipeProductDemoModeId = "reuse" | "share" | "publish" | "marketplace";
 
 export type RecipeProductDemoModel = {
   description: string;
@@ -54,6 +54,10 @@ export function createRecipeProductDemoModel(
         body: "Camera angle, action cues, and final take guidance make it shootable again.",
         title: "Shooting guide",
       },
+      {
+        body: "Best-take previews and recorded references can be carried into the package.",
+        title: "Sample takes",
+      },
     ],
     modes: [
       {
@@ -63,16 +67,28 @@ export function createRecipeProductDemoModel(
         title: "Reuse",
       },
       {
-        body: "Package the recipe as a paid creator product.",
+        body: "Send a private package to teammates, brands, or clients.",
         enabled: true,
-        id: "sell",
-        title: "Sell",
+        id: "share",
+        title: "Share",
+      },
+      {
+        body: "Show it on your creator profile without forcing a sale.",
+        enabled: true,
+        id: "publish",
+        title: "Publish",
+      },
+      {
+        body: "Submit it for discovery and optional monetization.",
+        enabled: true,
+        id: "marketplace",
+        title: "Marketplace",
       },
     ],
     priceLabel: "$19",
-    primaryActionLabel: created ? "Product created" : "Publish Recipe Product",
+    primaryActionLabel: created ? "Recipe asset saved" : "Save as Recipe Asset",
     sourceRecipeId: recipe.id,
-    statusLabel: created ? "Recipe product created" : "Ready to productize",
+    statusLabel: created ? "Saved to My Recipes" : "Ready to save as Recipe Asset",
     title: recipe.title,
   };
 }

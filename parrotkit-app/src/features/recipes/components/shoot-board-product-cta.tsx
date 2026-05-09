@@ -23,9 +23,9 @@ export function ShootBoardProductCta({
             <MaterialCommunityIcons color="#8c67ff" name="storefront-outline" size={21} />
           </View>
           <View style={styles.titleWrap}>
-            <Text style={styles.eyebrow}>{isKo ? "RECIPE PRODUCT" : "RECIPE PRODUCT"}</Text>
+            <Text style={styles.eyebrow}>{isKo ? "RECIPE ASSET" : "RECIPE ASSET"}</Text>
             <Text numberOfLines={2} style={styles.title}>
-              {isKo ? "이 촬영 레시피를 상품으로 만들기" : "Turn this shoot into a Recipe Product"}
+              {isKo ? "이 촬영을 재사용 가능한 Recipe Asset으로 저장" : "Save this shoot as a Recipe Asset"}
             </Text>
           </View>
         </View>
@@ -34,7 +34,7 @@ export function ShootBoardProductCta({
           <ProductChip icon="view-dashboard-outline" label={isKo ? "컷별 레시피" : "Cut-by-cut"} />
           <ProductChip icon="script-text-outline" label={isKo ? "스크립트" : "Script"} />
           <ProductChip icon="television-guide" label={isKo ? "프롬프터" : "Prompter"} />
-          <ProductChip icon="cash" label={isKo ? "판매 준비" : "Sell-ready"} />
+          <ProductChip icon="storefront-outline" label={isKo ? "마켓 선택" : "Market optional"} />
         </View>
 
         <Pressable accessibilityRole="button" onPress={onPress} style={styles.buttonPressable}>
@@ -45,7 +45,7 @@ export function ShootBoardProductCta({
             style={styles.button}
           >
             <Text numberOfLines={1} style={styles.buttonText}>
-              {isKo ? "Recipe Product 만들기" : "Turn into Recipe Product"}
+              {isKo ? "Recipe Asset으로 저장" : "Save as Recipe Asset"}
             </Text>
             <MaterialCommunityIcons color="#fff" name="arrow-right" size={18} />
           </LinearGradient>

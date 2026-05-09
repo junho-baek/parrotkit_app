@@ -25,7 +25,6 @@ import { getContinueShootRecipe, getLatestShootableRecipe } from '@/features/rec
 import {
   createRecipeProductDemoModel,
   getRecipeProductDemoHref,
-  type RecipeProductDemoModel,
 } from '@/features/recipes/lib/recipe-product-demo';
 import { getRecipeCreateHref } from '@/features/recipes/lib/recipe-create-flow';
 import { getShootBoardHref } from '@/features/recipes/lib/shoot-board-model';
@@ -35,6 +34,11 @@ type RecipesView = 'main' | 'collection' | 'publish';
 type RecipeFilter = 'continue' | 'collection' | 'owned' | 'saved' | 'remix' | 'draft';
 type PublishCategory = 'food' | 'lifestyle' | 'beauty' | 'tech' | 'business';
 type Visibility = 'public' | 'followers' | 'private';
+type AssetFlowStep = 'complete' | 'saved' | 'usage' | 'settings' | 'submitted';
+type AssetUsageDestination = 'private' | 'client_share' | 'profile_publish' | 'marketplace_submission';
+type AssetPublishCategory = 'beauty' | 'food' | 'lifestyle' | 'business' | 'other';
+type AssetPublishVisibility = 'public' | 'followers' | 'private_link';
+type AssetAccessMode = 'free' | 'paid' | 'approval_only';
 
 type CollectionItem = {
   id: string;
@@ -98,9 +102,9 @@ const recipeCopy = {
     viewAll: 'View all',
     open: 'Open',
     shoot: 'Shoot',
-    publishTitle: 'Recipe Product',
-    publishBody: 'Reuse it, share it, or sell it as a recipe product.',
-    publishAction: 'Productize',
+    publishTitle: 'Recipe Asset',
+    publishBody: 'Save it for reuse, sharing, publishing, or marketplace submission.',
+    publishAction: 'Package',
     collectionTitle: 'Collections',
     collectionSearch: 'Search collections',
     recentCollection: 'Recently used collection',
@@ -160,9 +164,9 @@ const recipeCopy = {
     viewAll: '전체 보기',
     open: '열기',
     shoot: '촬영',
-    publishTitle: 'Recipe Product',
-    publishBody: '재사용하거나 판매할 수 있는 레시피 상품으로 만들기',
-    publishAction: '상품화',
+    publishTitle: 'Recipe Asset',
+    publishBody: '재사용, 공유, 공개, 마켓 제출까지 이어지는 자산으로 저장',
+    publishAction: '패키징',
     collectionTitle: '컬렉션',
     collectionSearch: '컬렉션 검색',
     recentCollection: '최근 사용 컬렉션',
@@ -204,6 +208,171 @@ const recipeCopy = {
   },
 } satisfies Record<AppLanguage, Record<string, unknown>>;
 
+const assetFlowCopy = {
+  en: {
+    completeTitle: 'Recipe complete!',
+    completeSubtitle: 'Your shoot is ready to save as a reusable production asset.',
+    completeEyebrow: 'Recipe asset package',
+    includedTitle: 'Included in this asset',
+    preview: 'Preview',
+    edit: 'Edit',
+    export: 'Export',
+    exportTitle: 'Export package',
+    exportBody: 'Clips, shot list, script, prompter text, and checklist are ready to package.',
+    saveAsset: 'Save as Recipe Asset',
+    savedTitle: 'Saved to My Recipes',
+    savedSubtitle: 'This recipe is now available for reuse, sharing, publishing, or marketplace submission.',
+    nextTitle: 'Next possible moves',
+    chooseUsage: 'Choose usage option',
+    goRecipes: 'Go to My Recipes',
+    usageTitle: 'How will you use this recipe?',
+    usageSubtitle: 'Pick the destination first. Selling stays optional.',
+    usageNote: 'You can change this later.',
+    continue: 'Continue',
+    settingsTitle: 'Marketplace Submission',
+    settingsSubtitle: 'Prepare the public-facing package. Monetization is optional.',
+    titleLabel: 'Recipe title',
+    descriptionLabel: 'One-line description',
+    category: 'Category',
+    visibility: 'Visibility',
+    access: 'Access',
+    price: 'Price (USD)',
+    includes: 'Product includes',
+    submitRecipe: 'Submit Recipe',
+    publishRecipe: 'Publish Recipe Product',
+    submittedTitle: 'Recipe package ready',
+    submittedSubtitle: 'The asset flow is staged. You can reuse it, share it, or keep preparing the listing.',
+    done: 'Done',
+    secureNote: 'Publishing settings can be changed after submission.',
+    destinations: {
+      private: {
+        icon: 'lock-outline' as IconName,
+        title: 'Private',
+        body: 'Keep it in My Recipes and shoot it again later.',
+      },
+      client_share: {
+        icon: 'account-group-outline' as IconName,
+        title: 'Client / Team Share',
+        body: 'Package a private review link for collaborators.',
+      },
+      profile_publish: {
+        icon: 'web' as IconName,
+        title: 'Profile Publish',
+        body: 'Show it on your creator profile as a reusable format.',
+      },
+      marketplace_submission: {
+        icon: 'storefront-outline' as IconName,
+        title: 'Marketplace Submission',
+        body: 'Submit it so other creators can discover and reuse it.',
+      },
+    } satisfies Record<AssetUsageDestination, { icon: IconName; title: string; body: string }>,
+    nextActions: [
+      { icon: 'movie-open-play-outline' as IconName, title: 'Start a new shoot', body: 'Use this exact structure again.' },
+      { icon: 'auto-fix' as IconName, title: 'Make a remix', body: 'Generate a variation from another reference.' },
+      { icon: 'share-variant-outline' as IconName, title: 'Share with team/client', body: 'Send the package for review.' },
+      { icon: 'storefront-outline' as IconName, title: 'View publish options', body: 'Prepare profile or marketplace settings.' },
+    ],
+    categories: {
+      beauty: 'Beauty',
+      food: 'Food',
+      lifestyle: 'Lifestyle',
+      business: 'Business',
+      other: 'Other',
+    } satisfies Record<AssetPublishCategory, string>,
+    visibilityOptions: {
+      public: { icon: 'web' as IconName, title: 'Public' },
+      followers: { icon: 'account-group-outline' as IconName, title: 'Followers' },
+      private_link: { icon: 'link-variant' as IconName, title: 'Private link' },
+    } satisfies Record<AssetPublishVisibility, { icon: IconName; title: string }>,
+    accessOptions: {
+      free: { icon: 'heart-outline' as IconName, title: 'Free' },
+      paid: { icon: 'currency-usd' as IconName, title: 'Paid' },
+      approval_only: { icon: 'lock-check-outline' as IconName, title: 'Approval only' },
+    } satisfies Record<AssetAccessMode, { icon: IconName; title: string }>,
+  },
+  ko: {
+    completeTitle: 'Recipe complete!',
+    completeSubtitle: '방금 만든 촬영 결과를 다시 쓸 수 있는 제작 자산으로 저장하세요.',
+    completeEyebrow: 'Recipe asset package',
+    includedTitle: '이 자산에 포함된 것',
+    preview: '미리보기',
+    edit: '편집',
+    export: '내보내기',
+    exportTitle: 'Export package',
+    exportBody: '클립, 샷 리스트, 대본, 프롬프터 문구, 체크리스트를 패키지로 준비합니다.',
+    saveAsset: 'Recipe Asset으로 저장',
+    savedTitle: 'Saved to My Recipes',
+    savedSubtitle: '내 레시피에 저장되었습니다. 다시 촬영하거나 공유/공개/마켓 제출로 이어갈 수 있어요.',
+    nextTitle: '다음에 할 수 있는 일',
+    chooseUsage: '활용 방식 선택',
+    goRecipes: '내 레시피로 이동',
+    usageTitle: '이 레시피를 어떻게 활용할까요?',
+    usageSubtitle: '목적을 먼저 고르세요. 판매는 선택 옵션입니다.',
+    usageNote: '언제든 변경할 수 있어요.',
+    continue: '계속',
+    settingsTitle: 'Marketplace Submission',
+    settingsSubtitle: '공개용 패키지를 정리합니다. 수익화는 선택입니다.',
+    titleLabel: '레시피 제목',
+    descriptionLabel: '한 줄 설명',
+    category: '카테고리',
+    visibility: '공개 범위',
+    access: '제공 방식',
+    price: '가격 (USD)',
+    includes: '포함 항목',
+    submitRecipe: '제출하기',
+    publishRecipe: 'Recipe Product 발행',
+    submittedTitle: 'Recipe package ready',
+    submittedSubtitle: '자산 플로우가 준비되었습니다. 재사용하거나 공유하고, 리스팅을 계속 다듬을 수 있습니다.',
+    done: '완료',
+    secureNote: '제출 후에도 공개 및 판매 설정을 바꿀 수 있습니다.',
+    destinations: {
+      private: {
+        icon: 'lock-outline' as IconName,
+        title: '개인 보관',
+        body: 'My Recipes에 저장하고 나중에 다시 촬영합니다.',
+      },
+      client_share: {
+        icon: 'account-group-outline' as IconName,
+        title: '클라이언트/팀 공유',
+        body: '협업자에게 비공개 리뷰 패키지로 전달합니다.',
+      },
+      profile_publish: {
+        icon: 'web' as IconName,
+        title: '프로필 공개',
+        body: '내 프로필에 재사용 가능한 포맷으로 보여줍니다.',
+      },
+      marketplace_submission: {
+        icon: 'storefront-outline' as IconName,
+        title: '마켓플레이스 제출',
+        body: '다른 크리에이터가 발견하고 재사용할 수 있게 제출합니다.',
+      },
+    } satisfies Record<AssetUsageDestination, { icon: IconName; title: string; body: string }>,
+    nextActions: [
+      { icon: 'movie-open-play-outline' as IconName, title: '이 레시피로 새 촬영 시작', body: '같은 구조로 바로 다시 촬영합니다.' },
+      { icon: 'auto-fix' as IconName, title: '다른 레퍼런스로 리믹스', body: '다른 영상 기반 변형 버전을 만듭니다.' },
+      { icon: 'share-variant-outline' as IconName, title: '팀/클라이언트와 공유', body: '검토용 패키지로 전달합니다.' },
+      { icon: 'storefront-outline' as IconName, title: '공개 옵션 보기', body: '프로필 공개나 마켓 제출을 준비합니다.' },
+    ],
+    categories: {
+      beauty: '뷰티',
+      food: '푸드',
+      lifestyle: '라이프스타일',
+      business: '비즈니스',
+      other: '기타',
+    } satisfies Record<AssetPublishCategory, string>,
+    visibilityOptions: {
+      public: { icon: 'web' as IconName, title: '전체 공개' },
+      followers: { icon: 'account-group-outline' as IconName, title: '팔로워' },
+      private_link: { icon: 'link-variant' as IconName, title: '비공개 링크' },
+    } satisfies Record<AssetPublishVisibility, { icon: IconName; title: string }>,
+    accessOptions: {
+      free: { icon: 'heart-outline' as IconName, title: '무료' },
+      paid: { icon: 'currency-usd' as IconName, title: '유료' },
+      approval_only: { icon: 'lock-check-outline' as IconName, title: '승인 후 제공' },
+    } satisfies Record<AssetAccessMode, { icon: IconName; title: string }>,
+  },
+} satisfies Record<AppLanguage, Record<string, unknown>>;
+
 export function RecipesScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ recipeId?: string; view?: string }>();
@@ -211,15 +380,20 @@ export function RecipesScreen() {
   const copy = recipeCopy[language];
   const { exploreRecipes, recipes } = useMockWorkspace();
   const [view, setView] = useState<RecipesView>('main');
-  const [productCreated, setProductCreated] = useState(false);
+  const [assetFlowStep, setAssetFlowStep] = useState<AssetFlowStep>('complete');
+  const [assetExportOpen, setAssetExportOpen] = useState(false);
+  const [selectedDestination, setSelectedDestination] = useState<AssetUsageDestination>('private');
+  const [assetCategory, setAssetCategory] = useState<AssetPublishCategory>('food');
+  const [assetVisibility, setAssetVisibility] = useState<AssetPublishVisibility>('public');
+  const [assetAccess, setAssetAccess] = useState<AssetAccessMode>('free');
   const [selectedFilter, setSelectedFilter] = useState<RecipeFilter>('continue');
-  const [selectedCategory, setSelectedCategory] = useState<PublishCategory>('food');
-  const [visibility, setVisibility] = useState<Visibility>('public');
 
   useEffect(() => {
     if (params.view === 'publish') {
       setView('publish');
-      setProductCreated(false);
+      setAssetFlowStep('complete');
+      setAssetExportOpen(false);
+      setSelectedDestination('private');
       return;
     }
 
@@ -295,8 +469,69 @@ export function RecipesScreen() {
       return;
     }
 
-    setProductCreated(false);
+    setAssetFlowStep('complete');
+    setAssetExportOpen(false);
+    setSelectedDestination('private');
     router.push(getRecipeProductDemoHref(recipe.id));
+  };
+
+  const closePublishFlow = () => {
+    setView('main');
+    setAssetFlowStep('complete');
+    setAssetExportOpen(false);
+  };
+
+  const goBackInPublishFlow = () => {
+    if (assetFlowStep === 'complete') {
+      closePublishFlow();
+      return;
+    }
+
+    if (assetFlowStep === 'saved') {
+      setAssetFlowStep('complete');
+      return;
+    }
+
+    if (assetFlowStep === 'usage') {
+      setAssetFlowStep('saved');
+      return;
+    }
+
+    if (assetFlowStep === 'settings') {
+      setAssetFlowStep('usage');
+      return;
+    }
+
+    setAssetFlowStep('saved');
+  };
+
+  const advancePublishFlow = () => {
+    if (assetFlowStep === 'complete') {
+      setAssetFlowStep('saved');
+      return;
+    }
+
+    if (assetFlowStep === 'saved') {
+      setAssetFlowStep('usage');
+      return;
+    }
+
+    if (assetFlowStep === 'usage') {
+      if (selectedDestination === 'marketplace_submission' || selectedDestination === 'profile_publish') {
+        setAssetFlowStep('settings');
+        return;
+      }
+
+      setAssetFlowStep('submitted');
+      return;
+    }
+
+    if (assetFlowStep === 'settings') {
+      setAssetFlowStep('submitted');
+      return;
+    }
+
+    closePublishFlow();
   };
 
   if (view === 'collection') {
@@ -319,23 +554,32 @@ export function RecipesScreen() {
   if (view === 'publish') {
     return (
       <View className="flex-1 bg-canvas">
-        <RecipesTabScrollView bottomPadding={260}>
+        <RecipesTabScrollView bottomPadding={assetFlowStep === 'saved' ? 270 : 230}>
           <PublishRecipeScreen
-            created={productCreated}
-            copy={copy}
-            onBack={() => setView('main')}
-            onSelectCategory={setSelectedCategory}
-            onSelectVisibility={setVisibility}
+            access={assetAccess}
+            category={assetCategory}
+            destination={selectedDestination}
+            exportOpen={assetExportOpen}
+            language={language}
+            onBack={goBackInPublishFlow}
+            onEdit={() => productRecipe ? router.push(getShootBoardHref(productRecipe.id) as Href) : undefined}
+            onPreview={() => productRecipe ? router.push(getShootBoardHref(productRecipe.id) as Href) : undefined}
+            onSelectAccess={setAssetAccess}
+            onSelectCategory={setAssetCategory}
+            onSelectDestination={setSelectedDestination}
+            onSelectVisibility={setAssetVisibility}
+            onToggleExport={() => setAssetExportOpen((visible) => !visible)}
             recipe={productRecipe}
-            selectedCategory={selectedCategory}
-            visibility={visibility}
+            step={assetFlowStep}
+            visibility={assetVisibility}
           />
         </RecipesTabScrollView>
-        <PublishBottomCta
-          created={productCreated}
-          copy={copy}
-          onPress={() => setProductCreated(true)}
-          product={productRecipe ? createRecipeProductDemoModel(productRecipe, productCreated) : null}
+        <RecipeAssetBottomCta
+          access={assetAccess}
+          language={language}
+          onPrimary={advancePublishFlow}
+          onSecondary={closePublishFlow}
+          step={assetFlowStep}
         />
       </View>
     );
@@ -729,36 +973,51 @@ function CollectionScreen({
 }
 
 function PublishRecipeScreen({
-  created,
-  copy,
+  access,
+  category,
+  destination,
+  exportOpen,
+  language,
   onBack,
+  onEdit,
+  onPreview,
+  onSelectAccess,
   onSelectCategory,
+  onSelectDestination,
   onSelectVisibility,
+  onToggleExport,
   recipe,
-  selectedCategory,
+  step,
   visibility,
 }: {
-  created: boolean;
-  copy: (typeof recipeCopy)['en'];
+  access: AssetAccessMode;
+  category: AssetPublishCategory;
+  destination: AssetUsageDestination;
+  exportOpen: boolean;
+  language: AppLanguage;
   onBack: () => void;
-  onSelectCategory: (category: PublishCategory) => void;
-  onSelectVisibility: (visibility: Visibility) => void;
+  onEdit: () => void;
+  onPreview: () => void;
+  onSelectAccess: (access: AssetAccessMode) => void;
+  onSelectCategory: (category: AssetPublishCategory) => void;
+  onSelectDestination: (destination: AssetUsageDestination) => void;
+  onSelectVisibility: (visibility: AssetPublishVisibility) => void;
+  onToggleExport: () => void;
   recipe: MockRecipe | null;
-  selectedCategory: PublishCategory;
-  visibility: Visibility;
+  step: AssetFlowStep;
+  visibility: AssetPublishVisibility;
 }) {
-  const categories = Object.keys(copy.categories as Record<PublishCategory, string>) as PublishCategory[];
-  const visibilityOptions = copy.visibilityOptions as Record<Visibility, { icon: IconName; title: string; body: string }>;
-  const product = recipe ? createRecipeProductDemoModel(recipe, created) : null;
+  const copy = assetFlowCopy[language];
+  const product = recipe ? createRecipeProductDemoModel(recipe, step !== 'complete') : null;
 
-  if (!product) {
+  if (!recipe || !product) {
     return (
       <View className="gap-4 px-5">
-        <SubHeader onBack={onBack} title={copy.publishHeader as string}>
+        <SubHeader onBack={onBack} title="Recipe Asset">
           <View />
         </SubHeader>
         <View style={styles.emptyProductCard}>
-          <MaterialCommunityIcons color="#94a3b8" name="storefront-outline" size={24} />
+          <MaterialCommunityIcons color="#94a3b8" name="package-variant-closed" size={24} />
           <Text className="text-center text-[14px] font-black text-ink">No recipe selected</Text>
         </View>
       </View>
@@ -766,225 +1025,597 @@ function PublishRecipeScreen({
   }
 
   return (
-    <View className="gap-4 px-5">
-      <SubHeader onBack={onBack} title={copy.publishHeader as string}>
-        <Pressable accessibilityRole="button" hitSlop={8}>
-          <Text className="text-[13px] font-black text-violet">{copy.save as string}</Text>
-        </Pressable>
+    <View className="gap-5 px-5">
+      <SubHeader onBack={onBack} title="Recipe Asset">
+        <RecipeAssetStepBadge step={step} />
       </SubHeader>
 
-      {created ? <ProductCreatedBanner product={product} /> : null}
+      <RecipeAssetProgress step={step} />
 
-      <View className="gap-3">
-        <Text className="text-[13px] font-black text-ink">{copy.coverImage as string} ⓘ</Text>
-        <View className="flex-row gap-4">
-          <ImageBackground
-            imageStyle={styles.publishCoverImage}
-            resizeMode="cover"
-            source={{ uri: recipe?.thumbnail ?? 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80' }}
-            style={styles.publishCover}
-          >
-            <LinearGradient colors={['rgba(15,23,42,0.08)', 'rgba(15,23,42,0.58)']} style={StyleSheet.absoluteFill} />
-            <View className="items-center gap-1">
-              <MaterialCommunityIcons color="#fff" name="camera-outline" size={22} />
-              <Text className="text-[11px] font-black text-white">{copy.changeCover as string}</Text>
+      {step === 'complete' ? (
+        <RecipeCompleteSummary
+          copy={copy}
+          exportOpen={exportOpen}
+          onEdit={onEdit}
+          onPreview={onPreview}
+          onToggleExport={onToggleExport}
+          product={product}
+          recipe={recipe}
+        />
+      ) : null}
+
+      {step === 'saved' ? (
+        <RecipeSavedHub
+          copy={copy}
+          product={product}
+          recipe={recipe}
+        />
+      ) : null}
+
+      {step === 'usage' ? (
+        <RecipeUsageDestination
+          copy={copy}
+          destination={destination}
+          onSelectDestination={onSelectDestination}
+        />
+      ) : null}
+
+      {step === 'settings' ? (
+        <RecipeMarketplaceSettings
+          access={access}
+          category={category}
+          copy={copy}
+          onSelectAccess={onSelectAccess}
+          onSelectCategory={onSelectCategory}
+          onSelectVisibility={onSelectVisibility}
+          product={product}
+          recipe={recipe}
+          visibility={visibility}
+        />
+      ) : null}
+
+      {step === 'submitted' ? (
+        <RecipeAssetSubmitted
+          copy={copy}
+          destination={destination}
+          product={product}
+          recipe={recipe}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+function RecipeAssetProgress({ step }: { step: AssetFlowStep }) {
+  const steps: Array<{ id: AssetFlowStep; label: string }> = [
+    { id: 'complete', label: '5-1' },
+    { id: 'saved', label: '5-2' },
+    { id: 'usage', label: '6-1' },
+    { id: 'settings', label: '6-2' },
+  ];
+  const currentIndex = step === 'submitted' ? steps.length : Math.max(0, steps.findIndex((item) => item.id === step));
+
+  return (
+    <View style={styles.assetProgressShell}>
+      {steps.map((item, index) => {
+        const active = index <= currentIndex;
+
+        return (
+          <View className="flex-1" key={item.id}>
+            <View style={[styles.assetProgressDot, active ? styles.assetProgressDotActive : null]}>
+              <Text style={[styles.assetProgressLabel, active ? styles.assetProgressLabelActive : null]}>{item.label}</Text>
             </View>
-          </ImageBackground>
+            <View style={[styles.assetProgressLine, active ? styles.assetProgressLineActive : null]} />
+          </View>
+        );
+      })}
+    </View>
+  );
+}
 
-          <View className="min-w-0 flex-1 gap-3">
-            <LabeledInput
-              counter={`${product.title.length}/60`}
-              label={`${copy.recipeTitle as string} *`}
-              value={product.title}
-            />
-            <LabeledInput
-              counter={`${Math.min(product.description.length, 120)}/120`}
-              label={copy.oneLine as string}
-              multiline
-              value={product.description}
-            />
+function RecipeAssetStepBadge({ step }: { step: AssetFlowStep }) {
+  const label = step === 'complete' ? 'STEP 5-1' : step === 'saved' ? 'STEP 5-2' : step === 'usage' ? 'STEP 6-1' : step === 'settings' ? 'STEP 6-2' : 'READY';
+
+  return (
+    <View style={styles.assetStepBadge}>
+      <Text className="text-[11px] font-black text-violet">{label}</Text>
+    </View>
+  );
+}
+
+function RecipeCompleteSummary({
+  copy,
+  exportOpen,
+  onEdit,
+  onPreview,
+  onToggleExport,
+  product,
+  recipe,
+}: {
+  copy: (typeof assetFlowCopy)[AppLanguage];
+  exportOpen: boolean;
+  onEdit: () => void;
+  onPreview: () => void;
+  onToggleExport: () => void;
+  product: ReturnType<typeof createRecipeProductDemoModel>;
+  recipe: MockRecipe;
+}) {
+  return (
+    <View className="gap-4">
+      <View className="items-center gap-2">
+        <View style={styles.assetCheckIcon}>
+          <MaterialCommunityIcons color="#fff" name="check" size={24} />
+        </View>
+        <Text className="text-center text-[25px] font-black leading-[30px] text-ink">{copy.completeTitle}</Text>
+        <Text className="max-w-[310px] text-center text-[13px] font-semibold leading-5 text-muted">
+          {copy.completeSubtitle}
+        </Text>
+      </View>
+
+      <RecipeAssetHero product={product} recipe={recipe} />
+
+      <AssetIncludedList copy={copy} product={product} />
+
+      <View className="flex-row gap-2">
+        <AssetMiniAction icon="play-box-outline" label={copy.preview} onPress={onPreview} />
+        <AssetMiniAction icon="pencil-outline" label={copy.edit} onPress={onEdit} />
+        <AssetMiniAction icon="tray-arrow-up" label={copy.export} onPress={onToggleExport} />
+      </View>
+
+      {exportOpen ? (
+        <View style={styles.exportPackageCard}>
+          <MaterialCommunityIcons color="#8c67ff" name="package-variant-closed" size={20} />
+          <View className="min-w-0 flex-1">
+            <Text className="text-[13px] font-black text-ink">{copy.exportTitle}</Text>
+            <Text className="mt-0.5 text-[12px] font-semibold leading-4 text-muted">{copy.exportBody}</Text>
           </View>
         </View>
-      </View>
+      ) : null}
+    </View>
+  );
+}
 
-      <View className="gap-3">
-        <Text className="text-[13px] font-black text-ink">{copy.category as string}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View className="flex-row gap-2 pr-5">
-            {categories.map((category) => {
-              const selected = category === selectedCategory;
-              const labels = copy.categories as Record<PublishCategory, string>;
+function RecipeSavedHub({
+  copy,
+  product,
+  recipe,
+}: {
+  copy: (typeof assetFlowCopy)[AppLanguage];
+  product: ReturnType<typeof createRecipeProductDemoModel>;
+  recipe: MockRecipe;
+}) {
+  const nextActions = copy.nextActions as Array<{ icon: IconName; title: string; body: string }>;
 
-              return (
-                <Pressable
-                  accessibilityRole="button"
-                  key={category}
-                  onPress={() => onSelectCategory(category)}
-                  style={[styles.categoryPill, selected ? styles.categoryPillActive : null]}
-                >
-                  <Text style={[styles.categoryPillText, selected ? styles.categoryPillTextActive : null]}>
-                    {labels[category]}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </ScrollView>
-      </View>
-
-      <View className="gap-3">
-        <Text className="text-[13px] font-black text-ink">Product options</Text>
-        <View className="flex-row gap-2">
-          {product.modes.map((mode) => (
-            <ProductModeCard key={mode.id} mode={mode} />
-          ))}
+  return (
+    <View className="gap-4">
+      <View className="items-center gap-2">
+        <View style={styles.assetCheckIcon}>
+          <MaterialCommunityIcons color="#fff" name="check" size={24} />
         </View>
+        <Text className="text-center text-[24px] font-black text-ink">{copy.savedTitle}</Text>
+        <Text className="max-w-[320px] text-center text-[13px] font-semibold leading-5 text-muted">
+          {copy.savedSubtitle}
+        </Text>
       </View>
 
-      <ProductPriceCard product={product} />
+      <View style={styles.savedRecipeCard}>
+        <Image source={{ uri: recipe.thumbnail }} style={styles.savedRecipeImage} />
+        <View className="min-w-0 flex-1">
+          <Text className="text-[16px] font-black leading-5 text-ink" numberOfLines={2}>{product.title}</Text>
+          <Text className="mt-1 text-[12px] font-semibold text-muted">
+            {recipe.totalSceneCount} cuts · {getRecipeDurationLabel(recipe)} · Today
+          </Text>
+        </View>
+        <MaterialCommunityIcons color="#111827" name="chevron-right" size={23} />
+      </View>
+
+      <View className="gap-2.5">
+        <Text className="text-[14px] font-black text-ink">{copy.nextTitle}</Text>
+        {nextActions.map((action) => (
+          <View key={action.title} style={styles.nextActionRow}>
+            <View style={styles.nextActionIcon}>
+              <MaterialCommunityIcons color="#8c67ff" name={action.icon} size={18} />
+            </View>
+            <View className="min-w-0 flex-1">
+              <Text className="text-[13px] font-black text-ink">{action.title}</Text>
+              <Text className="mt-0.5 text-[11px] font-semibold text-muted" numberOfLines={1}>{action.body}</Text>
+            </View>
+            <MaterialCommunityIcons color="#94a3b8" name="chevron-right" size={20} />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function RecipeUsageDestination({
+  copy,
+  destination,
+  onSelectDestination,
+}: {
+  copy: (typeof assetFlowCopy)[AppLanguage];
+  destination: AssetUsageDestination;
+  onSelectDestination: (destination: AssetUsageDestination) => void;
+}) {
+  const destinations = copy.destinations as Record<AssetUsageDestination, { icon: IconName; title: string; body: string }>;
+
+  return (
+    <View className="gap-4">
+      <View className="gap-1">
+        <Text className="text-center text-[24px] font-black leading-[30px] text-ink">{copy.usageTitle}</Text>
+        <Text className="text-center text-[13px] font-semibold leading-5 text-muted">{copy.usageSubtitle}</Text>
+      </View>
 
       <View className="gap-3">
-        <Text className="text-[13px] font-black text-ink">{copy.included as string}</Text>
-        <View style={styles.includeList}>
-          {product.includedItems.map((item) => (
-            <View className="flex-row items-center gap-2.5 px-3 py-2" key={item.title}>
-              <View style={styles.includeIcon}>
-                <MaterialCommunityIcons color="#8c67ff" name={getProductItemIcon(item.title)} size={16} />
+        {(Object.keys(destinations) as AssetUsageDestination[]).map((option) => {
+          const selected = option === destination;
+          const item = destinations[option];
+
+          return (
+            <Pressable
+              accessibilityRole="button"
+              key={option}
+              onPress={() => onSelectDestination(option)}
+              style={[styles.destinationCard, selected ? styles.destinationCardActive : null]}
+            >
+              <View style={[styles.destinationIcon, selected ? styles.destinationIconActive : null]}>
+                <MaterialCommunityIcons color={selected ? '#ffffff' : '#8c67ff'} name={item.icon} size={23} />
               </View>
               <View className="min-w-0 flex-1">
-                <Text className="text-[12px] font-black text-ink">{item.title}</Text>
-                <Text className="text-[10px] font-semibold text-muted" numberOfLines={1}>
-                  {item.body}
-                </Text>
+                <Text className="text-[15px] font-black text-ink">{item.title}</Text>
+                <Text className="mt-1 text-[12px] font-semibold leading-4 text-muted">{item.body}</Text>
               </View>
-              <MaterialCommunityIcons color="#8c67ff" name="check-circle" size={20} />
-            </View>
-          ))}
-        </View>
+              <MaterialCommunityIcons color={selected ? '#8c67ff' : '#cbd5e1'} name={selected ? 'check-circle' : 'circle-outline'} size={23} />
+            </Pressable>
+          );
+        })}
       </View>
 
-      <View className="gap-3">
-        <Text className="text-[13px] font-black text-ink">{copy.visibility as string} ⓘ</Text>
-        <View className="flex-row gap-2">
-          {(Object.keys(visibilityOptions) as Visibility[]).map((option) => {
-            const selected = option === visibility;
-            const item = visibilityOptions[option];
-
-            return (
-              <Pressable
-                accessibilityRole="button"
-                key={option}
-                onPress={() => onSelectVisibility(option)}
-                style={[styles.visibilityCard, selected ? styles.visibilityCardActive : null]}
-              >
-                <MaterialCommunityIcons color={selected ? '#8c67ff' : '#111827'} name={item.icon} size={21} />
-                <Text className={`mt-2 text-[12px] font-black ${selected ? 'text-violet' : 'text-ink'}`}>
-                  {item.title}
-                </Text>
-                <Text className="text-[10px] font-semibold text-muted" numberOfLines={1}>
-                  {item.body}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-
-    </View>
-  );
-}
-
-function ProductCreatedBanner({ product }: { product: RecipeProductDemoModel }) {
-  return (
-    <View style={styles.createdBanner}>
-      <View style={styles.createdIcon}>
-        <MaterialCommunityIcons color="#ffffff" name="check" size={18} />
-      </View>
-      <View className="min-w-0 flex-1">
-        <Text className="text-[14px] font-black text-ink">{product.statusLabel}</Text>
-        <Text className="mt-0.5 text-[12px] font-semibold text-muted" numberOfLines={1}>
-          Reuse it internally or sell it as a creator product.
-        </Text>
+      <View style={styles.assetNotice}>
+        <MaterialCommunityIcons color="#8c67ff" name="lightbulb-outline" size={16} />
+        <Text className="min-w-0 flex-1 text-[12px] font-semibold text-muted">{copy.usageNote}</Text>
       </View>
     </View>
   );
 }
 
-function ProductModeCard({
-  mode,
-}: {
-  mode: RecipeProductDemoModel["modes"][number];
-}) {
-  const icon: IconName = mode.id === "sell" ? "cash" : "repeat-variant";
-
-  return (
-    <View style={[styles.productModeCard, mode.enabled ? styles.productModeCardActive : null]}>
-      <View className="flex-row items-center justify-between">
-        <MaterialCommunityIcons color={mode.enabled ? "#8c67ff" : "#64748b"} name={icon} size={20} />
-        <MaterialCommunityIcons color={mode.enabled ? "#8c67ff" : "#cbd5e1"} name={mode.enabled ? "toggle-switch" : "toggle-switch-off-outline"} size={25} />
-      </View>
-      <Text className="mt-2 text-[13px] font-black text-ink">{mode.title}</Text>
-      <Text className="mt-1 text-[10px] font-semibold leading-4 text-muted" numberOfLines={2}>
-        {mode.body}
-      </Text>
-    </View>
-  );
-}
-
-function ProductPriceCard({ product }: { product: RecipeProductDemoModel }) {
-  return (
-    <View style={styles.priceCard}>
-      <View className="min-w-0 flex-1">
-        <Text className="text-[13px] font-black text-ink">Marketplace price</Text>
-        <Text className="mt-0.5 text-[11px] font-semibold text-muted" numberOfLines={1}>
-          Demo listing price for this recipe product.
-        </Text>
-      </View>
-      <View style={styles.pricePill}>
-        <Text className="text-[18px] font-black text-violet">{product.priceLabel}</Text>
-      </View>
-    </View>
-  );
-}
-
-function getProductItemIcon(title: string): IconName {
-  if (title.includes("Reference")) return "play-box-outline";
-  if (title.includes("Cut")) return "view-dashboard-outline";
-  if (title.includes("Script")) return "script-text-outline";
-  return "television-guide";
-}
-
-function PublishBottomCta({
+function RecipeMarketplaceSettings({
+  access,
+  category,
   copy,
-  created,
-  onPress,
+  onSelectAccess,
+  onSelectCategory,
+  onSelectVisibility,
+  product,
+  recipe,
+  visibility,
+}: {
+  access: AssetAccessMode;
+  category: AssetPublishCategory;
+  copy: (typeof assetFlowCopy)[AppLanguage];
+  onSelectAccess: (access: AssetAccessMode) => void;
+  onSelectCategory: (category: AssetPublishCategory) => void;
+  onSelectVisibility: (visibility: AssetPublishVisibility) => void;
+  product: ReturnType<typeof createRecipeProductDemoModel>;
+  recipe: MockRecipe;
+  visibility: AssetPublishVisibility;
+}) {
+  const categories = copy.categories as Record<AssetPublishCategory, string>;
+  const visibilityOptions = copy.visibilityOptions as Record<AssetPublishVisibility, { icon: IconName; title: string }>;
+  const accessOptions = copy.accessOptions as Record<AssetAccessMode, { icon: IconName; title: string }>;
+
+  return (
+    <View className="gap-4">
+      <View className="gap-1">
+        <Text className="text-[24px] font-black text-ink">{copy.settingsTitle}</Text>
+        <Text className="text-[13px] font-semibold leading-5 text-muted">{copy.settingsSubtitle}</Text>
+      </View>
+
+      <View className="flex-row gap-4">
+        <ImageBackground imageStyle={styles.marketCoverImage} source={{ uri: recipe.thumbnail }} style={styles.marketCover}>
+          <LinearGradient colors={['rgba(15,23,42,0.02)', 'rgba(15,23,42,0.58)']} style={StyleSheet.absoluteFill} />
+          <View style={styles.coverChangePill}>
+            <MaterialCommunityIcons color="#111827" name="camera-outline" size={14} />
+            <Text className="text-[10px] font-black text-ink">Cover</Text>
+          </View>
+        </ImageBackground>
+
+        <View className="min-w-0 flex-1 gap-3">
+          <LabeledInput counter={`${product.title.length}/60`} label={`${copy.titleLabel} *`} value={product.title} />
+          <LabeledInput counter={`${Math.min(product.description.length, 120)}/120`} label={`${copy.descriptionLabel} *`} multiline value={product.description} />
+        </View>
+      </View>
+
+      <AssetOptionSection title={copy.category}>
+        {(Object.keys(categories) as AssetPublishCategory[]).map((option) => (
+          <SegmentOption
+            icon={option === 'food' ? 'food-apple-outline' : option === 'beauty' ? 'creation-outline' : option === 'business' ? 'briefcase-outline' : option === 'lifestyle' ? 'coffee-outline' : 'dots-horizontal'}
+            key={option}
+            label={categories[option]}
+            onPress={() => onSelectCategory(option)}
+            selected={option === category}
+          />
+        ))}
+      </AssetOptionSection>
+
+      <AssetOptionSection title={copy.visibility}>
+        {(Object.keys(visibilityOptions) as AssetPublishVisibility[]).map((option) => (
+          <SegmentOption
+            icon={visibilityOptions[option].icon}
+            key={option}
+            label={visibilityOptions[option].title}
+            onPress={() => onSelectVisibility(option)}
+            selected={option === visibility}
+          />
+        ))}
+      </AssetOptionSection>
+
+      <AssetOptionSection title={copy.access}>
+        {(Object.keys(accessOptions) as AssetAccessMode[]).map((option) => (
+          <SegmentOption
+            icon={accessOptions[option].icon}
+            key={option}
+            label={accessOptions[option].title}
+            onPress={() => onSelectAccess(option)}
+            selected={option === access}
+          />
+        ))}
+      </AssetOptionSection>
+
+      {access === 'paid' ? (
+        <View style={styles.priceInlineCard}>
+          <View className="flex-row items-center gap-2">
+            <MaterialCommunityIcons color="#8c67ff" name="currency-usd" size={17} />
+            <Text className="text-[12px] font-black text-slate-700">{copy.price}</Text>
+          </View>
+          <Text className="text-[16px] font-black text-violet">{product.priceLabel}</Text>
+        </View>
+      ) : null}
+
+      <AssetIncludedList copy={copy} compact product={product} />
+    </View>
+  );
+}
+
+function RecipeAssetSubmitted({
+  copy,
+  destination,
+  product,
+  recipe,
+}: {
+  copy: (typeof assetFlowCopy)[AppLanguage];
+  destination: AssetUsageDestination;
+  product: ReturnType<typeof createRecipeProductDemoModel>;
+  recipe: MockRecipe;
+}) {
+  const destinations = copy.destinations as Record<AssetUsageDestination, { icon: IconName; title: string; body: string }>;
+  const selected = destinations[destination];
+
+  return (
+    <View className="items-center gap-4">
+      <View style={styles.assetCheckIcon}>
+        <MaterialCommunityIcons color="#fff" name="check" size={24} />
+      </View>
+      <View className="items-center gap-1">
+        <Text className="text-center text-[24px] font-black text-ink">{copy.submittedTitle}</Text>
+        <Text className="max-w-[320px] text-center text-[13px] font-semibold leading-5 text-muted">
+          {copy.submittedSubtitle}
+        </Text>
+      </View>
+      <View style={[styles.destinationCard, styles.destinationCardActive]}>
+        <View className="flex-row items-center gap-3">
+          <View style={[styles.destinationIcon, styles.destinationIconActive]}>
+            <MaterialCommunityIcons color="#ffffff" name={selected.icon} size={22} />
+          </View>
+          <View className="min-w-0 flex-1">
+            <Text className="text-[15px] font-black text-ink">{selected.title}</Text>
+            <Text className="mt-1 text-[12px] font-semibold leading-4 text-muted">{selected.body}</Text>
+          </View>
+        </View>
+      </View>
+      <RecipeAssetHero product={product} recipe={recipe} />
+    </View>
+  );
+}
+
+function RecipeAssetHero({
+  product,
+  recipe,
+}: {
+  product: ReturnType<typeof createRecipeProductDemoModel>;
+  recipe: MockRecipe;
+}) {
+  return (
+    <ImageBackground imageStyle={styles.assetHeroImage} resizeMode="cover" source={{ uri: recipe.thumbnail }} style={styles.assetHero}>
+      <LinearGradient colors={['rgba(15,23,42,0.05)', 'rgba(15,23,42,0.82)']} style={StyleSheet.absoluteFill} />
+      <View className="flex-1 justify-between">
+        <View className="flex-row items-center justify-between">
+          <View style={styles.assetHeroDuration}>
+            <Text className="text-[12px] font-black text-white">{getRecipeDurationLabel(recipe)}</Text>
+          </View>
+          <View style={styles.assetHeroReady}>
+            <MaterialCommunityIcons color="#ffffff" name="television-guide" size={14} />
+            <Text className="text-[11px] font-black text-white">Prompter ready</Text>
+          </View>
+        </View>
+        <View>
+          <Text className="text-[24px] font-black leading-[28px] text-white" numberOfLines={2}>{product.title}</Text>
+          <Text className="mt-1 text-[13px] font-semibold text-white/85">
+            {recipe.totalSceneCount} cuts · Recipe Asset
+          </Text>
+        </View>
+      </View>
+    </ImageBackground>
+  );
+}
+
+function AssetIncludedList({
+  compact = false,
+  copy,
   product,
 }: {
-  copy: (typeof recipeCopy)['en'];
-  created: boolean;
+  compact?: boolean;
+  copy: (typeof assetFlowCopy)[AppLanguage];
+  product: ReturnType<typeof createRecipeProductDemoModel>;
+}) {
+  return (
+    <View className="gap-2">
+      <Text className="text-[14px] font-black text-ink">{compact ? copy.includes : copy.includedTitle}</Text>
+      <View style={styles.assetIncludesGrid}>
+        {product.includedItems.map((item) => (
+          <View key={item.title} style={styles.assetIncludePill}>
+            <MaterialCommunityIcons color="#8c67ff" name={getAssetItemIcon(item.title)} size={16} />
+            <Text className="min-w-0 flex-1 text-[12px] font-black text-slate-700" numberOfLines={1}>{item.title}</Text>
+            <MaterialCommunityIcons color="#8c67ff" name="check" size={15} />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function AssetMiniAction({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: IconName;
+  label: string;
   onPress: () => void;
-  product: RecipeProductDemoModel | null;
+}) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.assetMiniAction}>
+      <MaterialCommunityIcons color="#111827" name={icon} size={18} />
+      <Text className="text-[12px] font-black text-ink">{label}</Text>
+    </Pressable>
+  );
+}
+
+function AssetOptionSection({ children, title }: PropsWithChildren<{ title: string }>) {
+  return (
+    <View className="gap-2">
+      <Text className="text-[13px] font-black text-ink">{title}</Text>
+      <View className="flex-row flex-wrap gap-2">{children}</View>
+    </View>
+  );
+}
+
+function SegmentOption({
+  icon,
+  label,
+  onPress,
+  selected,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  selected: boolean;
+}) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={[styles.segmentOption, selected ? styles.segmentOptionActive : null]}>
+      <MaterialCommunityIcons color={selected ? '#ffffff' : '#64748b'} name={icon} size={16} />
+      <Text style={[styles.segmentOptionText, selected ? styles.segmentOptionTextActive : null]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function RecipeAssetBottomCta({
+  access,
+  language,
+  onPrimary,
+  onSecondary,
+  step,
+}: {
+  access: AssetAccessMode;
+  language: AppLanguage;
+  onPrimary: () => void;
+  onSecondary: () => void;
+  step: AssetFlowStep;
 }) {
   const insets = useSafeAreaInsets();
-  const actionLabel = product?.primaryActionLabel ?? (copy.publishTitle as string);
+  const copy = assetFlowCopy[language];
+  const label =
+    step === 'complete'
+      ? copy.saveAsset
+      : step === 'saved'
+        ? copy.chooseUsage
+        : step === 'usage'
+          ? copy.continue
+          : step === 'settings'
+            ? access === 'paid'
+              ? copy.publishRecipe
+              : copy.submitRecipe
+            : copy.done;
+  const icon: IconName = step === 'complete' ? 'lock-check-outline' : step === 'settings' ? 'send' : step === 'submitted' ? 'check' : 'arrow-right';
 
   return (
     <View pointerEvents="box-none" style={[styles.publishFooterLayer, { bottom: insets.bottom + 88 }]}>
       <View className="gap-2 px-5">
-        <Pressable accessibilityRole="button" className="overflow-hidden rounded-full" onPress={onPress}>
+        <Pressable accessibilityRole="button" className="overflow-hidden rounded-full" onPress={onPrimary}>
           <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.bigPublishButton}>
-            <MaterialCommunityIcons color="#fff" name={created ? "check-circle" : "send"} size={18} />
-            <Text className="text-[16px] font-black text-white">{actionLabel}</Text>
+            <Text className="text-[16px] font-black text-white">{label}</Text>
+            <MaterialCommunityIcons color="#fff" name={icon} size={20} />
           </LinearGradient>
         </Pressable>
 
-        <View className="flex-row items-center justify-center gap-1">
-          <MaterialCommunityIcons color="#94a3b8" name="lock" size={13} />
-          <Text className="text-center text-[11px] font-semibold text-muted">{copy.beforePublish as string}</Text>
-        </View>
+        {step === 'saved' ? (
+          <Pressable accessibilityRole="button" onPress={onSecondary} style={styles.secondaryAssetButton}>
+            <Text className="text-[13px] font-black text-slate-700">{copy.goRecipes}</Text>
+          </Pressable>
+        ) : null}
+
+        {step === 'settings' ? (
+          <View className="flex-row items-center justify-center gap-1">
+            <MaterialCommunityIcons color="#94a3b8" name="shield-check-outline" size={13} />
+            <Text className="text-center text-[11px] font-semibold text-muted">{copy.secureNote}</Text>
+          </View>
+        ) : null}
       </View>
     </View>
   );
+}
+
+function getAssetItemIcon(title: string): IconName {
+  if (title.includes("Reference")) return "play-box-outline";
+  if (title.includes("Cut")) return "view-dashboard-outline";
+  if (title.includes("Script")) return "script-text-outline";
+  if (title.includes("Sample")) return "video-outline";
+  return "television-guide";
+}
+
+function getRecipeDurationLabel(recipe: MockRecipe): string {
+  const totalSeconds = recipe.scenes.reduce((sum, scene) => sum + getSceneDurationSeconds(scene.startTime, scene.endTime), 0);
+
+  if (totalSeconds > 0) {
+    return `${totalSeconds}s`;
+  }
+
+  return `${Math.max(20, recipe.totalSceneCount * 10)}s`;
+}
+
+function getSceneDurationSeconds(start?: string, end?: string): number {
+  const startSeconds = parseTimestampSeconds(start);
+  const endSeconds = parseTimestampSeconds(end);
+
+  if (startSeconds === null || endSeconds === null || endSeconds <= startSeconds) {
+    return 0;
+  }
+
+  return endSeconds - startSeconds;
+}
+
+function parseTimestampSeconds(value?: string): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const parts = value.split(':').map((part) => Number(part));
+
+  if (parts.length !== 2 || parts.some((part) => Number.isNaN(part))) {
+    return null;
+  }
+
+  return parts[0] * 60 + parts[1];
 }
 
 function RecipesTabScrollView({
@@ -1143,6 +1774,127 @@ function FolderIcon({
 }
 
 const styles = StyleSheet.create({
+  assetCheckIcon: {
+    alignItems: 'center',
+    backgroundColor: '#8c67ff',
+    borderColor: '#efe8ff',
+    borderRadius: 999,
+    borderWidth: 6,
+    height: 58,
+    justifyContent: 'center',
+    shadowColor: '#8c67ff',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.24,
+    shadowRadius: 24,
+    width: 58,
+  },
+  assetHero: {
+    borderRadius: 24,
+    height: 224,
+    overflow: 'hidden',
+    padding: 16,
+  },
+  assetHeroDuration: {
+    backgroundColor: 'rgba(15, 23, 42, 0.72)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  assetHeroImage: {
+    borderRadius: 24,
+  },
+  assetHeroReady: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: 'rgba(255, 255, 255, 0.32)',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  assetIncludePill: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 14,
+    borderWidth: 1,
+    flexBasis: '48%',
+    flexDirection: 'row',
+    flexGrow: 1,
+    gap: 8,
+    minHeight: 48,
+    paddingHorizontal: 10,
+  },
+  assetIncludesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  assetMiniAction: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 16,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 7,
+    justifyContent: 'center',
+    minHeight: 52,
+  },
+  assetNotice: {
+    alignItems: 'center',
+    backgroundColor: '#fbf8ff',
+    borderColor: '#eadfff',
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    padding: 12,
+  },
+  assetProgressDot: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: '#eef2f7',
+    borderRadius: 999,
+    minWidth: 42,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  assetProgressDotActive: {
+    backgroundColor: '#f3f0ff',
+  },
+  assetProgressLabel: {
+    color: '#94a3b8',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  assetProgressLabelActive: {
+    color: '#8c67ff',
+  },
+  assetProgressLine: {
+    backgroundColor: '#e2e8f0',
+    borderRadius: 999,
+    height: 3,
+    marginTop: 8,
+  },
+  assetProgressLineActive: {
+    backgroundColor: '#8c67ff',
+  },
+  assetProgressShell: {
+    flexDirection: 'row',
+    gap: 5,
+  },
+  assetStepBadge: {
+    backgroundColor: '#f3f0ff',
+    borderColor: '#eadfff',
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
   bigPublishButton: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -1222,6 +1974,45 @@ const styles = StyleSheet.create({
     height: 112,
     width: 112,
   },
+  coverChangePill: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 999,
+    bottom: 10,
+    flexDirection: 'row',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    position: 'absolute',
+  },
+  destinationCard: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    minHeight: 92,
+    padding: 13,
+  },
+  destinationCardActive: {
+    backgroundColor: '#fbf8ff',
+    borderColor: '#8c67ff',
+    borderWidth: 1.5,
+  },
+  destinationIcon: {
+    alignItems: 'center',
+    backgroundColor: '#f3f0ff',
+    borderRadius: 16,
+    height: 50,
+    justifyContent: 'center',
+    width: 50,
+  },
+  destinationIconActive: {
+    backgroundColor: '#8c67ff',
+  },
   emptyProductCard: {
     alignItems: 'center',
     backgroundColor: '#ffffff',
@@ -1299,9 +2090,27 @@ const styles = StyleSheet.create({
     minHeight: 68,
     paddingVertical: 10,
   },
+  exportPackageCard: {
+    alignItems: 'center',
+    backgroundColor: '#fbf8ff',
+    borderColor: '#eadfff',
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    padding: 13,
+  },
   logo: {
     height: 34,
     width: 34,
+  },
+  marketCover: {
+    height: 164,
+    overflow: 'hidden',
+    width: 116,
+  },
+  marketCoverImage: {
+    borderRadius: 18,
   },
   localFabButton: {
     alignItems: 'center',
@@ -1402,6 +2211,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
+  priceInlineCard: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#fbf8ff',
+    borderColor: '#eadfff',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 14,
+    minHeight: 42,
+    paddingHorizontal: 13,
+  },
   productModeCard: {
     backgroundColor: '#ffffff',
     borderColor: '#e2e8f0',
@@ -1499,6 +2320,73 @@ const styles = StyleSheet.create({
     gap: 8,
     minHeight: 44,
     paddingHorizontal: 12,
+  },
+  nextActionIcon: {
+    alignItems: 'center',
+    backgroundColor: '#f3f0ff',
+    borderRadius: 14,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  nextActionRow: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 11,
+    minHeight: 68,
+    padding: 12,
+  },
+  savedRecipeCard: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 12,
+  },
+  savedRecipeImage: {
+    backgroundColor: '#e2e8f0',
+    borderRadius: 16,
+    height: 72,
+    width: 72,
+  },
+  secondaryAssetButton: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#dbe3ee',
+    borderRadius: 999,
+    borderWidth: 1,
+    minHeight: 46,
+    justifyContent: 'center',
+  },
+  segmentOption: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    minHeight: 38,
+    paddingHorizontal: 12,
+  },
+  segmentOptionActive: {
+    backgroundColor: '#8c67ff',
+    borderColor: '#8c67ff',
+  },
+  segmentOptionText: {
+    color: '#475569',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  segmentOptionTextActive: {
+    color: '#ffffff',
   },
   smallGhostButton: {
     alignItems: 'center',

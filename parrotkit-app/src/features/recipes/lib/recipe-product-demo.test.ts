@@ -30,8 +30,8 @@ if (!draftProduct.modes.some((mode) => mode.id === "reuse" && mode.enabled)) {
   throw new Error("Recipe Product demo model should make reuse enabled by default.");
 }
 
-if (!draftProduct.modes.some((mode) => mode.id === "sell" && mode.enabled)) {
-  throw new Error("Recipe Product demo model should make sell enabled by default.");
+if (!draftProduct.modes.some((mode) => mode.id === "marketplace" && mode.enabled)) {
+  throw new Error("Recipe Product demo model should expose marketplace submission as an enabled optional destination.");
 }
 
 if (
@@ -42,16 +42,20 @@ if (
   throw new Error("Recipe Product demo model should include the cut-by-cut recipe with scene count.");
 }
 
-if (draftProduct.statusLabel !== "Ready to productize") {
-  throw new Error("Draft product should be ready to productize before publishing.");
+if (!draftProduct.includedItems.some((item) => item.title === "Sample takes")) {
+  throw new Error("Recipe Product demo model should include sample takes in the asset package.");
+}
+
+if (draftProduct.statusLabel !== "Ready to save as Recipe Asset") {
+  throw new Error("Draft product should be ready to save as a recipe asset before publishing.");
 }
 
 const createdProduct = createRecipeProductDemoModel(recipe, true);
 
-if (createdProduct.statusLabel !== "Recipe product created") {
+if (createdProduct.statusLabel !== "Saved to My Recipes") {
   throw new Error("Created product should expose a completed status label.");
 }
 
-if (createdProduct.primaryActionLabel !== "Product created") {
+if (createdProduct.primaryActionLabel !== "Recipe asset saved") {
   throw new Error("Created product should update the primary action label.");
 }
