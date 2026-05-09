@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
-import { ComponentProps, useEffect, useState } from 'react';
+import { ComponentProps, useEffect, useRef, useState } from 'react';
 import {
   ImageBackground,
   Pressable,
@@ -29,8 +29,21 @@ import {
   type RecipeCreateMode,
   type RecipeCreateNicheId,
 } from '@/features/recipes/lib/recipe-create-flow';
+import {
+  generateRecipeFromYouTubeReference,
+  getYouTubeThumbnailUrl,
+  isYouTubeReferenceUrl,
+  mapGeneratedRecipeToMockScenes,
+  referenceBreakdownSteps,
+  type ReferenceRecipeGenerationResult,
+} from '@/features/recipes/lib/reference-recipe-generation';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
+type GenerationPhase = 'idle' | 'fetching_reference' | 'analyzing' | 'generating_recipe' | 'ready';
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 const createCopy = {
   en: {
@@ -42,6 +55,11 @@ const createCopy = {
     nicheQuestion: "What's the niche?",
     goalQuestion: "What's the goal?",
     cta: 'Open shoot board',
+    generateCta: 'Generate recipe',
+    youtubeOnly: 'YouTube Shorts only for this demo',
+    generationTitle: 'Analyzing reference',
+    generationSubtitle: 'Turning the pasted Short into a cut-by-cut shooting recipe.',
+    generationReady: 'Recipe generated',
     mode: {
       manual: { icon: 'plus-box-outline' as IconName, tab: 'Blank' },
       reference: { icon: 'link-variant' as IconName, tab: 'Link' },
@@ -57,6 +75,11 @@ const createCopy = {
     nicheQuestion: '니치는 무엇인가요?',
     goalQuestion: '목표는 무엇인가요?',
     cta: 'Open shoot board',
+    generateCta: 'Generate recipe',
+    youtubeOnly: '이번 데모는 YouTube Shorts만 지원',
+    generationTitle: 'Analyzing reference',
+    generationSubtitle: '붙여넣은 Shorts를 컷별 촬영 레시피로 바꾸는 중입니다.',
+    generationReady: 'Recipe generated',
     mode: {
       manual: { icon: 'plus-box-outline' as IconName, tab: 'Blank' },
       reference: { icon: 'link-variant' as IconName, tab: 'Link' },
@@ -77,7 +100,14 @@ export function RecipeCreateScreen() {
   const [selectedNicheId, setSelectedNicheId] = useState<RecipeCreateNicheId>('beauty');
   const [selectedGoalId, setSelectedGoalId] = useState<RecipeCreateGoalId>('ad');
   const [referenceUrl, setReferenceUrl] = useState('');
+  const [generationPhase, setGenerationPhase] = useState<GenerationPhase>('idle');
+  const [completedBreakdownStep, setCompletedBreakdownStep] = useState(-1);
+  const [generationPreview, setGenerationPreview] = useState<ReferenceRecipeGenerationResult | null>(null);
+  const mountedRef = useRef(true);
   const modeCopy = copy.mode as Record<RecipeCreateMode, { icon: IconName; tab: string }>;
+  const referenceIsValid = selectedMode !== 'reference' || isYouTubeReferenceUrl(referenceUrl);
+  const primaryDisabled = generationPhase !== 'idle' || !referenceIsValid;
+  const primaryLabel = selectedMode === 'reference' ? copy.generateCta as string : copy.cta as string;
 
   const back = () => {
     if (router.canGoBack()) {
@@ -88,7 +118,88 @@ export function RecipeCreateScreen() {
     router.replace('/recipes' as Href);
   };
 
-  const handlePrimaryAction = () => {
+  const runBreakdownAnimation = async () => {
+    setGenerationPhase('analyzing');
+    setCompletedBreakdownStep(-1);
+
+    for (let index = 0; index < referenceBreakdownSteps.length; index += 1) {
+      await wait(430 + index * 35);
+
+      if (!mountedRef.current) {
+        return;
+      }
+
+      setCompletedBreakdownStep(index);
+    }
+
+    setGenerationPhase('generating_recipe');
+  };
+
+  const openGeneratedRecipe = (result: ReferenceRecipeGenerationResult) => {
+    const draft = getRecipeCreateDraftContext({
+      goalId: selectedGoalId,
+      mode: selectedMode,
+      nicheId: selectedNicheId,
+      referenceUrl,
+    });
+    const recipe = createRecipeDraft({
+      ...draft,
+      description: result.recipe.oneLineDescription,
+      generationStatus: result.generation.status,
+      notes: [
+        draft.notes,
+        `Reference title: ${result.reference.title}`,
+        `Transcript source: ${result.reference.transcriptSource ?? 'none'}`,
+        result.generation.fallbackUsed ? `Fallback reason: ${result.generation.fallbackReason ?? 'unknown'}` : '',
+      ].filter(Boolean).join('\n'),
+      scenes: mapGeneratedRecipeToMockScenes(result),
+      shootStatus: 'ready',
+      thumbnail: result.reference.thumbnailUrl,
+      title: result.recipe.title,
+    });
+
+    router.replace(`/recipe/${recipe.id}` as Href);
+  };
+
+  const handleReferenceGeneration = async () => {
+    if (!isYouTubeReferenceUrl(referenceUrl)) {
+      return;
+    }
+
+    setGenerationPhase('fetching_reference');
+    setCompletedBreakdownStep(-1);
+    setGenerationPreview(null);
+
+    const generationPromise = generateRecipeFromYouTubeReference({
+      goalId: selectedGoalId,
+      nicheId: selectedNicheId,
+      referenceUrl,
+    });
+    const animationPromise = runBreakdownAnimation();
+
+    const [result] = await Promise.all([generationPromise, animationPromise]);
+
+    if (!mountedRef.current) {
+      return;
+    }
+
+    setGenerationPreview(result);
+    setGenerationPhase('ready');
+    await wait(450);
+
+    if (!mountedRef.current) {
+      return;
+    }
+
+    openGeneratedRecipe(result);
+  };
+
+  const handlePrimaryAction = async () => {
+    if (selectedMode === 'reference') {
+      await handleReferenceGeneration();
+      return;
+    }
+
     const action = getRecipeCreatePrimaryAction(selectedMode);
 
     if (action !== 'open-shoot-board') {
@@ -113,6 +224,12 @@ export function RecipeCreateScreen() {
     setSelectedMode(getInitialRecipeCreateMode(params.mode));
   }, [params.mode]);
 
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   return (
     <View style={styles.overlay}>
       <Pressable accessibilityLabel={copy.close as string} onPress={back} style={StyleSheet.absoluteFillObject} />
@@ -134,73 +251,92 @@ export function RecipeCreateScreen() {
           </Pressable>
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={styles.title}>{copy.title as string}</Text>
-
-          <View style={styles.modeTabs}>
-            {recipeCreateModes.map((mode) => (
-              <CreateModeTab
-                item={modeCopy[mode]}
-                key={mode}
-                mode={mode}
-                onPress={() => setSelectedMode(mode)}
-                proLabel={copy.pro as string}
-                selected={mode === selectedMode}
-              />
-            ))}
-          </View>
-
-          <ModeInput
-            brandPlaceholder={copy.brandPlaceholder as string}
-            linkPlaceholder={copy.linkPlaceholder as string}
-            mode={selectedMode}
+        {generationPhase !== 'idle' ? (
+          <ReferenceGenerationSplash
+            completedStep={completedBreakdownStep}
+            copy={copy}
+            phase={generationPhase}
+            preview={generationPreview}
             referenceUrl={referenceUrl}
-            onChangeReferenceUrl={setReferenceUrl}
           />
-
-          <QuestionTitle title={copy.nicheQuestion as string} />
-          <View style={styles.nicheGrid}>
-            {recipeCreateNiches.map((niche) => (
-              <NicheOption
-                key={niche.id}
-                label={language === 'ko' ? niche.labelKo : niche.label}
-                onPress={() => setSelectedNicheId(niche.id)}
-                selected={niche.id === selectedNicheId}
-              />
-            ))}
-          </View>
-
-          <QuestionTitle title={copy.goalQuestion as string} />
-          <View style={styles.goalGrid}>
-            {recipeCreateGoals.map((goal) => (
-              <GoalCard
-                goal={goal}
-                key={goal.id}
-                label={language === 'ko' ? goal.labelKo : goal.label}
-                onPress={() => setSelectedGoalId(goal.id)}
-                selected={goal.id === selectedGoalId}
-              />
-            ))}
-          </View>
-        </ScrollView>
-
-        <View style={styles.footer}>
-          <Pressable accessibilityRole="button" onPress={handlePrimaryAction} style={styles.primaryButtonPressable}>
-            <LinearGradient
-              colors={brandActionGradient}
-              end={{ x: 1, y: 1 }}
-              start={{ x: 0, y: 0 }}
-              style={styles.ctaButton}
+        ) : (
+          <>
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
             >
-              <Text style={styles.ctaText}>{copy.cta as string}</Text>
-              <MaterialCommunityIcons color="#fff" name="arrow-right" size={25} />
-            </LinearGradient>
-          </Pressable>
-        </View>
+              <Text style={styles.title}>{copy.title as string}</Text>
+
+              <View style={styles.modeTabs}>
+                {recipeCreateModes.map((mode) => (
+                  <CreateModeTab
+                    item={modeCopy[mode]}
+                    key={mode}
+                    mode={mode}
+                    onPress={() => setSelectedMode(mode)}
+                    proLabel={copy.pro as string}
+                    selected={mode === selectedMode}
+                  />
+                ))}
+              </View>
+
+              <ModeInput
+                brandPlaceholder={copy.brandPlaceholder as string}
+                helperText={selectedMode === 'reference' ? copy.youtubeOnly as string : ''}
+                invalid={selectedMode === 'reference' && referenceUrl.trim().length > 0 && !referenceIsValid}
+                linkPlaceholder={copy.linkPlaceholder as string}
+                mode={selectedMode}
+                referenceUrl={referenceUrl}
+                onChangeReferenceUrl={setReferenceUrl}
+              />
+
+              <QuestionTitle title={copy.nicheQuestion as string} />
+              <View style={styles.nicheGrid}>
+                {recipeCreateNiches.map((niche) => (
+                  <NicheOption
+                    key={niche.id}
+                    label={language === 'ko' ? niche.labelKo : niche.label}
+                    onPress={() => setSelectedNicheId(niche.id)}
+                    selected={niche.id === selectedNicheId}
+                  />
+                ))}
+              </View>
+
+              <QuestionTitle title={copy.goalQuestion as string} />
+              <View style={styles.goalGrid}>
+                {recipeCreateGoals.map((goal) => (
+                  <GoalCard
+                    goal={goal}
+                    key={goal.id}
+                    label={language === 'ko' ? goal.labelKo : goal.label}
+                    onPress={() => setSelectedGoalId(goal.id)}
+                    selected={goal.id === selectedGoalId}
+                  />
+                ))}
+              </View>
+            </ScrollView>
+
+            <View style={styles.footer}>
+              <Pressable
+                accessibilityRole="button"
+                disabled={primaryDisabled}
+                onPress={handlePrimaryAction}
+                style={[styles.primaryButtonPressable, primaryDisabled ? styles.primaryButtonDisabled : null]}
+              >
+                <LinearGradient
+                  colors={primaryDisabled ? ['#d8dee8', '#cbd5e1'] : brandActionGradient}
+                  end={{ x: 1, y: 1 }}
+                  start={{ x: 0, y: 0 }}
+                  style={styles.ctaButton}
+                >
+                  <Text style={styles.ctaText}>{primaryLabel}</Text>
+                  <MaterialCommunityIcons color="#fff" name="arrow-right" size={25} />
+                </LinearGradient>
+              </Pressable>
+            </View>
+          </>
+        )}
       </View>
     </View>
   );
@@ -238,12 +374,16 @@ function CreateModeTab({
 
 function ModeInput({
   brandPlaceholder,
+  helperText,
+  invalid,
   linkPlaceholder,
   mode,
   onChangeReferenceUrl,
   referenceUrl,
 }: {
   brandPlaceholder: string;
+  helperText: string;
+  invalid: boolean;
   linkPlaceholder: string;
   mode: RecipeCreateMode;
   onChangeReferenceUrl: (value: string) => void;
@@ -257,20 +397,78 @@ function ModeInput({
   const placeholder = mode === 'brand' ? brandPlaceholder : linkPlaceholder;
 
   return (
-    <View style={styles.underlineInputRow}>
-      <MaterialCommunityIcons color="#64748b" name={iconName} size={25} />
-      <TextInput
-        autoCapitalize="none"
-        autoCorrect={false}
-        editable={mode === 'reference'}
-        inputMode={mode === 'reference' ? 'url' : 'text'}
-        keyboardType={mode === 'reference' ? 'url' : 'default'}
-        onChangeText={onChangeReferenceUrl}
-        placeholder={placeholder}
-        placeholderTextColor="#9aa5b8"
-        style={styles.underlineInput}
-        value={mode === 'reference' ? referenceUrl : ''}
-      />
+    <View>
+      <View style={[styles.underlineInputRow, invalid ? styles.underlineInputRowInvalid : null]}>
+        <MaterialCommunityIcons color={invalid ? '#fb7185' : '#64748b'} name={iconName} size={25} />
+        <TextInput
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={mode === 'reference'}
+          inputMode={mode === 'reference' ? 'url' : 'text'}
+          keyboardType={mode === 'reference' ? 'url' : 'default'}
+          onChangeText={onChangeReferenceUrl}
+          placeholder={placeholder}
+          placeholderTextColor="#9aa5b8"
+          style={styles.underlineInput}
+          value={mode === 'reference' ? referenceUrl : ''}
+        />
+      </View>
+      {helperText ? (
+        <Text style={[styles.inputHelper, invalid ? styles.inputHelperInvalid : null]}>{helperText}</Text>
+      ) : null}
+    </View>
+  );
+}
+
+function ReferenceGenerationSplash({
+  completedStep,
+  copy,
+  phase,
+  preview,
+  referenceUrl,
+}: {
+  completedStep: number;
+  copy: (typeof createCopy)[AppLanguage];
+  phase: GenerationPhase;
+  preview: ReferenceRecipeGenerationResult | null;
+  referenceUrl: string;
+}) {
+  const thumbnailUrl = preview?.reference.thumbnailUrl || getYouTubeThumbnailUrl(referenceUrl) || 'https://img.youtube.com/vi/dtnIqkMmbs0/maxresdefault.jpg';
+  const ready = phase === 'ready';
+
+  return (
+    <View style={styles.generationWrap}>
+      <ImageBackground imageStyle={styles.generationImage} resizeMode="cover" source={{ uri: thumbnailUrl }} style={styles.generationHero}>
+        <LinearGradient colors={['rgba(15,23,42,0.02)', 'rgba(15,23,42,0.76)']} style={StyleSheet.absoluteFill} />
+        <View style={styles.generationBadge}>
+          <MaterialCommunityIcons color="#ffffff" name={ready ? 'check' : 'auto-fix'} size={16} />
+          <Text style={styles.generationBadgeText}>{ready ? copy.generationReady as string : 'AI Breakdown'}</Text>
+        </View>
+        <View>
+          <Text style={styles.generationTitle}>{copy.generationTitle as string}</Text>
+          <Text style={styles.generationSubtitle}>{copy.generationSubtitle as string}</Text>
+        </View>
+      </ImageBackground>
+
+      <View style={styles.breakdownList}>
+        {referenceBreakdownSteps.map((step, index) => {
+          const checked = ready || index <= completedStep;
+          const active = !ready && index === Math.min(completedStep + 1, referenceBreakdownSteps.length - 1);
+
+          return (
+            <View key={step} style={styles.breakdownRow}>
+              <View style={[styles.breakdownIcon, checked ? styles.breakdownIconDone : active ? styles.breakdownIconActive : null]}>
+                <MaterialCommunityIcons
+                  color={checked || active ? '#ffffff' : '#94a3b8'}
+                  name={checked ? 'check' : active ? 'dots-horizontal' : 'circle-outline'}
+                  size={16}
+                />
+              </View>
+              <Text style={[styles.breakdownText, checked || active ? styles.breakdownTextActive : null]}>{step}</Text>
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -361,6 +559,44 @@ function getGoalIcon(goalId: RecipeCreateGoalId): IconName {
 }
 
 const styles = StyleSheet.create({
+  breakdownIcon: {
+    alignItems: 'center',
+    backgroundColor: '#eef2f7',
+    borderRadius: 999,
+    height: 28,
+    justifyContent: 'center',
+    width: 28,
+  },
+  breakdownIconActive: {
+    backgroundColor: '#8c67ff',
+  },
+  breakdownIconDone: {
+    backgroundColor: '#20c997',
+  },
+  breakdownList: {
+    gap: 10,
+  },
+  breakdownRow: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 17,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    minHeight: 50,
+    paddingHorizontal: 12,
+  },
+  breakdownText: {
+    color: '#94a3b8',
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0,
+  },
+  breakdownTextActive: {
+    color: '#111827',
+  },
   ctaButton: {
     alignItems: 'center',
     borderRadius: 18,
@@ -379,6 +615,54 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     paddingHorizontal: 26,
     paddingTop: 14,
+  },
+  generationBadge: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(140, 103, 255, 0.88)',
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  generationBadgeText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0,
+  },
+  generationHero: {
+    borderRadius: 24,
+    height: 248,
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+    padding: 16,
+  },
+  generationImage: {
+    borderRadius: 24,
+  },
+  generationSubtitle: {
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0,
+    lineHeight: 18,
+    maxWidth: 310,
+  },
+  generationTitle: {
+    color: '#ffffff',
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 0,
+    lineHeight: 32,
+    marginBottom: 6,
+  },
+  generationWrap: {
+    gap: 16,
+    paddingBottom: 24,
+    paddingHorizontal: 26,
+    paddingTop: 8,
   },
   goalCard: {
     aspectRatio: 0.76,
@@ -446,6 +730,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     minHeight: 50,
     paddingHorizontal: 26,
+  },
+  inputHelper: {
+    color: '#8c67ff',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0,
+    marginTop: 7,
+  },
+  inputHelperInvalid: {
+    color: '#fb7185',
   },
   modeInputSpacer: {
     height: 16,
@@ -543,6 +837,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     overflow: 'hidden',
   },
+  primaryButtonDisabled: {
+    opacity: 0.78,
+  },
   proBadge: {
     backgroundColor: '#111827',
     borderRadius: 999,
@@ -605,5 +902,8 @@ const styles = StyleSheet.create({
     marginTop: 30,
     minHeight: 48,
     paddingBottom: 10,
+  },
+  underlineInputRowInvalid: {
+    borderBottomColor: '#fb7185',
   },
 });

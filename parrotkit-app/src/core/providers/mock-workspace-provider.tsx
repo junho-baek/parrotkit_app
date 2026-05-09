@@ -39,12 +39,16 @@ import {
 import type { PrompterBlock } from '@/features/recipes/types/recipe-domain';
 
 type CreateRecipeDraftInput = {
-  title: string;
-  videoUrl?: string;
-  niche?: string;
+  description?: string;
+  generationStatus?: 'fallback' | 'generated';
   goal?: string;
   notes?: string;
   scenes?: MockRecipe['scenes'];
+  shootStatus?: MockRecipe['shootStatus'];
+  thumbnail?: string;
+  title: string;
+  videoUrl?: string;
+  niche?: string;
 };
 
 type CreateQuickShootRecipeInput = {
@@ -239,6 +243,10 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
   };
 
   const createRecipeDraft = ({
+    description,
+    generationStatus,
+    thumbnail,
+    shootStatus,
     title,
     videoUrl = '',
     niche = '',
@@ -256,21 +264,21 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       title: resolvedTitle,
       creator: '@parrotkit',
       platform,
-      thumbnail: platform === 'YouTube Shorts'
+      thumbnail: thumbnail?.trim() || (platform === 'YouTube Shorts'
         ? 'https://img.youtube.com/vi/isQbx375vSo/maxresdefault.jpg'
-        : 'https://images.unsplash.com/photo-1492724441997-5dc865305da7?auto=format&fit=crop&w=900&q=80',
+        : 'https://images.unsplash.com/photo-1492724441997-5dc865305da7?auto=format&fit=crop&w=900&q=80'),
       savedAt: 'Saved just now',
       sourceUrl: videoUrl.trim(),
-      summary: `${resolvedTitle} is now a local draft recipe shell you can shape before wiring real analysis.`,
+      summary: description?.trim() || `${resolvedTitle} is now a local draft recipe shell you can shape before wiring real analysis.`,
       niche: niche.trim() || 'Creator',
       goal: goal.trim() || 'Sharper pacing',
-      notes: notes.trim(),
+      notes: [notes.trim(), generationStatus ? `Generation: ${generationStatus}` : ''].filter(Boolean).join('\n'),
       ownership: 'owned',
       verification: 'community',
       ownerHandle: '@parrotkitcodextest',
       ownerName: 'You',
       downloadCount: 0,
-      shootStatus: 'draft',
+      shootStatus: shootStatus ?? 'draft',
       shotSceneCount: 0,
       totalSceneCount: draftScenes.length,
       scenes: draftScenes,
