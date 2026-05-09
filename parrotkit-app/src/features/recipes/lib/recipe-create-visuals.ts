@@ -37,47 +37,47 @@ function resolveImage(asset: () => number, fallbackUri: string) {
 
 export const recipeCreateVisuals = {
   goalAd: resolveImage(
-    () => require("../../../../assets/recipe-create/goal-ad-beauty-product.jpg"),
+    () => require("../../../../assets/recipe-create/generated-goal-ad.png"),
     fallbackImages.goalAd,
   ),
   goalConversion: resolveImage(
-    () => require("../../../../assets/recipe-create/goal-conversion-card.jpg"),
+    () => require("../../../../assets/recipe-create/generated-goal-conversion.png"),
     fallbackImages.goalConversion,
   ),
   goalPersonal: resolveImage(
-    () => require("../../../../assets/recipe-create/goal-personal-home.jpg"),
+    () => require("../../../../assets/recipe-create/generated-goal-personal.png"),
     fallbackImages.goalPersonal,
   ),
   goalRecipeProduct: resolveImage(
-    () => require("../../../../assets/recipe-create/goal-recipe-product.jpg"),
+    () => require("../../../../assets/recipe-create/generated-goal-recipe-product.png"),
     fallbackImages.goalRecipeProduct,
   ),
   goalSell: resolveImage(
-    () => require("../../../../assets/recipe-create/goal-sell-creator.jpg"),
+    () => require("../../../../assets/recipe-create/generated-goal-sell.png"),
     fallbackImages.goalSell,
   ),
   goalViral: resolveImage(
-    () => require("../../../../assets/recipe-create/goal-viral-camera.jpg"),
+    () => require("../../../../assets/recipe-create/generated-goal-viral.png"),
     fallbackImages.goalViral,
   ),
   nicheBeauty: resolveImage(
-    () => require("../../../../assets/recipe-create/niche-beauty.jpg"),
+    () => require("../../../../assets/recipe-create/generated-niche-beauty.png"),
     fallbackImages.nicheBeauty,
   ),
   nicheFitness: resolveImage(
-    () => require("../../../../assets/recipe-create/niche-fitness.jpg"),
+    () => require("../../../../assets/recipe-create/generated-niche-fitness.png"),
     fallbackImages.nicheFitness,
   ),
   nicheFood: resolveImage(
-    () => require("../../../../assets/recipe-create/niche-food.jpg"),
+    () => require("../../../../assets/recipe-create/generated-niche-food.png"),
     fallbackImages.nicheFood,
   ),
   nicheHome: resolveImage(
-    () => require("../../../../assets/recipe-create/niche-home.jpg"),
+    () => require("../../../../assets/recipe-create/generated-niche-home.png"),
     fallbackImages.nicheHome,
   ),
   nicheTech: resolveImage(
-    () => require("../../../../assets/recipe-create/niche-tech.jpg"),
+    () => require("../../../../assets/recipe-create/generated-niche-tech.png"),
     fallbackImages.nicheTech,
   ),
 } as const;
