@@ -23,6 +23,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAppLanguage, type AppLanguage } from '@/core/i18n/app-language';
 import type { MockProjectTake } from '@/core/mocks/parrotkit-data';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import {
@@ -48,11 +49,16 @@ const MAX_PROMPTER_FONT_SIZE = 72;
 export function RecipePrompterCameraScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { language: appLanguage } = useAppLanguage();
   const params = useLocalSearchParams<{
     lineToSay?: string;
+    lineToSayEn?: string;
+    lineToSayKo?: string;
     recipeId?: string;
     sceneId?: string;
     shootingGuideline?: string;
+    shootingGuidelineEn?: string;
+    shootingGuidelineKo?: string;
   }>();
   const {
     addSceneProjectTake,
@@ -72,6 +78,7 @@ export function RecipePrompterCameraScreen() {
   const lastScriptTapAtRef = useRef(0);
   const pinchDistanceRef = useRef<number | null>(null);
   const pinchFontSizeRef = useRef(36);
+  const dragStartOffsetRef = useRef({ x: 0, y: 0 });
   const [facing, setFacing] = useState<CameraType>('front');
   const [recording, setRecording] = useState(false);
   const [reviewUri, setReviewUri] = useState<string | null>(null);
@@ -92,11 +99,18 @@ export function RecipePrompterCameraScreen() {
   const [prompterOpacity, setPrompterOpacity] = useState(0.48);
   const [prompterColor, setPrompterColor] = useState<PrompterColorPreset>('white');
   const [prompterStyle, setPrompterStyle] = useState<PrompterStylePreset>('teleprompter');
-  const [scriptEditVisible, setScriptEditVisible] = useState(false);
+  const scriptLanguage = appLanguage;
+  const [scriptOverridesBySceneId, setScriptOverridesBySceneId] = useState<
+    Record<string, Partial<Record<AppLanguage, string>>>
+  >({});
+  const [prompterOffset, setPrompterOffset] = useState({ x: 0, y: 0 });
+  const [prompterHidden, setPrompterHidden] = useState(false);
+  const [scriptEditing, setScriptEditing] = useState(false);
   const [scriptEditDraft, setScriptEditDraft] = useState('');
+  const [speedSheetVisible, setSpeedSheetVisible] = useState(false);
   const [newClueVisible, setNewClueVisible] = useState(false);
   const [newClueDraft, setNewClueDraft] = useState('');
-  const [teleprompterHintVisible, setTeleprompterHintVisible] = useState(true);
+  const copy = getTeleprompterCopy(scriptLanguage);
 
   useEffect(() => {
     if (!activeSceneId && recipe?.scenes[0]) {
@@ -132,13 +146,22 @@ export function RecipePrompterCameraScreen() {
     [focusedBlockId, visibleBlocks]
   );
   const currentScript = useMemo(
-    () => activeScene ? getTeleprompterScript(activeScene, visibleBlocks, params) : '',
-    [activeScene, params, visibleBlocks]
+    () => activeScene
+      ? getTeleprompterScript(
+          activeScene,
+          visibleBlocks,
+          params,
+          scriptLanguage,
+          scriptOverridesBySceneId[activeScene.id]?.[scriptLanguage],
+        )
+      : '',
+    [activeScene, params, scriptLanguage, scriptOverridesBySceneId, visibleBlocks]
   );
-  const nextScript = nextScene ? getCameraPrimaryLine(nextScene) : '촬영 완료 후 마음에 드는 take를 저장하세요.';
+  const nextScript = nextScene ? getCameraPrimaryLine(nextScene, scriptLanguage) : copy.shootComplete;
   const progress = `${Math.max(6, (((activeSceneIndex + 1) / Math.max(recipe?.scenes.length ?? 1, 1)) * 100))}%` as DimensionValue;
   const prompterTheme = getPrompterTheme(prompterColor, prompterOpacity);
   const prompterTypography = getPrompterTypography(prompterStyle, prompterFontSize);
+  const scrollDistance = getPrompterScrollDistance(currentScript, nextScript, prompterTypography.lineHeight);
 
   useEffect(() => {
     if (!recipe) return;
@@ -193,42 +216,30 @@ export function RecipePrompterCameraScreen() {
   }, [activeScene]);
 
   const openScriptEditor = useCallback(() => {
-    setScriptEditDraft(focusedBlock?.content ?? currentScript);
-    setScriptEditVisible(true);
-  }, [currentScript, focusedBlock]);
+    setScriptEditDraft(currentScript);
+    setScriptEditing(true);
+    setPrompterPaused(true);
+    setSpeedSheetVisible(false);
+  }, [currentScript]);
 
   const saveScriptEdit = useCallback(() => {
     if (!activeScene) return;
 
     const nextContent = scriptEditDraft.trim();
     if (!nextContent) {
-      setScriptEditVisible(false);
+      setScriptEditing(false);
       return;
     }
 
-    if (focusedBlock) {
-      handleUpdateBlock(focusedBlock.id, { content: nextContent });
-    } else {
-      const blockId = `${activeScene.id}-line-${Date.now()}`;
-      setSceneBlocksById((current) => {
-        const currentBlocks = current[activeScene.id] ?? activeScene.prompter.blocks;
-        return {
-          ...current,
-          [activeScene.id]: [
-            ...currentBlocks,
-            createPrompterDraftBlock({
-              content: nextContent,
-              id: blockId,
-              order: currentBlocks.length,
-            }),
-          ],
-        };
-      });
-      setFocusedBlockId(blockId);
-    }
-
-    setScriptEditVisible(false);
-  }, [activeScene, focusedBlock, handleUpdateBlock, scriptEditDraft]);
+    setScriptOverridesBySceneId((current) => ({
+      ...current,
+      [activeScene.id]: {
+        ...current[activeScene.id],
+        [scriptLanguage]: nextContent,
+      },
+    }));
+    setScriptEditing(false);
+  }, [activeScene, scriptEditDraft, scriptLanguage]);
 
   const saveNewClue = useCallback(() => {
     if (!activeScene) return;
@@ -267,6 +278,8 @@ export function RecipePrompterCameraScreen() {
     setSavingTake(false);
     setSaveMessage('');
     setBusyTakeId(null);
+    setScriptEditing(false);
+    setSpeedSheetVisible(false);
     scriptScrollY.setValue(0);
   }, [activeSceneId]);
 
@@ -274,35 +287,52 @@ export function RecipePrompterCameraScreen() {
     scriptScrollY.stopAnimation();
     scriptScrollY.setValue(0);
 
-    if (!recording || prompterPaused) {
+    if (!recording || prompterPaused || scriptEditing || prompterHidden) {
       return;
     }
 
-    const duration = Math.max(5800, Math.round((currentScript.length * 86) / prompterSpeed));
+    const duration = getPrompterScrollDuration(currentScript, prompterSpeed);
     const animation = Animated.timing(scriptScrollY, {
       duration,
-      toValue: -42,
+      toValue: -scrollDistance,
       useNativeDriver: true,
     });
+    let nextSceneTimeout: ReturnType<typeof setTimeout> | null = null;
 
     animation.start(({ finished }) => {
       if (finished && nextScene) {
-        setActiveSceneId(nextScene.id);
+        nextSceneTimeout = setTimeout(() => setActiveSceneId(nextScene.id), 650);
       }
     });
 
     return () => {
       animation.stop();
+      if (nextSceneTimeout) {
+        clearTimeout(nextSceneTimeout);
+      }
     };
-  }, [currentScript, nextScene, prompterPaused, prompterSpeed, recording, scriptScrollY]);
+  }, [
+    currentScript,
+    nextScene,
+    prompterHidden,
+    prompterPaused,
+    prompterSpeed,
+    recording,
+    scrollDistance,
+    scriptEditing,
+    scriptScrollY,
+  ]);
 
   const prompterPanResponder = useMemo(
     () =>
       PanResponder.create({
         onMoveShouldSetPanResponder: (event, gestureState) =>
           event.nativeEvent.touches.length > 1 ||
+          Math.abs(gestureState.dx) > 12 ||
           Math.abs(gestureState.dy) > 12,
         onPanResponderGrant: (event) => {
+          dragStartOffsetRef.current = prompterOffset;
+
           if (event.nativeEvent.touches.length >= 2) {
             pinchDistanceRef.current = getTouchDistance(event);
             pinchFontSizeRef.current = prompterFontSize;
@@ -310,8 +340,14 @@ export function RecipePrompterCameraScreen() {
         },
         onPanResponderMove: (event, gestureState) => {
           if (event.nativeEvent.touches.length >= 2) {
-            const initialDistance = pinchDistanceRef.current;
             const currentDistance = getTouchDistance(event);
+            const initialDistance = pinchDistanceRef.current;
+
+            if (!initialDistance && currentDistance) {
+              pinchDistanceRef.current = currentDistance;
+              pinchFontSizeRef.current = prompterFontSize;
+              return;
+            }
 
             if (initialDistance && currentDistance) {
               const ratio = currentDistance / initialDistance;
@@ -320,35 +356,49 @@ export function RecipePrompterCameraScreen() {
             return;
           }
 
-          if (gestureState.dy < -56) {
-            setTeleprompterHintVisible(false);
+          const nextOffset = {
+            x: clampPrompterOffset(dragStartOffsetRef.current.x + gestureState.dx, -44, 44),
+            y: clampPrompterOffset(dragStartOffsetRef.current.y + gestureState.dy, -140, 190),
+          };
+          setPrompterOffset(nextOffset);
+
+          if (nextOffset.y < -72) {
             setPrompterMode('top');
           }
 
-          if (gestureState.dy > 56) {
+          if (nextOffset.y > -28) {
             setPrompterMode('center');
           }
         },
         onPanResponderRelease: (_event, gestureState) => {
-          if (gestureState.dy < -42) {
+          const nextY = dragStartOffsetRef.current.y + gestureState.dy;
+
+          if (nextY < -72) {
             setPrompterMode('top');
           }
 
-          if (gestureState.dy > 42) {
+          if (nextY > -28) {
             setPrompterMode('center');
           }
 
           pinchDistanceRef.current = null;
         },
+        onPanResponderTerminate: () => {
+          pinchDistanceRef.current = null;
+        },
+        onPanResponderTerminationRequest: () => false,
+        onStartShouldSetPanResponder: (event) => event.nativeEvent.touches.length > 1,
       }),
-    [prompterFontSize],
+    [prompterFontSize, prompterOffset],
   );
 
   const handleScriptPress = useCallback(() => {
     const now = Date.now();
 
     if (now - lastScriptTapAtRef.current < 520) {
+      lastScriptTapAtRef.current = 0;
       openScriptEditor();
+      return;
     }
 
     lastScriptTapAtRef.current = now;
@@ -578,7 +628,7 @@ export function RecipePrompterCameraScreen() {
           <View style={styles.teleprompterSceneCluster}>
             <View style={styles.teleprompterScenePill}>
               <Text style={styles.teleprompterSceneText}>
-                씬 {activeSceneIndex + 1}/{recipe.scenes.length}
+                {copy.scene} {activeSceneIndex + 1}/{recipe.scenes.length}
               </Text>
               <View style={styles.teleprompterSceneDot} />
             </View>
@@ -594,94 +644,185 @@ export function RecipePrompterCameraScreen() {
           />
         </View>
 
-        <View
-          pointerEvents="box-none"
-          style={[
-            styles.teleprompterStage,
-            prompterMode === 'top' ? styles.teleprompterStageTop : styles.teleprompterStageCenter,
-          ]}
-        >
+        {prompterHidden ? (
           <Pressable
             accessibilityRole="button"
-            onPress={handleScriptPress}
-            style={[
-              styles.scriptPanel,
-              {
-                backgroundColor: prompterTheme.panelBackground,
-                borderColor: prompterTheme.borderColor,
-              },
-              prompterMode === 'top' ? styles.scriptPanelTop : null,
-            ]}
-            {...prompterPanResponder.panHandlers}
+            onPress={() => setPrompterHidden(false)}
+            style={styles.hiddenPrompterPill}
           >
-            <View style={styles.dragHandle} />
-            {teleprompterHintVisible ? (
-              <Text style={styles.teleprompterHint}>위로 올리면 텔레프롬프터 모드</Text>
-            ) : null}
-            <Animated.View style={{ transform: [{ translateY: scriptScrollY }] }}>
-              <Text
-                style={[
-                  styles.scriptText,
-                  {
-                    color: prompterTheme.textColor,
-                    fontSize: prompterTypography.fontSize,
-                    fontWeight: prompterTypography.fontWeight,
-                    lineHeight: prompterTypography.lineHeight,
-                  },
-                ]}
-              >
-                {currentScript}
-              </Text>
-            </Animated.View>
-            <View style={styles.nextScriptBlock}>
-              <Text style={styles.nextScriptLabel}>다음 컷 자동 이어짐</Text>
-              <Text numberOfLines={3} style={styles.nextScriptText}>{nextScript}</Text>
-            </View>
+            <MaterialCommunityIcons color="#c4b5fd" name="eye-outline" size={17} />
+            <Text style={styles.hiddenPrompterText}>{copy.showPrompter}</Text>
           </Pressable>
-        </View>
+        ) : (
+          <View
+            pointerEvents="box-none"
+            style={[
+              styles.teleprompterStage,
+              prompterMode === 'top' ? styles.teleprompterStageTop : styles.teleprompterStageCenter,
+              { transform: [{ translateX: prompterOffset.x }, { translateY: prompterOffset.y }] },
+            ]}
+          >
+            <Pressable
+              accessibilityRole="button"
+              onPress={scriptEditing ? undefined : handleScriptPress}
+              style={[
+                styles.scriptPanel,
+                {
+                  backgroundColor: prompterTheme.panelBackground,
+                  borderColor: prompterTheme.borderColor,
+                },
+                prompterMode === 'top' ? styles.scriptPanelTop : null,
+              ]}
+              {...prompterPanResponder.panHandlers}
+            >
+              <View style={styles.dragHandle} />
+              <Animated.View style={{ transform: [{ translateY: scriptScrollY }] }}>
+              {scriptEditing ? (
+                <View>
+                  <TextInput
+                    autoFocus
+                    multiline
+                    onBlur={saveScriptEdit}
+                    onChangeText={setScriptEditDraft}
+                    placeholder={copy.editPlaceholder}
+                    placeholderTextColor="rgba(255,255,255,0.4)"
+                    style={[
+                      styles.scriptText,
+                      styles.inlineScriptInput,
+                      {
+                        color: prompterTheme.textColor,
+                        fontSize: prompterTypography.fontSize,
+                        fontWeight: prompterTypography.fontWeight,
+                        lineHeight: prompterTypography.lineHeight,
+                      },
+                    ]}
+                    textAlignVertical="top"
+                    value={scriptEditDraft}
+                  />
+                  <View style={styles.inlineEditBar}>
+                    <Text style={styles.inlineEditHint}>{copy.inlineEditHint}</Text>
+                    <Pressable accessibilityRole="button" onPress={saveScriptEdit} style={styles.inlineEditDone}>
+                      <MaterialCommunityIcons color="#ffffff" name="check" size={16} />
+                      <Text style={styles.inlineEditDoneText}>{copy.done}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <Text
+                  style={[
+                    styles.scriptText,
+                    {
+                      color: prompterTheme.textColor,
+                      fontSize: prompterTypography.fontSize,
+                      fontWeight: prompterTypography.fontWeight,
+                      lineHeight: prompterTypography.lineHeight,
+                    },
+                  ]}
+                >
+                  {currentScript}
+                </Text>
+              )}
+                <View style={styles.nextScriptBlock}>
+                  <Text style={styles.nextScriptLabel}>{copy.nextAuto}</Text>
+                  <Text numberOfLines={3} style={styles.nextScriptText}>{nextScript}</Text>
+                </View>
+              </Animated.View>
+            </Pressable>
+          </View>
+        )}
 
         <View style={[styles.teleprompterBottomDock, { paddingBottom: insets.bottom + (Platform.OS === 'android' ? 12 : 8) }]}>
           {statusLabel ? <Text style={styles.statusLabel}>{statusLabel}</Text> : null}
 
-          <View style={styles.speedDock}>
-            <View>
-              <Text style={styles.speedLabel}>속도</Text>
-              <Text style={styles.speedValue}>{prompterSpeed.toFixed(prompterSpeed % 1 === 0 ? 1 : 2)}x</Text>
+          {speedSheetVisible ? (
+            <View style={styles.speedSheet}>
+              <View style={styles.speedSheetHeader}>
+                <View>
+                  <Text style={styles.speedLabel}>{copy.speed}</Text>
+                  <Text style={styles.speedSheetValue}>{formatPrompterSpeed(prompterSpeed)}</Text>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setPrompterPaused((current) => !current)}
+                  style={styles.speedSheetPause}
+                >
+                  <MaterialCommunityIcons color="#ffffff" name={prompterPaused ? 'play' : 'pause'} size={18} />
+                  <Text style={styles.speedSheetPauseText}>{prompterPaused ? copy.resume : copy.pause}</Text>
+                </Pressable>
+              </View>
+              <View style={styles.speedPresetRow}>
+                {PROMPTER_SPEEDS.map((speed) => (
+                  <Pressable
+                    accessibilityRole="button"
+                    key={speed}
+                    onPress={() => setPrompterSpeed(speed)}
+                    style={[
+                      styles.speedPresetButton,
+                      prompterSpeed === speed ? styles.speedPresetButtonActive : null,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.speedPresetText,
+                        prompterSpeed === speed ? styles.speedPresetTextActive : null,
+                      ]}
+                    >
+                      {formatPrompterSpeed(speed)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <View style={styles.speedFineRow}>
+                <RoundControlButton iconName="minus" onPress={() => adjustPrompterSpeed(-1)} />
+                <Text style={styles.speedFineText}>{copy.fineSpeed}</Text>
+                <RoundControlButton iconName="plus" onPress={() => adjustPrompterSpeed(1)} />
+              </View>
             </View>
-            <RoundControlButton iconName="minus" onPress={() => adjustPrompterSpeed(-1)} />
-            <RoundControlButton
-              iconName={prompterPaused ? 'play' : 'pause'}
-              onPress={() => setPrompterPaused((current) => !current)}
-              prominent
-            />
-            <RoundControlButton iconName="plus" onPress={() => adjustPrompterSpeed(1)} />
-          </View>
+          ) : null}
 
           <View style={styles.recordDock}>
             <CutStepButton
               disabled={!previousScene}
               iconName="skip-previous-outline"
-              label="이전 컷"
+              label={copy.prevCut}
               onPress={() => goToScene(previousScene)}
             />
             <CenterRecordButton
               disabled={Boolean(reviewUri)}
               onPress={handleRecordPress}
+              recordLabel={copy.record}
               recording={recording}
+              stopLabel={copy.stop}
             />
             <CutStepButton
               disabled={!nextScene}
               iconName="skip-next-outline"
-              label="다음 컷"
+              label={copy.nextCut}
               onPress={() => goToScene(nextScene)}
             />
           </View>
 
           <View style={styles.paletteDock}>
             <PaletteButton iconName="plus" label="New clue" onPress={() => setNewClueVisible(true)} />
-            <PaletteButton iconName="checkerboard" label="투명도" onPress={cyclePrompterOpacity} />
-            <PaletteButton iconName="circle" label="색상" onPress={cyclePrompterColor} tint={prompterTheme.textColor} />
-            <PaletteButton iconName="format-letter-case" label="스타일" onPress={cyclePrompterStyle} />
+            <PaletteButton iconName="checkerboard" label={copy.opacity} onPress={cyclePrompterOpacity} />
+            <PaletteButton
+              active={speedSheetVisible}
+              iconName="speedometer"
+              label={copy.speed}
+              onPress={() => setSpeedSheetVisible((current) => !current)}
+            />
+            <PaletteButton iconName="circle" label={copy.color} onPress={cyclePrompterColor} tint={prompterTheme.textColor} />
+            <PaletteButton iconName="format-letter-case" label={copy.style} onPress={cyclePrompterStyle} />
+            <PaletteButton
+              active={prompterHidden}
+              iconName={prompterHidden ? 'eye-outline' : 'eye-off-outline'}
+              label={prompterHidden ? copy.show : copy.hide}
+              onPress={() => {
+                setPrompterHidden((current) => !current);
+                setScriptEditing(false);
+                setSpeedSheetVisible(false);
+              }}
+            />
           </View>
         </View>
       </View>
@@ -705,21 +846,11 @@ export function RecipePrompterCameraScreen() {
       ) : null}
 
       <PromptTextModal
-        ctaLabel="완료"
-        onChangeText={setScriptEditDraft}
-        onClose={() => setScriptEditVisible(false)}
-        onSubmit={saveScriptEdit}
-        placeholder="대본을 수정하세요"
-        title="대본 수정"
-        value={scriptEditDraft}
-        visible={scriptEditVisible}
-      />
-      <PromptTextModal
-        ctaLabel="추가"
+        ctaLabel={copy.add}
         onChangeText={setNewClueDraft}
         onClose={() => setNewClueVisible(false)}
         onSubmit={saveNewClue}
-        placeholder="어떤 멘트를 추가할까요?"
+        placeholder={copy.newCluePlaceholder}
         title="New clue"
         value={newClueDraft}
         visible={newClueVisible}
@@ -785,11 +916,15 @@ function CameraCoachOverlay({
 function CenterRecordButton({
   disabled,
   onPress,
+  recordLabel,
   recording,
+  stopLabel,
 }: {
   disabled: boolean;
   onPress: () => void;
+  recordLabel: string;
   recording: boolean;
+  stopLabel: string;
 }) {
   return (
     <Pressable
@@ -806,7 +941,7 @@ function CenterRecordButton({
     >
       <View style={[styles.centerRecordCore, recording && styles.centerRecordCoreActive]} />
       <Text style={styles.centerRecordLabel}>
-        {recording ? 'Stop' : 'Record'}
+        {recording ? stopLabel : recordLabel}
       </Text>
     </Pressable>
   );
@@ -859,11 +994,13 @@ function CutStepButton({
 }
 
 function PaletteButton({
+  active = false,
   iconName,
   label,
   onPress,
   tint = '#a78bfa',
 }: {
+  active?: boolean;
   iconName: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   label: string;
   onPress: () => void;
@@ -871,10 +1008,10 @@ function PaletteButton({
 }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.paletteButton}>
-      <View style={styles.paletteIconBubble}>
+      <View style={[styles.paletteIconBubble, active ? styles.paletteIconBubbleActive : null]}>
         <MaterialCommunityIcons color={tint} name={iconName} size={20} />
       </View>
-      <Text style={styles.paletteLabel}>{label}</Text>
+      <Text style={[styles.paletteLabel, active ? styles.paletteLabelActive : null]}>{label}</Text>
     </Pressable>
   );
 }
@@ -957,20 +1094,83 @@ function CameraPermissionGate({
   );
 }
 
+function getTeleprompterCopy(language: AppLanguage) {
+  if (language === 'ko') {
+    return {
+      add: '추가',
+      color: '색상',
+      done: '완료',
+      editPlaceholder: '대본을 바로 수정하세요',
+      fineSpeed: '읽는 속도 미세 조절',
+      hide: '숨김',
+      inlineEditHint: '대본 영역 안에서 바로 수정 중',
+      newCluePlaceholder: '어떤 멘트를 추가할까요?',
+      nextAuto: '다음 컷 자동 이어짐',
+      nextCut: '다음 컷',
+      opacity: '투명도',
+      pause: '정지',
+      prevCut: '이전 컷',
+      record: '촬영',
+      resume: '재생',
+      scene: '씬',
+      show: '표시',
+      showPrompter: '프롬프터 표시',
+      shootComplete: '촬영 완료 후 마음에 드는 take를 저장하세요.',
+      speed: '속도',
+      stop: '중지',
+      style: '스타일',
+    };
+  }
+
+  return {
+    add: 'Add',
+    color: 'Color',
+    done: 'Done',
+    editPlaceholder: 'Edit the script in place',
+    fineSpeed: 'Fine-tune reading speed',
+    hide: 'Hide',
+    inlineEditHint: 'Editing directly inside the teleprompter',
+    newCluePlaceholder: 'What line should be added?',
+    nextAuto: 'Next cut auto-connects',
+    nextCut: 'Next cut',
+    opacity: 'Opacity',
+    pause: 'Pause',
+    prevCut: 'Prev cut',
+    record: 'Record',
+    resume: 'Resume',
+    scene: 'Scene',
+    show: 'Show',
+    showPrompter: 'Show prompter',
+    shootComplete: 'After shooting, save the take you like.',
+    speed: 'Speed',
+    stop: 'Stop',
+    style: 'Style',
+  };
+}
+
 function getCameraSceneRole(sceneIndex: number, totalScenes: number) {
   if (sceneIndex === 0) return 'Hook';
   if (sceneIndex === totalScenes - 1) return 'CTA';
   return 'Proof';
 }
 
-function getCameraPrimaryLine(scene: NativeRecipeScene) {
-  return (
+function getCameraPrimaryLine(scene: NativeRecipeScene, language: AppLanguage = 'en') {
+  if (language === 'ko') {
+    const koreanScript = getKoreanExpertShortcutScript(scene.id);
+    if (koreanScript) {
+      return koreanScript.split('\n')[0] ?? koreanScript;
+    }
+  }
+
+  const line = (
     scene.recipe.keyLine.trim()
     || scene.prompter.blocks.find((block) => block.type === 'key_line')?.content.trim()
     || scene.recipe.scriptLines[0]?.trim()
     || scene.recipe.appealPoint.trim()
     || scene.title
   );
+
+  return localizeTeleprompterLine(line, language);
 }
 
 function getCameraActionLine(scene: NativeRecipeScene) {
@@ -994,21 +1194,108 @@ function getCameraNextLine(scene: NativeRecipeScene) {
 function getTeleprompterScript(
   scene: NativeRecipeScene,
   visibleBlocks: PrompterBlock[],
-  params: { lineToSay?: string; sceneId?: string },
+  params: { lineToSay?: string; lineToSayEn?: string; lineToSayKo?: string; sceneId?: string },
+  language: AppLanguage,
+  override?: string,
 ) {
-  if (params.sceneId === scene.id && typeof params.lineToSay === 'string' && params.lineToSay.trim()) {
-    return params.lineToSay.trim();
+  if (override?.trim()) {
+    return override.trim();
+  }
+
+  const paramLine = getParamLineToSay(params, language);
+  if (params.sceneId === scene.id && paramLine) {
+    return paramLine;
+  }
+
+  if (language === 'ko') {
+    const koreanScript = getKoreanExpertShortcutScript(scene.id);
+    if (koreanScript) {
+      return koreanScript;
+    }
   }
 
   const blockLines = visibleBlocks
-    .map((block) => block.content.trim())
+    .map((block) => localizeTeleprompterLine(block.content.trim(), language))
     .filter(Boolean);
 
   if (blockLines.length > 0) {
     return blockLines.slice(0, 4).join('\n');
   }
 
-  return getCameraPrimaryLine(scene);
+  return getCameraPrimaryLine(scene, language);
+}
+
+function getParamLineToSay(
+  params: { lineToSay?: string; lineToSayEn?: string; lineToSayKo?: string },
+  language: AppLanguage,
+) {
+  const value = language === 'ko'
+    ? params.lineToSayKo ?? params.lineToSay
+    : params.lineToSayEn ?? params.lineToSay;
+
+  return typeof value === 'string' && value.trim() ? value.trim() : '';
+}
+
+function getKoreanExpertShortcutScript(sceneId: string) {
+  const scripts: Record<string, string> = {
+    'english-expert-shortcut-1':
+      '여러분, 제가 [전문가/장소]에 [비용/시간] 쓰고 배운 [문제/고민거리] 싹 사라지는 [방법]!\n지금 바로 알려드릴게요.\n이거 저장해 놓고 [반복 주기/상황]만 하시면 [구체적인 이득/변화] 진짜 장담합니다.',
+    'english-expert-shortcut-2':
+      '[흔한 물건/도구] 하나면 끝나요. [도구의 저렴한 가격/접근성]밖에 안 하거든요.\n정 없으시면 그냥 [무료 대체재]로 하셔도 효과 똑같습니다.\n무작정 하는 게 아니라, 핵심은 [전문 용어/숨겨진 부위]입니다.\n여기가 [문제의 원인] 상태면 아무리 노력해도 [부정적 결과]이거든요.',
+    'english-expert-shortcut-3':
+      '자, 첫 번째! [부위/대상]을 [행동]해주세요. 와... 진짜 [즉각적인 느낌/반응]하죠?\n두 번째, 이번엔 [변형 동작/심화 확인]해줍니다.\n너무 무리하지 말고 [행동의 강도/디테일] 느낌으로요.\n마지막 세 번째! [마무리 동작]까지 해주면 끝입니다.',
+    'english-expert-shortcut-4':
+      '이거 꾸준히만 하면 [기대 효과] 무조건 됩니다.\n단! 주의할 점은... 절대로 [하지 말아야 할 행동]!\n잘못하면 오히려 [부작용]. 이것만 조심해서 [기대결과]! 안녕~',
+  };
+
+  return scripts[sceneId] ?? '';
+}
+
+function localizeTeleprompterLine(line: string, language: AppLanguage) {
+  if (language === 'en') {
+    return line;
+  }
+
+  const replacements: Record<string, string> = {
+    'Add the reusable line you want to say.': '다시 쓸 수 있는 촬영 문장을 입력하세요.',
+    'Frame the subject and hold the beat.': '대상을 프레임 안에 두고 한 박자 유지하세요.',
+    'Here is the {payoff/result} from {product}.': '{product}로 만든 {payoff/result}입니다.',
+    'Hold the object/tool close to camera.': '물건이나 도구를 카메라 가까이 보여주세요.',
+    'Name the expert/place and cost in one breath.': '전문가/장소와 비용을 한 호흡에 말하세요.',
+    'Make the disappearing problem feel specific.': '사라지는 문제를 구체적으로 느끼게 하세요.',
+    'Point to the hidden area or label it on screen.': '숨겨진 부위를 가리키거나 화면에 표시하세요.',
+    'Repeat it in this order: {before state}, {main item}, then {after state}.':
+      '{before state}, {main item}, {after state} 순서로 반복하세요.',
+    'Save this for the next time you want {payoff/result}.':
+      '다음에 {payoff/result}가 필요할 때 저장하세요.',
+    'Show prep, drizzle, and final bite in a 3-cut sequence.':
+      '준비, 드리즐, 마지막 한 입을 3컷 흐름으로 보여주세요.',
+  };
+
+  return replacements[line] ?? line;
+}
+
+function formatPrompterSpeed(speed: number) {
+  return `${speed.toFixed(speed % 1 === 0 ? 1 : 2)}x`;
+}
+
+function getPrompterScrollDistance(currentScript: string, nextScript: string, lineHeight: number) {
+  const currentLines = estimateVisualLineCount(currentScript);
+  const nextLines = Math.min(3, estimateVisualLineCount(nextScript));
+  return Math.round(Math.min(360, Math.max(92, (currentLines + nextLines) * lineHeight * 0.52)));
+}
+
+function getPrompterScrollDuration(script: string, speed: number) {
+  const words = script.trim().split(/\s+/).filter(Boolean).length;
+  const baseDuration = Math.max(6500, words * 760);
+  return Math.round(baseDuration / speed);
+}
+
+function estimateVisualLineCount(value: string) {
+  return value
+    .split('\n')
+    .map((line) => Math.max(1, Math.ceil(line.trim().length / 18)))
+    .reduce((total, count) => total + count, 0);
 }
 
 function getPrompterTheme(color: PrompterColorPreset, opacity: number) {
@@ -1073,6 +1360,10 @@ function getTouchDistance(event: GestureResponderEvent) {
 
 function clampPrompterFontSize(value: number) {
   return Math.round(Math.min(MAX_PROMPTER_FONT_SIZE, Math.max(MIN_PROMPTER_FONT_SIZE, value)));
+}
+
+function clampPrompterOffset(value: number, min: number, max: number) {
+  return Math.round(Math.min(max, Math.max(min, value)));
 }
 
 function getNextValue<T>(values: readonly T[], current: T) {
@@ -1154,6 +1445,64 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     width: 48,
   },
+  hiddenPrompterPill: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: 'rgba(10,12,18,0.62)',
+    borderColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    position: 'absolute',
+    top: '20%',
+    zIndex: 3,
+  },
+  hiddenPrompterText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  inlineEditBar: {
+    alignItems: 'center',
+    borderTopColor: 'rgba(167,139,250,0.22)',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 10,
+  },
+  inlineEditDone: {
+    alignItems: 'center',
+    backgroundColor: '#8b5cf6',
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  inlineEditDoneText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  inlineEditHint: {
+    color: 'rgba(255,255,255,0.54)',
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  inlineScriptInput: {
+    borderColor: 'rgba(167,139,250,0.74)',
+    borderRadius: 18,
+    borderWidth: 1,
+    marginHorizontal: -4,
+    minHeight: 128,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
   nextScriptBlock: {
     borderTopColor: 'rgba(255,255,255,0.16)',
     borderTopWidth: 1,
@@ -1176,7 +1525,7 @@ const styles = StyleSheet.create({
   paletteButton: {
     alignItems: 'center',
     flex: 1,
-    gap: 7,
+    gap: 6,
     justifyContent: 'center',
     minHeight: 62,
   },
@@ -1192,14 +1541,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 999,
-    height: 28,
+    height: 27,
     justifyContent: 'center',
-    width: 28,
+    width: 27,
+  },
+  paletteIconBubbleActive: {
+    backgroundColor: 'rgba(139,92,246,0.26)',
   },
   paletteLabel: {
     color: 'rgba(255,255,255,0.82)',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
+  },
+  paletteLabelActive: {
+    color: '#ffffff',
   },
   promptModalActions: {
     flexDirection: 'row',
@@ -1319,6 +1674,78 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '900',
   },
+  speedFineRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  speedFineText: {
+    color: 'rgba(255,255,255,0.58)',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  speedPresetButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 999,
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 38,
+    justifyContent: 'center',
+  },
+  speedPresetButtonActive: {
+    backgroundColor: '#8b5cf6',
+    borderColor: '#a78bfa',
+  },
+  speedPresetRow: {
+    flexDirection: 'row',
+    gap: 7,
+    marginTop: 14,
+  },
+  speedPresetText: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  speedPresetTextActive: {
+    color: '#ffffff',
+  },
+  speedSheet: {
+    backgroundColor: 'rgba(10,12,18,0.78)',
+    borderColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 14,
+  },
+  speedSheetHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  speedSheetPause: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  speedSheetPauseText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  speedSheetValue: {
+    color: '#ffffff',
+    fontSize: 19,
+    fontWeight: '900',
+    marginTop: 2,
+  },
   speedValue: {
     color: '#ffffff',
     fontSize: 14,
@@ -1328,13 +1755,6 @@ const styles = StyleSheet.create({
   teleprompterBottomDock: {
     gap: 14,
     paddingHorizontal: 18,
-  },
-  teleprompterHint: {
-    color: 'rgba(255,255,255,0.46)',
-    fontSize: 12,
-    fontWeight: '800',
-    marginBottom: 12,
-    textAlign: 'center',
   },
   teleprompterProgressFill: {
     backgroundColor: '#a78bfa',

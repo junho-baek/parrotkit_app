@@ -388,15 +388,16 @@ export function RecipeDetailScreen() {
       return;
     }
 
-    const lineToSay =
-      language === "ko"
-        ? (cut.speakingLineKo ?? cut.speakingLine)
-        : cut.speakingLine;
-    const shootingGuideline =
-      language === "ko"
+    const query = new URLSearchParams({
+      lineToSay: language === "ko" ? (cut.speakingLineKo ?? cut.speakingLine) : cut.speakingLine,
+      lineToSayEn: cut.speakingLine,
+      lineToSayKo: cut.speakingLineKo ?? cut.speakingLine,
+      shootingGuideline: language === "ko"
         ? (cut.shootingGuidelineKo || cut.shootingGuideline)
-        : cut.shootingGuideline;
-    const query = `lineToSay=${encodeURIComponent(lineToSay)}&shootingGuideline=${encodeURIComponent(shootingGuideline)}`;
+        : cut.shootingGuideline,
+      shootingGuidelineEn: cut.shootingGuideline,
+      shootingGuidelineKo: cut.shootingGuidelineKo || cut.shootingGuideline,
+    });
 
     router.push(
       `${getRecipePrompterHref(targetRecipe.id, targetSceneId)}&${query.toString()}` as Href,
