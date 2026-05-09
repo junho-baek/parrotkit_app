@@ -44,6 +44,7 @@ type CreateRecipeDraftInput = {
   niche?: string;
   goal?: string;
   notes?: string;
+  scenes?: MockRecipe['scenes'];
 };
 
 type CreateQuickShootRecipeInput = {
@@ -74,6 +75,7 @@ type MockWorkspaceContextValue = {
   createRecipeDraft: (input: CreateRecipeDraftInput) => MockRecipe;
   createQuickShootRecipe: (input: CreateQuickShootRecipeInput) => MockRecipe;
   downloadRecipe: (recipeId: string) => MockRecipe | null;
+  updateRecipeTitle: (recipeId: string, title: string) => void;
   getContinueShootRecipe: () => MockRecipe | null;
   getLatestShootableRecipe: () => MockRecipe | null;
   getRecipeById: (recipeId: string) => MockRecipe | null;
@@ -236,10 +238,18 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
     );
   };
 
-  const createRecipeDraft = ({ title, videoUrl = '', niche = '', goal = '', notes = '' }: CreateRecipeDraftInput) => {
+  const createRecipeDraft = ({
+    title,
+    videoUrl = '',
+    niche = '',
+    goal = '',
+    notes = '',
+    scenes,
+  }: CreateRecipeDraftInput) => {
     const platform = guessPlatform(videoUrl);
     const draftId = `recipe-${Date.now().toString(36)}`;
     const resolvedTitle = title.trim() || 'Untitled Recipe Draft';
+    const draftScenes = scenes ?? buildScenes(resolvedTitle, niche, goal, notes);
 
     const recipe: MockRecipe = {
       id: draftId,
@@ -262,8 +272,8 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       downloadCount: 0,
       shootStatus: 'draft',
       shotSceneCount: 0,
-      totalSceneCount: 3,
-      scenes: buildScenes(resolvedTitle, niche, goal, notes),
+      totalSceneCount: draftScenes.length,
+      scenes: draftScenes,
     };
 
     const reference: MockReference = {
@@ -416,6 +426,25 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
 
     return downloadedRecipe;
   }, [recipes, setRecipes]);
+
+  const updateRecipeTitle = useCallback((recipeId: string, title: string) => {
+    const trimmedTitle = title.trim();
+
+    if (!trimmedTitle) {
+      return;
+    }
+
+    setRecipes((current) =>
+      current.map((recipe) =>
+        recipe.id === recipeId ? { ...recipe, title: trimmedTitle } : recipe
+      )
+    );
+    setRecentReferences((current) =>
+      current.map((reference) =>
+        reference.recipeId === recipeId ? { ...reference, title: trimmedTitle } : reference
+      )
+    );
+  }, [setRecipes]);
 
   const getContinueShootRecipe = useCallback(
     () => selectContinueShootRecipe(recipes),
@@ -818,6 +847,7 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       createRecipeDraft,
       createQuickShootRecipe,
       downloadRecipe,
+      updateRecipeTitle,
       getContinueShootRecipe,
       getLatestShootableRecipe,
       getRecipeById,
@@ -877,6 +907,7 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       toggleLikeReference,
       togglePrompterSelection,
       trendingReferences,
+      updateRecipeTitle,
       updateScenePrompterBlock,
       updateScenePrompterBlockContent,
       updateScenePrompterBlockVisibility,

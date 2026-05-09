@@ -2,6 +2,7 @@ import {
   getRecipeCreateDraftContext,
   getRecipeCreateHref,
   getInitialRecipeCreateMode,
+  getRecipeCreateInitialScenes,
   getRecipeCreatePrimaryAction,
   isRecipeCreateModePro,
   recipeCreateGoals,
@@ -57,8 +58,20 @@ if (recipeCreateNiches.map((niche) => niche.id).join(",") !== "beauty,food,fitne
   throw new Error("Recipe creation should ask for the expected niche set.");
 }
 
+if (recipeCreateNiches.some((niche) => "imageSource" in niche)) {
+  throw new Error("Niche selection should stay text-only without thumbnail images.");
+}
+
 if (recipeCreateGoals.map((goal) => goal.id).join(",") !== "ad,sell,recipe-product,personal,viral,conversion") {
   throw new Error("Recipe creation should ask for the expected goal set.");
+}
+
+if (getRecipeCreateInitialScenes("manual")?.length !== 0) {
+  throw new Error("Blank creation should start with no scenes.");
+}
+
+if (getRecipeCreateInitialScenes("reference") !== undefined || getRecipeCreateInitialScenes("brand") !== undefined) {
+  throw new Error("Reference and Brand creation should keep generated scene seeding.");
 }
 
 const draftContext = getRecipeCreateDraftContext({

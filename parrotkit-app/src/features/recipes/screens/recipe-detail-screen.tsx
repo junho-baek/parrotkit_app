@@ -5,10 +5,12 @@ import { ComponentProps, useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
   ImageBackground,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -143,7 +145,9 @@ const shootBoardCopy = {
     addScene: "Add scene",
     back: "Back",
     cutsBoard: "CUTS BOARD",
+    cancel: "Cancel",
     done: "Done",
+    editTitle: "Rename recipe",
     more: "More",
     preview: "View example",
     reorder: "Reorder",
@@ -153,12 +157,16 @@ const shootBoardCopy = {
     shootComplete: "Shot",
     shootIncomplete: "Unshot",
     speakingLine: "Line to say",
+    titlePlaceholder: "Recipe title",
+    updateTitle: "Update title",
   },
   ko: {
     addScene: "장면 추가",
     back: "뒤로",
     cutsBoard: "CUTS BOARD",
+    cancel: "취소",
     done: "완료",
+    editTitle: "레시피 이름 변경",
     more: "더보기",
     preview: "예시 보기",
     reorder: "순서 변경",
@@ -168,6 +176,8 @@ const shootBoardCopy = {
     shootComplete: "촬영완료",
     shootIncomplete: "미촬영",
     speakingLine: "말할 문장",
+    titlePlaceholder: "레시피 이름",
+    updateTitle: "이름 저장",
   },
 } satisfies Record<AppLanguage, Record<string, string>>;
 
@@ -189,6 +199,7 @@ export function RecipeDetailScreen() {
     getRecipeById,
     getSceneTakeCollection,
     isRecipeDownloaded,
+    updateRecipeTitle,
   } = useMockWorkspace();
   const recipe = params.recipeId ? getRecipeById(params.recipeId) : null;
   const nativeRecipe = useMemo(
@@ -199,6 +210,8 @@ export function RecipeDetailScreen() {
   const [activeTab, setActiveTab] = useState<DetailTab>("recipe");
   const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null);
   const [boardState, setBoardState] = useState<ShootBoardRecipe | null>(null);
+  const [renameTitleDraft, setRenameTitleDraft] = useState("");
+  const [renameTitleVisible, setRenameTitleVisible] = useState(false);
   const [reorderMode, setReorderMode] = useState(false);
   const [boardDragActive, setBoardDragActive] = useState(false);
   const [expandedCutIds, setExpandedCutIds] = useState<string[]>([]);
@@ -404,6 +417,31 @@ export function RecipeDetailScreen() {
     updater: (board: ShootBoardRecipe) => ShootBoardRecipe,
   ) => {
     setBoardState((current) => (current ? updater(current) : current));
+  };
+
+  const openTitleRename = () => {
+    if (!renderedShootBoard) {
+      return;
+    }
+
+    setRenameTitleDraft(renderedShootBoard.title);
+    setRenameTitleVisible(true);
+  };
+
+  const saveTitleRename = () => {
+    const nextTitle = renameTitleDraft.trim();
+
+    if (!nativeRecipe || !nextTitle) {
+      setRenameTitleVisible(false);
+      return;
+    }
+
+    updateRecipeTitle(nativeRecipe.id, nextTitle);
+    updateBoard((board) => ({
+      ...board,
+      title: nextTitle,
+    }));
+    setRenameTitleVisible(false);
   };
 
   const handleReorderCuts = (cuts: ShootBoardCut[]) => {
@@ -662,6 +700,7 @@ export function RecipeDetailScreen() {
         language={language}
         onBack={handleBack}
         onMore={() => setReorderMode((current) => !current)}
+        onRenameTitle={openTitleRename}
         topInset={insets.top}
       />
 
@@ -739,7 +778,69 @@ export function RecipeDetailScreen() {
           visible={takeViewerCutId !== null}
         />
       ) : null}
+
+      <RenameRecipeTitleModal
+        copy={boardCopy}
+        onChangeTitle={setRenameTitleDraft}
+        onClose={() => setRenameTitleVisible(false)}
+        onSave={saveTitleRename}
+        title={renameTitleDraft}
+        visible={renameTitleVisible}
+      />
     </View>
+  );
+}
+
+function RenameRecipeTitleModal({
+  copy,
+  onChangeTitle,
+  onClose,
+  onSave,
+  title,
+  visible,
+}: {
+  copy: ShootBoardCopy;
+  onChangeTitle: (title: string) => void;
+  onClose: () => void;
+  onSave: () => void;
+  title: string;
+  visible: boolean;
+}) {
+  const canSave = title.trim().length > 0;
+
+  return (
+    <Modal animationType="fade" onRequestClose={onClose} transparent visible={visible}>
+      <View style={styles.renameOverlay}>
+        <Pressable accessibilityLabel={copy.cancel} onPress={onClose} style={StyleSheet.absoluteFillObject} />
+        <View style={styles.renameDialog}>
+          <Text style={styles.renameTitle}>{copy.editTitle}</Text>
+          <TextInput
+            autoFocus
+            onChangeText={onChangeTitle}
+            placeholder={copy.titlePlaceholder}
+            placeholderTextColor="#94a3b8"
+            returnKeyType="done"
+            selectTextOnFocus
+            style={styles.renameInput}
+            value={title}
+            onSubmitEditing={canSave ? onSave : undefined}
+          />
+          <View style={styles.renameActions}>
+            <Pressable accessibilityRole="button" onPress={onClose} style={styles.renameSecondaryButton}>
+              <Text style={styles.renameSecondaryText}>{copy.cancel}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              disabled={!canSave}
+              onPress={onSave}
+              style={[styles.renamePrimaryButton, !canSave ? styles.renamePrimaryButtonDisabled : null]}
+            >
+              <Text style={styles.renamePrimaryText}>{copy.updateTitle}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -749,6 +850,7 @@ function CutBoardHeader({
   language,
   onBack,
   onMore,
+  onRenameTitle,
   topInset,
 }: {
   board: ShootBoardRecipe;
@@ -756,6 +858,7 @@ function CutBoardHeader({
   language: AppLanguage;
   onBack: () => void;
   onMore: () => void;
+  onRenameTitle: () => void;
   topInset: number;
 }) {
   return (
@@ -769,7 +872,12 @@ function CutBoardHeader({
         <MaterialCommunityIcons color="#111827" name="arrow-left" size={24} />
       </Pressable>
 
-      <View className="min-w-0 flex-1 px-2">
+      <Pressable
+        accessibilityLabel={copy.editTitle}
+        accessibilityRole="button"
+        className="min-w-0 flex-1 px-2"
+        onPress={onRenameTitle}
+      >
         <View className="flex-row items-center gap-1">
           <Text
             className="min-w-0 flex-shrink text-[17px] font-black leading-6 text-ink"
@@ -779,8 +887,8 @@ function CutBoardHeader({
           </Text>
           <MaterialCommunityIcons
             color="#111827"
-            name="chevron-down"
-            size={17}
+            name="pencil-outline"
+            size={15}
           />
         </View>
         <Text
@@ -789,7 +897,7 @@ function CutBoardHeader({
         >
           {formatShootBoardMeta(language, board)}
         </Text>
-      </View>
+      </Pressable>
 
       <Pressable
         accessibilityLabel={copy.more}
@@ -1872,6 +1980,77 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     height: 8,
     width: 8,
+  },
+  renameActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 18,
+  },
+  renameDialog: {
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 18,
+    shadowColor: "#020617",
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.16,
+    shadowRadius: 26,
+    width: "86%",
+  },
+  renameInput: {
+    borderColor: "#d8def0",
+    borderRadius: 16,
+    borderWidth: 1,
+    color: "#05070d",
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: 0,
+    marginTop: 14,
+    minHeight: 54,
+    paddingHorizontal: 14,
+  },
+  renameOverlay: {
+    alignItems: "center",
+    backgroundColor: "rgba(2,6,23,0.42)",
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  renamePrimaryButton: {
+    alignItems: "center",
+    backgroundColor: "#111827",
+    borderRadius: 16,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 14,
+  },
+  renamePrimaryButtonDisabled: {
+    opacity: 0.42,
+  },
+  renamePrimaryText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  renameSecondaryButton: {
+    alignItems: "center",
+    backgroundColor: "#f1f5f9",
+    borderRadius: 16,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 14,
+  },
+  renameSecondaryText: {
+    color: "#475569",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  renameTitle: {
+    color: "#05070d",
+    fontSize: 20,
+    fontWeight: "900",
+    letterSpacing: 0,
   },
   structureCard: {
     backgroundColor: "#ffffff",

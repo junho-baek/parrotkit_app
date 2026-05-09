@@ -3,7 +3,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { ComponentProps, useEffect, useState } from 'react';
 import {
-  Image,
   ImageBackground,
   Pressable,
   ScrollView,
@@ -20,6 +19,7 @@ import { brandActionGradient } from '@/core/theme/colors';
 import {
   getInitialRecipeCreateMode,
   getRecipeCreateDraftContext,
+  getRecipeCreateInitialScenes,
   getRecipeCreatePrimaryAction,
   isRecipeCreateModePro,
   recipeCreateGoals,
@@ -101,7 +101,10 @@ export function RecipeCreateScreen() {
       nicheId: selectedNicheId,
       referenceUrl,
     });
-    const recipe = createRecipeDraft(draft);
+    const recipe = createRecipeDraft({
+      ...draft,
+      scenes: getRecipeCreateInitialScenes(selectedMode),
+    });
 
     router.replace(`/recipe/${recipe.id}` as Href);
   };
@@ -165,7 +168,6 @@ export function RecipeCreateScreen() {
               <NicheOption
                 key={niche.id}
                 label={language === 'ko' ? niche.labelKo : niche.label}
-                niche={niche}
                 onPress={() => setSelectedNicheId(niche.id)}
                 selected={niche.id === selectedNicheId}
               />
@@ -279,12 +281,10 @@ function QuestionTitle({ title }: { title: string }) {
 
 function NicheOption({
   label,
-  niche,
   onPress,
   selected,
 }: {
   label: string;
-  niche: (typeof recipeCreateNiches)[number];
   onPress: () => void;
   selected: boolean;
 }) {
@@ -294,13 +294,6 @@ function NicheOption({
       onPress={onPress}
       style={[styles.nicheOption, selected ? styles.nicheOptionActive : null]}
     >
-      {niche.imageSource ? (
-        <Image source={niche.imageSource} style={styles.nicheImage} />
-      ) : (
-        <View style={styles.nicheFallback}>
-          <MaterialCommunityIcons color="#94a3b8" name="dots-horizontal" size={24} />
-        </View>
-      )}
       <Text numberOfLines={1} style={[styles.nicheLabel, selected ? styles.nicheLabelActive : null]}>
         {label}
       </Text>
@@ -504,31 +497,20 @@ const styles = StyleSheet.create({
     top: 15,
     width: 24,
   },
-  nicheFallback: {
-    alignItems: 'center',
-    backgroundColor: '#eef2f7',
-    borderRadius: 15,
-    height: 38,
-    justifyContent: 'center',
-    width: 38,
-  },
   nicheGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
   },
-  nicheImage: {
-    borderRadius: 15,
-    height: 38,
-    width: 38,
-  },
   nicheLabel: {
     color: '#05070d',
     flexShrink: 1,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '900',
     letterSpacing: 0,
-    lineHeight: 16,
+    lineHeight: 18,
+    maxWidth: '82%',
+    textAlign: 'center',
   },
   nicheLabelActive: {
     color: '#8c67ff',
@@ -540,10 +522,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexBasis: '30.6%',
     flexDirection: 'row',
-    gap: 7,
+    justifyContent: 'center',
     minHeight: 54,
-    paddingLeft: 5,
-    paddingRight: 8,
+    paddingHorizontal: 12,
   },
   nicheOptionActive: {
     borderColor: '#8c67ff',

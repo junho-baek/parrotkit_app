@@ -32,37 +32,31 @@ export const recipeCreateModes: RecipeCreateMode[] = [
 
 export const recipeCreateNiches: Array<{
   id: RecipeCreateNicheId;
-  imageSource?: RecipeCreateImageSource;
   label: string;
   labelKo: string;
 }> = [
   {
     id: "beauty",
-    imageSource: recipeCreateVisuals.nicheBeauty,
     label: "Beauty",
     labelKo: "뷰티",
   },
   {
     id: "food",
-    imageSource: recipeCreateVisuals.nicheFood,
     label: "Food",
     labelKo: "푸드",
   },
   {
     id: "fitness",
-    imageSource: recipeCreateVisuals.nicheFitness,
     label: "Fitness",
     labelKo: "피트니스",
   },
   {
     id: "home",
-    imageSource: recipeCreateVisuals.nicheHome,
     label: "Home",
     labelKo: "홈",
   },
   {
     id: "tech",
-    imageSource: recipeCreateVisuals.nicheTech,
     label: "Tech",
     labelKo: "테크",
   },
@@ -138,6 +132,12 @@ export function getRecipeCreatePrimaryAction(
 ): RecipeCreatePrimaryAction {
   void mode;
   return "open-shoot-board";
+}
+
+export function getRecipeCreateInitialScenes(
+  mode: RecipeCreateMode,
+): [] | undefined {
+  return mode === "manual" ? [] : undefined;
 }
 
 export function getRecipeCreateDraftContext({
