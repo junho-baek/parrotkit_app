@@ -23,61 +23,62 @@ const fallbackImages = {
     "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=500&h=500&q=86",
 };
 
+export type RecipeCreateImageSource = number | { uri: string };
+
 function isReactNativeRuntime() {
   return (
     typeof navigator !== "undefined" && navigator.product === "ReactNative"
   );
 }
 
-function resolveImage(asset: () => number, fallbackUri: string) {
-  if (!isReactNativeRuntime()) return fallbackUri;
-  const { Image } = require("react-native") as typeof import("react-native");
-  return Image.resolveAssetSource(asset()).uri;
+function resolveImage(asset: () => number, fallbackUri: string): RecipeCreateImageSource {
+  if (!isReactNativeRuntime()) return { uri: fallbackUri };
+  return asset();
 }
 
 export const recipeCreateVisuals = {
   goalAd: resolveImage(
-    () => require("../../../../assets/recipe-create/generated-goal-ad.png"),
+    () => require("../../../../assets/recipe-create/generated-goal-ad.jpg"),
     fallbackImages.goalAd,
   ),
   goalConversion: resolveImage(
-    () => require("../../../../assets/recipe-create/generated-goal-conversion.png"),
+    () => require("../../../../assets/recipe-create/generated-goal-conversion.jpg"),
     fallbackImages.goalConversion,
   ),
   goalPersonal: resolveImage(
-    () => require("../../../../assets/recipe-create/generated-goal-personal.png"),
+    () => require("../../../../assets/recipe-create/generated-goal-personal.jpg"),
     fallbackImages.goalPersonal,
   ),
   goalRecipeProduct: resolveImage(
-    () => require("../../../../assets/recipe-create/generated-goal-recipe-product.png"),
+    () => require("../../../../assets/recipe-create/generated-goal-recipe-product.jpg"),
     fallbackImages.goalRecipeProduct,
   ),
   goalSell: resolveImage(
-    () => require("../../../../assets/recipe-create/generated-goal-sell.png"),
+    () => require("../../../../assets/recipe-create/generated-goal-sell.jpg"),
     fallbackImages.goalSell,
   ),
   goalViral: resolveImage(
-    () => require("../../../../assets/recipe-create/generated-goal-viral.png"),
+    () => require("../../../../assets/recipe-create/generated-goal-viral.jpg"),
     fallbackImages.goalViral,
   ),
   nicheBeauty: resolveImage(
-    () => require("../../../../assets/recipe-create/generated-niche-beauty.png"),
+    () => require("../../../../assets/recipe-create/generated-niche-beauty.jpg"),
     fallbackImages.nicheBeauty,
   ),
   nicheFitness: resolveImage(
-    () => require("../../../../assets/recipe-create/generated-niche-fitness.png"),
+    () => require("../../../../assets/recipe-create/generated-niche-fitness.jpg"),
     fallbackImages.nicheFitness,
   ),
   nicheFood: resolveImage(
-    () => require("../../../../assets/recipe-create/generated-niche-food.png"),
+    () => require("../../../../assets/recipe-create/generated-niche-food.jpg"),
     fallbackImages.nicheFood,
   ),
   nicheHome: resolveImage(
-    () => require("../../../../assets/recipe-create/generated-niche-home.png"),
+    () => require("../../../../assets/recipe-create/generated-niche-home.jpg"),
     fallbackImages.nicheHome,
   ),
   nicheTech: resolveImage(
-    () => require("../../../../assets/recipe-create/generated-niche-tech.png"),
+    () => require("../../../../assets/recipe-create/generated-niche-tech.jpg"),
     fallbackImages.nicheTech,
   ),
 } as const;

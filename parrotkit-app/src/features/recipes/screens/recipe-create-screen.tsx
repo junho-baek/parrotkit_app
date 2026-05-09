@@ -294,8 +294,8 @@ function NicheOption({
       onPress={onPress}
       style={[styles.nicheOption, selected ? styles.nicheOptionActive : null]}
     >
-      {niche.imageUrl ? (
-        <Image source={{ uri: niche.imageUrl }} style={styles.nicheImage} />
+      {niche.imageSource ? (
+        <Image source={niche.imageSource} style={styles.nicheImage} />
       ) : (
         <View style={styles.nicheFallback}>
           <MaterialCommunityIcons color="#94a3b8" name="dots-horizontal" size={24} />
@@ -329,7 +329,7 @@ function GoalCard({
       <ImageBackground
         imageStyle={styles.goalImage}
         resizeMode="cover"
-        source={{ uri: goal.imageUrl }}
+        source={goal.imageSource}
         style={[styles.goalCard, selected ? styles.goalCardActive : null]}
       >
         <LinearGradient

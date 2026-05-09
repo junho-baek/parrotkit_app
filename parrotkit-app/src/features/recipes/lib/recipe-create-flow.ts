@@ -1,4 +1,7 @@
-import { recipeCreateVisuals } from "@/features/recipes/lib/recipe-create-visuals";
+import {
+  recipeCreateVisuals,
+  type RecipeCreateImageSource,
+} from "@/features/recipes/lib/recipe-create-visuals";
 
 export type RecipeCreateMode = "manual" | "reference" | "brand";
 export type RecipeCreateNicheId =
@@ -29,37 +32,37 @@ export const recipeCreateModes: RecipeCreateMode[] = [
 
 export const recipeCreateNiches: Array<{
   id: RecipeCreateNicheId;
-  imageUrl?: string;
+  imageSource?: RecipeCreateImageSource;
   label: string;
   labelKo: string;
 }> = [
   {
     id: "beauty",
-    imageUrl: recipeCreateVisuals.nicheBeauty,
+    imageSource: recipeCreateVisuals.nicheBeauty,
     label: "Beauty",
     labelKo: "뷰티",
   },
   {
     id: "food",
-    imageUrl: recipeCreateVisuals.nicheFood,
+    imageSource: recipeCreateVisuals.nicheFood,
     label: "Food",
     labelKo: "푸드",
   },
   {
     id: "fitness",
-    imageUrl: recipeCreateVisuals.nicheFitness,
+    imageSource: recipeCreateVisuals.nicheFitness,
     label: "Fitness",
     labelKo: "피트니스",
   },
   {
     id: "home",
-    imageUrl: recipeCreateVisuals.nicheHome,
+    imageSource: recipeCreateVisuals.nicheHome,
     label: "Home",
     labelKo: "홈",
   },
   {
     id: "tech",
-    imageUrl: recipeCreateVisuals.nicheTech,
+    imageSource: recipeCreateVisuals.nicheTech,
     label: "Tech",
     labelKo: "테크",
   },
@@ -72,43 +75,43 @@ export const recipeCreateNiches: Array<{
 
 export const recipeCreateGoals: Array<{
   id: RecipeCreateGoalId;
-  imageUrl: string;
+  imageSource: RecipeCreateImageSource;
   label: string;
   labelKo: string;
 }> = [
   {
     id: "ad",
-    imageUrl: recipeCreateVisuals.goalAd,
+    imageSource: recipeCreateVisuals.goalAd,
     label: "Ad",
     labelKo: "광고",
   },
   {
     id: "sell",
-    imageUrl: recipeCreateVisuals.goalSell,
+    imageSource: recipeCreateVisuals.goalSell,
     label: "Sell",
     labelKo: "판매",
   },
   {
     id: "recipe-product",
-    imageUrl: recipeCreateVisuals.goalRecipeProduct,
+    imageSource: recipeCreateVisuals.goalRecipeProduct,
     label: "UGC Recipe 판매",
     labelKo: "UGC Recipe 판매",
   },
   {
     id: "personal",
-    imageUrl: recipeCreateVisuals.goalPersonal,
+    imageSource: recipeCreateVisuals.goalPersonal,
     label: "Personal",
     labelKo: "개인용",
   },
   {
     id: "viral",
-    imageUrl: recipeCreateVisuals.goalViral,
+    imageSource: recipeCreateVisuals.goalViral,
     label: "Viral",
     labelKo: "바이럴용",
   },
   {
     id: "conversion",
-    imageUrl: recipeCreateVisuals.goalConversion,
+    imageSource: recipeCreateVisuals.goalConversion,
     label: "Conversion",
     labelKo: "전환용",
   },
