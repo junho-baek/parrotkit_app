@@ -27,6 +27,7 @@ import {
   getRecipeProductDemoHref,
   type RecipeProductDemoModel,
 } from '@/features/recipes/lib/recipe-product-demo';
+import { getRecipeCreateHref } from '@/features/recipes/lib/recipe-create-flow';
 import { getShootBoardHref } from '@/features/recipes/lib/shoot-board-model';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -286,7 +287,7 @@ export function RecipesScreen() {
   };
 
   const startRecipeCreate = (mode: 'brand' | 'manual' | 'reference' = 'manual') => {
-    router.push(`/recipe-create?mode=${mode}` as Href);
+    router.push(getRecipeCreateHref(mode) as Href);
   };
 
   const openRecipeProduct = (recipe: MockRecipe | null = continueRecipe ?? recipes[0] ?? null) => {

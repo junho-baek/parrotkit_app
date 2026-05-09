@@ -19,6 +19,10 @@ export function getInitialRecipeCreateMode(value: string | undefined): RecipeCre
   return isRecipeCreateMode(value) ? value : "manual";
 }
 
+export function getRecipeCreateHref(mode: RecipeCreateMode = "manual") {
+  return `/recipe-create?mode=${mode}`;
+}
+
 export function isRecipeCreateModePro(mode: RecipeCreateMode) {
   return mode === "reference" || mode === "brand";
 }

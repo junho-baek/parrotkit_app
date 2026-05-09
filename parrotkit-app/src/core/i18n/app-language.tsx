@@ -76,9 +76,9 @@ const APP_LANGUAGE_COPY: Record<AppLanguage, AppLanguageCopy> = {
       source: 'Source',
     },
     sourceCta: {
-      accessibilityHint: 'Open the add source sheet',
-      accessibilityLabel: 'Add source',
-      label: 'source',
+      accessibilityHint: 'Open the new recipe drawer',
+      accessibilityLabel: 'Start new recipe',
+      label: 'recipe',
     },
     home: {
       continueAction: 'Continue Shoot',
@@ -128,9 +128,9 @@ const APP_LANGUAGE_COPY: Record<AppLanguage, AppLanguageCopy> = {
       source: '소스',
     },
     sourceCta: {
-      accessibilityHint: '소스 추가 시트 열기',
-      accessibilityLabel: '소스 추가',
-      label: '소스',
+      accessibilityHint: '새 레시피 드로어 열기',
+      accessibilityLabel: '새 레시피 시작',
+      label: '레시피',
     },
     home: {
       continueAction: '촬영 계속하기',

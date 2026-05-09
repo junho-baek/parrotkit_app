@@ -1,4 +1,5 @@
 import {
+  getRecipeCreateHref,
   getInitialRecipeCreateMode,
   getRecipeCreatePrimaryAction,
   isRecipeCreateModePro,
@@ -31,4 +32,12 @@ if (isRecipeCreateModePro("manual")) {
 
 if (getRecipeCreatePrimaryAction("manual") !== "open-shoot-board") {
   throw new Error("Manual creation should open the recipe execution board.");
+}
+
+if (getRecipeCreateHref() !== "/recipe-create?mode=manual") {
+  throw new Error("Global plus buttons should open the manual recipe-create drawer by default.");
+}
+
+if (getRecipeCreateHref("brand") !== "/recipe-create?mode=brand") {
+  throw new Error("Create mode links should preserve explicit modes.");
 }

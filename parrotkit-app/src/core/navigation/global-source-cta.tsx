@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppLanguage } from '@/core/i18n/app-language';
 import { brandActionGradientSoft, brandActionShadow } from '@/core/theme/colors';
+import { getRecipeCreateHref } from '@/features/recipes/lib/recipe-create-flow';
 
 export function GlobalSourceCta() {
   const insets = useSafeAreaInsets();
@@ -22,7 +23,7 @@ export function GlobalSourceCta() {
       <Pressable
         accessibilityHint={copy.sourceCta.accessibilityHint}
         accessibilityLabel={copy.sourceCta.accessibilityLabel}
-        onPress={() => router.push('/source-actions' as Href)}
+        onPress={() => router.push(getRecipeCreateHref() as Href)}
         style={[styles.pressable, { bottom: insets.bottom + 58 }]}
       >
         {({ pressed }) => (
