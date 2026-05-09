@@ -22,6 +22,11 @@ import { useAppChrome } from '@/core/navigation/app-chrome-provider';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient } from '@/core/theme/colors';
 import { getContinueShootRecipe, getLatestShootableRecipe } from '@/features/recipes/lib/recipe-ownership';
+import {
+  createRecipeProductDemoModel,
+  getRecipeProductDemoHref,
+  type RecipeProductDemoModel,
+} from '@/features/recipes/lib/recipe-product-demo';
 import { getShootBoardHref } from '@/features/recipes/lib/shoot-board-model';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -92,16 +97,16 @@ const recipeCopy = {
     viewAll: 'View all',
     open: 'Open',
     shoot: 'Shoot',
-    publishTitle: 'Publish to community',
-    publishBody: 'Share my recipe with other creators.',
-    publishAction: 'Publish recipe',
+    publishTitle: 'Recipe Product',
+    publishBody: 'Reuse it, share it, or sell it as a recipe product.',
+    publishAction: 'Productize',
     collectionTitle: 'Collections',
     collectionSearch: 'Search collections',
     recentCollection: 'Recently used collection',
     recipesInCollection: 'Recipes in collection',
     manageCollection: 'Manage collection',
     newest: 'Newest',
-    publishHeader: 'Publish Recipe',
+    publishHeader: 'Recipe Product',
     save: 'Save',
     coverImage: 'Cover image',
     changeCover: 'Change cover',
@@ -110,9 +115,9 @@ const recipeCopy = {
     oneLine: 'One-line description',
     descriptionPlaceholder: 'A 15-minute viral lunch idea with 3 air fryer cuts',
     category: 'Category',
-    included: 'Included items',
+    included: 'Product includes',
     visibility: 'Visibility',
-    beforePublish: 'Preview is only visible to you before publishing.',
+    beforePublish: 'Demo product is staged locally before marketplace publishing.',
     titleCount: '16/60',
     descriptionCount: '28/120',
     categories: {
@@ -154,16 +159,16 @@ const recipeCopy = {
     viewAll: '전체 보기',
     open: '열기',
     shoot: '촬영',
-    publishTitle: '커뮤니티로 발행',
-    publishBody: '내 레시피를 다른 크리에이터와 공유',
-    publishAction: '레시피 발행',
+    publishTitle: 'Recipe Product',
+    publishBody: '재사용하거나 판매할 수 있는 레시피 상품으로 만들기',
+    publishAction: '상품화',
     collectionTitle: '컬렉션',
     collectionSearch: '컬렉션 검색',
     recentCollection: '최근 사용 컬렉션',
     recipesInCollection: '컬렉션 내 레시피',
     manageCollection: '컬렉션 관리',
     newest: '최신순',
-    publishHeader: '레시피 발행',
+    publishHeader: 'Recipe Product',
     save: '저장',
     coverImage: '커버 이미지',
     changeCover: '커버 변경',
@@ -172,9 +177,9 @@ const recipeCopy = {
     oneLine: '한 줄 설명',
     descriptionPlaceholder: '바쁜 하루도 맛있게! 15분 완성 에어프라이어 런치 아이디어 3가지',
     category: '카테고리',
-    included: '포함 항목',
+    included: '상품 포함 항목',
     visibility: '공개 설정',
-    beforePublish: '발행 전 미리보기는 나에게만 공개됩니다.',
+    beforePublish: '데모 상품은 마켓 발행 전 로컬로만 표시됩니다.',
     titleCount: '16/60',
     descriptionCount: '28/120',
     categories: {
@@ -200,18 +205,20 @@ const recipeCopy = {
 
 export function RecipesScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ view?: string }>();
+  const params = useLocalSearchParams<{ recipeId?: string; view?: string }>();
   const { language } = useAppLanguage();
   const copy = recipeCopy[language];
   const { exploreRecipes, recipes } = useMockWorkspace();
   const [view, setView] = useState<RecipesView>('main');
+  const [productCreated, setProductCreated] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<RecipeFilter>('continue');
   const [selectedCategory, setSelectedCategory] = useState<PublishCategory>('food');
   const [visibility, setVisibility] = useState<Visibility>('public');
 
   useEffect(() => {
     if (params.view === 'publish') {
-      router.replace('/recipe-create?mode=manual' as Href);
+      setView('publish');
+      setProductCreated(false);
       return;
     }
 
@@ -224,6 +231,22 @@ export function RecipesScreen() {
     () => getContinueShootRecipe(recipes) ?? getLatestShootableRecipe(recipes) ?? recipes[0] ?? null,
     [recipes]
   );
+
+  const productRecipe = useMemo(() => {
+    const recipeId = Array.isArray(params.recipeId) ? params.recipeId[0] : params.recipeId;
+
+    if (!recipeId) {
+      return continueRecipe ?? recipes[0] ?? null;
+    }
+
+    return (
+      recipes.find((recipe) => recipe.id === recipeId) ??
+      exploreRecipes.find((recipe) => recipe.id === recipeId) ??
+      continueRecipe ??
+      recipes[0] ??
+      null
+    );
+  }, [continueRecipe, exploreRecipes, params.recipeId, recipes]);
 
   const displayedRecipes = useMemo(() => {
     if (selectedFilter === 'owned') {
@@ -266,6 +289,15 @@ export function RecipesScreen() {
     router.push(`/recipe-create?mode=${mode}` as Href);
   };
 
+  const openRecipeProduct = (recipe: MockRecipe | null = continueRecipe ?? recipes[0] ?? null) => {
+    if (!recipe) {
+      return;
+    }
+
+    setProductCreated(false);
+    router.push(getRecipeProductDemoHref(recipe.id));
+  };
+
   if (view === 'collection') {
     return (
       <RecipesTabScrollView>
@@ -288,16 +320,22 @@ export function RecipesScreen() {
       <View className="flex-1 bg-canvas">
         <RecipesTabScrollView bottomPadding={260}>
           <PublishRecipeScreen
+            created={productCreated}
             copy={copy}
             onBack={() => setView('main')}
             onSelectCategory={setSelectedCategory}
             onSelectVisibility={setVisibility}
-            recipe={continueRecipe ?? recipes[0] ?? null}
+            recipe={productRecipe}
             selectedCategory={selectedCategory}
             visibility={visibility}
           />
         </RecipesTabScrollView>
-        <PublishBottomCta copy={copy} />
+        <PublishBottomCta
+          created={productCreated}
+          copy={copy}
+          onPress={() => setProductCreated(true)}
+          product={productRecipe ? createRecipeProductDemoModel(productRecipe, productCreated) : null}
+        />
       </View>
     );
   }
@@ -358,7 +396,7 @@ export function RecipesScreen() {
             ))}
           </View>
 
-          <Pressable accessibilityRole="button" onPress={() => startRecipeCreate('manual')} style={styles.publishCta}>
+          <Pressable accessibilityRole="button" onPress={() => openRecipeProduct(continueRecipe ?? recipes[0] ?? null)} style={styles.publishCta}>
             <View style={styles.publishIcon}>
               <MaterialCommunityIcons color="#8c67ff" name="web" size={22} />
             </View>
@@ -690,6 +728,7 @@ function CollectionScreen({
 }
 
 function PublishRecipeScreen({
+  created,
   copy,
   onBack,
   onSelectCategory,
@@ -698,6 +737,7 @@ function PublishRecipeScreen({
   selectedCategory,
   visibility,
 }: {
+  created: boolean;
   copy: (typeof recipeCopy)['en'];
   onBack: () => void;
   onSelectCategory: (category: PublishCategory) => void;
@@ -708,6 +748,21 @@ function PublishRecipeScreen({
 }) {
   const categories = Object.keys(copy.categories as Record<PublishCategory, string>) as PublishCategory[];
   const visibilityOptions = copy.visibilityOptions as Record<Visibility, { icon: IconName; title: string; body: string }>;
+  const product = recipe ? createRecipeProductDemoModel(recipe, created) : null;
+
+  if (!product) {
+    return (
+      <View className="gap-4 px-5">
+        <SubHeader onBack={onBack} title={copy.publishHeader as string}>
+          <View />
+        </SubHeader>
+        <View style={styles.emptyProductCard}>
+          <MaterialCommunityIcons color="#94a3b8" name="storefront-outline" size={24} />
+          <Text className="text-center text-[14px] font-black text-ink">No recipe selected</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View className="gap-4 px-5">
@@ -716,6 +771,8 @@ function PublishRecipeScreen({
           <Text className="text-[13px] font-black text-violet">{copy.save as string}</Text>
         </Pressable>
       </SubHeader>
+
+      {created ? <ProductCreatedBanner product={product} /> : null}
 
       <View className="gap-3">
         <Text className="text-[13px] font-black text-ink">{copy.coverImage as string} ⓘ</Text>
@@ -735,15 +792,15 @@ function PublishRecipeScreen({
 
           <View className="min-w-0 flex-1 gap-3">
             <LabeledInput
-              counter={copy.titleCount as string}
+              counter={`${product.title.length}/60`}
               label={`${copy.recipeTitle as string} *`}
-              value={copy.titlePlaceholder as string}
+              value={product.title}
             />
             <LabeledInput
-              counter={copy.descriptionCount as string}
+              counter={`${Math.min(product.description.length, 120)}/120`}
               label={copy.oneLine as string}
               multiline
-              value={copy.descriptionPlaceholder as string}
+              value={product.description}
             />
           </View>
         </View>
@@ -775,12 +832,23 @@ function PublishRecipeScreen({
       </View>
 
       <View className="gap-3">
+        <Text className="text-[13px] font-black text-ink">Product options</Text>
+        <View className="flex-row gap-2">
+          {product.modes.map((mode) => (
+            <ProductModeCard key={mode.id} mode={mode} />
+          ))}
+        </View>
+      </View>
+
+      <ProductPriceCard product={product} />
+
+      <View className="gap-3">
         <Text className="text-[13px] font-black text-ink">{copy.included as string}</Text>
         <View style={styles.includeList}>
-          {(copy.includedItems as Array<{ icon: IconName; title: string; body: string }>).map((item) => (
+          {product.includedItems.map((item) => (
             <View className="flex-row items-center gap-2.5 px-3 py-2" key={item.title}>
               <View style={styles.includeIcon}>
-                <MaterialCommunityIcons color="#8c67ff" name={item.icon} size={16} />
+                <MaterialCommunityIcons color="#8c67ff" name={getProductItemIcon(item.title)} size={16} />
               </View>
               <View className="min-w-0 flex-1">
                 <Text className="text-[12px] font-black text-ink">{item.title}</Text>
@@ -825,16 +893,87 @@ function PublishRecipeScreen({
   );
 }
 
-function PublishBottomCta({ copy }: { copy: (typeof recipeCopy)['en'] }) {
+function ProductCreatedBanner({ product }: { product: RecipeProductDemoModel }) {
+  return (
+    <View style={styles.createdBanner}>
+      <View style={styles.createdIcon}>
+        <MaterialCommunityIcons color="#ffffff" name="check" size={18} />
+      </View>
+      <View className="min-w-0 flex-1">
+        <Text className="text-[14px] font-black text-ink">{product.statusLabel}</Text>
+        <Text className="mt-0.5 text-[12px] font-semibold text-muted" numberOfLines={1}>
+          Reuse it internally or sell it as a creator product.
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function ProductModeCard({
+  mode,
+}: {
+  mode: RecipeProductDemoModel["modes"][number];
+}) {
+  const icon: IconName = mode.id === "sell" ? "cash" : "repeat-variant";
+
+  return (
+    <View style={[styles.productModeCard, mode.enabled ? styles.productModeCardActive : null]}>
+      <View className="flex-row items-center justify-between">
+        <MaterialCommunityIcons color={mode.enabled ? "#8c67ff" : "#64748b"} name={icon} size={20} />
+        <MaterialCommunityIcons color={mode.enabled ? "#8c67ff" : "#cbd5e1"} name={mode.enabled ? "toggle-switch" : "toggle-switch-off-outline"} size={25} />
+      </View>
+      <Text className="mt-2 text-[13px] font-black text-ink">{mode.title}</Text>
+      <Text className="mt-1 text-[10px] font-semibold leading-4 text-muted" numberOfLines={2}>
+        {mode.body}
+      </Text>
+    </View>
+  );
+}
+
+function ProductPriceCard({ product }: { product: RecipeProductDemoModel }) {
+  return (
+    <View style={styles.priceCard}>
+      <View className="min-w-0 flex-1">
+        <Text className="text-[13px] font-black text-ink">Marketplace price</Text>
+        <Text className="mt-0.5 text-[11px] font-semibold text-muted" numberOfLines={1}>
+          Demo listing price for this recipe product.
+        </Text>
+      </View>
+      <View style={styles.pricePill}>
+        <Text className="text-[18px] font-black text-violet">{product.priceLabel}</Text>
+      </View>
+    </View>
+  );
+}
+
+function getProductItemIcon(title: string): IconName {
+  if (title.includes("Reference")) return "play-box-outline";
+  if (title.includes("Cut")) return "view-dashboard-outline";
+  if (title.includes("Script")) return "script-text-outline";
+  return "television-guide";
+}
+
+function PublishBottomCta({
+  copy,
+  created,
+  onPress,
+  product,
+}: {
+  copy: (typeof recipeCopy)['en'];
+  created: boolean;
+  onPress: () => void;
+  product: RecipeProductDemoModel | null;
+}) {
   const insets = useSafeAreaInsets();
+  const actionLabel = product?.primaryActionLabel ?? (copy.publishTitle as string);
 
   return (
     <View pointerEvents="box-none" style={[styles.publishFooterLayer, { bottom: insets.bottom + 88 }]}>
       <View className="gap-2 px-5">
-        <Pressable accessibilityRole="button" className="overflow-hidden rounded-full">
+        <Pressable accessibilityRole="button" className="overflow-hidden rounded-full" onPress={onPress}>
           <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.bigPublishButton}>
-            <MaterialCommunityIcons color="#fff" name="send" size={18} />
-            <Text className="text-[16px] font-black text-white">{copy.publishTitle as string}</Text>
+            <MaterialCommunityIcons color="#fff" name={created ? "check-circle" : "send"} size={18} />
+            <Text className="text-[16px] font-black text-white">{actionLabel}</Text>
           </LinearGradient>
         </Pressable>
 
@@ -1042,6 +1181,24 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 64,
   },
+  createdBanner: {
+    alignItems: 'center',
+    backgroundColor: '#f0fdf4',
+    borderColor: '#bbf7d0',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    padding: 12,
+  },
+  createdIcon: {
+    alignItems: 'center',
+    backgroundColor: '#22c55e',
+    borderRadius: 999,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
   continueButton: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -1063,6 +1220,17 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     height: 112,
     width: 112,
+  },
+  emptyProductCard: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+    justifyContent: 'center',
+    minHeight: 140,
+    padding: 18,
   },
   featuredCollection: {
     backgroundColor: '#fbf8ff',
@@ -1216,6 +1384,35 @@ const styles = StyleSheet.create({
   ownershipBadgeText: {
     fontSize: 10,
     fontWeight: '900',
+  },
+  priceCard: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 13,
+  },
+  pricePill: {
+    backgroundColor: '#f3f0ff',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  productModeCard: {
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 104,
+    padding: 12,
+  },
+  productModeCardActive: {
+    backgroundColor: '#fbf8ff',
+    borderColor: '#c4b5fd',
   },
   progressFill: {
     borderRadius: 999,

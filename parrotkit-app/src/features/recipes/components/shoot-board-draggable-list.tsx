@@ -17,6 +17,7 @@ export function ShootBoardDraggableList({
   cuts,
   expandedCutIds,
   language,
+  ListFooterComponent,
   ListHeaderComponent,
   onDragStateChange,
   onPreview,
@@ -34,6 +35,7 @@ export function ShootBoardDraggableList({
   cuts: ShootBoardCut[];
   expandedCutIds: string[];
   language: AppLanguage;
+  ListFooterComponent?: ReactElement;
   ListHeaderComponent?: ReactElement;
   onDragStateChange?: (dragging: boolean) => void;
   onPreview: (cut: ShootBoardCut) => void;
@@ -97,6 +99,7 @@ export function ShootBoardDraggableList({
       dragItemOverflow
       keyExtractor={(cut) => cut.id}
       keyboardShouldPersistTaps="handled"
+      ListFooterComponent={ListFooterComponent}
       ListHeaderComponent={ListHeaderComponent}
       onDragBegin={() => onDragStateChange?.(true)}
       onDragEnd={({ data }) => {

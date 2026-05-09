@@ -20,9 +20,11 @@ import { brandActionGradient } from "@/core/theme/colors";
 import { ReferenceViewerModal } from "@/features/recipes/components/reference-viewer-modal";
 import { ShootBoardDraggableList } from "@/features/recipes/components/shoot-board-draggable-list";
 import { ShootBoardNoteCta } from "@/features/recipes/components/shoot-board-note-cta";
+import { ShootBoardProductCta } from "@/features/recipes/components/shoot-board-product-cta";
 import { ShootBoardStickyHeader } from "@/features/recipes/components/shoot-board-sticky-header";
 import { TakeReviewViewerModal } from "@/features/recipes/components/take-review-viewer-modal";
 import { normalizeNativeRecipe } from "@/features/recipes/lib/recipe-domain-normalizer";
+import { getRecipeProductDemoHref } from "@/features/recipes/lib/recipe-product-demo";
 import {
   getSceneCardSummary,
   getSceneStrategyMeta,
@@ -389,6 +391,16 @@ export function RecipeDetailScreen() {
     );
   };
 
+  const openRecipeProductDemo = () => {
+    const targetRecipe = saveRecipe();
+
+    if (!targetRecipe) {
+      return;
+    }
+
+    router.push(getRecipeProductDemoHref(targetRecipe.id));
+  };
+
   const updateBoard = (
     updater: (board: ShootBoardRecipe) => ShootBoardRecipe,
   ) => {
@@ -675,6 +687,12 @@ export function RecipeDetailScreen() {
               reorderMode={reorderMode}
             />
           </>
+        }
+        ListFooterComponent={
+          <ShootBoardProductCta
+            language={language}
+            onPress={openRecipeProductDemo}
+          />
         }
         onDragStateChange={setBoardDragActive}
         onPreview={openReferenceViewer}
