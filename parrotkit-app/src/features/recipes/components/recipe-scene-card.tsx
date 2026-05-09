@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image, Pressable, Text, View } from 'react-native';
 
+import { toImageSource } from '@/core/ui/image-source';
 import { getSceneCardSummary, getSceneStrategyMeta } from '@/features/recipes/lib/scene-strategy-meta';
 import { NativeRecipeScene } from '@/features/recipes/types/recipe-domain';
 
@@ -31,7 +32,7 @@ export function RecipeSceneCard({
         <View className="relative shrink-0 overflow-hidden rounded-[22px] bg-slate-100" style={{ width: 108 }}>
           <View style={{ height: 192, width: 108 }}>
             {scene.thumbnail ? (
-              <Image className="h-full w-full" resizeMode="cover" source={{ uri: scene.thumbnail }} />
+              <Image className="h-full w-full" resizeMode="cover" source={toImageSource(scene.thumbnailSource ?? scene.thumbnail)} />
             ) : (
               <View className="h-full w-full bg-slate-200" />
             )}

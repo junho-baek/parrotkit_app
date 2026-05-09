@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image, Pressable, Text, View } from 'react-native';
 
 import { brandActionGradient } from '@/core/theme/colors';
+import { toImageSource, type AppImageSource } from '@/core/ui/image-source';
 
 type MediaMetric = {
   icon: string;
@@ -9,7 +10,7 @@ type MediaMetric = {
 };
 
 type MediaTileCardProps = {
-  thumbnail: string;
+  thumbnail: AppImageSource;
   title: string;
   subtitle: string;
   topLeftLabel?: string;
@@ -55,7 +56,7 @@ export function MediaTileCard({
     <View className="gap-2">
       <Pressable className="overflow-hidden rounded-[22px] border border-stroke bg-surface" onPress={onPress}>
         <View className="aspect-[9/16] overflow-hidden">
-          <Image className="h-full w-full" resizeMode="cover" source={{ uri: thumbnail }} />
+          <Image className="h-full w-full" resizeMode="cover" source={toImageSource(thumbnail)} />
           <LinearGradient
             colors={['rgba(15,23,42,0.02)', 'rgba(15,23,42,0.18)', 'rgba(15,23,42,0.82)']}
             end={{ x: 0.5, y: 1 }}

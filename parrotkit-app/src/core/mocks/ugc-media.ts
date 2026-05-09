@@ -1,3 +1,5 @@
+import type { ImageSourcePropType } from "react-native";
+
 const fallbackImages = {
   appDemo:
     "https://images.unsplash.com/photo-1512428559087-560fa5ceab42?auto=format&fit=crop&w=540&h=960&q=86",
@@ -9,21 +11,20 @@ const fallbackImages = {
     "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=540&h=960&q=86",
 };
 
-function isReactNativeRuntime() {
-  return (
-    typeof navigator !== "undefined" && navigator.product === "ReactNative"
-  );
-}
-
-function resolveImage(asset: () => number, fallbackUri: string) {
-  if (!isReactNativeRuntime()) return fallbackUri;
-  const { Image } = require("react-native") as typeof import("react-native");
-  return Image.resolveAssetSource(asset()).uri;
+function resolveImage(asset: () => number, fallbackUri: string): ImageSourcePropType {
+  try {
+    return asset();
+  } catch {
+    return { uri: fallbackUri };
+  }
 }
 
 function resolveVideo(asset: () => number) {
-  if (!isReactNativeRuntime()) return undefined;
-  return asset();
+  try {
+    return asset();
+  } catch {
+    return undefined;
+  }
 }
 
 export const ugcMedia = {

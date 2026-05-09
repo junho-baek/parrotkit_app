@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { AppLanguage } from "@/core/i18n/app-language";
 import { brandActionGradient } from "@/core/theme/colors";
+import { toImageSource } from "@/core/ui/image-source";
 import type { ShootBoardCut } from "@/features/recipes/lib/shoot-board-model";
 
 export type ReferenceViewerModalProps = {
@@ -193,8 +194,8 @@ function ReferenceMedia({ cut }: { cut: ShootBoardCut }) {
     );
   }
 
-  if (cut.thumbnailUrl) {
-    return <Image source={{ uri: cut.thumbnailUrl }} style={styles.previewImage} />;
+  if (cut.thumbnailSource || cut.thumbnailUrl) {
+    return <Image source={cut.thumbnailSource ?? toImageSource(cut.thumbnailUrl)} style={styles.previewImage} />;
   }
 
   return (
@@ -260,9 +261,9 @@ function CutThumb({
         pressed && styles.pressed,
       ]}
     >
-      {cut.thumbnailUrl ? (
+      {cut.thumbnailSource || cut.thumbnailUrl ? (
         <Image
-          source={{ uri: cut.thumbnailUrl }}
+          source={cut.thumbnailSource ?? toImageSource(cut.thumbnailUrl)}
           style={styles.cutThumbImage}
         />
       ) : null}

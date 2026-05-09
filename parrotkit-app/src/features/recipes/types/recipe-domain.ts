@@ -71,6 +71,7 @@ export type NativeRecipeScene = {
   startTime: string;
   endTime: string;
   thumbnail: string;
+  thumbnailSource?: ImageSourcePropType;
   analysis: SceneAnalysis;
   recipe: SceneRecipePlan;
   prompter: ScenePrompter;
@@ -87,6 +88,7 @@ export type NativeRecipe = {
   creator: string;
   platform: 'TikTok' | 'Instagram Reels' | 'YouTube Shorts';
   thumbnail: string;
+  thumbnailSource?: ImageSourcePropType;
   savedAt: string;
   sourceUrl: string;
   referenceVideoSource?: string | number;
@@ -96,3 +98,4 @@ export type NativeRecipe = {
   notes: string;
   scenes: NativeRecipeScene[];
 };
+import type { ImageSourcePropType } from 'react-native';

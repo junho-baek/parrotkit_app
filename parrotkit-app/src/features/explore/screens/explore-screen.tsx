@@ -19,6 +19,7 @@ import type { MockRecipe } from '@/core/mocks/parrotkit-data';
 import { ugcMedia } from '@/core/mocks/ugc-media';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { AppScreenScrollView } from '@/core/ui/app-screen-scroll-view';
+import { toImageSource, type AppImageSource } from '@/core/ui/image-source';
 import { isVerifiedCreatorRecipe } from '@/features/recipes/lib/recipe-ownership';
 import { getShootBoardHref } from '@/features/recipes/lib/shoot-board-model';
 
@@ -36,7 +37,7 @@ type ExploreRecipeCardModel = {
   description: string;
   difficulty: string;
   id: string;
-  image: string;
+  image: AppImageSource;
   metadata: string[];
   origin: ExploreOrigin;
   recipe?: MockRecipe;
@@ -65,7 +66,7 @@ type ExploreCopy = {
     creatorHandle: string;
     description: string;
     difficulty: string;
-    image: string;
+    image: AppImageSource;
     metadata: string[];
     saveCount: number;
     title: string;
@@ -421,7 +422,7 @@ function RecommendedRecipeCard({
       <ImageBackground
         imageStyle={styles.recommendedImage}
         resizeMode="cover"
-        source={{ uri: card.image }}
+        source={toImageSource(card.image)}
         style={styles.recommendedBackground}
       >
         <LinearGradient
@@ -465,7 +466,7 @@ function BrowseRecipeRow({
 }) {
   return (
     <Pressable accessibilityRole="button" className="flex-row gap-3 py-3" onPress={onPress}>
-      <Image source={{ uri: card.image }} style={styles.rowImage} />
+      <Image source={toImageSource(card.image)} style={styles.rowImage} />
       <View className="min-w-0 flex-1 gap-1">
         <View className="flex-row items-start justify-between gap-2">
           <Text className="min-w-0 flex-1 text-[15px] font-black leading-[19px] text-ink" numberOfLines={2}>

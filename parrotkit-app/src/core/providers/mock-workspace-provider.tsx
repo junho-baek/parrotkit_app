@@ -16,6 +16,7 @@ import {
   recipesSeed,
   trendingReferencesSeed,
 } from '@/core/mocks/parrotkit-data';
+import type { AppImageSource } from '@/core/ui/image-source';
 import { getDefaultPrompterSelection } from '@/features/recipes/lib/mock-prompter-elements';
 import { normalizeNativeRecipeScene } from '@/features/recipes/lib/recipe-domain-normalizer';
 import {
@@ -45,7 +46,7 @@ type CreateRecipeDraftInput = {
   notes?: string;
   scenes?: MockRecipe['scenes'];
   shootStatus?: MockRecipe['shootStatus'];
-  thumbnail?: string;
+  thumbnail?: AppImageSource;
   title: string;
   videoUrl?: string;
   niche?: string;
@@ -258,13 +259,14 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
     const draftId = `recipe-${Date.now().toString(36)}`;
     const resolvedTitle = title.trim() || 'Untitled Recipe Draft';
     const draftScenes = scenes ?? buildScenes(resolvedTitle, niche, goal, notes);
+    const resolvedThumbnail = typeof thumbnail === 'string' ? thumbnail.trim() : thumbnail;
 
     const recipe: MockRecipe = {
       id: draftId,
       title: resolvedTitle,
       creator: '@parrotkit',
       platform,
-      thumbnail: thumbnail?.trim() || (platform === 'YouTube Shorts'
+      thumbnail: resolvedThumbnail || (platform === 'YouTube Shorts'
         ? 'https://img.youtube.com/vi/isQbx375vSo/maxresdefault.jpg'
         : 'https://images.unsplash.com/photo-1492724441997-5dc865305da7?auto=format&fit=crop&w=900&q=80'),
       savedAt: 'Saved just now',

@@ -1,4 +1,5 @@
 import { ugcMedia } from '@/core/mocks/ugc-media';
+import type { AppImageSource } from '@/core/ui/image-source';
 
 export type MockPlatform = 'TikTok' | 'Instagram Reels' | 'YouTube Shorts';
 
@@ -11,7 +12,7 @@ export type MockReference = {
   id: string;
   title: string;
   creator: string;
-  thumbnail: string;
+  thumbnail: AppImageSource;
   duration: string;
   views: string;
   likes: number;
@@ -73,7 +74,7 @@ export type MockRecipeScene = {
   summary: string;
   startTime?: string;
   endTime?: string;
-  thumbnail?: string;
+  thumbnail?: AppImageSource;
   analysisLines: string[];
   recipeLines: string[];
   prompterLines: string[];
@@ -119,7 +120,7 @@ export type MockRecipe = {
   title: string;
   creator: string;
   platform: MockPlatform;
-  thumbnail: string;
+  thumbnail: AppImageSource;
   savedAt: string;
   sourceUrl: string;
   referenceVideoSource?: string | number;

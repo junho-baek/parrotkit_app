@@ -19,6 +19,7 @@ import { useAppLanguage, type AppLanguage } from "@/core/i18n/app-language";
 import type { MockProjectTake, MockRecipe } from "@/core/mocks/parrotkit-data";
 import { useMockWorkspace } from "@/core/providers/mock-workspace-provider";
 import { brandActionGradient } from "@/core/theme/colors";
+import { toImageSource } from "@/core/ui/image-source";
 import { ReferenceViewerModal } from "@/features/recipes/components/reference-viewer-modal";
 import { ShootBoardDraggableList } from "@/features/recipes/components/shoot-board-draggable-list";
 import { ShootBoardNoteCta } from "@/features/recipes/components/shoot-board-note-cta";
@@ -1018,7 +1019,7 @@ function SceneTimelineCard({
         >
           <ImageBackground
             resizeMode="cover"
-            source={{ uri: scene.thumbnail }}
+            source={toImageSource(scene.thumbnailSource ?? scene.thumbnail)}
             style={styles.timelineThumb}
           >
             <LinearGradient
@@ -1140,7 +1141,7 @@ function SceneWatchPanel({
         <ImageBackground
           imageStyle={{ borderRadius: 24 }}
           resizeMode="cover"
-          source={{ uri: scene.thumbnail }}
+          source={toImageSource(scene.thumbnailSource ?? scene.thumbnail)}
           style={styles.referencePlayer}
         >
           <LinearGradient

@@ -23,6 +23,7 @@ import type { MockRecipe } from '@/core/mocks/parrotkit-data';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient } from '@/core/theme/colors';
 import { AppScreenScrollView } from '@/core/ui/app-screen-scroll-view';
+import { toImageSource } from '@/core/ui/image-source';
 import { getShootBoardHref } from '@/features/recipes/lib/shoot-board-model';
 
 type HomeCopy = ReturnType<typeof useAppLanguage>['copy']['home'];
@@ -172,7 +173,7 @@ function ContinueRecipePanel({
 
       <View style={styles.continueCard}>
         <Pressable accessibilityRole="button" className="flex-row gap-3" onPress={onOpenRecipe}>
-          <Image source={{ uri: recipe.thumbnail }} style={styles.continueImage} />
+          <Image source={toImageSource(recipe.thumbnail)} style={styles.continueImage} />
           <View className="flex-1 justify-center gap-1.5">
             <Text className="text-[17px] font-black leading-[21px] text-ink" numberOfLines={2}>
               {recipe.title || copy.continueTitleFallback}
@@ -248,7 +249,7 @@ function QuickRecipeTile({
       <ImageBackground
         imageStyle={styles.quickTileImage}
         resizeMode="cover"
-        source={{ uri: recipe.thumbnail }}
+        source={toImageSource(recipe.thumbnail)}
         style={styles.quickTileBackground}
       >
         <LinearGradient
@@ -296,7 +297,7 @@ function RecentRecipeRow({
 
   return (
     <Pressable accessibilityRole="button" className="flex-row items-center gap-3 py-3" onPress={onOpen}>
-      <Image source={{ uri: recipe.thumbnail }} style={styles.recentImage} />
+      <Image source={toImageSource(recipe.thumbnail)} style={styles.recentImage} />
       <View className="flex-1 gap-1">
         <Text className="text-[16px] font-black leading-5 text-ink" numberOfLines={2}>
           {recipe.title}

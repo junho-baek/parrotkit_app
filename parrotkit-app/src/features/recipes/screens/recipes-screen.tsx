@@ -21,6 +21,7 @@ import { APP_TOP_BAR_HIDE_RANGE } from '@/core/navigation/app-top-bar';
 import { useAppChrome } from '@/core/navigation/app-chrome-provider';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient } from '@/core/theme/colors';
+import { toImageSource, type AppImageSource } from '@/core/ui/image-source';
 import { getContinueShootRecipe, getLatestShootableRecipe } from '@/features/recipes/lib/recipe-ownership';
 import {
   createRecipeProductDemoModel,
@@ -759,7 +760,7 @@ function ContinueShootCard({
     <View className="gap-2">
       <Text className="text-[15px] font-black text-ink">{copy.continueSection as string}</Text>
       <Pressable accessibilityRole="button" onPress={onOpen} style={styles.continueCard}>
-        <Image source={{ uri: recipe.thumbnail }} style={styles.continueImage} />
+        <Image source={toImageSource(recipe.thumbnail)} style={styles.continueImage} />
         <View className="min-w-0 flex-1 gap-1.5">
           <View className="flex-row items-start justify-between gap-2">
             <Text className="flex-1 text-[16px] font-black leading-[20px] text-ink" numberOfLines={2}>
@@ -847,7 +848,7 @@ function RecipeListRow({
   return (
     <View style={styles.recipeRow}>
       <Pressable accessibilityRole="button" className="min-w-0 flex-1 flex-row items-center gap-3" onPress={onOpen}>
-        <Image source={{ uri: recipe.thumbnail }} style={styles.recipeRowImage} />
+        <Image source={toImageSource(recipe.thumbnail)} style={styles.recipeRowImage} />
         <View className="min-w-0 flex-1">
           <Text className="text-[14px] font-black leading-[18px] text-ink" numberOfLines={1}>
             {recipe.title}
@@ -887,7 +888,7 @@ function CollectionScreen({
 }: {
   collections: CollectionItem[];
   copy: (typeof recipeCopy)['en'];
-  imageLookup: Map<string, string>;
+  imageLookup: Map<string, AppImageSource>;
   language: AppLanguage;
   onBack: () => void;
   onOpenRecipe: (recipe: MockRecipe) => void;
@@ -933,12 +934,12 @@ function CollectionScreen({
           {featuredCollection.imageIds.map((imageId) => (
             <Image
               key={imageId}
-              source={{ uri: imageLookup.get(imageId) ?? recipes[0]?.thumbnail }}
+              source={toImageSource(imageLookup.get(imageId) ?? recipes[0]?.thumbnail)}
               style={styles.collectionPreviewImage}
             />
           ))}
           {recipes.slice(0, 2).map((recipe) => (
-            <Image key={recipe.id} source={{ uri: recipe.thumbnail }} style={styles.collectionPreviewImage} />
+            <Image key={recipe.id} source={toImageSource(recipe.thumbnail)} style={styles.collectionPreviewImage} />
           ))}
         </View>
       </View>
@@ -1199,7 +1200,7 @@ function RecipeSavedHub({
       </View>
 
       <View style={styles.savedRecipeCard}>
-        <Image source={{ uri: recipe.thumbnail }} style={styles.savedRecipeImage} />
+        <Image source={toImageSource(recipe.thumbnail)} style={styles.savedRecipeImage} />
         <View className="min-w-0 flex-1">
           <Text className="text-[16px] font-black leading-5 text-ink" numberOfLines={2}>{product.title}</Text>
           <Text className="mt-1 text-[12px] font-semibold text-muted">
@@ -1312,7 +1313,7 @@ function RecipeMarketplaceSettings({
       </View>
 
       <View className="flex-row gap-4">
-        <ImageBackground imageStyle={styles.marketCoverImage} source={{ uri: recipe.thumbnail }} style={styles.marketCover}>
+        <ImageBackground imageStyle={styles.marketCoverImage} source={toImageSource(recipe.thumbnail)} style={styles.marketCover}>
           <LinearGradient colors={['rgba(15,23,42,0.02)', 'rgba(15,23,42,0.58)']} style={StyleSheet.absoluteFill} />
           <View style={styles.coverChangePill}>
             <MaterialCommunityIcons color="#111827" name="camera-outline" size={14} />
@@ -1426,7 +1427,7 @@ function RecipeAssetHero({
   recipe: MockRecipe;
 }) {
   return (
-    <ImageBackground imageStyle={styles.assetHeroImage} resizeMode="cover" source={{ uri: recipe.thumbnail }} style={styles.assetHero}>
+    <ImageBackground imageStyle={styles.assetHeroImage} resizeMode="cover" source={toImageSource(recipe.thumbnail)} style={styles.assetHero}>
       <LinearGradient colors={['rgba(15,23,42,0.05)', 'rgba(15,23,42,0.82)']} style={StyleSheet.absoluteFill} />
       <View className="flex-1 justify-between">
         <View className="flex-row items-center justify-between">

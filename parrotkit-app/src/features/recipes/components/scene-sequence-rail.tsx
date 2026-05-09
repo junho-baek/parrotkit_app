@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { toImageSource } from '@/core/ui/image-source';
 import { NativeRecipeScene } from '@/features/recipes/types/recipe-domain';
 
 export function SceneSequenceRail({
@@ -28,7 +29,7 @@ export function SceneSequenceRail({
             >
               <View className="aspect-[9/12] bg-slate-100">
                 {scene.thumbnail ? (
-                  <Image className="h-full w-full" resizeMode="cover" source={{ uri: scene.thumbnail }} />
+                  <Image className="h-full w-full" resizeMode="cover" source={toImageSource(scene.thumbnailSource ?? scene.thumbnail)} />
                 ) : null}
               </View>
               <View className="gap-1 px-3 py-3">

@@ -1,11 +1,12 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
-import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, TextInput, View, type ImageSourcePropType } from "react-native";
 import { TouchableOpacity } from "react-native-gesture-handler";
 
 import type { AppLanguage } from "@/core/i18n/app-language";
 import { brandActionGradient } from "@/core/theme/colors";
+import { toImageSource } from "@/core/ui/image-source";
 import { shootBoardSceneCardLayout } from "@/features/recipes/components/shoot-board-scene-card-layout";
 import {
   getShootBoardCutCompletionState,
@@ -93,6 +94,7 @@ export function ShootBoardSceneCard({
           <CutThumbnail
             expanded={expanded}
             onPress={onPreview}
+            thumbnailSource={cut.thumbnailSource}
             thumbnailUrl={cut.thumbnailUrl}
           />
 
@@ -296,10 +298,12 @@ export function ShootBoardSceneCard({
 function CutThumbnail({
   expanded,
   onPress,
+  thumbnailSource,
   thumbnailUrl,
 }: {
   expanded: boolean;
   onPress: () => void;
+  thumbnailSource?: ImageSourcePropType;
   thumbnailUrl?: string;
 }) {
   const size = expanded
@@ -312,11 +316,11 @@ function CutThumbnail({
       onPress={onPress}
       style={[styles.thumbnail, size]}
     >
-      {thumbnailUrl ? (
+      {thumbnailSource || thumbnailUrl ? (
         <Image
           accessibilityIgnoresInvertColors
           resizeMode="cover"
-          source={{ uri: thumbnailUrl }}
+          source={thumbnailSource ?? toImageSource(thumbnailUrl)}
           style={styles.thumbnailImage}
         />
       ) : (
