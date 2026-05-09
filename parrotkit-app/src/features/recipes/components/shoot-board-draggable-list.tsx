@@ -22,7 +22,6 @@ export function ShootBoardDraggableList({
   onDragStateChange,
   onPreview,
   onReorderCuts,
-  onResetCut,
   onShoot,
   onTake,
   onToggleExpanded,
@@ -40,7 +39,6 @@ export function ShootBoardDraggableList({
   onDragStateChange?: (dragging: boolean) => void;
   onPreview: (cut: ShootBoardCut) => void;
   onReorderCuts: (cuts: ShootBoardCut[]) => void;
-  onResetCut: (cutId: string) => void;
   onShoot: (cut: ShootBoardCut) => void;
   onTake: (cut: ShootBoardCut) => void;
   onToggleExpanded: (cutId: string) => void;
@@ -71,7 +69,6 @@ export function ShootBoardDraggableList({
           language={language}
           onDragStart={drag}
           onPreview={() => onPreview(cut)}
-          onReset={() => onResetCut(cut.id)}
           onShoot={() => onShoot(cut)}
           onTake={() => onTake(cut)}
           onToggleExpanded={() => onToggleExpanded(cut.id)}

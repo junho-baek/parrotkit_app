@@ -35,7 +35,6 @@ import {
   createShootBoardRecipe,
   getRecipePrompterHref,
   replaceShootBoardCutOrder,
-  resetShootBoardCut,
   selectShootBoardFinalTake,
   setShootBoardChecklistItem,
   setShootBoardCutCompletion,
@@ -455,13 +454,6 @@ export function RecipeDetailScreen() {
     updateBoard((board) => updateShootBoardCutText(board, cutId, patch));
   };
 
-  const resetCutText = (cutId: string) => {
-    updateBoard((board) => {
-      const originalCut = originalCutSnapshotsRef.current[cutId];
-      return originalCut ? resetShootBoardCut(board, originalCut) : board;
-    });
-  };
-
   const addCut = () => {
     if (!shootBoard) {
       return;
@@ -697,7 +689,6 @@ export function RecipeDetailScreen() {
         onDragStateChange={setBoardDragActive}
         onPreview={openReferenceViewer}
         onReorderCuts={handleReorderCuts}
-        onResetCut={resetCutText}
         onShoot={openPrompterForCut}
         onTake={openTakeViewer}
         onToggleExpanded={toggleExpandedCut}

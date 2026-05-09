@@ -1,12 +1,12 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { TouchableOpacity } from "react-native-gesture-handler";
 
 import type { AppLanguage } from "@/core/i18n/app-language";
 import { brandActionGradient } from "@/core/theme/colors";
-import { ShootBoardMediaSlot } from "@/features/recipes/components/shoot-board-media-slot";
+import { shootBoardSceneCardLayout } from "@/features/recipes/components/shoot-board-scene-card-layout";
 import {
   getShootBoardCutCompletionState,
   type ShootBoardCut,
@@ -19,7 +19,6 @@ export function ShootBoardSceneCard({
   language,
   onDragStart,
   onPreview,
-  onReset,
   onTake,
   onShoot,
   onToggleExpanded,
@@ -33,7 +32,6 @@ export function ShootBoardSceneCard({
   language: AppLanguage;
   onDragStart: () => void;
   onPreview: () => void;
-  onReset: () => void;
   onTake: () => void;
   onShoot: () => void;
   onToggleExpanded: () => void;
@@ -42,25 +40,32 @@ export function ShootBoardSceneCard({
   onUpdateText: (patch: ShootBoardCutTextPatch) => void;
   reorderMode: boolean;
 }) {
-  const [editing, setEditing] = useState(() => isBlankEditableCut(cut));
+  const [editing] = useState(() => isBlankEditableCut(cut));
   const completionState = getShootBoardCutCompletionState(cut);
   const accent = getRoleAccent(cut.role);
+  const title = language === "ko" ? cut.titleKo : cut.title;
+  const instruction =
+    language === "ko" ? (cut.instructionKo ?? cut.instruction) : cut.instruction;
+
   return (
     <View
       style={[
         styles.card,
-        { borderColor: getTakeStatusBorderColor(cut.takeStatus) },
+        { borderBottomColor: getTakeStatusBorderColor(cut.takeStatus) },
         cut.takeStatus === "final" && styles.finalCard,
       ]}
     >
-      <View className="flex-row items-start gap-2">
+      <View style={styles.headerRow}>
         <TouchableOpacity
           activeOpacity={0.72}
           accessibilityLabel={language === "ko" ? "드래그 핸들" : "Drag handle"}
           accessibilityRole="button"
           delayLongPress={180}
           onLongPress={onDragStart}
-          style={styles.dragHandle}
+          style={[
+            styles.dragHandle,
+            expanded ? styles.dragHandleExpanded : styles.dragHandleCollapsed,
+          ]}
         >
           <MaterialCommunityIcons
             color={reorderMode ? accent.main : "#94a3b8"}
@@ -71,8 +76,11 @@ export function ShootBoardSceneCard({
 
         <Pressable
           accessibilityRole="button"
-          className="mt-0.5 h-8 w-8 items-center justify-center rounded-full"
           onPress={onToggleExpanded}
+          style={[
+            styles.expandButton,
+            expanded ? styles.expandButtonExpanded : styles.expandButtonCollapsed,
+          ]}
         >
           <MaterialCommunityIcons
             color="#111827"
@@ -81,27 +89,31 @@ export function ShootBoardSceneCard({
           />
         </Pressable>
 
+        <CutThumbnail
+          expanded={expanded}
+          onPress={onPreview}
+          thumbnailUrl={cut.thumbnailUrl}
+        />
+
         <Pressable
           accessibilityRole="button"
-          className="min-w-0 flex-1"
           onPress={onToggleExpanded}
+          style={[
+            styles.titleBlock,
+            expanded ? styles.titleBlockExpanded : styles.titleBlockCollapsed,
+          ]}
         >
-          <View className="flex-row flex-wrap items-center gap-1.5">
-            <Text className="text-[14px] font-black text-ink">
-              {language === "ko" ? cut.titleKo : cut.title}
+          <View style={styles.titleRow}>
+            <Text numberOfLines={1} style={styles.titleText}>
+              {title}
             </Text>
-            <Text className="text-[13px] font-black text-muted">·</Text>
-            <Text className="text-[13px] font-black text-muted">
+            <Text style={styles.titleDot}>·</Text>
+            <Text style={styles.durationText}>
               {formatCutDuration(language, cut.durationSeconds)}
             </Text>
           </View>
-          <Text
-            className="mt-1 text-[13px] font-semibold leading-5 text-ink"
-            numberOfLines={expanded ? 3 : 1}
-          >
-            {language === "ko"
-              ? (cut.instructionKo ?? cut.instruction)
-              : cut.instruction}
+          <Text numberOfLines={expanded ? 2 : 1} style={styles.instructionText}>
+            {instruction}
           </Text>
         </Pressable>
 
@@ -111,6 +123,9 @@ export function ShootBoardSceneCard({
           onPress={() => onToggleSceneComplete(completionState !== "complete")}
           style={[
             styles.completionCircle,
+            expanded
+              ? styles.completionCircleExpanded
+              : styles.completionCircleCollapsed,
             completionState === "complete" && {
               backgroundColor: accent.main,
               borderColor: accent.main,
@@ -131,41 +146,6 @@ export function ShootBoardSceneCard({
 
       {expanded ? (
         <View style={styles.expandedBody}>
-          <View className="flex-row justify-end gap-2">
-            <Pressable
-              accessibilityRole="button"
-              className={`flex-row items-center gap-1 rounded-full border px-3 py-1.5 ${
-                editing ? "border-violet bg-violet" : "border-stroke bg-white"
-              }`}
-              onPress={() => setEditing((current) => !current)}
-            >
-              <MaterialCommunityIcons
-                color={editing ? "#ffffff" : "#8b5cf6"}
-                name={editing ? "check" : "pencil-outline"}
-                size={14}
-              />
-              <Text
-                className={`text-[11px] font-black ${editing ? "text-white" : "text-violet"}`}
-              >
-                {editing ? "Done" : "Edit"}
-              </Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              className="flex-row items-center gap-1 rounded-full border border-stroke bg-white px-3 py-1.5"
-              onPress={onReset}
-            >
-              <MaterialCommunityIcons
-                color="#64748b"
-                name="restore"
-                size={14}
-              />
-              <Text className="text-[11px] font-black text-muted">
-                {language === "ko" ? "원래대로" : "Reset"}
-              </Text>
-            </Pressable>
-          </View>
-
           <DetailInput
             editing={editing}
             placeholder={
@@ -205,12 +185,12 @@ export function ShootBoardSceneCard({
             }
           />
 
-          <View className="gap-2">
-            <Text className="text-[12px] font-black text-ink">
+          <View style={styles.checklist}>
+            <Text style={styles.detailTitle}>
               {language === "ko" ? "필수 체크" : "Required checklist"}
             </Text>
             {cut.requiredChecklist.map((item) => (
-              <View className="flex-row items-center gap-2" key={item.id}>
+              <View style={styles.checkRow} key={item.id}>
                 <Pressable
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: item.checked }}
@@ -253,7 +233,7 @@ export function ShootBoardSceneCard({
                     value={language === "ko" ? item.labelKo : item.label}
                   />
                 ) : (
-                  <Text className="min-w-0 flex-1 text-[13px] font-semibold leading-5 text-ink">
+                  <Text style={styles.checkLabel}>
                     {language === "ko" ? item.labelKo : item.label}
                   </Text>
                 )}
@@ -261,68 +241,95 @@ export function ShootBoardSceneCard({
             ))}
           </View>
 
-          <View className="flex-row items-end gap-2">
-            <View className="flex-row gap-2">
-              <ShootBoardMediaSlot
-                caption={undefined}
-                label="Reference"
-                onPress={onPreview}
-                status="saved"
-                thumbnailUrl={cut.thumbnailUrl}
-                timeRangeLabel={undefined}
+          <View style={styles.actionsRow}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={onTake}
+              style={styles.secondaryActionButton}
+            >
+              <MaterialCommunityIcons color="#27358f" name="plus" size={17} />
+              <Text numberOfLines={1} style={styles.secondaryActionText}>
+                {language === "ko" ? "My Take" : "My Take"}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={onTake}
+              style={styles.secondaryActionButton}
+            >
+              <MaterialCommunityIcons
+                color="#111827"
+                name="calendar-check-outline"
+                size={15}
               />
-              <ShootBoardMediaSlot
-                caption={undefined}
-                label="My Take"
-                onPress={onTake}
-                status={getTakeSlotStatus(cut)}
-                thumbnailUrl={
-                  cut.takes.length > 0 ? cut.takeThumbnailUrl : undefined
-                }
-                timeRangeLabel={undefined}
-              />
-            </View>
-            <View className="min-w-0 flex-1 flex-row gap-2">
-              <Pressable
-                accessibilityRole="button"
-                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[12px] border border-stroke bg-white px-3 py-3"
-                onPress={onTake}
+              <Text numberOfLines={1} style={styles.takeActionText}>
+                Takes ({cut.takes.length})
+              </Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={onShoot}
+              style={styles.primaryActionPressable}
+            >
+              <LinearGradient
+                colors={brandActionGradient}
+                end={{ x: 1, y: 1 }}
+                start={{ x: 0, y: 0 }}
+                style={styles.shootButton}
               >
                 <MaterialCommunityIcons
-                  color="#111827"
-                  name="calendar-check-outline"
-                  size={15}
+                  color="#fff"
+                  name="video-outline"
+                  size={17}
                 />
-                <Text className="text-[12px] font-black text-ink">
-                  Takes ({cut.takes.length})
+                <Text numberOfLines={1} style={styles.shootButtonText}>
+                  {language === "ko" ? "촬영" : "Shoot"}
                 </Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                className="flex-1 overflow-hidden rounded-[12px]"
-                onPress={onShoot}
-              >
-                <LinearGradient
-                  colors={brandActionGradient}
-                  end={{ x: 1, y: 1 }}
-                  start={{ x: 0, y: 0 }}
-                  style={styles.shootButton}
-                >
-                  <MaterialCommunityIcons
-                    color="#fff"
-                    name="video-outline"
-                    size={17}
-                  />
-                  <Text className="text-[13px] font-black text-white">
-                    {language === "ko" ? "촬영" : "Shoot"}
-                  </Text>
-                </LinearGradient>
-              </Pressable>
-            </View>
+              </LinearGradient>
+            </Pressable>
           </View>
         </View>
       ) : null}
     </View>
+  );
+}
+
+function CutThumbnail({
+  expanded,
+  onPress,
+  thumbnailUrl,
+}: {
+  expanded: boolean;
+  onPress: () => void;
+  thumbnailUrl?: string;
+}) {
+  const size = expanded
+    ? shootBoardSceneCardLayout.expandedThumbnail
+    : shootBoardSceneCardLayout.collapsedThumbnail;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={[styles.thumbnail, size]}
+    >
+      {thumbnailUrl ? (
+        <Image
+          accessibilityIgnoresInvertColors
+          resizeMode="cover"
+          source={{ uri: thumbnailUrl }}
+          style={styles.thumbnailImage}
+        />
+      ) : (
+        <View style={styles.emptyThumbnail} />
+      )}
+      <View style={styles.thumbnailShade} />
+      <View style={styles.thumbnailPlay}>
+        <MaterialCommunityIcons color="#8b5cf6" name="play" size={18} />
+      </View>
+    </Pressable>
   );
 }
 
@@ -392,13 +399,6 @@ function getTakeStatusBorderColor(status: ShootBoardCut["takeStatus"]) {
   return "#e2e8f0";
 }
 
-function getTakeSlotStatus(cut: ShootBoardCut) {
-  if (cut.takeStatus === "final") return "final";
-  if (cut.takeStatus === "needs_reshoot") return "needs_reshoot";
-  if (cut.takes.length > 0 || cut.takeStatus === "saved") return "saved";
-  return "empty";
-}
-
 function getRoleAccent(role: ShootBoardCut["role"]) {
   if (role === "proof") return { main: "#f97316" };
   if (role === "cta") return { main: "#8b5cf6" };
@@ -408,16 +408,15 @@ function getRoleAccent(role: ShootBoardCut["role"]) {
 }
 
 const styles = StyleSheet.create({
+  actionsRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 2,
+  },
   card: {
     backgroundColor: "#ffffff",
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    shadowColor: "#0f172a",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.035,
-    shadowRadius: 14,
+    borderBottomWidth: 1,
+    paddingVertical: 14,
   },
   checkBox: {
     alignItems: "center",
@@ -429,29 +428,87 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 18,
   },
+  checkLabel: {
+    color: "#111827",
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    letterSpacing: 0,
+    lineHeight: 20,
+    minWidth: 0,
+  },
+  checkRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+  },
+  checklist: {
+    gap: 10,
+  },
   completionCircle: {
     alignItems: "center",
     backgroundColor: "#ffffff",
-    borderColor: "#94a3b8",
+    borderColor: "#64748b",
     borderRadius: 999,
     borderWidth: 1.5,
-    height: 26,
+    height: 28,
     justifyContent: "center",
-    marginTop: 4,
-    width: 26,
+    width: 28,
+  },
+  completionCircleCollapsed: {
+    marginTop: 29,
+  },
+  completionCircleExpanded: {
+    marginTop: 50,
+  },
+  detailTitle: {
+    color: "#111827",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 0,
+    marginBottom: 2,
   },
   dragHandle: {
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: -5,
-    marginTop: 3,
-    width: 17,
+    width: 18,
+  },
+  dragHandleCollapsed: {
+    marginTop: 28,
+  },
+  dragHandleExpanded: {
+    marginTop: 49,
+  },
+  durationText: {
+    color: "#64748b",
+    flexShrink: 0,
+    fontSize: 17,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  emptyThumbnail: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#eef2f7",
+  },
+  expandButton: {
+    alignItems: "center",
+    height: 34,
+    justifyContent: "center",
+    width: 28,
+  },
+  expandButtonCollapsed: {
+    marginTop: 25,
+  },
+  expandButtonExpanded: {
+    marginTop: 46,
   },
   expandedBody: {
-    gap: 14,
-    marginLeft: 41,
-    marginTop: 12,
-    paddingTop: 13,
+    borderTopColor: "#e2e8f0",
+    borderTopWidth: 1,
+    gap: 18,
+    marginLeft: 116,
+    marginTop: 14,
+    paddingTop: 17,
   },
   detailEditInput: {
     backgroundColor: "#f8fafc",
@@ -465,7 +522,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   finalCard: {
-    shadowOpacity: 0.08,
+    borderBottomColor: "#8b5cf6",
+  },
+  headerRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 10,
   },
   inlineEditInput: {
     backgroundColor: "#f8fafc",
@@ -479,18 +541,123 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
+  instructionText: {
+    color: "#64748b",
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: 0,
+    lineHeight: 22,
+    marginTop: 8,
+  },
   partialDash: {
     borderRadius: 999,
     height: 3,
     width: 12,
   },
+  primaryActionPressable: {
+    borderRadius: 8,
+    flex: 1.08,
+    overflow: "hidden",
+  },
+  secondaryActionButton: {
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderColor: "#dbe3ee",
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 10,
+  },
+  secondaryActionText: {
+    color: "#27358f",
+    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
   shootButton: {
     alignItems: "center",
-    borderRadius: 12,
+    borderRadius: 8,
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 12,
+  },
+  shootButtonText: {
+    color: "#ffffff",
+    flexShrink: 1,
+    fontSize: 15,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  takeActionText: {
+    color: "#111827",
+    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  thumbnail: {
+    backgroundColor: "#e2e8f0",
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  thumbnailImage: {
+    ...StyleSheet.absoluteFillObject,
+    height: "100%",
+    width: "100%",
+  },
+  thumbnailPlay: {
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
+    borderRadius: 999,
+    height: 38,
+    justifyContent: "center",
+    left: "50%",
+    marginLeft: -19,
+    marginTop: -19,
+    position: "absolute",
+    top: "50%",
+    width: 38,
+  },
+  thumbnailShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(15, 23, 42, 0.06)",
+  },
+  titleBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  titleBlockCollapsed: {
+    paddingTop: 16,
+  },
+  titleBlockExpanded: {
+    paddingTop: 28,
+  },
+  titleDot: {
+    color: "#64748b",
+    flexShrink: 0,
+    fontSize: 17,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  titleRow: {
+    alignItems: "center",
     flexDirection: "row",
     gap: 6,
-    justifyContent: "center",
-    minHeight: 46,
-    paddingHorizontal: 10,
+    minWidth: 0,
+  },
+  titleText: {
+    color: "#111827",
+    flexShrink: 1,
+    fontSize: 19,
+    fontWeight: "900",
+    letterSpacing: 0,
+    lineHeight: 24,
   },
 });
