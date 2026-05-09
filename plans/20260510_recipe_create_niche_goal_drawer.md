@@ -40,11 +40,12 @@
 - `RecipeCreateScreen`을 이전 drawer tab/detail layout으로 되돌리고 niche/goal helper/test 추가분을 제거한다.
 
 ## 리스크
-- Goal card 이미지 URL은 remote mock image에 의존한다.
+- Goal/niche 이미지는 기존 번들 UGC mock image를 재사용하므로 추가 asset 생성은 하지 않았다.
 - 모든 mode가 shoot board로 이동하므로 reference/brand 전용 drawer를 기대하는 데모 흐름은 바뀐다.
 
 ## 결과
 - 기존 mode 설명 카드, board 안내, included chips를 제거했다.
 - `New recipe` drawer를 상단 mode tabs, 링크 underline input, niche 선택, goal 이미지 카드, `Open shoot board` CTA 중심으로 재구성했다.
 - Link와 Brand mode는 Pro badge를 유지하고, 모든 mode는 선택된 niche/goal context로 draft recipe를 만든 뒤 shoot board로 이동한다.
+- Goal/niche visual은 기존 `assets/mock-media` 번들 이미지를 재사용해 오프라인 설치 앱에서도 표시되도록 했다.
 - Context 기록: `context/context_20260510_recipe_create_niche_goal_drawer.md`

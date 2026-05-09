@@ -24,7 +24,8 @@
 
 ## 이미지
 - 별도 생성 이미지 파일은 추가하지 않았다.
-- 데모용 goal/niche visual은 remote Unsplash URL을 option metadata에 넣어 사용했다.
+- 데모용 goal/niche visual은 기존 `assets/mock-media`의 번들 UGC 이미지로 연결했다.
+- React Native 런타임에서는 local bundled asset URI를 사용하므로 Expo 서버 없이 설치한 앱에서도 drawer visual이 유지된다.
 
 ## 검증
 - `cd parrotkit-app && npx tsx src/features/recipes/lib/recipe-create-flow.test.ts`
@@ -38,5 +39,4 @@
 - `npx` 실행 시 npm/Node 버전 경고가 출력되지만 테스트와 타입체크 실패로 이어지지는 않았다.
 
 ## 리스크
-- goal/niche 이미지는 remote URL에 의존한다. 오프라인 데모에서 이미지가 반드시 필요하면 asset bundle로 교체해야 한다.
 - Brand mode의 실제 파일 업로드/분석 기능은 이번 범위에 포함하지 않았다.
