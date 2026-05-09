@@ -89,33 +89,30 @@ export function ShootBoardSceneCard({
           />
         </Pressable>
 
-        <CutThumbnail
-          expanded={expanded}
-          onPress={onPreview}
-          thumbnailUrl={cut.thumbnailUrl}
-        />
+        <View style={styles.titleBlock}>
+          <CutThumbnail
+            expanded={expanded}
+            onPress={onPreview}
+            thumbnailUrl={cut.thumbnailUrl}
+          />
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={onToggleExpanded}
-          style={[
-            styles.titleBlock,
-            expanded ? styles.titleBlockExpanded : styles.titleBlockCollapsed,
-          ]}
-        >
-          <View style={styles.titleRow}>
-            <Text numberOfLines={1} style={styles.titleText}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onToggleExpanded}
+            style={styles.titleCopyButton}
+          >
+            <Text style={styles.titleText}>
               {title}
+              <Text style={styles.titleMetaText}>
+                {" · "}
+                {formatCutDuration(language, cut.durationSeconds)}
+              </Text>
             </Text>
-            <Text style={styles.titleDot}>·</Text>
-            <Text style={styles.durationText}>
-              {formatCutDuration(language, cut.durationSeconds)}
+            <Text style={styles.instructionText}>
+              {instruction}
             </Text>
-          </View>
-          <Text numberOfLines={expanded ? 2 : 1} style={styles.instructionText}>
-            {instruction}
-          </Text>
-        </Pressable>
+          </Pressable>
+        </View>
 
         <Pressable
           accessibilityRole="checkbox"
@@ -326,7 +323,12 @@ function CutThumbnail({
         <View style={styles.emptyThumbnail} />
       )}
       <View style={styles.thumbnailShade} />
-      <View style={styles.thumbnailPlay}>
+      <View
+        style={[
+          styles.thumbnailPlay,
+          expanded ? styles.thumbnailPlayExpanded : styles.thumbnailPlayCollapsed,
+        ]}
+      >
         <MaterialCommunityIcons color="#8b5cf6" name="play" size={18} />
       </View>
     </Pressable>
@@ -456,10 +458,10 @@ const styles = StyleSheet.create({
     width: 28,
   },
   completionCircleCollapsed: {
-    marginTop: 29,
+    marginTop: shootBoardSceneCardLayout.collapsedThumbnail.height + 8,
   },
   completionCircleExpanded: {
-    marginTop: 50,
+    marginTop: shootBoardSceneCardLayout.expandedThumbnail.height + 8,
   },
   detailTitle: {
     color: "#111827",
@@ -474,17 +476,10 @@ const styles = StyleSheet.create({
     width: 18,
   },
   dragHandleCollapsed: {
-    marginTop: 28,
+    marginTop: 16,
   },
   dragHandleExpanded: {
-    marginTop: 49,
-  },
-  durationText: {
-    color: "#64748b",
-    flexShrink: 0,
-    fontSize: 17,
-    fontWeight: "900",
-    letterSpacing: 0,
+    marginTop: 22,
   },
   emptyThumbnail: {
     ...StyleSheet.absoluteFillObject,
@@ -497,16 +492,16 @@ const styles = StyleSheet.create({
     width: 28,
   },
   expandButtonCollapsed: {
-    marginTop: 25,
+    marginTop: 13,
   },
   expandButtonExpanded: {
-    marginTop: 46,
+    marginTop: 19,
   },
   expandedBody: {
     borderTopColor: "#e2e8f0",
     borderTopWidth: 1,
     gap: 18,
-    marginLeft: 116,
+    marginLeft: shootBoardSceneCardLayout.expandedBodyLeftInset,
     marginTop: 14,
     paddingTop: 17,
   },
@@ -616,14 +611,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(255, 255, 255, 0.92)",
     borderRadius: 999,
-    height: 38,
     justifyContent: "center",
     left: "50%",
-    marginLeft: -19,
-    marginTop: -19,
     position: "absolute",
     top: "50%",
-    width: 38,
+  },
+  thumbnailPlayCollapsed: {
+    height: 28,
+    marginLeft: -14,
+    marginTop: -14,
+    width: 28,
+  },
+  thumbnailPlayExpanded: {
+    height: 32,
+    marginLeft: -16,
+    marginTop: -16,
+    width: 32,
   },
   thumbnailShade: {
     ...StyleSheet.absoluteFillObject,
@@ -633,29 +636,19 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  titleBlockCollapsed: {
-    paddingTop: 16,
-  },
-  titleBlockExpanded: {
-    paddingTop: 28,
-  },
-  titleDot: {
-    color: "#64748b",
-    flexShrink: 0,
-    fontSize: 17,
-    fontWeight: "900",
-    letterSpacing: 0,
-  },
-  titleRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 6,
-    minWidth: 0,
+  titleCopyButton: {
+    marginTop: 9,
   },
   titleText: {
     color: "#111827",
-    flexShrink: 1,
     fontSize: 19,
+    fontWeight: "900",
+    letterSpacing: 0,
+    lineHeight: 24,
+  },
+  titleMetaText: {
+    color: "#64748b",
+    fontSize: 17,
     fontWeight: "900",
     letterSpacing: 0,
     lineHeight: 24,
