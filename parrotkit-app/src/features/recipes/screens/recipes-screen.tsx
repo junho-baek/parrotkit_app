@@ -285,7 +285,7 @@ export function RecipesScreen() {
     router.push(getShootBoardHref(recipe.id) as Href);
   };
 
-  const startRecipeCreate = (mode: 'brand' | 'manual' | 'reference' = 'reference') => {
+  const startRecipeCreate = (mode: 'brand' | 'manual' | 'reference' = 'manual') => {
     router.push(`/recipe-create?mode=${mode}` as Href);
   };
 
@@ -414,7 +414,7 @@ export function RecipesScreen() {
           </Pressable>
         </View>
       </RecipesTabScrollView>
-      <RecipeCreateFab onPress={() => startRecipeCreate('reference')} />
+      <RecipeCreateFab onPress={() => startRecipeCreate('manual')} />
     </View>
   );
 }
