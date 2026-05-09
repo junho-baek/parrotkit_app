@@ -2,7 +2,16 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { ComponentProps, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Image,
+  ImageBackground,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppLanguage, type AppLanguage } from '@/core/i18n/app-language';
@@ -10,108 +19,49 @@ import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient } from '@/core/theme/colors';
 import {
   getInitialRecipeCreateMode,
+  getRecipeCreateDraftContext,
   getRecipeCreatePrimaryAction,
   isRecipeCreateModePro,
+  recipeCreateGoals,
   recipeCreateModes,
+  recipeCreateNiches,
+  type RecipeCreateGoalId,
   type RecipeCreateMode,
+  type RecipeCreateNicheId,
 } from '@/features/recipes/lib/recipe-create-flow';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 const createCopy = {
   en: {
-    title: 'Start a new recipe',
-    subtitle: 'Open the shoot board first, then add scenes as you build.',
+    title: 'New recipe',
     close: 'Close',
-    blankTitle: 'New shooting recipe',
-    blankNotes: 'Started from the recipe shoot board.',
     pro: 'Pro',
-    cta: {
-      reference: 'Open reference workflow',
-      manual: 'Start in shoot board',
-      brand: 'Add brand context',
-    },
+    linkPlaceholder: 'Paste a TikTok, Reels, Shorts, or product page link',
+    brandPlaceholder: 'Add brand context, product sheet, or campaign brief',
+    nicheQuestion: "What's the niche?",
+    goalQuestion: "What's the goal?",
+    cta: 'Open shoot board',
     mode: {
-      manual: {
-        icon: 'plus-box-outline' as IconName,
-        tab: 'Blank',
-        title: 'Start new recipe',
-        body: 'Create directly inside the recipe execution board.',
-      },
-      reference: {
-        icon: 'link-variant' as IconName,
-        tab: 'Link',
-        title: 'Reference link',
-        body: 'Paste a short-form video or post and let ParrotKit draft the structure.',
-      },
-      brand: {
-        icon: 'briefcase-upload-outline' as IconName,
-        tab: 'Brand',
-        title: 'Brand context',
-        body: 'Bring in a brief, product sheet, or campaign guardrails.',
-      },
-    } satisfies Record<RecipeCreateMode, { body: string; icon: IconName; tab: string; title: string }>,
-    fields: {
-      referenceTitle: 'Reference URL',
-      referencePlaceholder: 'TikTok, Reels, Shorts, or product page link',
-      boardTitle: 'Recipe execution board',
-      boardBody: 'Start with a draft workspace, then add scenes, lines, checks, and takes from one place.',
-      brandTitle: 'Brand Context PDF',
-      brandPlaceholder: 'Upload guideline PDF, brief, or product sheet',
-      included: 'What this mode prepares',
-    },
-    chips: {
-      manual: ['Add scenes', 'Shoot mode', 'Export'],
-      reference: ['Shot breakdown', 'Script draft', 'Prompter'],
-      brand: ['Must include', 'Avoid claims', 'Tone guide'],
-    } satisfies Record<RecipeCreateMode, string[]>,
+      manual: { icon: 'plus-box-outline' as IconName, tab: 'Blank' },
+      reference: { icon: 'link-variant' as IconName, tab: 'Link' },
+      brand: { icon: 'briefcase-plus-outline' as IconName, tab: 'Brand' },
+    } satisfies Record<RecipeCreateMode, { icon: IconName; tab: string }>,
   },
   ko: {
-    title: '새 레시피 시작',
-    subtitle: '먼저 실행 보드를 열고, 필요한 씬을 바로 추가하세요.',
+    title: 'New recipe',
     close: '닫기',
-    blankTitle: '새 촬영 레시피',
-    blankNotes: '레시피 실행 보드에서 시작한 draft입니다.',
     pro: 'Pro',
-    cta: {
-      reference: '레퍼런스 워크플로 열기',
-      manual: '촬영 보드에서 시작',
-      brand: '브랜드 컨텍스트 추가',
-    },
+    linkPlaceholder: 'TikTok, Reels, Shorts, 제품 페이지 링크 붙여넣기',
+    brandPlaceholder: '브랜드 컨텍스트, 제품 자료, 캠페인 브리프 추가',
+    nicheQuestion: '니치는 무엇인가요?',
+    goalQuestion: '목표는 무엇인가요?',
+    cta: 'Open shoot board',
     mode: {
-      manual: {
-        icon: 'plus-box-outline' as IconName,
-        tab: 'Blank',
-        title: '새 레시피 시작',
-        body: '레시피 실행 화면에서 씬을 추가하며 바로 만듭니다.',
-      },
-      reference: {
-        icon: 'link-variant' as IconName,
-        tab: '링크',
-        title: '레퍼런스 링크',
-        body: '숏폼 영상이나 게시물 링크를 붙여넣고 구조를 잡습니다.',
-      },
-      brand: {
-        icon: 'briefcase-upload-outline' as IconName,
-        tab: '브랜드',
-        title: '브랜드 컨텍스트',
-        body: '브리프, 제품 자료, 캠페인 가이드를 촬영 지시로 바꿉니다.',
-      },
-    } satisfies Record<RecipeCreateMode, { body: string; icon: IconName; tab: string; title: string }>,
-    fields: {
-      referenceTitle: '레퍼런스 URL',
-      referencePlaceholder: 'TikTok, Reels, Shorts, 제품 페이지 링크',
-      boardTitle: '레시피 실행 보드',
-      boardBody: 'Draft 작업 공간에서 씬, 대사, 체크리스트, take를 한 번에 추가하세요.',
-      brandTitle: '브랜드 컨텍스트 PDF',
-      brandPlaceholder: '가이드 PDF, 브리프, 제품 자료 업로드',
-      included: '이 모드에서 준비되는 것',
-    },
-    chips: {
-      manual: ['씬 추가', '촬영 모드', '내보내기'],
-      reference: ['컷 분석', '대사 초안', '프롬프터'],
-      brand: ['필수 요소', '금지 표현', '톤 가이드'],
-    } satisfies Record<RecipeCreateMode, string[]>,
+      manual: { icon: 'plus-box-outline' as IconName, tab: 'Blank' },
+      reference: { icon: 'link-variant' as IconName, tab: 'Link' },
+      brand: { icon: 'briefcase-plus-outline' as IconName, tab: 'Brand' },
+    } satisfies Record<RecipeCreateMode, { icon: IconName; tab: string }>,
   },
 } satisfies Record<AppLanguage, Record<string, unknown>>;
 
@@ -124,8 +74,10 @@ export function RecipeCreateScreen() {
   const copy = createCopy[language];
   const initialMode = getInitialRecipeCreateMode(params.mode);
   const [selectedMode, setSelectedMode] = useState<RecipeCreateMode>(initialMode);
-  const modeCopy = copy.mode as Record<RecipeCreateMode, { body: string; icon: IconName; tab: string; title: string }>;
-  const ctaCopy = copy.cta as Record<RecipeCreateMode, string>;
+  const [selectedNicheId, setSelectedNicheId] = useState<RecipeCreateNicheId>('beauty');
+  const [selectedGoalId, setSelectedGoalId] = useState<RecipeCreateGoalId>('ad');
+  const [referenceUrl, setReferenceUrl] = useState('');
+  const modeCopy = copy.mode as Record<RecipeCreateMode, { icon: IconName; tab: string }>;
 
   const back = () => {
     if (router.canGoBack()) {
@@ -139,17 +91,19 @@ export function RecipeCreateScreen() {
   const handlePrimaryAction = () => {
     const action = getRecipeCreatePrimaryAction(selectedMode);
 
-    if (action === 'open-shoot-board') {
-      const recipe = createRecipeDraft({
-        notes: copy.blankNotes as string,
-        title: copy.blankTitle as string,
-      });
-
-      router.replace(`/recipe/${recipe.id}` as Href);
+    if (action !== 'open-shoot-board') {
       return;
     }
 
-    router.replace('/source-actions' as Href);
+    const draft = getRecipeCreateDraftContext({
+      goalId: selectedGoalId,
+      mode: selectedMode,
+      nicheId: selectedNicheId,
+      referenceUrl,
+    });
+    const recipe = createRecipeDraft(draft);
+
+    router.replace(`/recipe/${recipe.id}` as Href);
   };
 
   useEffect(() => {
@@ -164,44 +118,17 @@ export function RecipeCreateScreen() {
         style={[
           styles.sheet,
           {
-            maxHeight: '92%',
+            maxHeight: '94%',
             paddingBottom: Math.max(insets.bottom, 12),
           },
         ]}
       >
-        <LinearGradient
-          colors={['rgba(213,232,255,0.78)', 'rgba(239,229,255,0.5)', 'rgba(255,255,255,0)']}
-          end={{ x: 0.5, y: 1 }}
-          pointerEvents="none"
-          start={{ x: 0.5, y: 0 }}
-          style={styles.topGlow}
-        />
-
         <View style={styles.handle} />
 
         <View style={styles.header}>
-          <Pressable accessibilityLabel={copy.close as string} accessibilityRole="button" onPress={back} style={styles.closeButton}>
-            <MaterialCommunityIcons color="#111827" name="arrow-left" size={23} />
+          <Pressable accessibilityLabel={copy.close as string} accessibilityRole="button" hitSlop={12} onPress={back}>
+            <MaterialCommunityIcons color="#05070d" name="close" size={29} />
           </Pressable>
-          <Text style={styles.headerTitle}>{copy.title as string}</Text>
-          <Pressable accessibilityLabel={copy.close as string} accessibilityRole="button" onPress={back} style={styles.closeButton}>
-            <MaterialCommunityIcons color="#111827" name="close" size={22} />
-          </Pressable>
-        </View>
-
-        <Text style={styles.subtitle}>{copy.subtitle as string}</Text>
-
-        <View style={styles.modeTabs}>
-          {recipeCreateModes.map((mode) => (
-            <CreateModeTab
-              item={modeCopy[mode]}
-              key={mode}
-              mode={mode}
-              onPress={() => setSelectedMode(mode)}
-              proLabel={copy.pro as string}
-              selected={mode === selectedMode}
-            />
-          ))}
         </View>
 
         <ScrollView
@@ -209,7 +136,54 @@ export function RecipeCreateScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <ModeDetail copy={copy} mode={selectedMode} />
+          <Text style={styles.title}>{copy.title as string}</Text>
+
+          <View style={styles.modeTabs}>
+            {recipeCreateModes.map((mode) => (
+              <CreateModeTab
+                item={modeCopy[mode]}
+                key={mode}
+                mode={mode}
+                onPress={() => setSelectedMode(mode)}
+                proLabel={copy.pro as string}
+                selected={mode === selectedMode}
+              />
+            ))}
+          </View>
+
+          <ModeInput
+            brandPlaceholder={copy.brandPlaceholder as string}
+            linkPlaceholder={copy.linkPlaceholder as string}
+            mode={selectedMode}
+            referenceUrl={referenceUrl}
+            onChangeReferenceUrl={setReferenceUrl}
+          />
+
+          <QuestionTitle title={copy.nicheQuestion as string} />
+          <View style={styles.nicheGrid}>
+            {recipeCreateNiches.map((niche) => (
+              <NicheOption
+                key={niche.id}
+                label={language === 'ko' ? niche.labelKo : niche.label}
+                niche={niche}
+                onPress={() => setSelectedNicheId(niche.id)}
+                selected={niche.id === selectedNicheId}
+              />
+            ))}
+          </View>
+
+          <QuestionTitle title={copy.goalQuestion as string} />
+          <View style={styles.goalGrid}>
+            {recipeCreateGoals.map((goal) => (
+              <GoalCard
+                goal={goal}
+                key={goal.id}
+                label={language === 'ko' ? goal.labelKo : goal.label}
+                onPress={() => setSelectedGoalId(goal.id)}
+                selected={goal.id === selectedGoalId}
+              />
+            ))}
+          </View>
         </ScrollView>
 
         <View style={styles.footer}>
@@ -220,8 +194,8 @@ export function RecipeCreateScreen() {
               start={{ x: 0, y: 0 }}
               style={styles.ctaButton}
             >
-              <Text style={styles.ctaText}>{ctaCopy[selectedMode]}</Text>
-              <MaterialCommunityIcons color="#fff" name="arrow-right" size={21} />
+              <Text style={styles.ctaText}>{copy.cta as string}</Text>
+              <MaterialCommunityIcons color="#fff" name="arrow-right" size={25} />
             </LinearGradient>
           </Pressable>
         </View>
@@ -237,387 +211,339 @@ function CreateModeTab({
   proLabel,
   selected,
 }: {
-  item: { body: string; icon: IconName; tab: string; title: string };
+  item: { icon: IconName; tab: string };
   mode: RecipeCreateMode;
   onPress: () => void;
   proLabel: string;
   selected: boolean;
 }) {
-  const pro = isRecipeCreateModePro(mode);
-
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
       style={[styles.modeTab, selected ? styles.modeTabActive : null]}
     >
-      <View style={[styles.modeTabIcon, selected ? modeTabActiveTone(mode) : modeTabTone(mode)]}>
-        <MaterialCommunityIcons color={modeColor(mode)} name={item.icon} size={22} />
-      </View>
-      <View style={styles.modeTabLabelRow}>
-        <Text numberOfLines={1} style={[styles.modeTabText, selected ? styles.modeTabTextActive : null]}>
-          {item.tab}
-        </Text>
-        {pro ? <ProBadge compact label={proLabel} /> : null}
-      </View>
+      <MaterialCommunityIcons color={selected ? '#8c67ff' : '#64748b'} name={item.icon} size={23} />
+      <Text style={[styles.modeTabText, selected ? styles.modeTabTextActive : null]}>{item.tab}</Text>
+      {isRecipeCreateModePro(mode) ? <ProBadge label={proLabel} /> : null}
     </Pressable>
   );
 }
 
-function ModeDetail({
-  copy,
+function ModeInput({
+  brandPlaceholder,
+  linkPlaceholder,
   mode,
+  onChangeReferenceUrl,
+  referenceUrl,
 }: {
-  copy: (typeof createCopy)['en'];
+  brandPlaceholder: string;
+  linkPlaceholder: string;
   mode: RecipeCreateMode;
+  onChangeReferenceUrl: (value: string) => void;
+  referenceUrl: string;
 }) {
-  const modeCopy = copy.mode as Record<RecipeCreateMode, { body: string; icon: IconName; tab: string; title: string }>;
-  const fields = copy.fields as Record<string, string>;
-  const chips = copy.chips as Record<RecipeCreateMode, string[]>;
-  const selected = modeCopy[mode];
+  if (mode === 'manual') {
+    return <View style={styles.modeInputSpacer} />;
+  }
+
+  const iconName: IconName = mode === 'brand' ? 'briefcase-outline' : 'link-variant';
+  const placeholder = mode === 'brand' ? brandPlaceholder : linkPlaceholder;
 
   return (
-    <View style={styles.detailPanel}>
-      <View style={styles.detailHeader}>
-        <View style={[styles.detailIcon, modeTabActiveTone(mode)]}>
-          <MaterialCommunityIcons color={modeColor(mode)} name={selected.icon} size={27} />
-        </View>
-        <View style={styles.detailTitleBlock}>
-          <View style={styles.detailTitleRow}>
-            <Text style={styles.detailTitle}>{selected.title}</Text>
-            {isRecipeCreateModePro(mode) ? <ProBadge label={copy.pro as string} /> : null}
-          </View>
-          <Text style={styles.detailBody}>{selected.body}</Text>
-        </View>
-      </View>
+    <View style={styles.underlineInputRow}>
+      <MaterialCommunityIcons color="#64748b" name={iconName} size={25} />
+      <TextInput
+        autoCapitalize="none"
+        autoCorrect={false}
+        editable={mode === 'reference'}
+        inputMode={mode === 'reference' ? 'url' : 'text'}
+        keyboardType={mode === 'reference' ? 'url' : 'default'}
+        onChangeText={onChangeReferenceUrl}
+        placeholder={placeholder}
+        placeholderTextColor="#9aa5b8"
+        style={styles.underlineInput}
+        value={mode === 'reference' ? referenceUrl : ''}
+      />
+    </View>
+  );
+}
 
-      {mode === 'manual' ? (
-        <View style={styles.boardCard}>
-          <View style={styles.boardIcon}>
-            <MaterialCommunityIcons color="#8c67ff" name="view-dashboard-outline" size={23} />
-          </View>
-          <View style={styles.boardCopy}>
-            <Text style={styles.boardTitle}>{fields.boardTitle}</Text>
-            <Text style={styles.boardBody}>{fields.boardBody}</Text>
-          </View>
+function QuestionTitle({ title }: { title: string }) {
+  return <Text style={styles.questionTitle}>{title}</Text>;
+}
+
+function NicheOption({
+  label,
+  niche,
+  onPress,
+  selected,
+}: {
+  label: string;
+  niche: (typeof recipeCreateNiches)[number];
+  onPress: () => void;
+  selected: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={[styles.nicheOption, selected ? styles.nicheOptionActive : null]}
+    >
+      {niche.imageUrl ? (
+        <Image source={{ uri: niche.imageUrl }} style={styles.nicheImage} />
+      ) : (
+        <View style={styles.nicheFallback}>
+          <MaterialCommunityIcons color="#94a3b8" name="dots-horizontal" size={24} />
+        </View>
+      )}
+      <Text numberOfLines={1} style={[styles.nicheLabel, selected ? styles.nicheLabelActive : null]}>
+        {label}
+      </Text>
+      {selected ? (
+        <View style={styles.nicheCheck}>
+          <MaterialCommunityIcons color="#ffffff" name="check" size={16} />
         </View>
       ) : null}
+    </Pressable>
+  );
+}
 
-      {mode === 'reference' ? (
-        <View style={styles.modeFieldGroup}>
-          <SimpleField label={fields.referenceTitle} value={fields.referencePlaceholder} />
-        </View>
-      ) : null}
-
-      {mode === 'brand' ? (
-        <View style={styles.modeFieldGroup}>
-          <View style={styles.uploadBox}>
-            <View style={styles.uploadIcon}>
-              <MaterialCommunityIcons color="#64748b" name="file-document-outline" size={23} />
-            </View>
-            <View style={styles.uploadCopy}>
-              <View style={styles.detailTitleRow}>
-                <Text style={styles.uploadTitle}>{fields.brandTitle}</Text>
-                <ProBadge label={copy.pro as string} />
-              </View>
-              <Text style={styles.uploadBody}>{fields.brandPlaceholder}</Text>
-            </View>
-            <MaterialCommunityIcons color="#111827" name="chevron-right" size={21} />
+function GoalCard({
+  goal,
+  label,
+  onPress,
+  selected,
+}: {
+  goal: (typeof recipeCreateGoals)[number];
+  label: string;
+  onPress: () => void;
+  selected: boolean;
+}) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.goalCardPressable}>
+      <ImageBackground
+        imageStyle={styles.goalImage}
+        resizeMode="cover"
+        source={{ uri: goal.imageUrl }}
+        style={[styles.goalCard, selected ? styles.goalCardActive : null]}
+      >
+        <LinearGradient
+          colors={['rgba(15,23,42,0.04)', 'rgba(15,23,42,0.62)']}
+          style={StyleSheet.absoluteFill}
+        />
+        {selected ? (
+          <View style={styles.goalCheck}>
+            <MaterialCommunityIcons color="#ffffff" name="check" size={25} />
           </View>
+        ) : null}
+        <View style={styles.goalCopy}>
+          <MaterialCommunityIcons color="#ffffff" name={getGoalIcon(goal.id)} size={29} />
+          <Text numberOfLines={2} style={styles.goalLabel}>{label}</Text>
         </View>
-      ) : null}
-
-      <IncludedChips chips={chips[mode]} label={fields.included} />
-    </View>
+      </ImageBackground>
+    </Pressable>
   );
 }
 
-function SimpleField({ label, value }: { label: string; value: string }) {
+function ProBadge({ label }: { label: string }) {
   return (
-    <View style={styles.simpleField}>
-      <Text style={styles.simpleFieldLabel}>{label}</Text>
-      <View style={styles.fieldBox}>
-        <Text style={styles.fieldValue}>{value}</Text>
-      </View>
+    <View style={styles.proBadge}>
+      <Text style={styles.proBadgeText}>{label}</Text>
     </View>
   );
 }
 
-function IncludedChips({ chips, label }: { chips: string[]; label: string }) {
-  return (
-    <View style={styles.chipGroup}>
-      <Text style={styles.chipGroupLabel}>{label}</Text>
-      <View style={styles.chipWrap}>
-        {chips.map((chip) => (
-          <View key={chip} style={styles.chip}>
-            <MaterialCommunityIcons color="#8c67ff" name="check" size={14} />
-            <Text style={styles.chipText}>{chip}</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function ProBadge({ compact, label }: { compact?: boolean; label: string }) {
-  return (
-    <View style={[styles.proBadge, compact ? styles.proBadgeCompact : null]}>
-      <Text style={[styles.proBadgeText, compact ? styles.proBadgeTextCompact : null]}>{label}</Text>
-    </View>
-  );
-}
-
-function modeColor(mode: RecipeCreateMode) {
-  if (mode === 'reference') return '#14b8a6';
-  if (mode === 'brand') return '#8c67ff';
-  return '#ff7a59';
-}
-
-function modeTabTone(mode: RecipeCreateMode) {
-  return {
-    backgroundColor: mode === 'reference' ? '#e7fbf7' : mode === 'brand' ? '#f4f0ff' : '#fff1eb',
-  };
-}
-
-function modeTabActiveTone(mode: RecipeCreateMode) {
-  return {
-    backgroundColor: mode === 'reference' ? '#dffaf4' : mode === 'brand' ? '#eee7ff' : '#ffece3',
-  };
+function getGoalIcon(goalId: RecipeCreateGoalId): IconName {
+  if (goalId === 'ad') return 'bullhorn-outline';
+  if (goalId === 'sell') return 'shopping-outline';
+  if (goalId === 'recipe-product') return 'cube-outline';
+  if (goalId === 'personal') return 'account-outline';
+  if (goalId === 'viral') return 'star-outline';
+  return 'chart-line-variant';
 }
 
 const styles = StyleSheet.create({
-  boardBody: {
-    color: '#64748b',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0,
-    lineHeight: 18,
-    marginTop: 3,
-  },
-  boardCard: {
-    alignItems: 'center',
-    backgroundColor: '#fff7f1',
-    borderColor: '#ffe0d0',
-    borderRadius: 20,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 18,
-    padding: 14,
-  },
-  boardCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  boardIcon: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 17,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
-  },
-  boardTitle: {
-    color: '#111827',
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 0,
-  },
-  chip: {
-    alignItems: 'center',
-    backgroundColor: '#f4f0ff',
-    borderRadius: 999,
-    flexDirection: 'row',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  chipGroup: {
-    gap: 10,
-    marginTop: 18,
-  },
-  chipGroupLabel: {
-    color: '#111827',
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 0,
-  },
-  chipText: {
-    color: '#8c67ff',
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 0,
-  },
-  chipWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  closeButton: {
-    alignItems: 'center',
-    borderColor: '#e2e8f0',
-    borderRadius: 999,
-    borderWidth: 1,
-    height: 42,
-    justifyContent: 'center',
-    width: 42,
-  },
   ctaButton: {
     alignItems: 'center',
+    borderRadius: 18,
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
     justifyContent: 'center',
-    minHeight: 58,
+    minHeight: 62,
   },
   ctaText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '900',
     letterSpacing: 0,
-  },
-  detailBody: {
-    color: '#64748b',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0,
-    lineHeight: 20,
-    marginTop: 3,
-  },
-  detailHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 13,
-  },
-  detailIcon: {
-    alignItems: 'center',
-    borderRadius: 20,
-    height: 64,
-    justifyContent: 'center',
-    width: 64,
-  },
-  detailPanel: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderRadius: 24,
-    borderWidth: 1,
-    padding: 16,
-  },
-  detailTitle: {
-    color: '#111827',
-    flexShrink: 1,
-    fontSize: 19,
-    fontWeight: '900',
-    letterSpacing: 0,
-    lineHeight: 23,
-  },
-  detailTitleBlock: {
-    flex: 1,
-    minWidth: 0,
-  },
-  detailTitleRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 7,
-  },
-  fieldBox: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderRadius: 16,
-    borderWidth: 1,
-    justifyContent: 'center',
-    minHeight: 52,
-    paddingHorizontal: 14,
-  },
-  fieldValue: {
-    color: '#94a3b8',
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0,
-    lineHeight: 18,
   },
   footer: {
-    borderTopColor: '#eef2f7',
-    borderTopWidth: 1,
-    paddingHorizontal: 20,
-    paddingTop: 14,
+    paddingHorizontal: 25,
+    paddingTop: 16,
+  },
+  goalCard: {
+    aspectRatio: 0.72,
+    borderRadius: 18,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+  },
+  goalCardActive: {
+    borderColor: '#8c67ff',
+    borderWidth: 2,
+    shadowColor: '#8c67ff',
+    shadowOffset: { height: 8, width: 0 },
+    shadowOpacity: 0.23,
+    shadowRadius: 16,
+  },
+  goalCardPressable: {
+    flexBasis: '30.8%',
+  },
+  goalCheck: {
+    alignItems: 'center',
+    backgroundColor: '#8c67ff',
+    borderRadius: 999,
+    height: 38,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: -4,
+    top: -4,
+    width: 38,
+    zIndex: 2,
+  },
+  goalCopy: {
+    alignItems: 'center',
+    gap: 6,
+    paddingBottom: 14,
+    paddingHorizontal: 8,
+    zIndex: 1,
+  },
+  goalGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 14,
+    paddingBottom: 8,
+  },
+  goalImage: {
+    borderRadius: 18,
+  },
+  goalLabel: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0,
+    lineHeight: 18,
+    textAlign: 'center',
   },
   handle: {
     alignSelf: 'center',
-    backgroundColor: '#d7dde7',
+    backgroundColor: '#d7dbe3',
     borderRadius: 999,
     height: 5,
-    marginBottom: 17,
-    marginTop: 18,
+    marginTop: 16,
     width: 58,
   },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    minHeight: 52,
+    paddingHorizontal: 24,
   },
-  headerTitle: {
-    color: '#111827',
-    fontSize: 18,
-    fontWeight: '900',
-    letterSpacing: 0,
-  },
-  modeFieldGroup: {
-    marginTop: 18,
+  modeInputSpacer: {
+    height: 22,
   },
   modeTab: {
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderColor: '#e2e8f0',
-    borderRadius: 18,
+    borderColor: '#e4e8f0',
+    borderRadius: 20,
     borderWidth: 1,
     flex: 1,
+    flexDirection: 'row',
     gap: 8,
-    minHeight: 88,
-    paddingHorizontal: 6,
-    paddingVertical: 10,
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: 10,
+    position: 'relative',
   },
   modeTabActive: {
-    backgroundColor: '#ffffff',
-    borderColor: '#c7d2fe',
-    shadowColor: '#0f172a',
-    shadowOffset: { height: 8, width: 0 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-  },
-  modeTabIcon: {
-    alignItems: 'center',
-    borderRadius: 16,
-    height: 42,
-    justifyContent: 'center',
-    width: 42,
-  },
-  modeTabLabelRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
-    justifyContent: 'center',
-    minHeight: 18,
+    backgroundColor: '#f1ebff',
+    borderColor: '#f1ebff',
   },
   modeTabText: {
     color: '#64748b',
-    fontSize: 12,
+    flexShrink: 1,
+    fontSize: 14,
     fontWeight: '900',
     letterSpacing: 0,
   },
   modeTabTextActive: {
-    color: '#111827',
+    color: '#05070d',
   },
   modeTabs: {
     flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingTop: 18,
+    gap: 14,
+    marginTop: 28,
+  },
+  nicheCheck: {
+    alignItems: 'center',
+    backgroundColor: '#8c67ff',
+    borderRadius: 999,
+    height: 28,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: 5,
+    width: 28,
+  },
+  nicheFallback: {
+    alignItems: 'center',
+    backgroundColor: '#eef2f7',
+    borderRadius: 18,
+    height: 46,
+    justifyContent: 'center',
+    width: 46,
+  },
+  nicheGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  nicheImage: {
+    borderRadius: 18,
+    height: 46,
+    width: 46,
+  },
+  nicheLabel: {
+    color: '#05070d',
+    flexShrink: 1,
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 0,
+  },
+  nicheLabelActive: {
+    color: '#8c67ff',
+  },
+  nicheOption: {
+    alignItems: 'center',
+    borderColor: '#e4e8f0',
+    borderRadius: 24,
+    borderWidth: 1,
+    flexBasis: '30.8%',
+    flexDirection: 'row',
+    gap: 10,
+    minHeight: 60,
+    paddingLeft: 6,
+    paddingRight: 18,
+  },
+  nicheOptionActive: {
+    borderColor: '#8c67ff',
+    borderWidth: 1.5,
+    shadowColor: '#8c67ff',
+    shadowOffset: { height: 5, width: 0 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
   },
   overlay: {
-    backgroundColor: 'rgba(15, 23, 42, 0.28)',
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
     flex: 1,
     justifyContent: 'flex-end',
   },
@@ -628,105 +554,64 @@ const styles = StyleSheet.create({
   proBadge: {
     backgroundColor: '#111827',
     borderRadius: 999,
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 3,
-  },
-  proBadgeCompact: {
-    paddingHorizontal: 5,
-    paddingVertical: 2,
+    position: 'absolute',
+    right: 5,
+    top: 4,
   },
   proBadgeText: {
     color: '#ffffff',
-    fontSize: 10,
+    fontSize: 8,
     fontWeight: '900',
-    letterSpacing: 0.2,
+    letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
-  proBadgeTextCompact: {
-    fontSize: 8,
+  questionTitle: {
+    color: '#05070d',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 0,
+    marginBottom: 18,
+    marginTop: 32,
   },
   scrollContent: {
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingBottom: 18,
+    paddingHorizontal: 25,
   },
   sheet: {
     alignSelf: 'center',
     backgroundColor: '#ffffff',
-    borderColor: 'rgba(255,255,255,0.9)',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    borderWidth: 1,
-    maxWidth: 500,
     overflow: 'hidden',
-    shadowColor: '#0f172a',
-    shadowOffset: { height: -18, width: 0 },
-    shadowOpacity: 0.16,
-    shadowRadius: 44,
     width: '100%',
   },
-  simpleField: {
-    gap: 8,
-  },
-  simpleFieldLabel: {
-    color: '#111827',
-    fontSize: 12,
+  title: {
+    color: '#05070d',
+    fontSize: 32,
     fontWeight: '900',
     letterSpacing: 0,
+    lineHeight: 38,
+    marginTop: 6,
   },
-  subtitle: {
-    color: '#64748b',
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 0,
-    lineHeight: 20,
-    paddingHorizontal: 38,
-    paddingTop: 16,
-    textAlign: 'center',
-  },
-  topGlow: {
-    height: 174,
-    left: -10,
-    position: 'absolute',
-    right: -10,
-    top: 0,
-  },
-  uploadBody: {
-    color: '#64748b',
-    fontSize: 12,
+  underlineInput: {
+    color: '#111827',
+    flex: 1,
+    fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0,
-    lineHeight: 18,
-    marginTop: 3,
-  },
-  uploadBox: {
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderColor: '#dbe3ee',
-    borderRadius: 18,
-    borderStyle: 'dashed',
-    borderWidth: 1.5,
-    flexDirection: 'row',
-    gap: 12,
-    minHeight: 86,
-    padding: 14,
-  },
-  uploadCopy: {
-    flex: 1,
     minWidth: 0,
+    paddingVertical: 0,
   },
-  uploadIcon: {
+  underlineInputRow: {
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 17,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
-  },
-  uploadTitle: {
-    color: '#111827',
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 0,
+    borderBottomColor: '#8c67ff',
+    borderBottomWidth: 1.5,
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 34,
+    minHeight: 50,
+    paddingBottom: 10,
   },
 });
