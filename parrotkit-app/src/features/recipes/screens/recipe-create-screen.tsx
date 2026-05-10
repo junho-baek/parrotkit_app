@@ -30,6 +30,7 @@ import {
   type RecipeCreateNicheId,
 } from '@/features/recipes/lib/recipe-create-flow';
 import {
+  buildLocalFallbackResult,
   generateRecipeFromYouTubeReference,
   getYouTubeThumbnailUrl,
   isYouTubeReferenceUrl,
@@ -40,6 +41,7 @@ import {
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 type GenerationPhase = 'idle' | 'fetching_reference' | 'analyzing' | 'generating_recipe' | 'ready';
+const generationFallbackTimeoutMs = 10000;
 
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -103,6 +105,7 @@ export function RecipeCreateScreen() {
   const [generationPhase, setGenerationPhase] = useState<GenerationPhase>('idle');
   const [completedBreakdownStep, setCompletedBreakdownStep] = useState(-1);
   const [generationPreview, setGenerationPreview] = useState<ReferenceRecipeGenerationResult | null>(null);
+  const [generationOpenError, setGenerationOpenError] = useState('');
   const mountedRef = useRef(true);
   const modeCopy = copy.mode as Record<RecipeCreateMode, { icon: IconName; tab: string }>;
   const referenceIsValid = selectedMode !== 'reference' || isYouTubeReferenceUrl(referenceUrl);
@@ -156,9 +159,18 @@ export function RecipeCreateScreen() {
       shootStatus: 'ready',
       thumbnail: result.reference.thumbnailUrl,
       title: result.recipe.title,
+      videoUrl: referenceUrl,
     });
 
     router.replace(`/recipe/${recipe.id}` as Href);
+  };
+
+  const safelyOpenGeneratedRecipe = (result: ReferenceRecipeGenerationResult) => {
+    try {
+      openGeneratedRecipe(result);
+    } catch (error) {
+      setGenerationOpenError(error instanceof Error ? error.message : 'Could not open generated recipe.');
+    }
   };
 
   const handleReferenceGeneration = async () => {
@@ -169,15 +181,25 @@ export function RecipeCreateScreen() {
     setGenerationPhase('fetching_reference');
     setCompletedBreakdownStep(-1);
     setGenerationPreview(null);
+    setGenerationOpenError('');
 
     const generationPromise = generateRecipeFromYouTubeReference({
       goalId: selectedGoalId,
       nicheId: selectedNicheId,
       referenceUrl,
     });
+    const fallbackPromise = wait(generationFallbackTimeoutMs).then(() =>
+      buildLocalFallbackResult({
+        goalId: selectedGoalId,
+        nicheId: selectedNicheId,
+        referenceUrl,
+      })
+    );
     const animationPromise = runBreakdownAnimation();
 
-    const [result] = await Promise.all([generationPromise, animationPromise]);
+    const [result] = await Promise.all([Promise.race([generationPromise, fallbackPromise]), animationPromise]);
+
+    generationPromise.catch(() => null);
 
     if (!mountedRef.current) {
       return;
@@ -191,7 +213,7 @@ export function RecipeCreateScreen() {
       return;
     }
 
-    openGeneratedRecipe(result);
+    safelyOpenGeneratedRecipe(result);
   };
 
   const handlePrimaryAction = async () => {
@@ -258,6 +280,8 @@ export function RecipeCreateScreen() {
             phase={generationPhase}
             preview={generationPreview}
             referenceUrl={referenceUrl}
+            openError={generationOpenError}
+            onOpenRecipe={generationPreview ? () => safelyOpenGeneratedRecipe(generationPreview) : undefined}
           />
         ) : (
           <>
@@ -423,12 +447,16 @@ function ModeInput({
 function ReferenceGenerationSplash({
   completedStep,
   copy,
+  openError,
+  onOpenRecipe,
   phase,
   preview,
   referenceUrl,
 }: {
   completedStep: number;
   copy: (typeof createCopy)[AppLanguage];
+  openError: string;
+  onOpenRecipe?: () => void;
   phase: GenerationPhase;
   preview: ReferenceRecipeGenerationResult | null;
   referenceUrl: string;
@@ -469,6 +497,15 @@ function ReferenceGenerationSplash({
           );
         })}
       </View>
+
+      {ready ? (
+        <Pressable accessibilityRole="button" onPress={onOpenRecipe} style={styles.readyButton}>
+          <Text style={styles.readyButtonText}>Open recipe board</Text>
+          <MaterialCommunityIcons color="#ffffff" name="arrow-right" size={20} />
+        </Pressable>
+      ) : null}
+
+      {openError ? <Text style={styles.generationError}>{openError}</Text> : null}
     </View>
   );
 }
@@ -663,6 +700,31 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     paddingHorizontal: 26,
     paddingTop: 8,
+  },
+  generationError: {
+    color: '#ef4444',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  readyButton: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    backgroundColor: '#111827',
+    borderRadius: 18,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    minHeight: 54,
+    paddingHorizontal: 18,
+  },
+  readyButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 0,
   },
   goalCard: {
     aspectRatio: 0.76,

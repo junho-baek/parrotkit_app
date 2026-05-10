@@ -173,7 +173,7 @@ function buildLocalFallbackRecipe({
   };
 }
 
-function buildLocalFallbackResult({
+export function buildLocalFallbackResult({
   goalId,
   nicheId,
   referenceUrl,
