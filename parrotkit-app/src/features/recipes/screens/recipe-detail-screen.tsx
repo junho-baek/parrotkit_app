@@ -33,6 +33,7 @@ import {
   appendShootBoardCut,
   createAddedShootBoardCut,
   createShootBoardRecipe,
+  getNextRequiredShootBoardCutWithoutSavedMyTake,
   getRecipePrompterHref,
   getRecipeRetakePrompterHref,
   replaceShootBoardCutOrder,
@@ -45,10 +46,24 @@ import {
   type ShootBoardTake,
   updateShootBoardCutText,
 } from "@/features/recipes/lib/shoot-board-model";
-import { NativeRecipeScene } from "@/features/recipes/types/recipe-domain";
+import {
+  NativeRecipe,
+  NativeRecipeScene,
+} from "@/features/recipes/types/recipe-domain";
 
 type DetailTab = "analysis" | "recipe" | "shoot";
 type IconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
+type BoardOverviewHighlightState =
+  | "next-required-missing-mytake"
+  | "requested-cut"
+  | "none";
+type BoardOverviewUiState = {
+  nextRequiredCutId: string | null;
+  routeHighlightCutId: string | null;
+  highlightCutId: string | null;
+  highlightState: BoardOverviewHighlightState;
+  cameraEntryRequiresTap: true;
+};
 
 const detailTabs: Array<{ id: DetailTab; label: string }> = [
   { id: "analysis", label: "Analysis" },
@@ -178,6 +193,7 @@ export function RecipeDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
+    highlightCutId?: string;
     recipeId?: string;
     sceneId?: string;
     tab?: DetailTab;
@@ -196,6 +212,10 @@ export function RecipeDetailScreen() {
     setRecipeEditorBoard,
   } = useMockWorkspace();
   const recipe = params.recipeId ? getRecipeById(params.recipeId) : null;
+  const routeHighlightedCutId =
+    typeof params.highlightCutId === "string"
+      ? params.highlightCutId
+      : null;
   const nativeRecipe = useMemo(
     () => (recipe ? normalizeNativeRecipe(recipe) : null),
     [recipe],
@@ -287,6 +307,21 @@ export function RecipeDetailScreen() {
       getSavedRecipeTakes,
     );
   }, [getSavedRecipeTakes, nativeRecipe, shootBoard]);
+  const boardOverviewState = useMemo(
+    () =>
+      getBoardOverviewUiState({
+        board: renderedShootBoard,
+        getSavedRecipeTakes,
+        nativeRecipe,
+        routeHighlightCutId: routeHighlightedCutId,
+      }),
+    [
+      getSavedRecipeTakes,
+      nativeRecipe,
+      renderedShootBoard,
+      routeHighlightedCutId,
+    ],
+  );
   const selectedSavedTakeRecord = useMemo(() => {
     if (!params.takeId || !nativeRecipe) {
       return null;
@@ -348,6 +383,26 @@ export function RecipeDetailScreen() {
     renderedShootBoard,
     selectedSavedTakeRecord,
   ]);
+
+  useEffect(() => {
+    const highlightedCutId = boardOverviewState.highlightCutId;
+
+    if (
+      !highlightedCutId ||
+      params.sceneId ||
+      !renderedShootBoard?.cuts.length
+    ) {
+      return;
+    }
+
+    const targetCut = renderedShootBoard.cuts.find(
+      (cut) => cut.id === highlightedCutId,
+    );
+
+    if (targetCut) {
+      setExpandedCutIds([targetCut.id]);
+    }
+  }, [boardOverviewState.highlightCutId, params.sceneId, renderedShootBoard]);
 
   if (!nativeRecipe) {
     return (
@@ -736,6 +791,7 @@ export function RecipeDetailScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 112 }}
         cuts={renderedShootBoard.cuts}
         expandedCutIds={expandedCutIds}
+        highlightedCutId={boardOverviewState.highlightCutId ?? undefined}
         language={language}
         ListHeaderComponent={
           <>
@@ -1456,6 +1512,55 @@ function formatShootBoardMeta(language: AppLanguage, board: ShootBoardRecipe) {
   }
 
   return `${board.totalCuts} cuts · ${board.totalDurationSeconds}s · ${board.shotCount} / ${board.totalCuts} shot`;
+}
+
+function getBoardOverviewUiState({
+  board,
+  getSavedRecipeTakes,
+  nativeRecipe,
+  routeHighlightCutId,
+}: {
+  board: ShootBoardRecipe | null;
+  getSavedRecipeTakes: ReturnType<
+    typeof useMockWorkspace
+  >["getSavedRecipeTakes"];
+  nativeRecipe: NativeRecipe | null;
+  routeHighlightCutId: string | null;
+}): BoardOverviewUiState {
+  if (!board || !nativeRecipe) {
+    return {
+      nextRequiredCutId: null,
+      routeHighlightCutId,
+      highlightCutId: null,
+      highlightState: "none",
+      cameraEntryRequiresTap: true,
+    };
+  }
+
+  const nextRequiredCut = getNextRequiredShootBoardCutWithoutSavedMyTake({
+    board,
+    recipe: nativeRecipe,
+    savedTakes: getSavedRecipeTakes(nativeRecipe.id),
+  });
+  const nextRequiredCutId = nextRequiredCut?.id ?? null;
+  const routeHighlightExists =
+    routeHighlightCutId !== null &&
+    board.cuts.some((cut) => cut.id === routeHighlightCutId);
+  const highlightCutId =
+    nextRequiredCutId ?? (routeHighlightExists ? routeHighlightCutId : null);
+  const highlightState: BoardOverviewHighlightState = nextRequiredCutId
+    ? "next-required-missing-mytake"
+    : routeHighlightExists
+      ? "requested-cut"
+      : "none";
+
+  return {
+    nextRequiredCutId,
+    routeHighlightCutId,
+    highlightCutId,
+    highlightState,
+    cameraEntryRequiresTap: true,
+  };
 }
 
 function hydrateShootBoardWithWorkspaceTakes(

@@ -26,6 +26,7 @@ export type HomeEmptyWorkflowFallback = {
 };
 
 export type HomeContinueWorkflowEntry = {
+  cameraEntryRequiresTap: true;
   destination: string;
   highlightCutId: string | null;
   screen: 'manual-recipe-create' | 'shooting-board-overview';
@@ -110,6 +111,7 @@ export function getHomeContinueWorkflowEntry({
   selection: HomeWorkflowSelection;
 }): HomeContinueWorkflowEntry {
   return {
+    cameraEntryRequiresTap: true,
     destination: getHomeContinueWorkflowDestination({
       createDestination,
       selection,

@@ -5,6 +5,7 @@ import {
   getHomeRecentWorkflowRecipe,
   getHomeWorkflowSelection,
   isRecipeBoardUnfinishedByRequiredMyTakes,
+  resolveRequiredCutSavedMyTakeState,
 } from "./home-workflow-resolution";
 
 const baseRecipe: MockRecipe = {
@@ -562,4 +563,69 @@ const nextMissingRequiredCutId = getNextRequiredCutWithoutSavedMyTakeId({
 
 if (nextMissingRequiredCutId !== "next-proof") {
   throw new Error("Home Continue must identify the first required cut without a saved My Take as the overview highlight target.");
+}
+
+const noMissingRequiredCutId = getNextRequiredCutWithoutSavedMyTakeId({
+  recipe: recipe({
+    id: "no-missing-required-cut-board",
+    scenes: [
+      scene("no-missing-hook"),
+      optionalScene("no-missing-optional-b-roll"),
+      scene("no-missing-proof"),
+    ],
+  }),
+  savedTakes: [
+    {
+      recipeId: "no-missing-required-cut-board",
+      sceneId: "no-missing-hook",
+    },
+    {
+      cardIds: ["no-missing-proof"],
+      recipeId: "no-missing-required-cut-board",
+    },
+  ],
+});
+
+if (noMissingRequiredCutId !== null) {
+  throw new Error("Home Continue must not expose a next required cut highlight when every required cut has a saved My Take.");
+}
+
+const requiredSavedState = resolveRequiredCutSavedMyTakeState({
+  recipe: recipe({
+    id: "current-user-saved-state-board",
+    scenes: [
+      scene("current-user-hook"),
+      optionalScene("current-user-optional-b-roll"),
+      scene("current-user-proof"),
+      scene("current-user-cta"),
+    ],
+  }),
+  savedTakes: [
+    {
+      cardIds: ["current-user-hook"],
+      recipeId: "current-user-saved-state-board",
+      sceneId: "current-user-hook",
+    },
+    {
+      cardIds: ["current-user-proof"],
+      recipeId: "other-recipe-board",
+      sceneId: "current-user-proof",
+    },
+    {
+      cardIds: ["current-user-optional-b-roll"],
+      recipeId: "current-user-saved-state-board",
+      sceneId: "current-user-optional-b-roll",
+    },
+  ],
+});
+
+if (
+  JSON.stringify(requiredSavedState) !==
+  JSON.stringify([
+    { cutId: "current-user-hook", hasSavedMyTake: true },
+    { cutId: "current-user-proof", hasSavedMyTake: false },
+    { cutId: "current-user-cta", hasSavedMyTake: false },
+  ])
+) {
+  throw new Error("Home Continue must resolve saved My Take coverage for current user's required cuts only.");
 }

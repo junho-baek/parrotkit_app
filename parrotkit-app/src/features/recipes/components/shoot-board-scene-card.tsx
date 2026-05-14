@@ -34,6 +34,7 @@ import {
 export function ShootBoardSceneCard({
   cut,
   expanded,
+  highlighted,
   language,
   onDragStart,
   onPreview,
@@ -49,6 +50,7 @@ export function ShootBoardSceneCard({
 }: {
   cut: ShootBoardCut;
   expanded: boolean;
+  highlighted: boolean;
   language: AppLanguage;
   onDragStart: () => void;
   onPreview: () => void;
@@ -82,6 +84,7 @@ export function ShootBoardSceneCard({
         styles.card,
         { borderColor: getTakeStatusBorderColor(cut.takeStatus) },
         cut.takeStatus === "final" && styles.finalCard,
+        highlighted && styles.highlightedCard,
       ]}
     >
       <View className="flex-row items-start gap-2">
@@ -1015,6 +1018,14 @@ const styles = StyleSheet.create({
   },
   finalCard: {
     shadowOpacity: 0.08,
+  },
+  highlightedCard: {
+    backgroundColor: "#faf5ff",
+    borderColor: "#8b5cf6",
+    borderWidth: 2,
+    shadowColor: "#7c3aed",
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
   },
   partialDash: {
     borderRadius: 999,

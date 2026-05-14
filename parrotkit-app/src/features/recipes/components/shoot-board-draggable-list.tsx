@@ -17,6 +17,7 @@ export function ShootBoardDraggableList({
   contentContainerStyle,
   cuts,
   expandedCutIds,
+  highlightedCutId,
   language,
   ListHeaderComponent,
   onDragStateChange,
@@ -34,6 +35,7 @@ export function ShootBoardDraggableList({
   contentContainerStyle?: StyleProp<ViewStyle>;
   cuts: ShootBoardCut[];
   expandedCutIds: string[];
+  highlightedCutId?: string;
   language: AppLanguage;
   ListHeaderComponent?: ReactElement;
   onDragStateChange?: (dragging: boolean) => void;
@@ -63,6 +65,7 @@ export function ShootBoardDraggableList({
         <ShootBoardSceneCard
           cut={cut}
           expanded={expandedCutIds.includes(cut.id)}
+          highlighted={highlightedCutId === cut.id}
           language={language}
           onDragStart={drag}
           onPreview={() => onPreview(cut)}

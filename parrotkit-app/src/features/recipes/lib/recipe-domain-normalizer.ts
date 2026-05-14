@@ -150,6 +150,7 @@ export function normalizeNativeRecipeScene(scene: MockRecipeScene, index: number
 
   return {
     id: compactText(scene.id) || `scene-${sceneNumber}`,
+    isOptional: scene.isOptional === true,
     sceneNumber,
     title: compactText(scene.title) || `Scene ${sceneNumber}`,
     startTime: compactText(scene.startTime) || timeForIndex(index, 0),

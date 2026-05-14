@@ -114,6 +114,12 @@ export type ShootBoardCutTextPatch = {
   roleLabel?: string;
 };
 
+export type ShootBoardSavedMyTakeReference = {
+  cardIds?: string[];
+  recipeId: string;
+  sceneId?: string;
+};
+
 type CreateShootBoardRecipeOptions = {
   isSaved?: boolean;
   shotCutIds?: string[];
@@ -474,6 +480,44 @@ export function getShootBoardCutCompletionState(
   if (checkedCount === 0) return "none";
   if (checkedCount === cut.requiredChecklist.length) return "complete";
   return "partial";
+}
+
+export function getOrderedRequiredShootBoardCuts({
+  board,
+  recipe,
+}: {
+  board: Pick<ShootBoardRecipe, "cuts">;
+  recipe: Pick<NativeRecipe, "scenes">;
+}): ShootBoardCut[] {
+  const optionalSceneIds = new Set(
+    recipe.scenes
+      .filter((scene) => scene.isOptional)
+      .map((scene) => scene.id),
+  );
+
+  return [...board.cuts]
+    .sort((first, second) => first.order - second.order)
+    .filter((cut) => !cut.sceneId || !optionalSceneIds.has(cut.sceneId));
+}
+
+export function getNextRequiredShootBoardCutWithoutSavedMyTake({
+  board,
+  recipe,
+  savedTakes,
+}: {
+  board: Pick<ShootBoardRecipe, "cuts" | "id">;
+  recipe: Pick<NativeRecipe, "scenes">;
+  savedTakes: ShootBoardSavedMyTakeReference[];
+}): ShootBoardCut | null {
+  const savedCutIds = getSavedMyTakeCutIdsForBoard(board.id, savedTakes);
+
+  return (
+    getOrderedRequiredShootBoardCuts({ board, recipe }).find(
+      (cut) =>
+        !savedCutIds.has(cut.id) &&
+        (!cut.sceneId || !savedCutIds.has(cut.sceneId)),
+    ) ?? null
+  );
 }
 
 export function setShootBoardCutCompletion(
@@ -1120,6 +1164,21 @@ function syncLegacyChecks(cut: ShootBoardCut): ShootBoardCut {
     requiredChecks: cut.requiredChecklist.map((item) => item.label),
     requiredChecksKo: cut.requiredChecklist.map((item) => item.labelKo),
   };
+}
+
+function getSavedMyTakeCutIdsForBoard(
+  boardId: string,
+  savedTakes: ShootBoardSavedMyTakeReference[],
+) {
+  return new Set(
+    savedTakes
+      .filter((take) => take.recipeId === boardId)
+      .flatMap((take) => [take.sceneId, ...(take.cardIds ?? [])])
+      .filter(
+        (cutId): cutId is string =>
+          typeof cutId === "string" && cutId.length > 0,
+      ),
+  );
 }
 
 function createRequiredChecklist(

@@ -12,6 +12,11 @@ export type RecipeBoardSavedMyTake = {
   sceneId?: string;
 };
 
+export type RequiredCutSavedMyTakeState = {
+  cutId: string;
+  hasSavedMyTake: boolean;
+};
+
 export type HomeWorkflowResolutionOptions = {
   savedTakes?: RecipeBoardSavedMyTake[];
 };
@@ -115,15 +120,16 @@ export function isRecipeBoardUnfinishedByRequiredMyTakes({
   recipe: Pick<MockRecipe, 'id' | 'scenes'>;
   savedTakes: RecipeBoardSavedMyTake[];
 }) {
-  const requiredCutIds = getRequiredCutIds(recipe);
+  const requiredCutStates = resolveRequiredCutSavedMyTakeState({
+    recipe,
+    savedTakes,
+  });
 
-  if (requiredCutIds.length === 0) {
+  if (requiredCutStates.length === 0) {
     return false;
   }
 
-  const savedCutIds = getSavedMyTakeCutIds(recipe.id, savedTakes);
-
-  return requiredCutIds.some((cutId) => !savedCutIds.has(cutId));
+  return requiredCutStates.some((cut) => !cut.hasSavedMyTake);
 }
 
 export function getNextRequiredCutWithoutSavedMyTakeId({
@@ -133,9 +139,27 @@ export function getNextRequiredCutWithoutSavedMyTakeId({
   recipe: Pick<MockRecipe, 'id' | 'scenes'>;
   savedTakes: RecipeBoardSavedMyTake[];
 }) {
+  return (
+    resolveRequiredCutSavedMyTakeState({
+      recipe,
+      savedTakes,
+    }).find((cut) => !cut.hasSavedMyTake)?.cutId ?? null
+  );
+}
+
+export function resolveRequiredCutSavedMyTakeState({
+  recipe,
+  savedTakes,
+}: {
+  recipe: Pick<MockRecipe, 'id' | 'scenes'>;
+  savedTakes: RecipeBoardSavedMyTake[];
+}): RequiredCutSavedMyTakeState[] {
   const savedCutIds = getSavedMyTakeCutIds(recipe.id, savedTakes);
 
-  return getRequiredCutIds(recipe).find((cutId) => !savedCutIds.has(cutId)) ?? null;
+  return getRequiredCutIds(recipe).map((cutId) => ({
+    cutId,
+    hasSavedMyTake: savedCutIds.has(cutId),
+  }));
 }
 
 function getRequiredCutIds(recipe: Pick<MockRecipe, 'scenes'>) {

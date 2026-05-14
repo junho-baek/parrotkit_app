@@ -6,6 +6,8 @@ import {
   appendShootBoardCut,
   getRecipePrompterHref,
   getRecipeRetakePrompterHref,
+  getNextRequiredShootBoardCutWithoutSavedMyTake,
+  getOrderedRequiredShootBoardCuts,
   getShootBoardCutCompletionState,
   getShootBoardFullScript,
   getShootBoardHref,
@@ -35,6 +37,93 @@ const emptyBoard = createShootBoardRecipe({
   id: "recipe-empty-manual-draft",
   scenes: [],
 });
+
+const orderedRequiredSourceRecipe = {
+  ...sourceRecipe,
+  id: "recipe-ordered-required-cuts",
+  scenes: [
+    {
+      ...sourceRecipe.scenes[0],
+      id: "required-hook-scene",
+      isOptional: false,
+    },
+    {
+      ...sourceRecipe.scenes[1],
+      id: "optional-b-roll-scene",
+      isOptional: true,
+    },
+    {
+      ...sourceRecipe.scenes[2],
+      id: "required-proof-scene",
+      isOptional: false,
+    },
+  ],
+};
+const orderedRequiredBoard = createShootBoardRecipe(orderedRequiredSourceRecipe);
+const reorderedRequiredBoard = replaceShootBoardCutOrder(orderedRequiredBoard, [
+  orderedRequiredBoard.cuts[2],
+  orderedRequiredBoard.cuts[1],
+  orderedRequiredBoard.cuts[0],
+]);
+const requiredCuts = getOrderedRequiredShootBoardCuts({
+  board: reorderedRequiredBoard,
+  recipe: orderedRequiredSourceRecipe,
+});
+
+if (requiredCuts.map((cut) => cut.id).join(",") !== "required-proof-scene,required-hook-scene") {
+  throw new Error("Board overview should resolve ordered required cuts from board order and scene optional metadata.");
+}
+
+const nextMissingRequiredCut = getNextRequiredShootBoardCutWithoutSavedMyTake({
+  board: reorderedRequiredBoard,
+  recipe: orderedRequiredSourceRecipe,
+  savedTakes: [
+    {
+      cardIds: ["required-proof-scene"],
+      recipeId: "recipe-ordered-required-cuts",
+      sceneId: "required-proof-scene",
+    },
+    {
+      cardIds: ["required-hook-scene"],
+      recipeId: "other-board",
+      sceneId: "required-hook-scene",
+    },
+    {
+      cardIds: ["optional-b-roll-scene"],
+      recipeId: "recipe-ordered-required-cuts",
+      sceneId: "optional-b-roll-scene",
+    },
+  ],
+});
+
+if (nextMissingRequiredCut?.id !== "required-hook-scene") {
+  throw new Error(
+    "Board overview should select the earliest required cut in board order without a saved My Take.",
+  );
+}
+
+const noMissingRequiredCut = getNextRequiredShootBoardCutWithoutSavedMyTake({
+  board: reorderedRequiredBoard,
+  recipe: orderedRequiredSourceRecipe,
+  savedTakes: [
+    {
+      cardIds: ["required-proof-scene"],
+      recipeId: "recipe-ordered-required-cuts",
+      sceneId: "required-proof-scene",
+    },
+    {
+      cardIds: ["required-hook-scene"],
+      recipeId: "recipe-ordered-required-cuts",
+      sceneId: "required-hook-scene",
+    },
+  ],
+});
+
+if (noMissingRequiredCut !== null) {
+  throw new Error(
+    "Board overview should not highlight a next required cut when every required cut has a saved My Take.",
+  );
+}
 
 if (
   emptyBoard.cuts.length !== 0 ||

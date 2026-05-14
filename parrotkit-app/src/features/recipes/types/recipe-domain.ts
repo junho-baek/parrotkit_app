@@ -66,6 +66,7 @@ export type ScenePrompter = {
 
 export type NativeRecipeScene = {
   id: string;
+  isOptional?: boolean;
   sceneNumber: number;
   title: string;
   startTime: string;

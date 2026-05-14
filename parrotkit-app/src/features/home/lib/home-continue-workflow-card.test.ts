@@ -49,12 +49,20 @@ if (!/highlightCutId\?: string/.test(recipeDetailScreenSource)) {
   throw new Error('Recipe overview route params must accept highlightCutId metadata.');
 }
 
-if (!/highlightedCutId=\{highlightedCutId\}/.test(recipeDetailScreenSource)) {
-  throw new Error('Recipe overview must pass the highlighted cut id into the shoot board list.');
+if (!/highlightedCutId=\{boardOverviewState\.highlightCutId \?\? undefined\}/.test(recipeDetailScreenSource)) {
+  throw new Error('Recipe overview must pass the board overview state highlight into the shoot board list.');
 }
 
 if (!/setExpandedCutIds\(\[targetCut\.id\]\)/.test(recipeDetailScreenSource)) {
   throw new Error('Recipe overview must expand the highlighted next required cut.');
+}
+
+if (!/type BoardOverviewUiState = \{[\s\S]*nextRequiredCutId: string \| null;[\s\S]*highlightState: BoardOverviewHighlightState;[\s\S]*cameraEntryRequiresTap: true;[\s\S]*\}/.test(recipeDetailScreenSource)) {
+  throw new Error('Recipe overview must model next required cut guidance in an explicit UI state shape.');
+}
+
+if (!/getNextRequiredShootBoardCutWithoutSavedMyTake\(\{[\s\S]*savedTakes: getSavedRecipeTakes\(nativeRecipe\.id\),[\s\S]*\}\)/.test(recipeDetailScreenSource)) {
+  throw new Error('Recipe overview state must compute the next required cut missing a saved My Take.');
 }
 
 if (!/highlightedCutId\?: string/.test(shootBoardDraggableListSource)) {
@@ -344,6 +352,10 @@ if (continueEntry.screen !== 'shooting-board-overview') {
   throw new Error('Home continue must enter the shooting board overview screen.');
 }
 
+if (continueEntry.cameraEntryRequiresTap !== true) {
+  throw new Error('Home continue overview entry must keep camera entry gated behind an explicit cut tap.');
+}
+
 if (continueEntry.destination !== '/recipe/recipe-launch-hook') {
   throw new Error('Home continue overview entry must use the selected recipe board route.');
 }
@@ -358,8 +370,48 @@ if (continueHref !== '/recipe/recipe-launch-hook?highlightCutId=recipe-launch-ho
   throw new Error('Home continue href must pass the selected next missing required cut to the board overview.');
 }
 
+const noMissingCutContinueEntry = getHomeContinueWorkflowEntry({
+  createDestination: '/recipe-create?mode=manual',
+  savedTakes: [
+    {
+      cardIds: ['completed-required-hook'],
+      recipeId: 'completed-required-cut-board',
+      sceneId: 'completed-required-hook',
+    },
+    {
+      cardIds: ['completed-required-proof'],
+      recipeId: 'completed-required-cut-board',
+      sceneId: 'completed-required-proof',
+    },
+  ],
+  selection: {
+    reason: 'recent',
+    recipe: completedRequiredCutRecipe,
+  },
+});
+
+if (noMissingCutContinueEntry.screen !== 'shooting-board-overview') {
+  throw new Error('Home continue no-missing-cut fixture must still land on the shooting board overview.');
+}
+
+if (noMissingCutContinueEntry.cameraEntryRequiresTap !== true) {
+  throw new Error('Home continue no-missing-cut fixture must keep camera entry user-initiated.');
+}
+
+if (noMissingCutContinueEntry.highlightCutId !== null) {
+  throw new Error('Home continue must not expose a next cut highlight when every required cut has a saved My Take.');
+}
+
+if (getHomeContinueWorkflowHref(noMissingCutContinueEntry) !== '/recipe/completed-required-cut-board') {
+  throw new Error('Home continue no-missing-cut href must omit highlight metadata and remain on the board overview.');
+}
+
 if (/prompter|camera|checklist|cutId|sceneId|retakeTakeId/i.test(continueEntry.destination)) {
-  throw new Error('Home continue must not deep link into camera, checklist detail, prompter, or restored cut state.');
+  throw new Error('Home continue destination must not deep link into camera, checklist detail, prompter, or restored cut state.');
+}
+
+if (/prompter|camera|checklist|sceneId|retakeTakeId/i.test(continueHref)) {
+  throw new Error('Home continue href must not open camera/prompter or restore scene/take state before a cut tap.');
 }
 
 const emptyDestination = getHomeContinueWorkflowDestination({

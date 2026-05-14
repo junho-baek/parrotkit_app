@@ -34,3 +34,9 @@ Home Continue는 recipe shooting board overview를 열고, 다음 missing requir
 
 ## 리스크
 - URL query는 overview metadata로만 사용한다. v1에서는 direct camera/checklist restoration이나 persistence refactor를 하지 않는다.
+
+## 결과
+- Recipe detail overview route가 `highlightCutId` query metadata를 받아 해당 cut을 자동 확장한다.
+- Shoot board list/card에 highlighted state를 전달해 다음 missing required cut 하나만 시각적으로 강조한다.
+- Continue route는 overview destination을 유지하고 camera/prompter entry는 사용자 cut CTA 탭에만 남겼다.
+- 연결 context: `context/context_20260515_sub_ac_8_2_board_overview_highlight_ui.md`
