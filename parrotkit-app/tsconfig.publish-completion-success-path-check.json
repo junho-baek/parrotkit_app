@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "nativewind-env.d.ts",
+    "src/core/mocks/parrotkit-data.ts",
+    "src/core/providers/mock-workspace-provider.tsx",
+    "src/features/recipes/lib/publish-completion-success-path.ts",
+    "src/features/recipes/lib/publish-completion-success-path.test.ts",
+    "src/features/recipes/screens/recipes-screen.tsx"
+  ]
+}

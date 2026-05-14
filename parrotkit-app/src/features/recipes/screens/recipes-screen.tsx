@@ -23,6 +23,7 @@ import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient } from '@/core/theme/colors';
 import { toImageSource, type AppImageSource } from '@/core/ui/image-source';
 import { getContinueShootRecipe, getLatestShootableRecipe } from '@/features/recipes/lib/recipe-ownership';
+import { persistPublishCompletionResult } from '@/features/recipes/lib/publish-completion-success-path';
 import { getShootBoardHref } from '@/features/recipes/lib/shoot-board-model';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -204,7 +205,7 @@ export function RecipesScreen() {
   const params = useLocalSearchParams<{ filter?: string; view?: string }>();
   const { language } = useAppLanguage();
   const copy = recipeCopy[language];
-  const { exploreRecipes, recipes } = useMockWorkspace();
+  const { exploreRecipes, markRecipeBoardComplete, recipes } = useMockWorkspace();
   const [view, setView] = useState<RecipesView>('main');
   const [selectedFilter, setSelectedFilter] = useState<RecipeFilter>('continue');
   const [selectedCategory, setSelectedCategory] = useState<PublishCategory>('food');
@@ -273,6 +274,16 @@ export function RecipesScreen() {
     router.push(`/recipe-create?mode=${mode}` as Href);
   };
 
+  const handlePublishComplete = (publishSucceeded: boolean) => {
+    if (persistPublishCompletionResult({
+      markRecipeBoardComplete,
+      publishSucceeded,
+      recipeId: continueRecipe?.id,
+    })) {
+      setView('main');
+    }
+  };
+
   if (view === 'collection') {
     return (
       <RecipesTabScrollView>
@@ -304,7 +315,7 @@ export function RecipesScreen() {
             visibility={visibility}
           />
         </RecipesTabScrollView>
-        <PublishBottomCta copy={copy} />
+        <PublishBottomCta copy={copy} onPublishComplete={handlePublishComplete} />
       </View>
     );
   }
@@ -832,13 +843,27 @@ function PublishRecipeScreen({
   );
 }
 
-function PublishBottomCta({ copy }: { copy: (typeof recipeCopy)['en'] }) {
+function PublishBottomCta({
+  copy,
+  onPublishComplete,
+}: {
+  copy: (typeof recipeCopy)['en'];
+  onPublishComplete: (publishSucceeded: boolean) => void;
+}) {
   const insets = useSafeAreaInsets();
 
   return (
     <View pointerEvents="box-none" style={[styles.publishFooterLayer, { bottom: insets.bottom + 88 }]}>
       <View className="gap-2 px-5">
-        <Pressable accessibilityRole="button" className="overflow-hidden rounded-full">
+        <Pressable
+          accessibilityRole="button"
+          className="overflow-hidden rounded-full"
+          onPress={() => {
+            const publishSucceeded = true;
+
+            onPublishComplete(publishSucceeded);
+          }}
+        >
           <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.bigPublishButton}>
             <MaterialCommunityIcons color="#fff" name="send" size={18} />
             <Text className="text-[16px] font-black text-white">{copy.publishTitle as string}</Text>

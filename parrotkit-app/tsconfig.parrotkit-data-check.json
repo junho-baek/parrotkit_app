@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "nativewind-env.d.ts",
+    "src/core/mocks/parrotkit-data.test.ts",
+    "src/core/mocks/parrotkit-data.ts",
+    "src/core/mocks/ugc-media.ts",
+    "src/features/recipes/lib/recipe-domain-normalizer.ts",
+    "src/features/recipes/lib/saved-take-contract.ts",
+    "src/features/recipes/lib/shoot-board-model.ts",
+    "src/features/recipes/types/recipe-domain.ts"
+  ]
+}

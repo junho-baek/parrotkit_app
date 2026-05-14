@@ -35,7 +35,8 @@ import {
 import { getHomeRecipeCreateEntry } from '@/features/home/lib/home-recipe-create-entry';
 import {
   getHomeContinueWorkflowCard,
-  getHomeContinueWorkflowDestination,
+  getHomeContinueWorkflowEntry,
+  getHomeContinueWorkflowHref,
   getHomeEmptyWorkflowFallback,
   type HomeContinueWorkflowCard,
   type HomeEmptyWorkflowFallback,
@@ -77,10 +78,12 @@ export function HomeWorkspaceSurface() {
     createDestination: recipeCreateEntry.destination,
     recipeId: heroRecipe?.id,
   });
-  const continueWorkflowDestination = getHomeContinueWorkflowDestination({
+  const continueWorkflowEntry = getHomeContinueWorkflowEntry({
     createDestination: recipeCreateEntry.destination,
+    savedTakes,
     selection: workflowSelection,
   });
+  const continueWorkflowHref = getHomeContinueWorkflowHref(continueWorkflowEntry);
   const emptyWorkflowFallback = getHomeEmptyWorkflowFallback({
     createDestination: recipeCreateEntry.destination,
     language,
@@ -114,7 +117,7 @@ export function HomeWorkspaceSurface() {
                 copy={homeCopy}
                 language={language}
                 onOpenRecipe={() => openRecipe(continueWorkflowCard.recipe)}
-                onPrimary={() => router.push(continueWorkflowDestination as Href)}
+                onPrimary={() => router.push(continueWorkflowHref as Href)}
                 onViewAll={() => router.push('/recipes' as Href)}
                 recipe={continueWorkflowCard.recipe}
               />

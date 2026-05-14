@@ -63,14 +63,14 @@ export function getHomeInProgressWorkflowRecipe(
   recipes: MockRecipe[],
   options: HomeWorkflowResolutionOptions = {},
 ) {
-  return recipes.find((recipe) => isInProgressWorkflowRecipe(recipe, options)) ?? null;
+  return getLatestWorkflowRecipe(recipes.filter((recipe) => isInProgressWorkflowRecipe(recipe, options)));
 }
 
 export function getHomeRecentWorkflowRecipe(
   recipes: MockRecipe[],
   options: HomeWorkflowResolutionOptions = {},
 ) {
-  return recipes.find((recipe) => isUnfinishedWorkflowRecipe(recipe, options)) ?? null;
+  return getLatestWorkflowRecipe(recipes.filter((recipe) => isUnfinishedWorkflowRecipe(recipe, options)));
 }
 
 export function getHomePrimaryWorkflowRecipe(
@@ -154,4 +154,38 @@ function getSavedMyTakeCutIds(recipeId: string, savedTakes: RecipeBoardSavedMyTa
       ])
       .filter((cutId): cutId is string => typeof cutId === 'string' && cutId.length > 0),
   );
+}
+
+type WorkflowActivityRecipe = MockRecipe & {
+  createdAt?: string;
+  lastMeaningfulActivityAt?: string;
+  updatedAt?: string;
+};
+
+function getLatestWorkflowRecipe(recipes: MockRecipe[]) {
+  return recipes
+    .map((recipe, index) => ({
+      index,
+      recipe,
+      timestamp: getWorkflowActivityTimestamp(recipe),
+    }))
+    .sort((first, second) => {
+      if (first.timestamp !== second.timestamp) {
+        return second.timestamp - first.timestamp;
+      }
+
+      return first.index - second.index;
+    })[0]?.recipe ?? null;
+}
+
+function getWorkflowActivityTimestamp(recipe: WorkflowActivityRecipe) {
+  const activityAt = recipe.lastMeaningfulActivityAt ?? recipe.updatedAt ?? recipe.createdAt;
+
+  if (!activityAt) {
+    return 0;
+  }
+
+  const timestamp = Date.parse(activityAt);
+
+  return Number.isNaN(timestamp) ? 0 : timestamp;
 }

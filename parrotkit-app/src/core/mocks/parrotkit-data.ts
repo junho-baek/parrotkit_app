@@ -154,6 +154,21 @@ export type MockProfile = {
   streakDays: number;
 };
 
+export function markRecipeBoardExplicitCompletion(
+  recipes: MockRecipe[],
+  recipeId: string,
+  explicitCompletion = true,
+) {
+  return recipes.map((recipe) =>
+    recipe.id === recipeId
+      ? {
+          ...recipe,
+          explicitCompletion,
+        }
+      : recipe,
+  );
+}
+
 export const rotatingPlatforms: MockPlatform[] = ['Instagram Reels', 'TikTok', 'YouTube Shorts'];
 
 export const partnerCreators: MockPartnerCreator[] = [

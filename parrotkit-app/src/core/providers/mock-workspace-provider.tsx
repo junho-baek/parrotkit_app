@@ -15,6 +15,7 @@ import {
   recentReferencesSeed,
   recipesSeed,
   trendingReferencesSeed,
+  markRecipeBoardExplicitCompletion,
 } from '@/core/mocks/parrotkit-data';
 import {
   createOwnedRecipeFromExploreTemplate,
@@ -129,6 +130,7 @@ type MockWorkspaceContextValue = {
   getRecipeById: (recipeId: string) => MockRecipe | null;
   isRecipeDownloaded: (recipeId: string) => boolean;
   getRecipeEditorBoard: (recipeId: string) => ShootBoardRecipe | null;
+  markRecipeBoardComplete: (recipeId: string) => boolean;
   setRecipeEditorBoard: (board: ShootBoardRecipe) => void;
   updateRecipeEditorBoard: (
     recipeId: string,
@@ -1028,6 +1030,18 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
     [recipeEditorBoards]
   );
 
+  const markRecipeBoardComplete = useCallback((recipeId: string) => {
+    if (!recipes.some((recipe) => recipe.id === recipeId)) {
+      return false;
+    }
+
+    setRecipes((currentRecipes) =>
+      markRecipeBoardExplicitCompletion(currentRecipes, recipeId, true)
+    );
+
+    return true;
+  }, [recipes, setRecipes]);
+
   const value = useMemo<MockWorkspaceContextValue>(
     () => ({
       partnerCreators,
@@ -1049,6 +1063,7 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       getRecipeById,
       isRecipeDownloaded,
       getRecipeEditorBoard,
+      markRecipeBoardComplete,
       setRecipeEditorBoard,
       updateRecipeEditorBoard,
       getPrompterSelection,
@@ -1102,6 +1117,7 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       homeStats,
       isRecipeDownloaded,
       likedReferences,
+      markRecipeBoardComplete,
       markQuickProjectTakeGallerySaved,
       markQuickProjectTakeShared,
       markSceneProjectTakeGallerySaved,

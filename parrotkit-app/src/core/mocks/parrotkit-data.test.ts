@@ -1,6 +1,10 @@
-import { exploreRecipeSeeds, recipesSeed } from "@/core/mocks/parrotkit-data";
-import { normalizeNativeRecipe } from "@/features/recipes/lib/recipe-domain-normalizer";
-import { createShootBoardRecipe } from "@/features/recipes/lib/shoot-board-model";
+import {
+  exploreRecipeSeeds,
+  markRecipeBoardExplicitCompletion,
+  recipesSeed,
+} from "./parrotkit-data";
+import { normalizeNativeRecipe } from "../../features/recipes/lib/recipe-domain-normalizer";
+import { createShootBoardRecipe } from "../../features/recipes/lib/shoot-board-model";
 
 const runnableRecipe = recipesSeed.find(
   (recipe) => recipe.id === "recipe-english-expert-shortcut",
@@ -50,4 +54,30 @@ if (board.cuts[0]?.speakingLine !== expectedHook) {
 
 if (!board.cuts.some((cut) => cut.speakingLine.includes(expectedWarning))) {
   throw new Error("Shoot Board should include the English warning in the execution flow.");
+}
+
+const explicitCompletionRecipes = markRecipeBoardExplicitCompletion(
+  recipesSeed,
+  runnableRecipe.id,
+);
+const explicitlyCompletedRecipe = explicitCompletionRecipes.find(
+  (recipe) => recipe.id === runnableRecipe.id,
+);
+const unchangedSiblingRecipe = explicitCompletionRecipes.find(
+  (recipe) => recipe.id !== runnableRecipe.id,
+);
+
+if (explicitCompletionRecipes === recipesSeed) {
+  throw new Error("Marking explicit board completion should return updated persistent recipe state.");
+}
+
+if (explicitlyCompletedRecipe?.explicitCompletion !== true) {
+  throw new Error("Explicit board completion should persist on the mock recipe record.");
+}
+
+if (
+  unchangedSiblingRecipe &&
+  unchangedSiblingRecipe !== recipesSeed.find((recipe) => recipe.id === unchangedSiblingRecipe.id)
+) {
+  throw new Error("Marking explicit board completion should not rewrite unrelated recipe records.");
 }

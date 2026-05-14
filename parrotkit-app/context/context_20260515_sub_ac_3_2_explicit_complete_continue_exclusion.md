@@ -19,6 +19,8 @@ Home Continue가 explicit publish/complete action으로 완료 표시된 recipe 
   - Expected failure: `Home Continue must skip an explicitly completed board even when required My Takes are missing.`
 - GREEN: `NODE_PATH=src ./node_modules/.bin/sucrase-node src/features/home/lib/home-workflow-resolution.test.ts`
 - GREEN: `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.home-workflow-resolution-check.json`
+- 2026-05-15 재검증: `NODE_PATH=src ./node_modules/.bin/sucrase-node src/features/home/lib/home-workflow-resolution.test.ts`
+- 2026-05-15 재검증: `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.home-workflow-resolution-check.json`
 
 ## 리스크 / 후속
 - Explicit completion is intentionally a simple mock boolean for v1 and does not introduce a persistence refactor.
