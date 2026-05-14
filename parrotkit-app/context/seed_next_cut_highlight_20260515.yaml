@@ -14,12 +14,12 @@ goal: >
 task_type: code
 
 constraints:
-  - Continue lands on the shooting board overview, not camera.
-  - The next missing required cut should be visually clear without hiding other cuts.
-  - Keep iPhone simulator layout stable; avoid bottom nav/FAB overlap.
-  - Preserve Home/Explore/My nav and 레시피 생성 CTA.
-  - Keep changes minimal and focused on board overview UI.
-  - Do not run this seed automatically; this seed is for GitHub issue publishing/tracking.
+  - "Continue lands on the shooting board overview, not camera."
+  - "The next missing required cut should be visually clear without hiding other cuts."
+  - "Keep iPhone simulator layout stable; avoid bottom nav/FAB overlap."
+  - "Preserve Home/Explore/My nav and 레시피 생성 CTA."
+  - "Keep changes minimal and focused on board overview UI."
+  - "Do not run this seed automatically; this seed is for GitHub issue publishing/tracking."
 
 acceptance_criteria:
   - "next_required_cut_resolved: Board overview knows the next required cut lacking saved My Take."

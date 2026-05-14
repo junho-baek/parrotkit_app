@@ -15,13 +15,13 @@ goal: >
 task_type: code
 
 constraints:
-  - Preserve v1 bottom tabs: Home, Explore, My only.
-  - Preserve primary floating CTA label: 레시피 생성.
-  - Do not use Shoot/New Shoot/Start Shoot as user-facing creation CTA copy.
-  - Do not reintroduce Source or Recipes bottom tabs.
-  - Completion predicate from prior work remains based on required-cut My Take state.
-  - Keep v1 simple; avoid large persistence refactors.
-  - Do not run this seed automatically; this seed is for GitHub issue publishing/tracking.
+  - "Preserve v1 bottom tabs: Home, Explore, My only."
+  - "Preserve primary floating CTA label: 레시피 생성."
+  - "Do not use Shoot/New Shoot/Start Shoot as user-facing creation CTA copy."
+  - "Do not reintroduce Source or Recipes bottom tabs."
+  - "Completion predicate from prior work remains based on required-cut My Take state."
+  - "Keep v1 simple; avoid large persistence refactors."
+  - "Do not run this seed automatically; this seed is for GitHub issue publishing/tracking."
 
 acceptance_criteria:
   - "continue_target: Home Continue opens the last unfinished recipe shooting board."

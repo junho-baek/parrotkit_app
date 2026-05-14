@@ -14,12 +14,12 @@ goal: >
 task_type: code
 
 constraints:
-  - Required-cut My Take completion is the primary truth for default completion.
-  - Optional cuts missing My Take must not keep a board unfinished.
-  - Checklist progress is supporting only and must not override missing required My Take state.
-  - Preserve existing v1 navigation and CTA language: Home, Explore, My; 레시피 생성.
-  - Keep changes minimal and focused.
-  - Do not run this seed automatically; this seed is for GitHub issue publishing/tracking.
+  - "Required-cut My Take completion is the primary truth for default completion."
+  - "Optional cuts missing My Take must not keep a board unfinished."
+  - "Checklist progress is supporting only and must not override missing required My Take state."
+  - "Preserve existing v1 navigation and CTA language: Home, Explore, My; 레시피 생성."
+  - "Keep changes minimal and focused."
+  - "Do not run this seed automatically; this seed is for GitHub issue publishing/tracking."
 
 acceptance_criteria:
   - "all_required_saved_exclusion: Board is excluded from Continue when all required cuts have saved My Take."
