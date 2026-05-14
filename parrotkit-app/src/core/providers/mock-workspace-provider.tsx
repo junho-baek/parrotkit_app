@@ -615,13 +615,17 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
   }, [recipes]);
 
   const getContinueShootRecipe = useCallback(
-    () => getHomeInProgressWorkflowRecipe(recipes),
-    [recipes]
+    () => getHomeInProgressWorkflowRecipe(recipes, {
+      savedTakes: listSavedRecipeTakes(recipeTakeProjects),
+    }),
+    [recipeTakeProjects, recipes]
   );
 
   const getLatestShootableRecipe = useCallback(
-    () => getHomeRecentWorkflowRecipe(recipes),
-    [recipes]
+    () => getHomeRecentWorkflowRecipe(recipes, {
+      savedTakes: listSavedRecipeTakes(recipeTakeProjects),
+    }),
+    [recipeTakeProjects, recipes]
   );
 
   const isRecipeDownloaded = useCallback(

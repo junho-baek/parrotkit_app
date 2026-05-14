@@ -6,12 +6,47 @@ const HOME_WORKFLOW_OWNERSHIPS = new Set<MockRecipeOwnership>([
   'remixed',
 ]);
 
+export type RecipeBoardSavedMyTake = {
+  cardIds?: string[];
+  recipeId: string;
+  sceneId?: string;
+};
+
+export type HomeWorkflowResolutionOptions = {
+  savedTakes?: RecipeBoardSavedMyTake[];
+};
+
 function isHomeWorkflowRecipe(recipe: MockRecipe) {
   return HOME_WORKFLOW_OWNERSHIPS.has(recipe.ownership) && recipe.shootStatus !== 'draft';
 }
 
-function isInProgressWorkflowRecipe(recipe: MockRecipe) {
-  return isHomeWorkflowRecipe(recipe) && recipe.shootStatus === 'continue';
+function isUnfinishedWorkflowRecipe(
+  recipe: MockRecipe,
+  options: HomeWorkflowResolutionOptions = {},
+) {
+  if (!isHomeWorkflowRecipe(recipe)) {
+    return false;
+  }
+
+  if (recipe.explicitCompletion) {
+    return false;
+  }
+
+  if (!options.savedTakes) {
+    return true;
+  }
+
+  return isRecipeBoardUnfinishedByRequiredMyTakes({
+    recipe,
+    savedTakes: options.savedTakes,
+  });
+}
+
+function isInProgressWorkflowRecipe(
+  recipe: MockRecipe,
+  options: HomeWorkflowResolutionOptions = {},
+) {
+  return isUnfinishedWorkflowRecipe(recipe, options) && recipe.shootStatus === 'continue';
 }
 
 export type HomeWorkflowSelection =
@@ -24,20 +59,32 @@ export type HomeWorkflowSelection =
       recipe: null;
     };
 
-export function getHomeInProgressWorkflowRecipe(recipes: MockRecipe[]) {
-  return recipes.find(isInProgressWorkflowRecipe) ?? null;
+export function getHomeInProgressWorkflowRecipe(
+  recipes: MockRecipe[],
+  options: HomeWorkflowResolutionOptions = {},
+) {
+  return recipes.find((recipe) => isInProgressWorkflowRecipe(recipe, options)) ?? null;
 }
 
-export function getHomeRecentWorkflowRecipe(recipes: MockRecipe[]) {
-  return recipes.find(isHomeWorkflowRecipe) ?? null;
+export function getHomeRecentWorkflowRecipe(
+  recipes: MockRecipe[],
+  options: HomeWorkflowResolutionOptions = {},
+) {
+  return recipes.find((recipe) => isUnfinishedWorkflowRecipe(recipe, options)) ?? null;
 }
 
-export function getHomePrimaryWorkflowRecipe(recipes: MockRecipe[]) {
-  return getHomeInProgressWorkflowRecipe(recipes) ?? getHomeRecentWorkflowRecipe(recipes);
+export function getHomePrimaryWorkflowRecipe(
+  recipes: MockRecipe[],
+  options: HomeWorkflowResolutionOptions = {},
+) {
+  return getHomeInProgressWorkflowRecipe(recipes, options) ?? getHomeRecentWorkflowRecipe(recipes, options);
 }
 
-export function getHomeWorkflowSelection(recipes: MockRecipe[]): HomeWorkflowSelection {
-  const inProgressRecipe = getHomeInProgressWorkflowRecipe(recipes);
+export function getHomeWorkflowSelection(
+  recipes: MockRecipe[],
+  options: HomeWorkflowResolutionOptions = {},
+): HomeWorkflowSelection {
+  const inProgressRecipe = getHomeInProgressWorkflowRecipe(recipes, options);
 
   if (inProgressRecipe) {
     return {
@@ -46,7 +93,7 @@ export function getHomeWorkflowSelection(recipes: MockRecipe[]): HomeWorkflowSel
     };
   }
 
-  const recentRecipe = getHomeRecentWorkflowRecipe(recipes);
+  const recentRecipe = getHomeRecentWorkflowRecipe(recipes, options);
 
   if (recentRecipe) {
     return {
@@ -59,4 +106,52 @@ export function getHomeWorkflowSelection(recipes: MockRecipe[]): HomeWorkflowSel
     reason: 'none',
     recipe: null,
   };
+}
+
+export function isRecipeBoardUnfinishedByRequiredMyTakes({
+  recipe,
+  savedTakes,
+}: {
+  recipe: Pick<MockRecipe, 'id' | 'scenes'>;
+  savedTakes: RecipeBoardSavedMyTake[];
+}) {
+  const requiredCutIds = getRequiredCutIds(recipe);
+
+  if (requiredCutIds.length === 0) {
+    return false;
+  }
+
+  const savedCutIds = getSavedMyTakeCutIds(recipe.id, savedTakes);
+
+  return requiredCutIds.some((cutId) => !savedCutIds.has(cutId));
+}
+
+export function getNextRequiredCutWithoutSavedMyTakeId({
+  recipe,
+  savedTakes,
+}: {
+  recipe: Pick<MockRecipe, 'id' | 'scenes'>;
+  savedTakes: RecipeBoardSavedMyTake[];
+}) {
+  const savedCutIds = getSavedMyTakeCutIds(recipe.id, savedTakes);
+
+  return getRequiredCutIds(recipe).find((cutId) => !savedCutIds.has(cutId)) ?? null;
+}
+
+function getRequiredCutIds(recipe: Pick<MockRecipe, 'scenes'>) {
+  return recipe.scenes
+    .filter((scene) => !scene.isOptional)
+    .map((scene) => scene.id);
+}
+
+function getSavedMyTakeCutIds(recipeId: string, savedTakes: RecipeBoardSavedMyTake[]) {
+  return new Set(
+    savedTakes
+      .filter((take) => take.recipeId === recipeId)
+      .flatMap((take) => [
+        take.sceneId,
+        ...(take.cardIds ?? []),
+      ])
+      .filter((cutId): cutId is string => typeof cutId === 'string' && cutId.length > 0),
+  );
 }

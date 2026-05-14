@@ -58,14 +58,15 @@ export function HomeWorkspaceSurface() {
     getSavedRecipeTakes,
     recipes,
   } = useMockWorkspace();
-  const workflowSelection = getHomeWorkflowSelection(recipes);
+  const savedTakes = getSavedRecipeTakes();
+  const workflowSelection = getHomeWorkflowSelection(recipes, { savedTakes });
   const continueWorkflowCard = getHomeContinueWorkflowCard({
     language,
     selection: workflowSelection,
   });
   const heroRecipe = continueWorkflowCard?.recipe ?? null;
   const recipeCards = getHomeOwnedRecipeCardEntries(recipes).slice(0, 6);
-  const savedTakes = getSavedRecipeTakes().slice(0, 4);
+  const recentSavedTakes = savedTakes.slice(0, 4);
   const recipeCreateEntry = getHomeRecipeCreateEntry(language);
   const primaryCta = getHomePrimaryCta({
     hasContinueRecipe: Boolean(heroRecipe),
@@ -87,7 +88,7 @@ export function HomeWorkspaceSurface() {
   });
   const sectionOrder = getHomeWorkspaceSectionOrder({
     hasContinueOrRecentRecipe: Boolean(heroRecipe),
-    hasSavedTakes: savedTakes.length > 0,
+    hasSavedTakes: recentSavedTakes.length > 0,
   });
 
   const openRecipe = (recipe: MockRecipe) => {
@@ -196,9 +197,9 @@ export function HomeWorkspaceSurface() {
               </Text>
             </View>
 
-            {savedTakes.length > 0 ? (
+            {recentSavedTakes.length > 0 ? (
               <View style={styles.savedTakeList}>
-                {savedTakes.map((take) => (
+                {recentSavedTakes.map((take) => (
                   <SavedTakeRow
                     key={take.takeId}
                     language={language}
@@ -366,7 +367,7 @@ function ContinueRecipePanel({
               </Text>
             </View>
             <Text className="text-[13px] font-bold text-muted" numberOfLines={1}>
-              {recipe.ownerHandle} · {formatShotProgress(language, recipe.shotSceneCount, recipe.totalSceneCount)}
+              {recipe.ownerHandle} · {card.supportingProgressLabel}
             </Text>
             <Text className="text-[12px] font-semibold leading-4 text-muted" numberOfLines={2}>
               {card.body}

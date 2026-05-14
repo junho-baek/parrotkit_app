@@ -71,6 +71,7 @@ export type MockQuickTakeProject = {
 
 export type MockRecipeScene = {
   id: string;
+  isOptional?: boolean;
   sceneNumber?: number;
   title: string;
   summary: string;
@@ -135,6 +136,7 @@ export type MockRecipe = {
   ownerHandle: string;
   ownerName: string;
   downloadCount: number;
+  explicitCompletion?: boolean;
   shootStatus: MockRecipeShootStatus;
   shotSceneCount: number;
   totalSceneCount: number;

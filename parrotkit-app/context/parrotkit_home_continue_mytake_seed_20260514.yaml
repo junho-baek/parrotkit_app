@@ -1,0 +1,121 @@
+metadata:
+  seed_id: seed_3975b4591011
+  name: parrotkit_home_continue_mytake
+  version: "1.0.0"
+  created_at: "2026-05-14T14:49:35Z"
+  interview_id: interview_20260514_110424
+  ambiguity_score: 0.121
+
+goal: >
+  Define and implement ParrotKit v1 Home Continue behavior so it resumes the last
+  unfinished recipe shooting board, using required-cut My Take completion as the
+  main completion signal and opening the board overview with the next missing
+  required cut highlighted.
+
+task_type: code
+
+constraints:
+  - ParrotKit is a mobile creator/camera app.
+  - v1 navigation remains bottom tabs Home, Explore, My only.
+  - Primary floating creation CTA remains labeled 레시피 생성.
+  - 레시피 생성 must reuse the existing blank/manual recipe creation flow that opens a blank shoot-board.
+  - Home Continue must treat the recipe shooting board as the primary continuation unit.
+  - Home Continue must not jump directly into an individual checklist item, My Take cut, camera, checklist detail, or restored internal state.
+  - Recipe board completion is based primarily on saved My Take state for required cuts.
+  - Checklist progress is supporting progress only.
+  - Explicit publish/complete action may mark final completion.
+  - Multiple unfinished boards must be ordered by last meaningful activity when available.
+  - If activity timestamps are unavailable in the current mock model, fall back to most recently updated/created board without a large persistence refactor.
+  - Keep v1 simple and reliable.
+  - Do not reintroduce Source or Recipes as bottom tabs.
+  - Do not rename 레시피 생성 to Shoot, New Shoot, Start Shoot, or similar.
+  - Do not commit or push; final commit/push will be handled by the terminal finalizer after the job finishes.
+
+acceptance_criteria:
+  - "continue_target: Home Continue opens the last unfinished recipe shooting board."
+  - "completion_signal: A recipe board remains unfinished while any required cut lacks a saved My Take."
+  - "completion_exclusion: A recipe board is excluded from Continue when all required cuts have saved My Take or an explicit publish/complete action marks it complete."
+  - "checklist_supporting_only: Checklist progress can be displayed as supporting progress without overriding missing required My Take completion."
+  - "activity_ordering: When several unfinished boards exist, Continue selects the board with the latest saved My Take, checklist update, cut edit, or board open event when available."
+  - "activity_fallback: If meaningful activity timestamps are unavailable, Continue selects the most recently updated or created recipe board."
+  - "overview_entry: Continue opens the shooting board overview screen."
+  - "next_cut_highlight: The opened board highlights or prioritizes the next required cut without a saved My Take."
+  - "no_camera_jump: Camera opens only after the user taps a cut."
+  - "existing_v1_preserved: Bottom tabs remain Home, Explore, My and the floating creation CTA remains 레시피 생성."
+  - "verification: TypeScript check passes and a concise implementation report is written under context/."
+
+ontology_schema:
+  name: ParrotKitContinueState
+  description: >
+    Domain model for deciding which recipe shooting board the Home Continue CTA
+    resumes, how unfinished/completed boards are determined, and where the user
+    lands inside the board.
+  fields:
+    - name: recipe_board_id
+      type: string
+      description: Unique identifier for a recipe shooting board.
+      required: true
+    - name: required_cuts
+      type: array
+      description: Required cuts that must each have a saved My Take for default completion.
+      required: true
+    - name: my_take_by_cut
+      type: object
+      description: Mapping of cut identifiers to saved My Take state.
+      required: true
+    - name: checklist_progress
+      type: number
+      description: Supporting progress value for checklist completion display.
+      required: true
+    - name: explicit_completion
+      type: boolean
+      description: Whether the user has explicitly completed or published the board.
+      required: true
+    - name: last_meaningful_activity_at
+      type: string
+      description: Timestamp of latest saved My Take, checklist update, cut edit, or board open event.
+      required: false
+    - name: updated_or_created_at
+      type: string
+      description: Fallback timestamp used when meaningful activity timestamps are unavailable.
+      required: true
+    - name: is_unfinished
+      type: boolean
+      description: Whether any required cut lacks a saved My Take and the board is not explicitly complete.
+      required: true
+    - name: next_required_cut_id
+      type: string
+      description: Next required cut without a saved My Take to highlight on board overview.
+      required: true
+    - name: continue_entry_screen
+      type: string
+      description: Screen opened by Continue, expected to be the shooting board overview.
+      required: true
+
+evaluation_principles:
+  - name: ContinuationCorrectness
+    description: Continue resumes the correct unfinished recipe board according to My Take completion and activity ordering.
+    weight: 0.35
+  - name: Simplicity
+    description: Implementation avoids deep state restoration and large persistence refactors for v1.
+    weight: 0.25
+  - name: CompletionAccuracy
+    description: Required-cut saved My Take state is the primary source of completion truth.
+    weight: 0.25
+  - name: UXClarity
+    description: Board overview clearly highlights or prioritizes the next required cut without surprising navigation.
+    weight: 0.15
+
+exit_conditions:
+  - name: ContinueTargetResolved
+    description: The workflow has an unambiguous rule for selecting the Home Continue board.
+    criteria: last unfinished board selected by last meaningful activity or updated/created fallback.
+  - name: CompletionRuleDefined
+    description: The workflow has a clear rule for excluding completed boards.
+    criteria: all required cuts have saved My Take or explicit publish/complete marks complete.
+  - name: EntryBehaviorDefined
+    description: The workflow has a clear landing behavior after tapping Continue.
+    criteria: open shooting board overview and highlight next required cut without deep camera restore.
+  - name: V1ScopePreserved
+    description: The workflow avoids unnecessary persistence or navigation complexity.
+    criteria: no large persistence refactor and no direct restore into camera/checklist state.

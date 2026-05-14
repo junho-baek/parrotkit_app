@@ -1,10 +1,77 @@
+import { readFileSync } from 'node:fs';
+
 import type { MockRecipe } from '@/core/mocks/parrotkit-data';
 import {
   getHomeContinueWorkflowCard,
   getHomeContinueWorkflowDestination,
+  getHomeContinueWorkflowEntry,
+  getHomeContinueWorkflowHref,
   getHomeEmptyWorkflowFallback,
 } from './home-continue-workflow-card';
 import { getHomeWorkflowSelection } from './home-workflow-resolution';
+
+const homeWorkspaceSurfaceSource = readFileSync(
+  'src/features/home/components/home-workspace-surface.tsx',
+  'utf8',
+);
+const recipeDetailScreenSource = readFileSync(
+  'src/features/recipes/screens/recipe-detail-screen.tsx',
+  'utf8',
+);
+const shootBoardDraggableListSource = readFileSync(
+  'src/features/recipes/components/shoot-board-draggable-list.tsx',
+  'utf8',
+);
+const shootBoardSceneCardSource = readFileSync(
+  'src/features/recipes/components/shoot-board-scene-card.tsx',
+  'utf8',
+);
+
+if (
+  !/getHomeWorkflowSelection\(\s*recipes,\s*\{\s*savedTakes\s*\}/s.test(homeWorkspaceSurfaceSource)
+) {
+  throw new Error('Home surface workflow selection must pass saved My Takes into Continue board lookup.');
+}
+
+if (!/getHomeContinueWorkflowEntry/.test(homeWorkspaceSurfaceSource)) {
+  throw new Error('Home surface must derive a Continue overview entry that includes the next required cut highlight.');
+}
+
+if (!/getHomeContinueWorkflowHref/.test(homeWorkspaceSurfaceSource)) {
+  throw new Error('Home surface must push the Continue href with highlightCutId metadata.');
+}
+
+if (!/router\.push\(continueWorkflowHref as Href\)/.test(homeWorkspaceSurfaceSource)) {
+  throw new Error('Home Continue primary action must open the overview route with highlightCutId metadata.');
+}
+
+if (!/highlightCutId\?: string/.test(recipeDetailScreenSource)) {
+  throw new Error('Recipe overview route params must accept highlightCutId metadata.');
+}
+
+if (!/highlightedCutId=\{highlightedCutId\}/.test(recipeDetailScreenSource)) {
+  throw new Error('Recipe overview must pass the highlighted cut id into the shoot board list.');
+}
+
+if (!/setExpandedCutIds\(\[targetCut\.id\]\)/.test(recipeDetailScreenSource)) {
+  throw new Error('Recipe overview must expand the highlighted next required cut.');
+}
+
+if (!/highlightedCutId\?: string/.test(shootBoardDraggableListSource)) {
+  throw new Error('Shoot board list must accept a highlighted cut id.');
+}
+
+if (!/highlighted=\{highlightedCutId === cut\.id\}/.test(shootBoardDraggableListSource)) {
+  throw new Error('Shoot board list must mark only the selected cut card as highlighted.');
+}
+
+if (!/highlighted: boolean/.test(shootBoardSceneCardSource)) {
+  throw new Error('Shoot board cut card must accept a highlighted state.');
+}
+
+if (!/styles\.highlightedCard/.test(shootBoardSceneCardSource)) {
+  throw new Error('Shoot board cut card must render a visual highlighted state.');
+}
 
 const baseRecipe: MockRecipe = {
   creator: '@creator',
@@ -33,6 +100,32 @@ const inProgressRecipe: MockRecipe = {
   ...baseRecipe,
   lastShotAt: 'Last shot just now',
   shootStatus: 'continue',
+};
+
+const completedRequiredCutRecipe: MockRecipe = {
+  ...baseRecipe,
+  id: 'completed-required-cut-board',
+  scenes: [
+    {
+      analysisLines: [],
+      id: 'completed-required-hook',
+      prompterLines: [],
+      recipeLines: [],
+      summary: 'Required hook cut',
+      title: 'Required hook cut',
+    },
+    {
+      analysisLines: [],
+      id: 'completed-required-proof',
+      prompterLines: [],
+      recipeLines: [],
+      summary: 'Required proof cut',
+      title: 'Required proof cut',
+    },
+  ],
+  shootStatus: 'continue',
+  shotSceneCount: 2,
+  totalSceneCount: 2,
 };
 
 const inProgressCard = getHomeContinueWorkflowCard({
@@ -97,6 +190,76 @@ if (/in progress/i.test(recentCard.body)) {
   throw new Error('Home recent workflow card must not describe a ready recent workflow as in progress.');
 }
 
+const checklistCompleteButMyTakeMissingRecipe: MockRecipe = {
+  ...baseRecipe,
+  id: 'checklist-complete-mytake-missing',
+  scenes: [
+    {
+      analysisLines: [],
+      id: 'checklist-hook',
+      prompterLines: [],
+      recipeLines: [],
+      summary: 'Hook',
+      title: 'Hook',
+    },
+    {
+      analysisLines: [],
+      id: 'checklist-proof',
+      prompterLines: [],
+      recipeLines: [],
+      summary: 'Proof',
+      title: 'Proof',
+    },
+    {
+      analysisLines: [],
+      id: 'checklist-cta',
+      prompterLines: [],
+      recipeLines: [],
+      summary: 'CTA',
+      title: 'CTA',
+    },
+  ],
+  shootStatus: 'continue',
+  shotSceneCount: 3,
+  title: '체크리스트 완료 레시피',
+  totalSceneCount: 3,
+};
+
+const checklistSupportingSelection = getHomeWorkflowSelection(
+  [checklistCompleteButMyTakeMissingRecipe],
+  {
+    savedTakes: [
+      {
+        cardIds: ['checklist-hook'],
+        recipeId: 'checklist-complete-mytake-missing',
+        sceneId: 'checklist-hook',
+      },
+      {
+        cardIds: ['checklist-proof'],
+        recipeId: 'checklist-complete-mytake-missing',
+        sceneId: 'checklist-proof',
+      },
+    ],
+  },
+);
+
+const checklistSupportingCard = getHomeContinueWorkflowCard({
+  language: 'ko',
+  selection: checklistSupportingSelection,
+});
+
+if (!checklistSupportingCard) {
+  throw new Error('Home must still render Continue when checklist progress is complete but a required My Take is missing.');
+}
+
+if (checklistSupportingCard.supportingProgressLabel !== '체크리스트 3/3컷') {
+  throw new Error('Home continue card must expose checklist progress as a supporting progress label.');
+}
+
+if (!/체크리스트 3\/3컷/.test(checklistSupportingCard.body)) {
+  throw new Error('Home continue card may display checklist progress as supporting context.');
+}
+
 const emptyCard = getHomeContinueWorkflowCard({
   language: 'ko',
   selection: {
@@ -109,6 +272,31 @@ if (emptyCard !== null) {
   throw new Error('Home continue card should be absent when no local workflow is selected.');
 }
 
+const completedRequiredCutCard = getHomeContinueWorkflowCard({
+  language: 'ko',
+  selection: getHomeWorkflowSelection(
+    [completedRequiredCutRecipe],
+    {
+      savedTakes: [
+        {
+          cardIds: ['completed-required-hook'],
+          recipeId: 'completed-required-cut-board',
+          sceneId: 'completed-required-hook',
+        },
+        {
+          cardIds: ['completed-required-proof'],
+          recipeId: 'completed-required-cut-board',
+          sceneId: 'completed-required-proof',
+        },
+      ],
+    },
+  ),
+});
+
+if (completedRequiredCutCard !== null) {
+  throw new Error('Home Continue must exclude a board when every required cut has a saved My Take.');
+}
+
 const continueDestination = getHomeContinueWorkflowDestination({
   createDestination: '/recipe-create?mode=manual',
   selection: getHomeWorkflowSelection([inProgressRecipe]),
@@ -116,6 +304,62 @@ const continueDestination = getHomeContinueWorkflowDestination({
 
 if (continueDestination !== '/recipe/recipe-launch-hook') {
   throw new Error('Home continue action must open the selected workflow recipe board.');
+}
+
+const continueEntry = getHomeContinueWorkflowEntry({
+  createDestination: '/recipe-create?mode=manual',
+  savedTakes: [
+    {
+      cardIds: ['recipe-launch-hook-scene-1'],
+      recipeId: 'recipe-launch-hook',
+      sceneId: 'recipe-launch-hook-scene-1',
+    },
+  ],
+  selection: getHomeWorkflowSelection([
+    {
+      ...inProgressRecipe,
+      scenes: [
+        {
+          analysisLines: [],
+          id: 'recipe-launch-hook-scene-1',
+          prompterLines: [],
+          recipeLines: [],
+          summary: 'Hook',
+          title: 'Hook',
+        },
+        {
+          analysisLines: [],
+          id: 'recipe-launch-hook-scene-2',
+          prompterLines: [],
+          recipeLines: [],
+          summary: 'Proof',
+          title: 'Proof',
+        },
+      ],
+    },
+  ]),
+});
+
+if (continueEntry.screen !== 'shooting-board-overview') {
+  throw new Error('Home continue must enter the shooting board overview screen.');
+}
+
+if (continueEntry.destination !== '/recipe/recipe-launch-hook') {
+  throw new Error('Home continue overview entry must use the selected recipe board route.');
+}
+
+if (continueEntry.highlightCutId !== 'recipe-launch-hook-scene-2') {
+  throw new Error('Home continue overview entry must expose the next required cut missing a saved My Take for highlight.');
+}
+
+const continueHref = getHomeContinueWorkflowHref(continueEntry);
+
+if (continueHref !== '/recipe/recipe-launch-hook?highlightCutId=recipe-launch-hook-scene-2') {
+  throw new Error('Home continue href must pass the selected next missing required cut to the board overview.');
+}
+
+if (/prompter|camera|checklist|cutId|sceneId|retakeTakeId/i.test(continueEntry.destination)) {
+  throw new Error('Home continue must not deep link into camera, checklist detail, prompter, or restored cut state.');
 }
 
 const emptyDestination = getHomeContinueWorkflowDestination({
