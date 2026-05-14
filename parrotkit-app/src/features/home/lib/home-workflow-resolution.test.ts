@@ -146,6 +146,36 @@ const explicitlyCompletedInProgressBoard = recipe({
   totalSceneCount: 2,
 });
 
+const olderUnfinishedActivityBoard = recipe({
+  ...( {
+    lastMeaningfulActivityAt: "2026-05-15T01:00:00.000Z",
+    updatedAt: "2026-05-15T01:00:00.000Z",
+  } as Partial<MockRecipe> ),
+  id: "older-unfinished-activity-board",
+  scenes: [
+    scene("older-activity-hook"),
+    scene("older-activity-proof"),
+  ],
+  shootStatus: "continue",
+  shotSceneCount: 1,
+  totalSceneCount: 2,
+});
+
+const latestUnfinishedActivityBoard = recipe({
+  ...( {
+    lastMeaningfulActivityAt: "2026-05-15T03:00:00.000Z",
+    updatedAt: "2026-05-15T02:00:00.000Z",
+  } as Partial<MockRecipe> ),
+  id: "latest-unfinished-activity-board",
+  scenes: [
+    scene("latest-activity-hook"),
+    scene("latest-activity-proof"),
+  ],
+  shootStatus: "continue",
+  shotSceneCount: 1,
+  totalSceneCount: 2,
+});
+
 const primaryWorkflow = getHomePrimaryWorkflowRecipe([
   recentReadyRecipe,
   recentInProgressRecipe,
@@ -278,6 +308,34 @@ if (
   unfinishedSelection.recipe?.id !== "unfinished-in-progress-board"
 ) {
   throw new Error("Home Continue must skip boards whose required cuts all have saved My Takes.");
+}
+
+const latestUnfinishedSelection = getHomeWorkflowSelection(
+  [
+    olderUnfinishedActivityBoard,
+    latestUnfinishedActivityBoard,
+  ],
+  {
+    savedTakes: [
+      {
+        cardIds: ["older-activity-hook"],
+        recipeId: "older-unfinished-activity-board",
+        sceneId: "older-activity-hook",
+      },
+      {
+        cardIds: ["latest-activity-hook"],
+        recipeId: "latest-unfinished-activity-board",
+        sceneId: "latest-activity-hook",
+      },
+    ],
+  },
+);
+
+if (
+  latestUnfinishedSelection.reason !== "inProgress" ||
+  latestUnfinishedSelection.recipe?.id !== "latest-unfinished-activity-board"
+) {
+  throw new Error("Home Continue must open the latest unfinished recipe shooting board.");
 }
 
 const allCompletedSelection = getHomeWorkflowSelection(
