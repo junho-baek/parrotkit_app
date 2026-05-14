@@ -1,0 +1,62 @@
+metadata:
+  seed_id: parrotkit_continue_selection_ordering_20260515
+  name: parrotkit_continue_selection_ordering
+  version: "1.0.0"
+  source_session_id: orch_173aee3a5c82
+  source_job_id: job_459be55ab179
+  created_at: "2026-05-15"
+
+goal: >
+  Finish ParrotKit Home Continue target selection: Continue should open the last
+  unfinished recipe shooting board, select among multiple unfinished boards by
+  meaningful activity ordering with updated/created fallback, and never jump
+  directly into camera.
+
+task_type: code
+
+constraints:
+  - Preserve v1 bottom tabs: Home, Explore, My only.
+  - Preserve primary floating CTA label: 레시피 생성.
+  - Do not use Shoot/New Shoot/Start Shoot as user-facing creation CTA copy.
+  - Do not reintroduce Source or Recipes bottom tabs.
+  - Completion predicate from prior work remains based on required-cut My Take state.
+  - Keep v1 simple; avoid large persistence refactors.
+  - Do not run this seed automatically; this seed is for GitHub issue publishing/tracking.
+
+acceptance_criteria:
+  - "continue_target: Home Continue opens the last unfinished recipe shooting board."
+  - "activity_ordering: If several unfinished boards exist, Continue selects the board with latest saved My Take, checklist update, cut edit, or board open event when available."
+  - "activity_fallback: If meaningful activity timestamps are unavailable, Continue selects the most recently updated or created board."
+  - "no_camera_jump: Continue opens board overview only; camera opens only after the user taps a cut."
+  - "tests: Focused unit or component tests cover target selection, ordering, fallback, and no direct camera navigation."
+  - "verification: TypeScript check passes."
+
+ontology_schema:
+  name: ParrotKitContinueSelection
+  description: Selection and routing rules for the Home Continue CTA.
+  fields:
+    - name: board_id
+      type: string
+      description: Candidate recipe shooting board id.
+      required: true
+    - name: is_unfinished
+      type: boolean
+      description: Whether the board is eligible for Continue.
+      required: true
+    - name: last_meaningful_activity_at
+      type: string
+      description: Latest My Take/checklist/cut edit/open timestamp if available.
+      required: false
+    - name: updated_or_created_at
+      type: string
+      description: Fallback timestamp for ordering.
+      required: true
+    - name: continue_destination
+      type: string
+      description: Route destination, expected to be board overview.
+      required: true
+
+exit_conditions:
+  - name: continue_target_resolved
+    description: Continue target is deterministic and covered by tests.
+    criteria: Latest unfinished board is selected by activity ordering or fallback.

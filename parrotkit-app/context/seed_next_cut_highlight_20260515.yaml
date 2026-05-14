@@ -1,0 +1,57 @@
+metadata:
+  seed_id: parrotkit_next_cut_highlight_20260515
+  name: parrotkit_next_cut_highlight
+  version: "1.0.0"
+  source_session_id: orch_173aee3a5c82
+  source_job_id: job_459be55ab179
+  created_at: "2026-05-15"
+
+goal: >
+  Finish ParrotKit board overview Resume UX: when Home Continue opens a board,
+  the overview should highlight or prioritize the next required cut without a
+  saved My Take, while leaving camera entry user-initiated.
+
+task_type: code
+
+constraints:
+  - Continue lands on the shooting board overview, not camera.
+  - The next missing required cut should be visually clear without hiding other cuts.
+  - Keep iPhone simulator layout stable; avoid bottom nav/FAB overlap.
+  - Preserve Home/Explore/My nav and 레시피 생성 CTA.
+  - Keep changes minimal and focused on board overview UI.
+  - Do not run this seed automatically; this seed is for GitHub issue publishing/tracking.
+
+acceptance_criteria:
+  - "next_required_cut_resolved: Board overview knows the next required cut lacking saved My Take."
+  - "visual_highlight: That cut is highlighted, prioritized, or marked as next on the overview."
+  - "no_camera_jump: Camera does not open until the user taps a cut."
+  - "layout_safe: Highlight treatment does not create bottom nav/FAB overlap on iPhone simulator."
+  - "fallback_empty_state: If all required cuts have My Take, overview does not show a misleading next-cut highlight."
+  - "tests_or_qa: Focused component test or simulator QA evidence verifies the highlighted next cut."
+  - "verification: TypeScript check passes and implementation report is written under context/."
+
+ontology_schema:
+  name: ParrotKitNextCutHighlight
+  description: Board overview UI state for guiding users to the next required cut needing My Take.
+  fields:
+    - name: board_id
+      type: string
+      description: Recipe board opened from Home Continue.
+      required: true
+    - name: next_required_cut_id
+      type: string
+      description: First/priority required cut without saved My Take.
+      required: false
+    - name: highlight_state
+      type: string
+      description: Visual treatment for the next cut.
+      required: true
+    - name: camera_entry_requires_tap
+      type: boolean
+      description: Whether camera opens only after user taps a cut.
+      required: true
+
+exit_conditions:
+  - name: next_cut_guidance_visible
+    description: Continue-opened board guides user to the next required cut.
+    criteria: Board overview highlights/prioritizes next missing required cut without opening camera.

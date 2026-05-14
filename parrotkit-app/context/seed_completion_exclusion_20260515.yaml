@@ -1,0 +1,61 @@
+metadata:
+  seed_id: parrotkit_completion_exclusion_20260515
+  name: parrotkit_completion_exclusion
+  version: "1.0.0"
+  source_session_id: orch_173aee3a5c82
+  source_job_id: job_459be55ab179
+  created_at: "2026-05-15"
+
+goal: >
+  Finish ParrotKit Continue completion exclusion: a recipe board must be excluded
+  from Home Continue when every required cut has a saved My Take, or when an
+  explicit publish/complete action marks the board complete.
+
+task_type: code
+
+constraints:
+  - Required-cut My Take completion is the primary truth for default completion.
+  - Optional cuts missing My Take must not keep a board unfinished.
+  - Checklist progress is supporting only and must not override missing required My Take state.
+  - Preserve existing v1 navigation and CTA language: Home, Explore, My; 레시피 생성.
+  - Keep changes minimal and focused.
+  - Do not run this seed automatically; this seed is for GitHub issue publishing/tracking.
+
+acceptance_criteria:
+  - "all_required_saved_exclusion: Board is excluded from Continue when all required cuts have saved My Take."
+  - "optional_missing_allowed: Board is still complete when only optional cuts are missing My Take."
+  - "explicit_completion_exclusion: Explicit publish/complete action excludes board from Continue."
+  - "missing_required_included: Board remains eligible for Continue when any required cut lacks saved My Take."
+  - "checklist_supporting_only: Checklist progress does not mark a board complete if a required My Take is missing."
+  - "tests: Focused tests cover all-required-saved, optional-only-missing, explicit-complete, and missing-required cases."
+  - "verification: TypeScript check passes."
+
+ontology_schema:
+  name: ParrotKitBoardCompletionExclusion
+  description: Completion predicate for excluding boards from Home Continue.
+  fields:
+    - name: required_cuts
+      type: array
+      description: Cuts required for default board completion.
+      required: true
+    - name: optional_cuts
+      type: array
+      description: Non-blocking cuts.
+      required: false
+    - name: saved_my_takes
+      type: object
+      description: Saved My Take state keyed by cut id.
+      required: true
+    - name: explicit_completion
+      type: boolean
+      description: Whether user explicitly completed or published the board.
+      required: true
+    - name: is_continue_eligible
+      type: boolean
+      description: Whether the board should appear in Continue.
+      required: true
+
+exit_conditions:
+  - name: completion_predicate_verified
+    description: Continue exclusion rule is implemented and tested.
+    criteria: All required cuts saved or explicit completion excludes board from Continue.
