@@ -4,6 +4,7 @@ import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native
 
 import type { MockRecipe } from '@/core/mocks/parrotkit-data';
 import { brandActionGradient } from '@/core/theme/colors';
+import { toImageSource } from '@/core/ui/image-source';
 import {
   getRecipeOwnershipLabel,
   getRecipePrimaryActionLabel,
@@ -37,7 +38,7 @@ export function ShootableRecipeCard({
       <ImageBackground
         imageStyle={styles.image}
         resizeMode="cover"
-        source={{ uri: recipe.thumbnail }}
+        source={toImageSource(recipe.thumbnail)}
         style={hero ? styles.heroImage : styles.gridImage}
       >
         <LinearGradient

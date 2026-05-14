@@ -21,6 +21,7 @@ import { APP_TOP_BAR_HIDE_RANGE } from '@/core/navigation/app-top-bar';
 import { useAppChrome } from '@/core/navigation/app-chrome-provider';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient } from '@/core/theme/colors';
+import { toImageSource, type AppImageSource } from '@/core/ui/image-source';
 import { getContinueShootRecipe, getLatestShootableRecipe } from '@/features/recipes/lib/recipe-ownership';
 import { getShootBoardHref } from '@/features/recipes/lib/shoot-board-model';
 
@@ -482,7 +483,7 @@ function ContinueShootCard({
     <View className="gap-2">
       <Text className="text-[15px] font-black text-ink">{copy.continueSection as string}</Text>
       <Pressable accessibilityRole="button" onPress={onOpen} style={styles.continueCard}>
-        <Image source={{ uri: recipe.thumbnail }} style={styles.continueImage} />
+        <Image source={toImageSource(recipe.thumbnail)} style={styles.continueImage} />
         <View className="min-w-0 flex-1 gap-1.5">
           <View className="flex-row items-start justify-between gap-2">
             <Text className="flex-1 text-[16px] font-black leading-[20px] text-ink" numberOfLines={2}>
@@ -570,7 +571,7 @@ function RecipeListRow({
   return (
     <View style={styles.recipeRow}>
       <Pressable accessibilityRole="button" className="min-w-0 flex-1 flex-row items-center gap-3" onPress={onOpen}>
-        <Image source={{ uri: recipe.thumbnail }} style={styles.recipeRowImage} />
+        <Image source={toImageSource(recipe.thumbnail)} style={styles.recipeRowImage} />
         <View className="min-w-0 flex-1">
           <Text className="text-[14px] font-black leading-[18px] text-ink" numberOfLines={1}>
             {recipe.title}
@@ -610,7 +611,7 @@ function CollectionScreen({
 }: {
   collections: CollectionItem[];
   copy: (typeof recipeCopy)['en'];
-  imageLookup: Map<string, string>;
+  imageLookup: Map<string, AppImageSource>;
   language: AppLanguage;
   onBack: () => void;
   onOpenRecipe: (recipe: MockRecipe) => void;
@@ -656,12 +657,12 @@ function CollectionScreen({
           {featuredCollection.imageIds.map((imageId) => (
             <Image
               key={imageId}
-              source={{ uri: imageLookup.get(imageId) ?? recipes[0]?.thumbnail }}
+              source={toImageSource(imageLookup.get(imageId) ?? recipes[0]?.thumbnail)}
               style={styles.collectionPreviewImage}
             />
           ))}
           {recipes.slice(0, 2).map((recipe) => (
-            <Image key={recipe.id} source={{ uri: recipe.thumbnail }} style={styles.collectionPreviewImage} />
+            <Image key={recipe.id} source={toImageSource(recipe.thumbnail)} style={styles.collectionPreviewImage} />
           ))}
         </View>
       </View>
@@ -729,7 +730,7 @@ function PublishRecipeScreen({
           <ImageBackground
             imageStyle={styles.publishCoverImage}
             resizeMode="cover"
-            source={{ uri: recipe?.thumbnail ?? 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80' }}
+            source={toImageSource(recipe?.thumbnail ?? 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80')}
             style={styles.publishCover}
           >
             <LinearGradient colors={['rgba(15,23,42,0.08)', 'rgba(15,23,42,0.58)']} style={StyleSheet.absoluteFill} />

@@ -1,4 +1,5 @@
 import { MockRecipe, MockRecipeScene } from '@/core/mocks/parrotkit-data';
+import { imageSourceToUri, toImageSource, type AppImageSource } from '@/core/ui/image-source';
 import {
   NativeRecipe,
   NativeRecipeScene,
@@ -131,7 +132,7 @@ function normalizePrompterBlocks(scene: MockRecipeScene): PrompterBlock[] {
   return blocks.length > 0 ? blocks : createDefaultBlocks(scene);
 }
 
-export function normalizeNativeRecipeScene(scene: MockRecipeScene, index: number, recipeThumbnail: string): NativeRecipeScene {
+export function normalizeNativeRecipeScene(scene: MockRecipeScene, index: number, recipeThumbnail: AppImageSource): NativeRecipeScene {
   const sceneNumber = Number(scene.sceneNumber ?? index + 1);
   const analysisLines = normalizeStringArray(scene.analysisLines);
   const recipeLines = normalizeStringArray(scene.recipeLines);
@@ -153,7 +154,8 @@ export function normalizeNativeRecipeScene(scene: MockRecipeScene, index: number
     title: compactText(scene.title) || `Scene ${sceneNumber}`,
     startTime: compactText(scene.startTime) || timeForIndex(index, 0),
     endTime: compactText(scene.endTime) || timeForIndex(index, 5),
-    thumbnail: compactText(scene.thumbnail) || recipeThumbnail,
+    thumbnail: imageSourceToUri(scene.thumbnail) || imageSourceToUri(recipeThumbnail),
+    thumbnailSource: toImageSource(scene.thumbnail) ?? toImageSource(recipeThumbnail),
     analysis: {
       transcriptOriginal: normalizeStringArray(scene.analysis?.transcriptOriginal),
       transcriptSnippet: compactText(scene.analysis?.transcriptSnippet) || analysisLines[0] || null,
@@ -186,6 +188,8 @@ export function normalizeNativeRecipeScene(scene: MockRecipeScene, index: number
 export function normalizeNativeRecipe(recipe: MockRecipe): NativeRecipe {
   return {
     ...recipe,
+    thumbnail: imageSourceToUri(recipe.thumbnail),
+    thumbnailSource: toImageSource(recipe.thumbnail),
     scenes: recipe.scenes.map((scene, index) => normalizeNativeRecipeScene(scene, index, recipe.thumbnail)),
   };
 }

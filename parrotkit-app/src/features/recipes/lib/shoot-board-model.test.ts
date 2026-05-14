@@ -30,6 +30,21 @@ const board = createShootBoardRecipe(sourceRecipe, {
   shotCutIds: [],
 });
 
+const emptyBoard = createShootBoardRecipe({
+  ...sourceRecipe,
+  id: "recipe-empty-manual-draft",
+  scenes: [],
+});
+
+if (
+  emptyBoard.cuts.length !== 0 ||
+  emptyBoard.totalCuts !== 0 ||
+  emptyBoard.totalDurationSeconds !== 0 ||
+  emptyBoard.summary.totalScenes !== 0
+) {
+  throw new Error("Blank manual recipe drafts should open an empty shoot board.");
+}
+
 if (board.summary.recipeType !== "Payoff-first proof recipe") {
   throw new Error("Reusable board should expose a recipe type summary.");
 }

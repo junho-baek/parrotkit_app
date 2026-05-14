@@ -9,11 +9,13 @@ import {
   StyleSheet,
   Text,
   View,
+  type ImageSourcePropType,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { AppLanguage } from "@/core/i18n/app-language";
 import { brandActionGradient } from "@/core/theme/colors";
+import { toImageSource } from "@/core/ui/image-source";
 import type {
   ShootBoardCut,
   ShootBoardTake,
@@ -132,9 +134,9 @@ export function TakeReviewViewerModal({
 
         <View style={styles.main}>
           <View style={styles.previewFrame}>
-            {(cut.takeThumbnailUrl ?? cut.thumbnailUrl) ? (
+            {(cut.takeThumbnailSource ?? cut.thumbnailSource ?? cut.takeThumbnailUrl ?? cut.thumbnailUrl) ? (
               <Image
-                source={{ uri: cut.takeThumbnailUrl ?? cut.thumbnailUrl }}
+                source={cut.takeThumbnailSource ?? cut.thumbnailSource ?? toImageSource(cut.takeThumbnailUrl ?? cut.thumbnailUrl)}
                 style={styles.previewImage}
               />
             ) : (
@@ -182,6 +184,7 @@ export function TakeReviewViewerModal({
                 language={language}
                 onPress={() => handleSelectTake(take)}
                 take={take}
+                thumbnailSource={cut.takeThumbnailSource ?? cut.thumbnailSource}
                 thumbnailUrl={cut.takeThumbnailUrl ?? cut.thumbnailUrl}
               />
             ))}
@@ -304,6 +307,7 @@ function TakeThumb({
   language,
   onPress,
   take,
+  thumbnailSource,
   thumbnailUrl,
 }: {
   active: boolean;
@@ -311,6 +315,7 @@ function TakeThumb({
   language: AppLanguage;
   onPress: () => void;
   take: ShootBoardTake;
+  thumbnailSource?: ImageSourcePropType;
   thumbnailUrl: string;
 }) {
   return (
@@ -324,8 +329,8 @@ function TakeThumb({
         pressed && styles.pressed,
       ]}
     >
-      {thumbnailUrl ? (
-        <Image source={{ uri: thumbnailUrl }} style={styles.takeThumbImage} />
+      {thumbnailSource || thumbnailUrl ? (
+        <Image source={thumbnailSource ?? toImageSource(thumbnailUrl)} style={styles.takeThumbImage} />
       ) : null}
       <View style={styles.takeThumbShade} />
       {final ? (

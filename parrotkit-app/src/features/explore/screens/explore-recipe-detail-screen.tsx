@@ -10,6 +10,7 @@ import type { MockRecipe, MockRecipeScene } from '@/core/mocks/parrotkit-data';
 import { ugcMedia } from '@/core/mocks/ugc-media';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient } from '@/core/theme/colors';
+import { toImageSource } from '@/core/ui/image-source';
 import { getExploreTemplateDetailCopyAffordance } from '@/features/explore/lib/explore-template-copy-action';
 import { getExploreTemplateDetailStartShootingHref } from '@/features/explore/lib/explore-template-recipe-copy';
 import { isVerifiedCreatorRecipe } from '@/features/recipes/lib/recipe-ownership';
@@ -183,7 +184,7 @@ export function ExploreRecipeDetailScreen() {
           <ImageBackground
             imageStyle={styles.heroImage}
             resizeMode="cover"
-            source={{ uri: staticDetail.image }}
+            source={toImageSource(staticDetail.image)}
             style={styles.hero}
           >
             <LinearGradient
@@ -299,7 +300,7 @@ export function ExploreRecipeDetailScreen() {
         <ImageBackground
           imageStyle={styles.heroImage}
           resizeMode="cover"
-          source={{ uri: detailRecipe.thumbnail }}
+          source={toImageSource(detailRecipe.thumbnail)}
           style={styles.hero}
         >
           <LinearGradient

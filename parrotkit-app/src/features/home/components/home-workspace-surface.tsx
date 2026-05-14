@@ -22,6 +22,7 @@ import type { MockRecipe } from '@/core/mocks/parrotkit-data';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient } from '@/core/theme/colors';
 import { AppScreenScrollView } from '@/core/ui/app-screen-scroll-view';
+import { toImageSource } from '@/core/ui/image-source';
 import {
   getHomePrimaryCta,
   getHomePrimaryCtaDestination,
@@ -353,7 +354,7 @@ function ContinueRecipePanel({
           className="flex-row gap-3"
           onPress={onOpenRecipe}
         >
-          <Image source={{ uri: recipe.thumbnail }} style={styles.continueImage} />
+          <Image source={toImageSource(recipe.thumbnail)} style={styles.continueImage} />
           <View className="flex-1 justify-center gap-1.5">
             <Text className="text-[17px] font-black leading-[21px] text-ink" numberOfLines={2}>
               {card.title || copy.continueTitleFallback}
@@ -459,7 +460,7 @@ function HomeRecipeCard({
         <ImageBackground
           imageStyle={styles.recipeCardImage}
           resizeMode="cover"
-          source={{ uri: recipe.thumbnail }}
+          source={toImageSource(recipe.thumbnail)}
           style={styles.recipeCardMedia}
         >
           <LinearGradient

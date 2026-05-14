@@ -44,6 +44,10 @@ export default function RootLayout() {
                 name="recipe-create"
                 options={{
                   animation: "slide_from_bottom",
+                  contentStyle: {
+                    backgroundColor: "transparent",
+                  },
+                  presentation: "transparentModal",
                 }}
               />
               <Stack.Screen
