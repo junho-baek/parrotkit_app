@@ -24,7 +24,7 @@ export function getRecipeShootProgressLabel(recipe: MockRecipe) {
 }
 
 export function getRecipePrimaryActionLabel(recipe: MockRecipe) {
-  return recipe.shootStatus === 'continue' ? 'Continue Shoot' : 'Shoot';
+  return recipe.shootStatus === 'continue' ? 'Continue filming' : 'Film';
 }
 
 export function isVerifiedCreatorRecipe(recipe: MockRecipe) {

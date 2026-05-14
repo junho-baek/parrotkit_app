@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "nativewind-env.d.ts",
+    "src/features/recipes/lib/recipe-create-layout.test.ts",
+    "src/features/recipes/lib/recipe-create-layout.ts",
+    "src/features/recipes/lib/recipe-create-options.test.ts",
+    "src/features/recipes/lib/recipe-create-options.ts",
+    "src/features/recipes/screens/recipe-create-screen.tsx"
+  ]
+}

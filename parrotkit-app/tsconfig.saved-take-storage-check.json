@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "nativewind-env.d.ts",
+    "src/core/mocks/parrotkit-data.ts",
+    "src/features/recipes/lib/saved-take-contract.ts",
+    "src/features/recipes/lib/saved-take-storage.ts",
+    "src/features/recipes/lib/saved-take-storage.test.ts",
+    "src/features/recipes/lib/shoot-board-model.ts",
+    "src/features/recipes/lib/take-projects.ts"
+  ]
+}

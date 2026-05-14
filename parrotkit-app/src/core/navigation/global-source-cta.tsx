@@ -5,24 +5,30 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppLanguage } from '@/core/i18n/app-language';
+import {
+  getGlobalCreateCta,
+  getGlobalCreateCtaDestination,
+  shouldShowGlobalCreateCta,
+} from '@/core/navigation/global-create-cta';
 import { brandActionGradientSoft, brandActionShadow } from '@/core/theme/colors';
 
 export function GlobalSourceCta() {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const router = useRouter();
-  const { copy } = useAppLanguage();
+  const { language } = useAppLanguage();
+  const cta = getGlobalCreateCta(language);
 
-  if (pathname === '/explore' || pathname === '/source' || pathname === '/source-actions' || pathname === '/recipes') {
+  if (!shouldShowGlobalCreateCta(pathname)) {
     return null;
   }
 
   return (
     <View pointerEvents="box-none" style={styles.layer}>
       <Pressable
-        accessibilityHint={copy.sourceCta.accessibilityHint}
-        accessibilityLabel={copy.sourceCta.accessibilityLabel}
-        onPress={() => router.push('/source-actions' as Href)}
+        accessibilityHint={cta.accessibilityHint}
+        accessibilityLabel={cta.accessibilityLabel}
+        onPress={() => router.push(getGlobalCreateCtaDestination() as Href)}
         style={[styles.pressable, { bottom: insets.bottom + 58 }]}
       >
         {({ pressed }) => (
@@ -40,7 +46,7 @@ export function GlobalSourceCta() {
                 <MaterialCommunityIcons color="#fffdf8" name="plus" size={24} />
               </LinearGradient>
               <Text className="text-[11px] font-semibold tracking-[0.2px] text-stone-600">
-                {copy.sourceCta.label}
+                {cta.label}
               </Text>
             </View>
           </View>

@@ -19,13 +19,19 @@ import type { MockRecipe } from '@/core/mocks/parrotkit-data';
 import { ugcMedia } from '@/core/mocks/ugc-media';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { AppScreenScrollView } from '@/core/ui/app-screen-scroll-view';
+import { getExploreCardDetailPath } from '@/features/explore/lib/explore-card-routing';
+import {
+  getExploreTemplateAction,
+  getExploreTemplateActionAffordance,
+  type ExploreTemplateAction,
+} from '@/features/explore/lib/explore-template-copy-action';
+import { getExploreTemplateCardStartShootingHref } from '@/features/explore/lib/explore-template-recipe-copy';
 import { isVerifiedCreatorRecipe } from '@/features/recipes/lib/recipe-ownership';
-import { getShootBoardHref } from '@/features/recipes/lib/shoot-board-model';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 type OriginFilter = 'all' | 'partners' | 'community' | 'brand';
 type CategoryFilter = 'beauty' | 'food' | 'fitness' | 'tech' | 'life' | 'all';
-type ExploreAction = 'save' | 'shoot' | 'remix' | 'apply';
+type ExploreAction = ExploreTemplateAction;
 type ExploreOrigin = 'partner' | 'community' | 'brand';
 
 type ExploreRecipeCardModel = {
@@ -83,9 +89,8 @@ const exploreCopy: Record<AppLanguage, ExploreCopy> = {
     savedIconLabel: 'Saved recipes',
     actions: {
       apply: 'Apply',
-      remix: 'Remix',
-      save: 'Save',
-      shoot: 'Shoot',
+      copy: 'Copy template',
+      shoot: 'Film',
     },
     stats: {
       saves: 'saves',
@@ -127,8 +132,7 @@ const exploreCopy: Record<AppLanguage, ExploreCopy> = {
     savedIconLabel: '저장한 레시피',
     actions: {
       apply: '지원하기',
-      remix: '리믹스',
-      save: '저장',
+      copy: '템플릿 복사',
       shoot: '촬영하기',
     },
     stats: {
@@ -211,12 +215,7 @@ export function ExploreScreen() {
   const recommendedCards = prioritizeRecommendedCards(visibleCards).slice(0, 3);
 
   const openCard = (card: ExploreRecipeCardModel) => {
-    if (card.recipe) {
-      router.push(`/explore-recipe/${card.recipe.id}` as Href);
-      return;
-    }
-
-    router.push('/recipe-create?mode=brand' as Href);
+    router.push(getExploreCardDetailPath(card) as Href);
   };
 
   const saveRecipe = (card: ExploreRecipeCardModel) => {
@@ -229,21 +228,15 @@ export function ExploreScreen() {
     if (!card.recipe) return;
 
     const targetRecipe = downloadRecipe(card.recipe.id) ?? card.recipe;
-    router.push(getShootBoardHref(targetRecipe.id) as Href);
+    router.push(getExploreTemplateCardStartShootingHref({
+      savedRecipe: targetRecipe,
+      sourceRecipe: card.recipe,
+    }) as Href);
   };
 
   const handleAction = (card: ExploreRecipeCardModel) => {
     if (card.action === 'apply') {
       router.push('/recipe-create?mode=brand' as Href);
-      return;
-    }
-
-    if (card.action === 'remix') {
-      const remixPath = card.recipe
-        ? `/recipe-create?mode=manual&remixOf=${card.recipe.id}`
-        : '/recipe-create?mode=manual';
-
-      router.push(remixPath as Href);
       return;
     }
 
@@ -314,6 +307,7 @@ export function ExploreScreen() {
                   key={card.id}
                   onAction={() => handleAction(card)}
                   onPress={() => openCard(card)}
+                  onStartShooting={() => shootRecipe(card)}
                 />
               ))}
             </View>
@@ -363,6 +357,7 @@ export function ExploreScreen() {
                 key={card.id}
                 onAction={() => handleAction(card)}
                 onPress={() => openCard(card)}
+                onStartShooting={() => shootRecipe(card)}
               />
             ))}
           </View>
@@ -410,12 +405,17 @@ function RecommendedRecipeCard({
   copy,
   onAction,
   onPress,
+  onStartShooting,
 }: {
   card: ExploreRecipeCardModel;
   copy: ExploreCopy;
   onAction: () => void;
   onPress: () => void;
+  onStartShooting: () => void;
 }) {
+  const actionAffordance = getExploreTemplateActionAffordance(card.action);
+  const showsStartShooting = Boolean(card.recipe) && card.action !== 'shoot';
+
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.recommendedCard}>
       <ImageBackground
@@ -440,9 +440,24 @@ function RecommendedRecipeCard({
               {card.creatorHandle}
             </Text>
 
-            <View className="flex-row items-center justify-end">
+            <View className="flex-row items-center justify-end gap-2">
+              {showsStartShooting ? (
+                <Pressable accessibilityRole="button" onPress={onStartShooting} style={styles.recommendedShootCta}>
+                  <View className="flex-row items-center gap-1.5">
+                    <MaterialCommunityIcons color="#fff" name="camera-outline" size={14} />
+                    <Text className="text-[12px] font-black text-white">{copy.actions.shoot}</Text>
+                  </View>
+                </Pressable>
+              ) : null}
               <Pressable accessibilityRole="button" onPress={onAction} style={styles.recommendedCta}>
-                <Text className="text-[12px] font-black text-ink">{copy.actions[card.action]}</Text>
+                <View className="flex-row items-center gap-1.5">
+                  <MaterialCommunityIcons
+                    color={actionAffordance.kind === 'copy' ? '#8c67ff' : '#111827'}
+                    name={actionAffordance.iconName}
+                    size={14}
+                  />
+                  <Text className="text-[12px] font-black text-ink">{copy.actions[card.action]}</Text>
+                </View>
               </Pressable>
             </View>
           </View>
@@ -457,12 +472,17 @@ function BrowseRecipeRow({
   copy,
   onAction,
   onPress,
+  onStartShooting,
 }: {
   card: ExploreRecipeCardModel;
   copy: ExploreCopy;
   onAction: () => void;
   onPress: () => void;
+  onStartShooting: () => void;
 }) {
+  const actionAffordance = getExploreTemplateActionAffordance(card.action);
+  const showsStartShooting = Boolean(card.recipe) && card.action !== 'shoot';
+
   return (
     <Pressable accessibilityRole="button" className="flex-row gap-3 py-3" onPress={onPress}>
       <Image source={{ uri: card.image }} style={styles.rowImage} />
@@ -472,8 +492,8 @@ function BrowseRecipeRow({
             {card.title}
           </Text>
           <MaterialCommunityIcons
-            color={card.action === 'shoot' ? '#8c67ff' : '#94a3b8'}
-            name={card.action === 'shoot' ? 'bookmark' : 'bookmark-outline'}
+            color={actionAffordance.kind === 'deferred' ? '#94a3b8' : '#8c67ff'}
+            name={actionAffordance.iconName}
             size={17}
           />
         </View>
@@ -495,9 +515,22 @@ function BrowseRecipeRow({
             <Text className="text-[10px] font-bold text-muted">{formatCompactMetric(card.saveCount)} {copy.stats.saves}</Text>
             <Text className="text-[10px] font-bold text-muted">{formatCompactMetric(card.viewCount)} {copy.stats.views}</Text>
           </View>
-          <Pressable accessibilityRole="button" onPress={onAction} style={styles.rowCta}>
-            <Text className="text-[11px] font-black text-violet">{copy.actions[card.action]}</Text>
-          </Pressable>
+          <View className="flex-row items-center gap-2">
+            {showsStartShooting ? (
+              <Pressable accessibilityRole="button" onPress={onStartShooting} style={styles.rowShootCta}>
+                <View className="flex-row items-center gap-1.5">
+                  <MaterialCommunityIcons color="#fff" name="camera-outline" size={13} />
+                  <Text className="text-[11px] font-black text-white">{copy.actions.shoot}</Text>
+                </View>
+              </Pressable>
+            ) : null}
+            <Pressable accessibilityRole="button" onPress={onAction} style={styles.rowCta}>
+              <View className="flex-row items-center gap-1.5">
+                <MaterialCommunityIcons color="#8c67ff" name={actionAffordance.iconName} size={13} />
+                <Text className="text-[11px] font-black text-violet">{copy.actions[card.action]}</Text>
+              </View>
+            </Pressable>
+          </View>
         </View>
       </View>
     </Pressable>
@@ -510,7 +543,12 @@ function createRecipeCardModel(
   downloaded: boolean
 ): ExploreRecipeCardModel {
   const verified = isVerifiedCreatorRecipe(recipe);
-  const action: ExploreAction = downloaded ? 'shoot' : verified ? 'save' : 'remix';
+  const origin = verified ? 'partner' : 'community';
+  const action = getExploreTemplateAction({
+    downloaded,
+    hasRecipe: true,
+    origin,
+  });
 
   return {
     action,
@@ -522,7 +560,7 @@ function createRecipeCardModel(
     id: recipe.id,
     image: recipe.thumbnail,
     metadata: getRecipeMetadata(language, recipe),
-    origin: verified ? 'partner' : 'community',
+    origin,
     recipe,
     saveCount: recipe.downloadCount,
     title: getLocalizedTitle(language, recipe),
@@ -683,6 +721,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 9,
   },
+  recommendedShootCta: {
+    backgroundColor: '#8c67ff',
+    borderRadius: 999,
+    paddingHorizontal: 15,
+    paddingVertical: 9,
+  },
   recommendedImage: {
     borderRadius: 26,
   },
@@ -699,6 +743,12 @@ const styles = StyleSheet.create({
   },
   rowCta: {
     backgroundColor: '#f4f0ff',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  rowShootCta: {
+    backgroundColor: '#8c67ff',
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 7,

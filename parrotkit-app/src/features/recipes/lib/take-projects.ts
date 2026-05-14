@@ -4,8 +4,13 @@ import type {
   MockRecipeTakeProject,
   MockSceneTakeCollection,
 } from '@/core/mocks/parrotkit-data';
+import type { SavedTakePersistenceContract } from '@/features/recipes/lib/saved-take-contract';
 
 type ExportKind = 'gallery' | 'share';
+
+type CreateProjectTakeOptions = {
+  savedTake?: SavedTakePersistenceContract;
+};
 
 function nowLabel() {
   return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -18,12 +23,17 @@ function touch<T extends { updatedAt: string }>(project: T): T {
   };
 }
 
-export function createProjectTake(uri: string, index: number): MockProjectTake {
+export function createProjectTake(
+  uri: string,
+  index: number,
+  options: CreateProjectTakeOptions = {}
+): MockProjectTake {
   return {
-    createdAt: nowLabel(),
-    exportStatus: 'local',
+    createdAt: options.savedTake?.recordedAtLabel ?? nowLabel(),
+    exportStatus: options.savedTake?.metadata.exportStatus ?? 'local',
     id: `take-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     label: `Take ${index}`,
+    savedTake: options.savedTake,
     uri,
   };
 }

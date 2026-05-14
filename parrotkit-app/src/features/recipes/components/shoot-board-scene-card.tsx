@@ -1,16 +1,34 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { TouchableOpacity } from "react-native-gesture-handler";
 
 import type { AppLanguage } from "@/core/i18n/app-language";
 import { brandActionGradient } from "@/core/theme/colors";
 import { ShootBoardMediaSlot } from "@/features/recipes/components/shoot-board-media-slot";
+import { getCutCardActionStatus } from "@/features/recipes/lib/cut-card-action-status";
+import { getCutCardBodyPreviewRows } from "@/features/recipes/lib/cut-card-body-preview";
+import { getCutCardHeaderParts } from "@/features/recipes/lib/cut-card-header";
+import { getCutCardMediaSlots } from "@/features/recipes/lib/cut-card-media-slots";
+import { getCutCardReferenceViewerSection } from "@/features/recipes/lib/cut-card-reference-viewer-section";
+import { getCutCardTakeViewerSection } from "@/features/recipes/lib/cut-card-take-viewer-section";
+import {
+  getCutCardEditorFieldDefinitions,
+  getCutCardEditorFieldValue,
+} from "@/features/recipes/lib/cut-card-editor-fields";
 import {
   getShootBoardCutCompletionState,
   type ShootBoardCut,
   type ShootBoardCutTextPatch,
+  type ShootBoardTake,
 } from "@/features/recipes/lib/shoot-board-model";
 
 export function ShootBoardSceneCard({
@@ -20,13 +38,14 @@ export function ShootBoardSceneCard({
   onDragStart,
   onPreview,
   onReset,
+  onSetFinalTake,
   onTake,
   onShoot,
   onToggleExpanded,
-  onToggleRequiredCheck,
   onToggleSceneComplete,
   onUpdateText,
   reorderMode,
+  takeViewerLoading = false,
 }: {
   cut: ShootBoardCut;
   expanded: boolean;
@@ -34,17 +53,29 @@ export function ShootBoardSceneCard({
   onDragStart: () => void;
   onPreview: () => void;
   onReset: () => void;
-  onTake: () => void;
-  onShoot: () => void;
+  onSetFinalTake: (take: ShootBoardTake) => void;
+  onTake: (take?: ShootBoardTake) => void;
+  onShoot: (take?: ShootBoardTake) => void;
   onToggleExpanded: () => void;
-  onToggleRequiredCheck: (checklistItemId: string, checked: boolean) => void;
   onToggleSceneComplete: (complete: boolean) => void;
   onUpdateText: (patch: ShootBoardCutTextPatch) => void;
   reorderMode: boolean;
+  takeViewerLoading?: boolean;
 }) {
   const [editing, setEditing] = useState(() => isBlankEditableCut(cut));
   const completionState = getShootBoardCutCompletionState(cut);
   const accent = getRoleAccent(cut.role);
+  const editorFields = getCutCardEditorFieldDefinitions(language);
+  const headerParts = getCutCardHeaderParts(cut, language);
+  const mediaSlots = getCutCardMediaSlots(cut);
+  const previewRows = getCutCardBodyPreviewRows(cut, language);
+  const referenceViewer = getCutCardReferenceViewerSection(cut, language);
+  const takeViewer = getCutCardTakeViewerSection(cut, language, {
+    loading: takeViewerLoading,
+  });
+  const actionStatus = getCutCardActionStatus(cut, language);
+  const actionStatusStyle = getActionStatusStyle(actionStatus.statusTone);
+
   return (
     <View
       style={[
@@ -86,23 +117,49 @@ export function ShootBoardSceneCard({
           className="min-w-0 flex-1"
           onPress={onToggleExpanded}
         >
-          <View className="flex-row flex-wrap items-center gap-1.5">
-            <Text className="text-[14px] font-black text-ink">
-              {language === "ko" ? cut.titleKo : cut.title}
+          <View className="flex-row flex-wrap items-center gap-2">
+            <Text
+              className="rounded-full px-2.5 py-1 text-[12px] font-black text-white"
+              style={{ backgroundColor: accent.main }}
+            >
+              {headerParts.numberLabel}
             </Text>
-            <Text className="text-[13px] font-black text-muted">·</Text>
+            <Text className="min-w-0 flex-shrink text-[15px] font-black text-ink">
+              {headerParts.roleLabel}
+            </Text>
             <Text className="text-[13px] font-black text-muted">
               {formatCutDuration(language, cut.durationSeconds)}
             </Text>
           </View>
-          <Text
-            className="mt-1 text-[13px] font-semibold leading-5 text-ink"
-            numberOfLines={expanded ? 3 : 1}
-          >
-            {language === "ko"
-              ? (cut.instructionKo ?? cut.instruction)
-              : cut.instruction}
-          </Text>
+          {expanded ? (
+            <Text
+              className="mt-1 text-[13px] font-semibold leading-5 text-ink"
+              numberOfLines={3}
+            >
+              {language === "ko"
+                ? (cut.instructionKo ?? cut.instruction)
+                : cut.instruction}
+            </Text>
+          ) : (
+            <View className="mt-2 gap-1.5">
+              {previewRows.map((row) => (
+                <View className="min-w-0 flex-row gap-2" key={row.id}>
+                  <Text
+                    className="w-[76px] shrink-0 text-[11px] font-black leading-4 text-muted"
+                    numberOfLines={1}
+                  >
+                    {row.label}
+                  </Text>
+                  <Text
+                    className="min-w-0 flex-1 text-[12px] font-semibold leading-4 text-ink"
+                    numberOfLines={row.numberOfLines}
+                  >
+                    {row.value}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
         </Pressable>
 
         <Pressable
@@ -128,6 +185,75 @@ export function ShootBoardSceneCard({
           ) : null}
         </Pressable>
       </View>
+
+      {!expanded ? (
+        <View style={styles.collapsedActionArea}>
+          <View style={styles.collapsedMediaSlots}>
+            {mediaSlots.map((slot) => (
+              <ShootBoardMediaSlot
+                caption={undefined}
+                key={slot.id}
+                label={slot.label}
+                onPress={slot.id === "reference" ? onPreview : () => onTake()}
+                status={slot.status}
+                thumbnailUrl={slot.thumbnailUrl}
+                timeRangeLabel={undefined}
+              />
+            ))}
+          </View>
+
+          <View style={styles.collapsedStatusColumn}>
+            <View
+              style={[
+                styles.takeStatusPill,
+                {
+                  backgroundColor: actionStatusStyle.backgroundColor,
+                  borderColor: actionStatusStyle.borderColor,
+                },
+              ]}
+            >
+              <MaterialCommunityIcons
+                color={actionStatusStyle.iconColor}
+                name={actionStatusStyle.iconName}
+                size={14}
+              />
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.takeStatusText,
+                  { color: actionStatusStyle.textColor },
+                ]}
+              >
+                {actionStatus.statusLabel}
+              </Text>
+            </View>
+            <Text className="text-[11px] font-black text-muted">
+              {actionStatus.takeCountLabel}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              className="mt-auto overflow-hidden rounded-[12px]"
+              onPress={() => onShoot()}
+            >
+              <LinearGradient
+                colors={brandActionGradient}
+                end={{ x: 1, y: 1 }}
+                start={{ x: 0, y: 0 }}
+                style={styles.collapsedShootButton}
+              >
+                <MaterialCommunityIcons
+                  color="#fff"
+                  name="video-outline"
+                  size={16}
+                />
+                <Text className="text-[12px] font-black text-white">
+                  {actionStatus.ctaLabel}
+                </Text>
+              </LinearGradient>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
 
       {expanded ? (
         <View style={styles.expandedBody}>
@@ -166,127 +292,361 @@ export function ShootBoardSceneCard({
             </Pressable>
           </View>
 
-          <DetailInput
-            editing={editing}
-            placeholder={
-              language === "ko"
-                ? "촬영 중 말할 문장을 입력하세요"
-                : "Add line to say"
-            }
-            title="Line to say"
-            value={getLineToSay(language, cut)}
-            onChangeText={(value) =>
-              onUpdateText(
-                language === "ko"
-                  ? { speakingLineKo: value }
-                  : { speakingLine: value },
-              )
-            }
-          />
-          <DetailInput
-            editing={editing}
-            placeholder={
-              language === "ko"
-                ? "촬영 가이드를 입력하세요"
-                : "Add shooting guideline"
-            }
-            title={language === "ko" ? "촬영 가이드" : "Shooting guideline"}
-            value={
-              language === "ko"
-                ? cut.shootingGuidelineKo
-                : cut.shootingGuideline
-            }
-            onChangeText={(value) =>
-              onUpdateText(
-                language === "ko"
-                  ? { shootingGuidelineKo: value }
-                  : { shootingGuideline: value },
-              )
-            }
-          />
+          <View style={styles.editorSection}>
+            {editorFields.map((field) => (
+              <DetailInput
+                editing={editing}
+                key={field.id}
+                placeholder={field.placeholder}
+                title={field.label}
+                value={getCutCardEditorFieldValue(field.id, cut)}
+                onChangeText={(value) => onUpdateText(field.createPatch(value))}
+              />
+            ))}
+          </View>
 
-          <View className="gap-2">
-            <Text className="text-[12px] font-black text-ink">
-              {language === "ko" ? "필수 체크" : "Required checklist"}
-            </Text>
-            {cut.requiredChecklist.map((item) => (
-              <View className="flex-row items-center gap-2" key={item.id}>
-                <Pressable
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: item.checked }}
-                  onPress={() => onToggleRequiredCheck(item.id, !item.checked)}
+          <View style={styles.referenceViewerSection}>
+            <View style={styles.referenceViewerHeader}>
+              <View className="min-w-0 flex-1">
+                <Text style={styles.referenceViewerTitle}>
+                  {referenceViewer.title}
+                </Text>
+                <Text numberOfLines={1} style={styles.referenceViewerStatus}>
+                  {referenceViewer.statusLabel}
+                </Text>
+              </View>
+              <View style={styles.referenceSourcePill}>
+                <MaterialCommunityIcons
+                  color="#4338ca"
+                  name={getReferenceSourceIcon(referenceViewer.sourceKind)}
+                  size={13}
+                />
+                <Text style={styles.referenceSourceText}>
+                  {getReferenceSourceLabel(referenceViewer.sourceKind, language)}
+                </Text>
+              </View>
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              disabled={referenceViewer.sourceKind === "empty"}
+              onPress={onPreview}
+              style={({ pressed }) => [
+                styles.referencePreview,
+                referenceViewer.sourceKind === "empty" &&
+                  styles.referencePreviewEmpty,
+                pressed && styles.referencePreviewPressed,
+              ]}
+            >
+              {referenceViewer.thumbnailUrl ? (
+                <>
+                  <Image
+                    accessibilityIgnoresInvertColors
+                    resizeMode="cover"
+                    source={{ uri: referenceViewer.thumbnailUrl }}
+                    style={styles.referencePreviewImage}
+                  />
+                  <View style={styles.referencePreviewShade} />
+                </>
+              ) : null}
+              <View style={styles.referencePreviewIcon}>
+                <MaterialCommunityIcons
+                  color={
+                    referenceViewer.sourceKind === "empty"
+                      ? "#94a3b8"
+                      : "#ffffff"
+                  }
+                  name={
+                    referenceViewer.sourceKind === "empty"
+                      ? "image-plus"
+                      : "play"
+                  }
+                  size={22}
+                />
+              </View>
+              {referenceViewer.mediaUrl ? (
+                <View style={styles.referenceLinkedPill}>
+                  <Text style={styles.referenceLinkedText}>
+                    {language === "ko" ? "연결됨" : "Linked"}
+                  </Text>
+                </View>
+              ) : null}
+            </Pressable>
+
+            <View style={styles.referenceViewerFooter}>
+              <Text style={styles.referenceViewerBody}>
+                {referenceViewer.body}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                disabled={referenceViewer.sourceKind === "empty"}
+                onPress={onPreview}
+                style={[
+                  styles.referenceViewerButton,
+                  referenceViewer.sourceKind === "empty" &&
+                    styles.referenceViewerButtonDisabled,
+                ]}
+              >
+                <MaterialCommunityIcons
+                  color={
+                    referenceViewer.sourceKind === "empty"
+                      ? "#94a3b8"
+                      : "#4338ca"
+                  }
+                  name="open-in-new"
+                  size={14}
+                />
+                <Text
                   style={[
-                    styles.checkBox,
-                    item.checked && {
-                      backgroundColor: accent.main,
-                      borderColor: accent.main,
+                    styles.referenceViewerButtonText,
+                    referenceViewer.sourceKind === "empty" &&
+                      styles.referenceViewerButtonTextDisabled,
+                  ]}
+                >
+                  {referenceViewer.primaryActionLabel}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={styles.takeViewerSection}>
+            <View style={styles.takeViewerHeader}>
+              <View className="min-w-0 flex-1">
+                <Text style={styles.takeViewerTitle}>{takeViewer.title}</Text>
+                <Text numberOfLines={1} style={styles.takeViewerStatus}>
+                  {takeViewer.statusLabel}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.takeViewerStatePill,
+                  getTakeViewerPillStyle(takeViewer.state, cut.takeStatus),
+                ]}
+              >
+                <MaterialCommunityIcons
+                  color={getTakeViewerIconColor(takeViewer.state, cut.takeStatus)}
+                  name={getTakeViewerIcon(takeViewer.state, cut.takeStatus)}
+                  size={13}
+                />
+                <Text
+                  style={[
+                    styles.takeViewerStateText,
+                    {
+                      color: getTakeViewerIconColor(
+                        takeViewer.state,
+                        cut.takeStatus,
+                      ),
                     },
                   ]}
                 >
-                  {item.checked ? (
-                    <MaterialCommunityIcons
-                      color="#fff"
-                      name="check"
-                      size={13}
-                    />
-                  ) : null}
-                </Pressable>
-                {editing ? (
-                  <TextInput
-                    multiline
-                    onChangeText={(value) =>
-                      onUpdateText({
-                        requiredChecklist: [
-                          language === "ko"
-                            ? { id: item.id, labelKo: value }
-                            : { id: item.id, label: value },
-                        ],
-                      })
-                    }
-                    placeholder={
-                      language === "ko"
-                        ? "체크 항목 입력"
-                        : "Add checklist item"
-                    }
-                    placeholderTextColor="#94a3b8"
-                    style={styles.inlineEditInput}
-                    value={language === "ko" ? item.labelKo : item.label}
-                  />
-                ) : (
-                  <Text className="min-w-0 flex-1 text-[13px] font-semibold leading-5 text-ink">
-                    {language === "ko" ? item.labelKo : item.label}
-                  </Text>
-                )}
+                  {takeViewer.takeCountLabel}
+                </Text>
               </View>
-            ))}
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              disabled={takeViewer.state === "loading"}
+              onPress={
+                takeViewer.state === "empty" ? () => onShoot() : () => onTake()
+              }
+              style={({ pressed }) => [
+                styles.takeViewerPreview,
+                takeViewer.state === "empty" && styles.takeViewerPreviewEmpty,
+                takeViewer.state === "loading" &&
+                  styles.takeViewerPreviewLoading,
+                pressed && styles.referencePreviewPressed,
+              ]}
+            >
+              {takeViewer.thumbnailUrl ? (
+                <>
+                  <Image
+                    accessibilityIgnoresInvertColors
+                    resizeMode="cover"
+                    source={{ uri: takeViewer.thumbnailUrl }}
+                    style={styles.referencePreviewImage}
+                  />
+                  <View style={styles.referencePreviewShade} />
+                </>
+              ) : null}
+              <View
+                style={[
+                  styles.takeViewerPreviewIcon,
+                  takeViewer.state !== "populated" &&
+                    styles.takeViewerPreviewIconEmpty,
+                ]}
+              >
+                <MaterialCommunityIcons
+                  color={takeViewer.state === "populated" ? "#ffffff" : "#64748b"}
+                  name={getTakeViewerPreviewIcon(takeViewer.state)}
+                  size={23}
+                />
+              </View>
+              {takeViewer.activeTake ? (
+                <View style={styles.takeViewerActivePill}>
+                  <Text style={styles.takeViewerActiveText} numberOfLines={1}>
+                    {takeViewer.activeTake.label} ·{" "}
+                    {formatCutDuration(
+                      language,
+                      takeViewer.activeTake.durationSeconds,
+                    )}
+                  </Text>
+                </View>
+              ) : null}
+            </Pressable>
+
+            {takeViewer.takeItems.length > 0 ? (
+              <View style={styles.takeViewerItemList}>
+                {takeViewer.takeItems.map((item) => (
+                  <Pressable
+                    accessibilityHint={
+                      language === "ko"
+                        ? "저장된 테이크 리뷰 화면을 엽니다."
+                        : "Opens the saved take review viewer."
+                    }
+                    accessibilityLabel={`${item.title}, ${item.metadataLabel}`}
+                    accessibilityRole="button"
+                    key={item.id}
+                    onPress={() => onTake(item.take)}
+                    style={({ pressed }) => [
+                      styles.takeViewerItem,
+                      item.selected && styles.takeViewerItemSelected,
+                      pressed && styles.referencePreviewPressed,
+                    ]}
+                  >
+                    <View style={styles.takeViewerItemPreview}>
+                      {takeViewer.thumbnailUrl ? (
+                        <>
+                          <Image
+                            accessibilityIgnoresInvertColors
+                            resizeMode="cover"
+                            source={{ uri: takeViewer.thumbnailUrl }}
+                            style={styles.referencePreviewImage}
+                          />
+                          <View style={styles.referencePreviewShade} />
+                        </>
+                      ) : null}
+                      <View style={styles.takeViewerItemPlay}>
+                        <MaterialCommunityIcons
+                          color="#ffffff"
+                          name="play"
+                          size={14}
+                        />
+                      </View>
+                    </View>
+
+                    <View className="min-w-0 flex-1">
+                      <View style={styles.takeViewerItemTitleRow}>
+                        <Text
+                          numberOfLines={1}
+                          style={styles.takeViewerItemTitle}
+                        >
+                          {item.title}
+                        </Text>
+                        {item.selected ? (
+                          <MaterialCommunityIcons
+                            color="#7c3aed"
+                            name="check-circle"
+                            size={15}
+                          />
+                        ) : null}
+                      </View>
+                      <Text numberOfLines={1} style={styles.takeViewerItemMeta}>
+                        {item.metadataLabel}
+                      </Text>
+                      <Text
+                        numberOfLines={1}
+                        style={styles.takeViewerItemPlayback}
+                      >
+                        {item.playbackLabel}
+                      </Text>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.takeViewerItemStatus,
+                        item.final && styles.takeViewerItemStatusFinal,
+                      ]}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.takeViewerItemStatusText,
+                          item.final && styles.takeViewerItemStatusFinalText,
+                        ]}
+                      >
+                        {item.statusLabel}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+
+            <View style={styles.takeViewerFooter}>
+              <View className="min-w-0 flex-1">
+                <Text style={styles.takeViewerBody}>{takeViewer.body}</Text>
+                {takeViewer.activeTake ? (
+                  <Text numberOfLines={1} style={styles.takeViewerMeta}>
+                    {takeViewer.activeTake.recordedAtLabel}
+                  </Text>
+                ) : null}
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                disabled={takeViewer.state === "loading"}
+                onPress={
+                  takeViewer.state === "empty"
+                    ? () => onShoot()
+                    : () => onTake()
+                }
+                style={[
+                  styles.takeViewerButton,
+                  takeViewer.state === "loading" &&
+                    styles.takeViewerButtonDisabled,
+                ]}
+              >
+                <MaterialCommunityIcons
+                  color={takeViewer.state === "loading" ? "#94a3b8" : "#7c3aed"}
+                  name={
+                    takeViewer.state === "empty"
+                      ? "video-outline"
+                      : "calendar-check-outline"
+                  }
+                  size={14}
+                />
+                <Text
+                  style={[
+                    styles.takeViewerButtonText,
+                    takeViewer.state === "loading" &&
+                      styles.takeViewerButtonTextDisabled,
+                  ]}
+                >
+                  {takeViewer.primaryActionLabel}
+                </Text>
+              </Pressable>
+            </View>
           </View>
 
           <View className="flex-row items-end gap-2">
             <View className="flex-row gap-2">
-              <ShootBoardMediaSlot
-                caption={undefined}
-                label="Reference"
-                onPress={onPreview}
-                status="saved"
-                thumbnailUrl={cut.thumbnailUrl}
-                timeRangeLabel={undefined}
-              />
-              <ShootBoardMediaSlot
-                caption={undefined}
-                label="My Take"
-                onPress={onTake}
-                status={getTakeSlotStatus(cut)}
-                thumbnailUrl={
-                  cut.takes.length > 0 ? cut.takeThumbnailUrl : undefined
-                }
-                timeRangeLabel={undefined}
-              />
+              {mediaSlots.map((slot) => (
+                <ShootBoardMediaSlot
+                  caption={undefined}
+                  key={slot.id}
+                  label={slot.label}
+                  onPress={slot.id === "reference" ? onPreview : () => onTake()}
+                  status={slot.status}
+                  thumbnailUrl={slot.thumbnailUrl}
+                  timeRangeLabel={undefined}
+                />
+              ))}
             </View>
-            <View className="min-w-0 flex-1 flex-row gap-2">
+            <View className="min-w-0 flex-1 gap-2">
               <Pressable
                 accessibilityRole="button"
-                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[12px] border border-stroke bg-white px-3 py-3"
-                onPress={onTake}
+                className="flex-row items-center justify-center gap-1.5 rounded-[12px] border border-stroke bg-white px-3 py-3"
+                onPress={() => onTake()}
               >
                 <MaterialCommunityIcons
                   color="#111827"
@@ -297,27 +657,93 @@ export function ShootBoardSceneCard({
                   Takes ({cut.takes.length})
                 </Text>
               </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                className="flex-1 overflow-hidden rounded-[12px]"
-                onPress={onShoot}
-              >
-                <LinearGradient
-                  colors={brandActionGradient}
-                  end={{ x: 1, y: 1 }}
-                  start={{ x: 0, y: 0 }}
-                  style={styles.shootButton}
+              {takeViewer.actionControls.retake.visible ||
+              takeViewer.actionControls.setFinal.visible ? (
+                <View style={styles.expandedTakeActionRow}>
+                  {takeViewer.actionControls.retake.visible ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      className="flex-1 overflow-hidden rounded-[12px]"
+                      disabled={takeViewer.actionControls.retake.disabled}
+                      onPress={() => onShoot(takeViewer.activeTake)}
+                    >
+                      <LinearGradient
+                        colors={brandActionGradient}
+                        end={{ x: 1, y: 1 }}
+                        start={{ x: 0, y: 0 }}
+                        style={styles.shootButton}
+                      >
+                        <MaterialCommunityIcons
+                          color="#fff"
+                          name="video-outline"
+                          size={17}
+                        />
+                        <Text className="text-[13px] font-black text-white">
+                          {takeViewer.actionControls.retake.label}
+                        </Text>
+                      </LinearGradient>
+                    </Pressable>
+                  ) : null}
+                  {takeViewer.actionControls.setFinal.visible ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={takeViewer.actionControls.setFinal.disabled}
+                      onPress={() => {
+                        if (takeViewer.activeTake) {
+                          onSetFinalTake(takeViewer.activeTake);
+                        }
+                      }}
+                      style={[
+                        styles.setFinalButton,
+                        takeViewer.actionControls.setFinal.disabled &&
+                          styles.setFinalButtonDisabled,
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        color={
+                          takeViewer.actionControls.setFinal.disabled
+                            ? "#94a3b8"
+                            : "#7c3aed"
+                        }
+                        name="star-outline"
+                        size={16}
+                      />
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.setFinalButtonText,
+                          takeViewer.actionControls.setFinal.disabled &&
+                            styles.setFinalButtonTextDisabled,
+                        ]}
+                      >
+                        {takeViewer.actionControls.setFinal.label}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              ) : (
+                <Pressable
+                  accessibilityRole="button"
+                  className="overflow-hidden rounded-[12px]"
+                  onPress={() => onShoot()}
                 >
-                  <MaterialCommunityIcons
-                    color="#fff"
-                    name="video-outline"
-                    size={17}
-                  />
-                  <Text className="text-[13px] font-black text-white">
-                    {language === "ko" ? "촬영" : "Shoot"}
-                  </Text>
-                </LinearGradient>
-              </Pressable>
+                  <LinearGradient
+                    colors={brandActionGradient}
+                    end={{ x: 1, y: 1 }}
+                    start={{ x: 0, y: 0 }}
+                    style={styles.shootButton}
+                  >
+                    <MaterialCommunityIcons
+                      color="#fff"
+                      name="video-outline"
+                      size={17}
+                    />
+                    <Text className="text-[13px] font-black text-white">
+                      {language === "ko" ? "촬영" : "Film"}
+                    </Text>
+                  </LinearGradient>
+                </Pressable>
+              )}
             </View>
           </View>
         </View>
@@ -377,26 +803,11 @@ function formatCutDuration(language: AppLanguage, durationSeconds: number) {
   return language === "ko" ? `${durationSeconds}초` : `${durationSeconds}s`;
 }
 
-function getLineToSay(language: AppLanguage, cut: ShootBoardCut) {
-  if (language === "ko") {
-    return cut.speakingLineKo ?? cut.prompterLine ?? cut.speakingLine;
-  }
-
-  return cut.speakingLine;
-}
-
 function getTakeStatusBorderColor(status: ShootBoardCut["takeStatus"]) {
   if (status === "final") return "#8b5cf6";
   if (status === "saved") return "#c4b5fd";
   if (status === "needs_reshoot") return "#fb7185";
   return "#e2e8f0";
-}
-
-function getTakeSlotStatus(cut: ShootBoardCut) {
-  if (cut.takeStatus === "final") return "final";
-  if (cut.takeStatus === "needs_reshoot") return "needs_reshoot";
-  if (cut.takes.length > 0 || cut.takeStatus === "saved") return "saved";
-  return "empty";
 }
 
 function getRoleAccent(role: ShootBoardCut["role"]) {
@@ -405,6 +816,116 @@ function getRoleAccent(role: ShootBoardCut["role"]) {
   if (role === "scene") return { main: "#6366f1" };
   if (role === "custom") return { main: "#64748b" };
   return { main: "#ff4f73" };
+}
+
+function getReferenceSourceIcon(
+  sourceKind: ReturnType<typeof getCutCardReferenceViewerSection>["sourceKind"],
+) {
+  if (sourceKind === "linked") return "link-variant" as const;
+  if (sourceKind === "attached") return "paperclip" as const;
+  return "image-off-outline" as const;
+}
+
+function getReferenceSourceLabel(
+  sourceKind: ReturnType<typeof getCutCardReferenceViewerSection>["sourceKind"],
+  language: AppLanguage,
+) {
+  if (sourceKind === "linked") return language === "ko" ? "연결" : "Linked";
+  if (sourceKind === "attached") return language === "ko" ? "첨부" : "Attached";
+  return language === "ko" ? "없음" : "Empty";
+}
+
+function getActionStatusStyle(status: ShootBoardCut["takeStatus"] | "empty") {
+  if (status === "final") {
+    return {
+      backgroundColor: "#f5f3ff",
+      borderColor: "#c4b5fd",
+      iconColor: "#8b5cf6",
+      iconName: "star" as const,
+      textColor: "#6d28d9",
+    };
+  }
+
+  if (status === "needs_reshoot") {
+    return {
+      backgroundColor: "#fff1f2",
+      borderColor: "#fecdd3",
+      iconColor: "#e11d48",
+      iconName: "alert-circle-outline" as const,
+      textColor: "#be123c",
+    };
+  }
+
+  if (status === "saved") {
+    return {
+      backgroundColor: "#eef2ff",
+      borderColor: "#c7d2fe",
+      iconColor: "#6366f1",
+      iconName: "check-circle-outline" as const,
+      textColor: "#4338ca",
+    };
+  }
+
+  return {
+    backgroundColor: "#f8fafc",
+    borderColor: "#e2e8f0",
+    iconColor: "#64748b",
+    iconName: "circle-outline" as const,
+    textColor: "#475569",
+  };
+}
+
+function getTakeViewerIcon(
+  state: ReturnType<typeof getCutCardTakeViewerSection>["state"],
+  status: ShootBoardCut["takeStatus"],
+) {
+  if (state === "loading") return "progress-clock" as const;
+  if (status === "final") return "star" as const;
+  if (status === "needs_reshoot") return "alert-circle-outline" as const;
+  if (state === "populated") return "check-circle-outline" as const;
+  return "circle-outline" as const;
+}
+
+function getTakeViewerPreviewIcon(
+  state: ReturnType<typeof getCutCardTakeViewerSection>["state"],
+) {
+  if (state === "loading") return "progress-clock" as const;
+  if (state === "populated") return "play" as const;
+  return "video-plus-outline" as const;
+}
+
+function getTakeViewerIconColor(
+  state: ReturnType<typeof getCutCardTakeViewerSection>["state"],
+  status: ShootBoardCut["takeStatus"],
+) {
+  if (state === "loading") return "#64748b";
+  if (status === "final") return "#7c3aed";
+  if (status === "needs_reshoot") return "#be123c";
+  if (state === "populated") return "#4338ca";
+  return "#64748b";
+}
+
+function getTakeViewerPillStyle(
+  state: ReturnType<typeof getCutCardTakeViewerSection>["state"],
+  status: ShootBoardCut["takeStatus"],
+) {
+  if (state === "loading") {
+    return { backgroundColor: "#f8fafc", borderColor: "#e2e8f0" };
+  }
+
+  if (status === "final") {
+    return { backgroundColor: "#f5f3ff", borderColor: "#ddd6fe" };
+  }
+
+  if (status === "needs_reshoot") {
+    return { backgroundColor: "#fff1f2", borderColor: "#fecdd3" };
+  }
+
+  if (state === "populated") {
+    return { backgroundColor: "#eef2ff", borderColor: "#c7d2fe" };
+  }
+
+  return { backgroundColor: "#f8fafc", borderColor: "#e2e8f0" };
 }
 
 const styles = StyleSheet.create({
@@ -419,16 +940,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.035,
     shadowRadius: 14,
   },
-  checkBox: {
-    alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderColor: "#cbd5e1",
-    borderRadius: 5,
-    borderWidth: 1.3,
-    height: 18,
-    justifyContent: "center",
-    width: 18,
-  },
   completionCircle: {
     alignItems: "center",
     backgroundColor: "#ffffff",
@@ -439,6 +950,31 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 4,
     width: 26,
+  },
+  collapsedActionArea: {
+    flexDirection: "row",
+    gap: 8,
+    marginLeft: 41,
+    marginTop: 10,
+  },
+  collapsedMediaSlots: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  collapsedShootButton: {
+    alignItems: "center",
+    borderRadius: 12,
+    flexDirection: "row",
+    gap: 6,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: 12,
+  },
+  collapsedStatusColumn: {
+    flex: 1,
+    gap: 6,
+    minHeight: 96,
+    minWidth: 0,
   },
   dragHandle: {
     alignItems: "center",
@@ -453,6 +989,10 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 13,
   },
+  expandedTakeActionRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
   detailEditInput: {
     backgroundColor: "#f8fafc",
     borderRadius: 10,
@@ -464,25 +1004,147 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
+  editorSection: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
   finalCard: {
     shadowOpacity: 0.08,
-  },
-  inlineEditInput: {
-    backgroundColor: "#f8fafc",
-    borderRadius: 10,
-    color: "#111827",
-    flex: 1,
-    fontSize: 13,
-    fontWeight: "600",
-    lineHeight: 20,
-    minHeight: 26,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
   },
   partialDash: {
     borderRadius: 999,
     height: 3,
     width: 12,
+  },
+  referenceLinkedPill: {
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    position: "absolute",
+    right: 8,
+    top: 8,
+  },
+  referenceLinkedText: {
+    color: "#4338ca",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  referencePreview: {
+    alignItems: "center",
+    backgroundColor: "#111827",
+    borderRadius: 12,
+    height: 116,
+    justifyContent: "center",
+    overflow: "hidden",
+    position: "relative",
+  },
+  referencePreviewEmpty: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#e2e8f0",
+    borderWidth: 1,
+  },
+  referencePreviewIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(15,23,42,0.62)",
+    borderRadius: 999,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  referencePreviewImage: {
+    ...StyleSheet.absoluteFillObject,
+    height: "100%",
+    width: "100%",
+  },
+  referencePreviewPressed: {
+    opacity: 0.82,
+  },
+  referencePreviewShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(15,23,42,0.18)",
+  },
+  referenceSourcePill: {
+    alignItems: "center",
+    backgroundColor: "#eef2ff",
+    borderRadius: 999,
+    flexDirection: "row",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  referenceSourceText: {
+    color: "#4338ca",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  referenceViewerBody: {
+    color: "#475569",
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0,
+    lineHeight: 17,
+  },
+  referenceViewerButton: {
+    alignItems: "center",
+    backgroundColor: "#eef2ff",
+    borderRadius: 10,
+    flexDirection: "row",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  referenceViewerButtonDisabled: {
+    backgroundColor: "#f1f5f9",
+  },
+  referenceViewerButtonText: {
+    color: "#4338ca",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  referenceViewerButtonTextDisabled: {
+    color: "#94a3b8",
+  },
+  referenceViewerFooter: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+  },
+  referenceViewerHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+  },
+  referenceViewerSection: {
+    backgroundColor: "#ffffff",
+    borderColor: "#e0e7ff",
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  referenceViewerStatus: {
+    color: "#64748b",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0,
+    marginTop: 2,
+  },
+  referenceViewerTitle: {
+    color: "#111827",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 0,
   },
   shootButton: {
     alignItems: "center",
@@ -492,5 +1154,264 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 46,
     paddingHorizontal: 10,
+  },
+  setFinalButton: {
+    alignItems: "center",
+    backgroundColor: "#f5f3ff",
+    borderColor: "#c4b5fd",
+    borderRadius: 12,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: "row",
+    gap: 6,
+    justifyContent: "center",
+    minHeight: 46,
+    paddingHorizontal: 9,
+  },
+  setFinalButtonDisabled: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#e2e8f0",
+  },
+  setFinalButtonText: {
+    color: "#7c3aed",
+    flexShrink: 1,
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  setFinalButtonTextDisabled: {
+    color: "#94a3b8",
+  },
+  takeStatusPill: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 5,
+    maxWidth: "100%",
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  takeStatusText: {
+    flexShrink: 1,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  takeViewerActivePill: {
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderRadius: 999,
+    bottom: 8,
+    left: 8,
+    maxWidth: "82%",
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    position: "absolute",
+  },
+  takeViewerActiveText: {
+    color: "#111827",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  takeViewerBody: {
+    color: "#475569",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0,
+    lineHeight: 17,
+  },
+  takeViewerButton: {
+    alignItems: "center",
+    backgroundColor: "#f5f3ff",
+    borderRadius: 10,
+    flexDirection: "row",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  takeViewerButtonDisabled: {
+    backgroundColor: "#f1f5f9",
+  },
+  takeViewerButtonText: {
+    color: "#7c3aed",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  takeViewerButtonTextDisabled: {
+    color: "#94a3b8",
+  },
+  takeViewerFooter: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+  },
+  takeViewerItem: {
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 9,
+    minHeight: 68,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  takeViewerItemList: {
+    gap: 8,
+  },
+  takeViewerItemMeta: {
+    color: "#64748b",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0,
+    marginTop: 2,
+  },
+  takeViewerItemPlayback: {
+    color: "#7c3aed",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0,
+    marginTop: 3,
+  },
+  takeViewerItemPlay: {
+    alignItems: "center",
+    backgroundColor: "rgba(15,23,42,0.72)",
+    borderColor: "rgba(255,255,255,0.22)",
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 28,
+    justifyContent: "center",
+    width: 28,
+  },
+  takeViewerItemPreview: {
+    alignItems: "center",
+    backgroundColor: "#111827",
+    borderRadius: 10,
+    height: 52,
+    justifyContent: "center",
+    overflow: "hidden",
+    position: "relative",
+    width: 42,
+  },
+  takeViewerItemSelected: {
+    backgroundColor: "#f5f3ff",
+    borderColor: "#c4b5fd",
+  },
+  takeViewerItemStatus: {
+    backgroundColor: "#ffffff",
+    borderColor: "#e2e8f0",
+    borderRadius: 999,
+    borderWidth: 1,
+    maxWidth: 76,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  takeViewerItemStatusFinal: {
+    backgroundColor: "#ede9fe",
+    borderColor: "#c4b5fd",
+  },
+  takeViewerItemStatusFinalText: {
+    color: "#6d28d9",
+  },
+  takeViewerItemStatusText: {
+    color: "#475569",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  takeViewerItemTitle: {
+    color: "#111827",
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  takeViewerItemTitleRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 5,
+  },
+  takeViewerHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+  },
+  takeViewerMeta: {
+    color: "#94a3b8",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0,
+    marginTop: 3,
+  },
+  takeViewerPreview: {
+    alignItems: "center",
+    backgroundColor: "#111827",
+    borderRadius: 12,
+    height: 116,
+    justifyContent: "center",
+    overflow: "hidden",
+    position: "relative",
+  },
+  takeViewerPreviewEmpty: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#e2e8f0",
+    borderStyle: "dashed",
+    borderWidth: 1,
+  },
+  takeViewerPreviewIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(15,23,42,0.62)",
+    borderRadius: 999,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  takeViewerPreviewIconEmpty: {
+    backgroundColor: "#ffffff",
+    borderColor: "#e2e8f0",
+    borderWidth: 1,
+  },
+  takeViewerPreviewLoading: {
+    backgroundColor: "#f1f5f9",
+  },
+  takeViewerSection: {
+    backgroundColor: "#ffffff",
+    borderColor: "#ddd6fe",
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  takeViewerStatePill: {
+    alignItems: "center",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  takeViewerStateText: {
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  takeViewerStatus: {
+    color: "#64748b",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0,
+    marginTop: 2,
+  },
+  takeViewerTitle: {
+    color: "#111827",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 0,
   },
 });

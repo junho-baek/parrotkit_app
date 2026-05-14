@@ -1,4 +1,5 @@
 import { ugcMedia } from '@/core/mocks/ugc-media';
+import type { SavedTakePersistenceContract } from '@/features/recipes/lib/saved-take-contract';
 
 export type MockPlatform = 'TikTok' | 'Instagram Reels' | 'YouTube Shorts';
 
@@ -40,6 +41,7 @@ export type MockProjectTake = {
   createdAt: string;
   label: string;
   exportStatus: MockTakeExportStatus;
+  savedTake?: SavedTakePersistenceContract;
   exportedToGalleryAt?: string;
   sharedAt?: string;
 };

@@ -3,7 +3,12 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import type { ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-export type NativeTakeReviewStatus = 'idle' | 'saving' | 'saved' | 'denied' | 'failed' | 'shared';
+import {
+  getPrompterTakeReviewCopy,
+  type PrompterTakeSaveState,
+} from '@/features/recipes/lib/prompter-take-save-state';
+
+export type NativeTakeReviewStatus = PrompterTakeSaveState;
 
 type NativeTakeReviewProps = {
   keepDisabled?: boolean;
@@ -21,7 +26,7 @@ type NativeTakeReviewProps = {
 
 export function NativeTakeReview({
   keepDisabled = false,
-  keepLabel = 'Keep',
+  keepLabel,
   onKeep,
   onOpenIn,
   onRetry,
@@ -39,6 +44,7 @@ export function NativeTakeReview({
   });
   const statusCopy = getStatusCopy(status, statusMessage);
   const exporting = status === 'saving';
+  const primaryActionLabel = keepLabel ?? getPrompterTakeReviewCopy(status, statusMessage).primaryActionLabel;
 
   return (
     <View style={styles.root}>
@@ -93,7 +99,7 @@ export function NativeTakeReview({
         <ReviewButton
           disabled={keepDisabled || exporting}
           iconName="check"
-          label={keepLabel}
+          label={primaryActionLabel}
           onPress={onKeep}
           tone="primary"
         />
@@ -103,47 +109,56 @@ export function NativeTakeReview({
 }
 
 function getStatusCopy(status: NativeTakeReviewStatus, message?: string) {
+  const reviewCopy = getPrompterTakeReviewCopy(status, message);
+
   switch (status) {
     case 'saving':
       return {
-        caption: message ?? 'Exporting this take.',
+        caption: reviewCopy.caption,
         iconName: 'cloud-upload-outline' as ReviewIconName,
-        title: 'Working',
+        title: reviewCopy.title,
         tone: 'busyIcon' as const,
+      };
+    case 'kept':
+      return {
+        caption: reviewCopy.caption,
+        iconName: 'check-circle-outline' as ReviewIconName,
+        title: reviewCopy.title,
+        tone: 'savedIcon' as const,
       };
     case 'saved':
       return {
-        caption: message ?? 'Saved to your native Gallery.',
+        caption: reviewCopy.caption,
         iconName: 'check-circle-outline' as ReviewIconName,
-        title: 'Saved',
+        title: reviewCopy.title,
         tone: 'savedIcon' as const,
       };
     case 'shared':
       return {
-        caption: message ?? 'Opened in another app.',
+        caption: reviewCopy.caption,
         iconName: 'export-variant' as ReviewIconName,
-        title: 'Opened',
+        title: reviewCopy.title,
         tone: 'savedIcon' as const,
       };
     case 'denied':
       return {
-        caption: message ?? 'Allow Photos access, then save again.',
+        caption: reviewCopy.caption,
         iconName: 'lock-alert-outline' as ReviewIconName,
-        title: 'Access Needed',
+        title: reviewCopy.title,
         tone: 'warningIcon' as const,
       };
     case 'failed':
       return {
-        caption: message ?? 'Try Gallery or Open in... again.',
+        caption: reviewCopy.caption,
         iconName: 'alert-circle-outline' as ReviewIconName,
-        title: 'Export Failed',
+        title: reviewCopy.title,
         tone: 'warningIcon' as const,
       };
     default:
       return {
-        caption: message ?? 'Keep it in this project, or export only when you choose.',
+        caption: reviewCopy.caption,
         iconName: 'movie-open-check-outline' as ReviewIconName,
-        title: 'Take Recorded',
+        title: reviewCopy.title,
         tone: 'idleIcon' as const,
       };
   }

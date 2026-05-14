@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "nativewind-env.d.ts",
+    "src/app/explore-recipe/[recipeId].tsx",
+    "src/features/explore/lib/explore-card-routing.ts",
+    "src/features/explore/lib/explore-card-routing.test.ts",
+    "src/features/explore/lib/explore-template-copy-action.ts",
+    "src/features/explore/lib/explore-template-copy-action.test.ts",
+    "src/features/explore/lib/explore-template-recipe-copy.ts",
+    "src/features/explore/lib/explore-template-recipe-copy.test.ts",
+    "src/features/explore/screens/explore-screen.tsx",
+    "src/features/explore/screens/explore-recipe-detail-screen.tsx"
+  ]
+}

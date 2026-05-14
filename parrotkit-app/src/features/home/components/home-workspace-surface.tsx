@@ -5,7 +5,6 @@ import {
   Image,
   ImageBackground,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -23,6 +22,29 @@ import type { MockRecipe } from '@/core/mocks/parrotkit-data';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient } from '@/core/theme/colors';
 import { AppScreenScrollView } from '@/core/ui/app-screen-scroll-view';
+import {
+  getHomePrimaryCta,
+  getHomePrimaryCtaDestination,
+} from '@/features/home/lib/home-primary-cta';
+import {
+  getHomeOwnedRecipeCardEntries,
+  getHomeOwnedRecipeCardsDestination,
+  type HomeOwnedRecipeCardEntry,
+} from '@/features/home/lib/home-owned-recipe-cards';
+import { getHomeRecipeCreateEntry } from '@/features/home/lib/home-recipe-create-entry';
+import {
+  getHomeContinueWorkflowCard,
+  getHomeContinueWorkflowDestination,
+  getHomeEmptyWorkflowFallback,
+  type HomeContinueWorkflowCard,
+  type HomeEmptyWorkflowFallback,
+} from '@/features/home/lib/home-continue-workflow-card';
+import { getHomeWorkflowSelection } from '@/features/home/lib/home-workflow-resolution';
+import { getHomeWorkspaceSectionOrder } from '@/features/home/lib/home-workspace-sections';
+import {
+  getSavedTakeHomeDestination,
+} from '@/features/recipes/lib/saved-take-home-access';
+import type { SavedRecipeTakeRecord } from '@/features/recipes/lib/saved-take-storage';
 import { getShootBoardHref } from '@/features/recipes/lib/shoot-board-model';
 
 type HomeCopy = ReturnType<typeof useAppLanguage>['copy']['home'];
@@ -32,28 +54,78 @@ export function HomeWorkspaceSurface() {
   const { copy, language } = useAppLanguage();
   const homeCopy = copy.home;
   const {
-    getContinueShootRecipe,
-    getLatestShootableRecipe,
+    getSavedRecipeTakes,
     recipes,
   } = useMockWorkspace();
-  const continueRecipe = getContinueShootRecipe();
-  const latestRecipe = continueRecipe ? null : getLatestShootableRecipe();
-  const heroRecipe = continueRecipe ?? latestRecipe;
-  const quickStartRecipes = recipes.filter((recipe) => recipe.id !== heroRecipe?.id).slice(0, 6);
-  const recentRecipes = recipes.slice(0, 3);
-
-  const openPrompter = (recipe: MockRecipe) => {
-    router.push(getShootBoardHref(recipe.id) as Href);
-  };
+  const workflowSelection = getHomeWorkflowSelection(recipes);
+  const continueWorkflowCard = getHomeContinueWorkflowCard({
+    language,
+    selection: workflowSelection,
+  });
+  const heroRecipe = continueWorkflowCard?.recipe ?? null;
+  const recipeCards = getHomeOwnedRecipeCardEntries(recipes).slice(0, 6);
+  const savedTakes = getSavedRecipeTakes().slice(0, 4);
+  const recipeCreateEntry = getHomeRecipeCreateEntry(language);
+  const primaryCta = getHomePrimaryCta({
+    hasContinueRecipe: Boolean(heroRecipe),
+    language,
+    recipeTitle: heroRecipe?.title,
+  });
+  const primaryCtaDestination = getHomePrimaryCtaDestination({
+    createDestination: recipeCreateEntry.destination,
+    recipeId: heroRecipe?.id,
+  });
+  const continueWorkflowDestination = getHomeContinueWorkflowDestination({
+    createDestination: recipeCreateEntry.destination,
+    selection: workflowSelection,
+  });
+  const emptyWorkflowFallback = getHomeEmptyWorkflowFallback({
+    createDestination: recipeCreateEntry.destination,
+    language,
+    selection: workflowSelection,
+  });
+  const sectionOrder = getHomeWorkspaceSectionOrder({
+    hasContinueOrRecentRecipe: Boolean(heroRecipe),
+    hasSavedTakes: savedTakes.length > 0,
+  });
 
   const openRecipe = (recipe: MockRecipe) => {
     router.push(getShootBoardHref(recipe.id) as Href);
+  };
+
+  const openSavedTake = (take: SavedRecipeTakeRecord) => {
+    router.push(getSavedTakeHomeDestination(take) as Href);
+  };
+
+  const openSavedRecipeDestination = (destination: string) => {
+    router.push(destination as Href);
   };
 
   return (
     <View className="flex-1 bg-canvas">
       <AppScreenScrollView>
         <View className="gap-7 px-5">
+          {sectionOrder[0] === 'continueRecentRecipe' ? (
+            continueWorkflowCard ? (
+              <ContinueRecipePanel
+                card={continueWorkflowCard}
+                copy={homeCopy}
+                language={language}
+                onOpenRecipe={() => openRecipe(continueWorkflowCard.recipe)}
+                onPrimary={() => router.push(continueWorkflowDestination as Href)}
+                onViewAll={() => router.push('/recipes' as Href)}
+                recipe={continueWorkflowCard.recipe}
+              />
+            ) : (
+              emptyWorkflowFallback ? (
+                <EmptyContinuePanel
+                  fallback={emptyWorkflowFallback}
+                  onCreateRecipe={() => router.push(emptyWorkflowFallback.destination as Href)}
+                />
+              ) : null
+            )
+          ) : null}
+
           <View className="gap-1.5">
             <Text className="text-[30px] font-black leading-[34px] text-ink">
               {homeCopy.welcomeTitle}
@@ -63,47 +135,48 @@ export function HomeWorkspaceSurface() {
             </Text>
           </View>
 
-          {heroRecipe ? (
-            <ContinueRecipePanel
-              copy={homeCopy}
-              language={language}
-              onOpenRecipe={() => openRecipe(heroRecipe)}
-              onPrimary={() => openPrompter(heroRecipe)}
-              onViewAll={() => router.push('/recipes' as Href)}
-              recipe={heroRecipe}
-            />
-          ) : (
-            <EmptyContinuePanel copy={homeCopy} onQuickShoot={() => router.push('/quick-shoot' as Href)} />
-          )}
+          <PrimaryWorkflowCta
+            actionLabel={primaryCta.actionLabel}
+            body={primaryCta.body}
+            onPress={() => router.push(primaryCtaDestination as Href)}
+            title={primaryCta.title}
+            workflowLabel={primaryCta.workflowLabel}
+          />
+
+          <BlankShootBoardEntry
+            accessibilityLabel={recipeCreateEntry.accessibilityLabel}
+            label={recipeCreateEntry.label}
+            language={language}
+            onPress={() => router.push(recipeCreateEntry.destination as Href)}
+          />
 
           <View className="gap-3">
             <View className="flex-row items-center justify-between">
-              <Text className="text-[18px] font-black text-ink">{homeCopy.quickStartSection}</Text>
+              <Text className="text-[18px] font-black text-ink">
+                {language === 'ko' ? '내 레시피' : 'My recipes'}
+              </Text>
               <Text
                 className="text-[13px] font-bold text-violet"
-                onPress={() => router.push('/recipes' as Href)}
+                onPress={() => router.push(getHomeOwnedRecipeCardsDestination() as Href)}
               >
-                {homeCopy.edit}
+                {homeCopy.viewAll}
               </Text>
             </View>
 
-            {quickStartRecipes.length > 0 ? (
-              <ScrollView
-                horizontal
-                contentContainerStyle={styles.quickRail}
-                decelerationRate="fast"
-                showsHorizontalScrollIndicator={false}
-              >
-                {quickStartRecipes.map((recipe) => (
-                  <QuickRecipeTile
+            {recipeCards.length > 0 ? (
+              <View style={styles.recipeCardGrid}>
+                {recipeCards.map((entry) => (
+                  <HomeRecipeCard
                     copy={homeCopy}
-                    key={recipe.id}
+                    entry={entry}
+                    key={entry.recipeId}
                     language={language}
-                    onPress={() => openPrompter(recipe)}
-                    recipe={recipe}
+                    onPress={() => openSavedRecipeDestination(entry.destination)}
+                    onManage={() => openSavedRecipeDestination(entry.managementDestination)}
+                    onStartFilming={() => openSavedRecipeDestination(entry.startFilmingDestination)}
                   />
                 ))}
-              </ScrollView>
+              </View>
             ) : (
               <View className="rounded-[24px] border border-dashed border-stroke bg-surface px-5 py-8">
                 <Text className="text-[16px] font-black text-ink">{homeCopy.emptyTitle}</Text>
@@ -114,26 +187,42 @@ export function HomeWorkspaceSurface() {
 
           <View className="gap-3">
             <View className="flex-row items-center justify-between">
-              <Text className="text-[18px] font-black text-ink">{homeCopy.recentSection}</Text>
-              <Text
-                className="text-[13px] font-bold text-violet"
-                onPress={() => router.push('/recipes' as Href)}
-              >
-                {homeCopy.viewAll}
+              <Text className="text-[18px] font-black text-ink">
+                {language === 'ko' ? '저장한 테이크' : 'Saved takes'}
+              </Text>
+              <Text className="text-[13px] font-bold text-muted">
+                {language === 'ko' ? '로컬' : 'Local'}
               </Text>
             </View>
 
-            <View style={styles.recentList}>
-              {recentRecipes.map((recipe) => (
-                <RecentRecipeRow
-                  key={recipe.id}
-                  language={language}
-                  onOpen={() => openRecipe(recipe)}
-                  onPrimary={() => openPrompter(recipe)}
-                  recipe={recipe}
-                />
-              ))}
-            </View>
+            {savedTakes.length > 0 ? (
+              <View style={styles.savedTakeList}>
+                {savedTakes.map((take) => (
+                  <SavedTakeRow
+                    key={take.takeId}
+                    language={language}
+                    onPress={() => openSavedTake(take)}
+                    take={take}
+                  />
+                ))}
+              </View>
+            ) : (
+              <View style={styles.savedTakeEmpty}>
+                <View style={styles.savedTakeEmptyIcon}>
+                  <MaterialCommunityIcons color="#8c67ff" name="video-check-outline" size={21} />
+                </View>
+                <View className="min-w-0 flex-1">
+                  <Text className="text-[15px] font-black text-ink">
+                    {language === 'ko' ? '아직 저장한 테이크가 없어요' : 'No saved takes yet'}
+                  </Text>
+                  <Text className="mt-1 text-[13px] font-semibold leading-5 text-muted">
+                    {language === 'ko'
+                      ? '컷 카드에서 촬영을 마치면 여기에서 바로 다시 열 수 있어요.'
+                      : 'Finish a cut-card recording, then reopen it from here.'}
+                  </Text>
+                </View>
+              </View>
+            )}
           </View>
         </View>
       </AppScreenScrollView>
@@ -141,14 +230,101 @@ export function HomeWorkspaceSurface() {
   );
 }
 
+function BlankShootBoardEntry({
+  accessibilityLabel,
+  label,
+  language,
+  onPress,
+}: {
+  accessibilityLabel: string;
+  label: string;
+  language: AppLanguage;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={styles.blankShootBoardEntry}
+    >
+      <View style={styles.blankShootBoardIcon}>
+        <MaterialCommunityIcons color="#ff7a59" name="plus-box-outline" size={21} />
+      </View>
+      <View className="min-w-0 flex-1">
+        <Text className="text-[14px] font-black text-ink" numberOfLines={1}>
+          {label}
+        </Text>
+        <Text className="mt-0.5 text-[12px] font-semibold text-muted" numberOfLines={1}>
+          {language === 'ko' ? '빈 레시피로 시작' : 'Start with a blank recipe'}
+        </Text>
+      </View>
+      <MaterialCommunityIcons color="#64748b" name="chevron-right" size={22} />
+    </Pressable>
+  );
+}
+
+function PrimaryWorkflowCta({
+  actionLabel,
+  body,
+  onPress,
+  title,
+  workflowLabel,
+}: {
+  actionLabel: string;
+  body: string;
+  onPress: () => void;
+  title: string;
+  workflowLabel: string;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={`${workflowLabel}: ${title}`}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={styles.primaryWorkflowCard}
+    >
+      <LinearGradient
+        colors={['#111827', '#3b2f70']}
+        end={{ x: 1, y: 1 }}
+        start={{ x: 0, y: 0 }}
+        style={styles.primaryWorkflowGradient}
+      >
+        <View className="min-w-0 flex-1 gap-2">
+          <View style={styles.primaryWorkflowPill}>
+            <MaterialCommunityIcons color="#c4b5fd" name="movie-open-play-outline" size={14} />
+            <Text className="text-[11px] font-black uppercase text-violet-100" numberOfLines={1}>
+              {workflowLabel}
+            </Text>
+          </View>
+          <Text className="text-[20px] font-black leading-6 text-white" numberOfLines={2}>
+            {title}
+          </Text>
+          <Text className="text-[13px] font-semibold leading-5 text-slate-200" numberOfLines={2}>
+            {body}
+          </Text>
+        </View>
+        <View style={styles.primaryWorkflowAction}>
+          <Text className="text-[13px] font-black text-slate-950" numberOfLines={1}>
+            {actionLabel}
+          </Text>
+          <MaterialCommunityIcons color="#111827" name="arrow-right" size={18} />
+        </View>
+      </LinearGradient>
+    </Pressable>
+  );
+}
+
 function ContinueRecipePanel({
   copy,
+  card,
   language,
   onOpenRecipe,
   onPrimary,
   onViewAll,
   recipe,
 }: {
+  card: HomeContinueWorkflowCard;
   copy: HomeCopy;
   language: AppLanguage;
   onOpenRecipe: () => void;
@@ -164,21 +340,35 @@ function ContinueRecipePanel({
   return (
     <View className="gap-3">
       <View className="flex-row items-center justify-between">
-        <Text className="text-[18px] font-black text-ink">{copy.continueSection}</Text>
+        <Text className="text-[18px] font-black text-ink">{card.sectionTitle || copy.continueSection}</Text>
         <Pressable accessibilityRole="button" hitSlop={8} onPress={onViewAll}>
           <Text className="text-[13px] font-bold text-violet">{copy.viewAll}</Text>
         </Pressable>
       </View>
 
       <View style={styles.continueCard}>
-        <Pressable accessibilityRole="button" className="flex-row gap-3" onPress={onOpenRecipe}>
+        <Pressable
+          accessibilityLabel={card.accessibilityLabel}
+          accessibilityRole="button"
+          className="flex-row gap-3"
+          onPress={onOpenRecipe}
+        >
           <Image source={{ uri: recipe.thumbnail }} style={styles.continueImage} />
           <View className="flex-1 justify-center gap-1.5">
             <Text className="text-[17px] font-black leading-[21px] text-ink" numberOfLines={2}>
-              {recipe.title || copy.continueTitleFallback}
+              {card.title || copy.continueTitleFallback}
             </Text>
+            <View style={styles.continueStatePill}>
+              <MaterialCommunityIcons color="#6d28d9" name="progress-clock" size={13} />
+              <Text className="text-[11px] font-black text-violet" numberOfLines={1}>
+                {card.stateLabel}
+              </Text>
+            </View>
             <Text className="text-[13px] font-bold text-muted" numberOfLines={1}>
               {recipe.ownerHandle} · {formatShotProgress(language, recipe.shotSceneCount, recipe.totalSceneCount)}
+            </Text>
+            <Text className="text-[12px] font-semibold leading-4 text-muted" numberOfLines={2}>
+              {card.body}
             </Text>
             {activityLabel ? (
               <Text className="text-[12px] font-semibold text-slate-400" numberOfLines={1}>
@@ -200,10 +390,15 @@ function ContinueRecipePanel({
           />
         </View>
 
-        <Pressable accessibilityRole="button" onPress={onPrimary} style={styles.continueButton}>
+        <Pressable
+          accessibilityLabel={card.actionLabel}
+          accessibilityRole="button"
+          onPress={onPrimary}
+          style={styles.continueButton}
+        >
           <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.continueButtonGradient}>
             <MaterialCommunityIcons color="#fff" name="play" size={18} />
-            <Text className="text-[14px] font-black text-white">{copy.continueAction}</Text>
+            <Text className="text-[14px] font-black text-white">{card.actionLabel}</Text>
           </LinearGradient>
         </Pressable>
       </View>
@@ -211,108 +406,169 @@ function ContinueRecipePanel({
   );
 }
 
-function EmptyContinuePanel({ copy, onQuickShoot }: { copy: HomeCopy; onQuickShoot: () => void }) {
+function EmptyContinuePanel({
+  fallback,
+  onCreateRecipe,
+}: {
+  fallback: HomeEmptyWorkflowFallback;
+  onCreateRecipe: () => void;
+}) {
   return (
     <LinearGradient colors={['#fff7ed', '#f8fbff']} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.emptyPanel}>
       <View className="gap-4">
         <View className="h-12 w-12 items-center justify-center rounded-full bg-white">
-          <MaterialCommunityIcons color="#ff9568" name="video-plus-outline" size={25} />
+          <MaterialCommunityIcons color="#ff9568" name="plus-box-outline" size={25} />
         </View>
         <View className="gap-2">
-          <Text className="text-[26px] font-black leading-[31px] text-ink">{copy.emptyTitle}</Text>
-          <Text className="text-sm font-semibold leading-6 text-muted">{copy.emptyBody}</Text>
+          <Text className="text-[26px] font-black leading-[31px] text-ink">{fallback.title}</Text>
+          <Text className="text-sm font-semibold leading-6 text-muted">{fallback.body}</Text>
         </View>
-        <Pressable accessibilityRole="button" className="self-start rounded-full bg-slate-950 px-5 py-3" onPress={onQuickShoot}>
-          <Text className="text-sm font-black text-white">{copy.emptyAction}</Text>
+        <Pressable accessibilityRole="button" className="self-start rounded-full bg-slate-950 px-5 py-3" onPress={onCreateRecipe}>
+          <Text className="text-sm font-black text-white">{fallback.actionLabel}</Text>
         </Pressable>
       </View>
     </LinearGradient>
   );
 }
 
-function QuickRecipeTile({
+function HomeRecipeCard({
   copy,
+  entry,
   language,
+  onManage,
   onPress,
-  recipe,
+  onStartFilming,
 }: {
   copy: HomeCopy;
+  entry: HomeOwnedRecipeCardEntry<MockRecipe>;
   language: AppLanguage;
+  onManage: () => void;
   onPress: () => void;
-  recipe: MockRecipe;
+  onStartFilming: () => void;
 }) {
+  const { recipe } = entry;
   const statusLabel = getRecipeStatusLabel(copy, recipe);
+  const activityLabel = localizeActivityLabel(language, recipe.lastShotAt ?? recipe.savedAt);
+  const progressRatio = recipe.totalSceneCount > 0 ? recipe.shotSceneCount / recipe.totalSceneCount : 0;
+  const progressPercent = Math.max(8, Math.min(100, Math.round(progressRatio * 100)));
+  const progressWidth: DimensionValue = `${progressPercent}%`;
 
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.quickTile}>
-      <ImageBackground
-        imageStyle={styles.quickTileImage}
-        resizeMode="cover"
-        source={{ uri: recipe.thumbnail }}
-        style={styles.quickTileBackground}
-      >
-        <LinearGradient
-          colors={['rgba(15,23,42,0.03)', 'rgba(15,23,42,0.86)']}
-          end={{ x: 0.5, y: 1 }}
-          start={{ x: 0.5, y: 0 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <View className="flex-row">
-          <View style={styles.tileBadge}>
-            <MaterialCommunityIcons color="#fff" name="check-decagram" size={11} />
-            <Text className="text-[9px] font-black text-white">{statusLabel}</Text>
-          </View>
-        </View>
-        <View className="mt-auto gap-1.5">
-          <Text className="text-[14px] font-black leading-[17px] text-white" numberOfLines={2}>
-            {recipe.title}
-          </Text>
-          <View className="flex-row items-center justify-between gap-2">
-            <Text className="flex-1 text-[11px] font-bold text-white/82" numberOfLines={1}>
-              {formatSceneCount(language, recipe.totalSceneCount)}
-            </Text>
-            <View style={styles.tilePlay}>
-              <MaterialCommunityIcons color="#fff" name="play" size={14} />
+    <View style={styles.recipeCard}>
+      <Pressable accessibilityRole="button" onPress={onPress}>
+        <ImageBackground
+          imageStyle={styles.recipeCardImage}
+          resizeMode="cover"
+          source={{ uri: recipe.thumbnail }}
+          style={styles.recipeCardMedia}
+        >
+          <LinearGradient
+            colors={['rgba(15,23,42,0.02)', 'rgba(15,23,42,0.72)']}
+            end={{ x: 0.5, y: 1 }}
+            start={{ x: 0.5, y: 0 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View className="flex-row">
+            <View style={styles.recipeCardBadge}>
+              <MaterialCommunityIcons color="#fff" name="check-decagram" size={11} />
+              <Text className="text-[9px] font-black text-white">{statusLabel}</Text>
             </View>
           </View>
+        </ImageBackground>
+      </Pressable>
+      <View className="gap-2.5 p-3">
+        <Pressable accessibilityRole="button" onPress={onPress}>
+          <Text className="text-[15px] font-black leading-[19px] text-ink" numberOfLines={2}>
+            {recipe.title}
+          </Text>
+        </Pressable>
+        <View className="gap-1.5">
+          <Text className="text-[12px] font-bold text-muted" numberOfLines={1}>
+            {formatShotProgress(language, recipe.shotSceneCount, recipe.totalSceneCount)}
+          </Text>
+          <View style={styles.recipeCardProgressTrack}>
+            <LinearGradient
+              colors={brandActionGradient}
+              end={{ x: 1, y: 0 }}
+              start={{ x: 0, y: 0 }}
+              style={[styles.recipeCardProgressFill, { width: progressWidth }]}
+            />
+          </View>
         </View>
-      </ImageBackground>
-    </Pressable>
-  );
-}
-
-function RecentRecipeRow({
-  language,
-  onOpen,
-  onPrimary,
-  recipe,
-}: {
-  language: AppLanguage;
-  onOpen: () => void;
-  onPrimary: () => void;
-  recipe: MockRecipe;
-}) {
-  const activityLabel = localizeActivityLabel(language, recipe.lastShotAt ?? recipe.savedAt);
-
-  return (
-    <Pressable accessibilityRole="button" className="flex-row items-center gap-3 py-3" onPress={onOpen}>
-      <Image source={{ uri: recipe.thumbnail }} style={styles.recentImage} />
-      <View className="flex-1 gap-1">
-        <Text className="text-[16px] font-black leading-5 text-ink" numberOfLines={2}>
-          {recipe.title}
-        </Text>
-        <Text className="text-[12px] font-bold text-muted" numberOfLines={1}>
-          {recipe.ownerHandle} · {formatSceneCount(language, recipe.totalSceneCount)}
-        </Text>
         {activityLabel ? (
           <Text className="text-[12px] font-semibold text-slate-400" numberOfLines={1}>
             {activityLabel}
           </Text>
         ) : null}
+        <View className="flex-row items-center justify-between gap-2 pt-1">
+          <Text className="flex-1 text-[12px] font-bold text-muted" numberOfLines={1}>
+            {formatSceneCount(language, recipe.totalSceneCount)}
+          </Text>
+          <Pressable
+            accessibilityLabel={language === 'ko' ? `${entry.recipeTitle} 관리` : `Manage ${entry.recipeTitle}`}
+            accessibilityRole="button"
+            onPress={onManage}
+            style={styles.recipeCardManageButton}
+          >
+            <MaterialCommunityIcons color="#475569" name="cog-outline" size={14} />
+            <Text className="text-[11px] font-black text-slate-600">
+              {language === 'ko' ? '관리' : 'Manage'}
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityLabel={language === 'ko' ? `${entry.recipeTitle} 촬영 시작` : `Start filming ${entry.recipeTitle}`}
+            accessibilityRole="button"
+            onPress={onStartFilming}
+            style={styles.recipeCardStartButton}
+          >
+            <MaterialCommunityIcons color="#fff" name="camera-outline" size={14} />
+            <Text className="text-[11px] font-black text-white">
+              {language === 'ko' ? '촬영 시작' : 'Start filming'}
+            </Text>
+          </Pressable>
+        </View>
       </View>
-      <Pressable accessibilityRole="button" hitSlop={8} onPress={onPrimary} style={styles.recentPlay}>
-        <MaterialCommunityIcons color="#111827" name="play" size={18} />
-      </Pressable>
+    </View>
+  );
+}
+
+function SavedTakeRow({
+  language,
+  onPress,
+  take,
+}: {
+  language: AppLanguage;
+  onPress: () => void;
+  take: SavedRecipeTakeRecord;
+}) {
+  const primaryCard = take.cards[0];
+  const title = primaryCard?.title || take.sceneTitle;
+  const statusLabel = take.isFinalTake
+    ? language === 'ko' ? 'Final' : 'Final'
+    : language === 'ko' ? '저장됨' : 'Saved';
+
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.savedTakeRow}>
+      <View style={styles.savedTakeIcon}>
+        <MaterialCommunityIcons color="#111827" name="play-circle-outline" size={22} />
+      </View>
+      <View className="min-w-0 flex-1 gap-1">
+        <Text className="text-[15px] font-black leading-5 text-ink" numberOfLines={1}>
+          {take.recipeTitle}
+        </Text>
+        <Text className="text-[12px] font-bold text-muted" numberOfLines={1}>
+          {language === 'ko' ? `컷 ${primaryCard?.order ?? ''}` : `Cut ${primaryCard?.order ?? ''}`} · {title}
+        </Text>
+      </View>
+      <View className="items-end gap-1">
+        <Text className="text-[11px] font-black text-violet" numberOfLines={1}>
+          {take.label}
+        </Text>
+        <Text className="text-[11px] font-bold text-slate-400" numberOfLines={1}>
+          {statusLabel}
+        </Text>
+      </View>
+      <MaterialCommunityIcons color="#94a3b8" name="chevron-right" size={20} />
     </Pressable>
   );
 }
@@ -330,6 +586,26 @@ function getRecipeStatusLabel(copy: HomeCopy, recipe: MockRecipe) {
 }
 
 const styles = StyleSheet.create({
+  blankShootBoardEntry: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    minHeight: 64,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  blankShootBoardIcon: {
+    alignItems: 'center',
+    backgroundColor: '#fff1eb',
+    borderRadius: 14,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
   continueButton: {
     alignSelf: 'flex-end',
     borderRadius: 16,
@@ -362,6 +638,56 @@ const styles = StyleSheet.create({
     height: 92,
     width: 92,
   },
+  continueStatePill: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#f5f3ff',
+    borderColor: '#ddd6fe',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 4,
+    maxWidth: '100%',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  primaryWorkflowAction: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+    minHeight: 46,
+    paddingHorizontal: 14,
+  },
+  primaryWorkflowCard: {
+    borderRadius: 22,
+    overflow: 'hidden',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+  },
+  primaryWorkflowGradient: {
+    borderRadius: 22,
+    gap: 15,
+    padding: 18,
+  },
+  primaryWorkflowPill: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(255,255,255,0.16)',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
+    maxWidth: '100%',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
   emptyPanel: {
     borderColor: '#fed7aa',
     borderRadius: 26,
@@ -378,49 +704,19 @@ const styles = StyleSheet.create({
     height: 5,
     overflow: 'hidden',
   },
-  quickRail: {
-    gap: 10,
-    paddingRight: 20,
-  },
-  quickTile: {
-    borderRadius: 20,
-    height: 188,
-    overflow: 'hidden',
-    width: 132,
-  },
-  quickTileBackground: {
-    flex: 1,
-    padding: 10,
-  },
-  quickTileImage: {
-    borderRadius: 20,
-  },
-  recentImage: {
-    backgroundColor: '#f1f5f9',
-    borderRadius: 16,
-    height: 68,
-    width: 68,
-  },
-  recentList: {
+  recipeCard: {
     backgroundColor: '#ffffff',
     borderColor: '#e2e8f0',
-    borderRadius: 24,
+    borderRadius: 22,
     borderWidth: 1,
-    paddingHorizontal: 14,
+    overflow: 'hidden',
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.05,
     shadowRadius: 18,
+    width: '48.5%',
   },
-  recentPlay: {
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderRadius: 999,
-    height: 44,
-    justifyContent: 'center',
-    width: 44,
-  },
-  tileBadge: {
+  recipeCardBadge: {
     alignItems: 'center',
     alignSelf: 'flex-start',
     backgroundColor: 'rgba(15, 23, 42, 0.68)',
@@ -432,14 +728,90 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 4,
   },
-  tilePlay: {
+  recipeCardGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  recipeCardImage: {
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+  },
+  recipeCardManageButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: '#f8fafc',
+    borderColor: '#e2e8f0',
     borderRadius: 999,
     borderWidth: 1,
-    height: 28,
+    flexDirection: 'row',
+    gap: 4,
     justifyContent: 'center',
-    width: 28,
+    minHeight: 30,
+    paddingHorizontal: 8,
+  },
+  recipeCardMedia: {
+    height: 118,
+    overflow: 'hidden',
+    padding: 10,
+  },
+  recipeCardStartButton: {
+    alignItems: 'center',
+    backgroundColor: '#111827',
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 4,
+    minHeight: 30,
+    justifyContent: 'center',
+    paddingHorizontal: 9,
+  },
+  recipeCardProgressFill: {
+    borderRadius: 999,
+    height: 4,
+  },
+  recipeCardProgressTrack: {
+    backgroundColor: '#e2e8f0',
+    borderRadius: 999,
+    height: 4,
+    overflow: 'hidden',
+  },
+  savedTakeEmpty: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 22,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 16,
+  },
+  savedTakeEmptyIcon: {
+    alignItems: 'center',
+    backgroundColor: '#f5f3ff',
+    borderRadius: 999,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  savedTakeIcon: {
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 999,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  savedTakeList: {
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+  },
+  savedTakeRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    minHeight: 72,
+    paddingVertical: 11,
   },
 });

@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "nativewind-env.d.ts",
+    "src/features/home/lib/home-workflow-resolution.test.ts",
+    "src/features/home/lib/home-workflow-resolution.ts"
+  ]
+}

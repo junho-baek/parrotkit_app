@@ -346,8 +346,8 @@ function TakeThumb({
 function formatSceneTitle(language: AppLanguage, cut: ShootBoardCut) {
   const role = cut.roleLabel || (language === "ko" ? cut.titleKo : cut.title);
   return language === "ko"
-    ? `Scene #${cut.order}: ${role}`
-    : `Scene #${cut.order}: ${role}`;
+    ? `컷 #${cut.order}: ${role}`
+    : `Cut #${cut.order}: ${role}`;
 }
 
 function formatDuration(language: AppLanguage, durationSeconds: number) {

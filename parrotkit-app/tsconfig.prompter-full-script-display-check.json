@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "nativewind-env.d.ts",
+    "src/features/recipes/lib/prompter-display.ts",
+    "src/features/recipes/lib/prompter-display.test.ts",
+    "src/features/recipes/screens/recipe-prompter-camera-screen.tsx"
+  ]
+}

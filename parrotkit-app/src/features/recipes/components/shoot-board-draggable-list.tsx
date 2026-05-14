@@ -10,6 +10,7 @@ import { ShootBoardSceneCard } from "@/features/recipes/components/shoot-board-s
 import type {
   ShootBoardCut,
   ShootBoardCutTextPatch,
+  ShootBoardTake,
 } from "@/features/recipes/lib/shoot-board-model";
 
 export function ShootBoardDraggableList({
@@ -22,10 +23,10 @@ export function ShootBoardDraggableList({
   onPreview,
   onReorderCuts,
   onResetCut,
+  onSetFinalTake,
   onShoot,
   onTake,
   onToggleExpanded,
-  onToggleRequiredCheck,
   onToggleSceneComplete,
   onUpdateCutText,
   reorderMode,
@@ -39,14 +40,10 @@ export function ShootBoardDraggableList({
   onPreview: (cut: ShootBoardCut) => void;
   onReorderCuts: (cuts: ShootBoardCut[]) => void;
   onResetCut: (cutId: string) => void;
-  onShoot: (cut: ShootBoardCut) => void;
-  onTake: (cut: ShootBoardCut) => void;
+  onSetFinalTake: (cut: ShootBoardCut, take: ShootBoardTake) => void;
+  onShoot: (cut: ShootBoardCut, take?: ShootBoardTake) => void;
+  onTake: (cut: ShootBoardCut, take?: ShootBoardTake) => void;
   onToggleExpanded: (cutId: string) => void;
-  onToggleRequiredCheck: (
-    cutId: string,
-    checklistItemId: string,
-    checked: boolean,
-  ) => void;
   onToggleSceneComplete: (cutId: string, complete: boolean) => void;
   onUpdateCutText: (cutId: string, patch: ShootBoardCutTextPatch) => void;
   reorderMode: boolean;
@@ -70,12 +67,10 @@ export function ShootBoardDraggableList({
           onDragStart={drag}
           onPreview={() => onPreview(cut)}
           onReset={() => onResetCut(cut.id)}
-          onShoot={() => onShoot(cut)}
-          onTake={() => onTake(cut)}
+          onSetFinalTake={(take) => onSetFinalTake(cut, take)}
+          onShoot={(take) => onShoot(cut, take)}
+          onTake={(take) => onTake(cut, take)}
           onToggleExpanded={() => onToggleExpanded(cut.id)}
-          onToggleRequiredCheck={(checklistItemId, checked) =>
-            onToggleRequiredCheck(cut.id, checklistItemId, checked)
-          }
           onToggleSceneComplete={(complete) =>
             onToggleSceneComplete(cut.id, complete)
           }

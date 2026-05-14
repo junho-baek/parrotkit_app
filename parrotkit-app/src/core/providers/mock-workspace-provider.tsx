@@ -16,15 +16,39 @@ import {
   recipesSeed,
   trendingReferencesSeed,
 } from '@/core/mocks/parrotkit-data';
-import { getDefaultPrompterSelection } from '@/features/recipes/lib/mock-prompter-elements';
-import { normalizeNativeRecipeScene } from '@/features/recipes/lib/recipe-domain-normalizer';
 import {
-  getContinueShootRecipe as selectContinueShootRecipe,
-  getLatestShootableRecipe as selectLatestShootableRecipe,
-} from '@/features/recipes/lib/recipe-ownership';
+  createOwnedRecipeFromExploreTemplate,
+  getOwnedExploreTemplateRecipeId,
+  isOwnedExploreTemplateRecipe,
+} from '@/features/explore/lib/explore-template-recipe-copy';
+import {
+  getHomeInProgressWorkflowRecipe,
+  getHomeRecentWorkflowRecipe,
+} from '@/features/home/lib/home-workflow-resolution';
+import { createBlankShootBoardRecipeDraft } from '@/features/recipes/lib/blank-shoot-board-recipe';
+import { getDefaultPrompterSelection } from '@/features/recipes/lib/mock-prompter-elements';
+import { normalizeNativeRecipe, normalizeNativeRecipeScene } from '@/features/recipes/lib/recipe-domain-normalizer';
+import {
+  copyRecipeEditorBoard,
+  createRecipeEditorBoardState,
+  getRecipeEditorBoard as selectRecipeEditorBoard,
+  setRecipeEditorBoard as setRecipeEditorBoardInState,
+  updateRecipeEditorBoard as updateRecipeEditorBoardInState,
+  type RecipeEditorBoardState,
+} from '@/features/recipes/lib/recipe-editor-state';
+import {
+  createSavedRecipeTake,
+  createSavedRecipeTakeFromPrompterCompletion,
+  listSavedRecipeTakes,
+  type ListSavedRecipeTakesOptions,
+  type SavedRecipeTakeRecord,
+} from '@/features/recipes/lib/saved-take-storage';
+import {
+  createShootBoardRecipe,
+  type ShootBoardRecipe,
+} from '@/features/recipes/lib/shoot-board-model';
 import {
   addQuickTake,
-  addSceneTake,
   createProjectTake,
   createQuickTakeProject as createMockQuickTakeProject,
   getBestTake,
@@ -36,6 +60,22 @@ import {
   setQuickBestTake,
   setSceneBestTake,
 } from '@/features/recipes/lib/take-projects';
+import {
+  DEFAULT_PROMPTER_TEXT_SIZE_LEVEL,
+  resolvePrompterTextSizeLevel,
+  type PrompterTextSizeLevel,
+} from '@/features/recipes/lib/prompter-text-size';
+import {
+  createPrompterModeStateByMode,
+  getPrompterModeState,
+  persistPrompterModePlaybackStatus,
+  persistPrompterModeScrollOffset,
+  persistPrompterModeSettings,
+  type PrompterModeSettingsUpdate,
+  type PrompterModeStateByMode,
+  type PrompterPlaybackStatus,
+} from '@/features/recipes/lib/prompter-mode-state';
+import type { PrompterDisplayMode } from '@/features/recipes/lib/prompter-display';
 import type { PrompterBlock } from '@/features/recipes/types/recipe-domain';
 
 type CreateRecipeDraftInput = {
@@ -49,6 +89,15 @@ type CreateRecipeDraftInput = {
 type CreateQuickShootRecipeInput = {
   blocks: PrompterBlock[];
   title?: string;
+};
+
+type CreateBlankShootBoardRecipeInput = {
+  title?: string;
+};
+
+type CreateBlankShootBoardRecipeResult = {
+  destination: string;
+  recipe: MockRecipe;
 };
 
 type MockWorkspaceContextValue = {
@@ -72,14 +121,31 @@ type MockWorkspaceContextValue = {
   };
   toggleLikeReference: (referenceId: string) => void;
   createRecipeDraft: (input: CreateRecipeDraftInput) => MockRecipe;
+  createBlankShootBoardRecipe: (input?: CreateBlankShootBoardRecipeInput) => CreateBlankShootBoardRecipeResult;
   createQuickShootRecipe: (input: CreateQuickShootRecipeInput) => MockRecipe;
   downloadRecipe: (recipeId: string) => MockRecipe | null;
   getContinueShootRecipe: () => MockRecipe | null;
   getLatestShootableRecipe: () => MockRecipe | null;
   getRecipeById: (recipeId: string) => MockRecipe | null;
   isRecipeDownloaded: (recipeId: string) => boolean;
+  getRecipeEditorBoard: (recipeId: string) => ShootBoardRecipe | null;
+  setRecipeEditorBoard: (board: ShootBoardRecipe) => void;
+  updateRecipeEditorBoard: (
+    recipeId: string,
+    updater: (board: ShootBoardRecipe) => ShootBoardRecipe
+  ) => void;
   getPrompterSelection: (recipeId: string, scene: MockRecipeScene) => string[];
   setPrompterSelection: (recipeId: string, sceneId: string, elementIds: string[]) => void;
+  prompterTextSizeLevel: PrompterTextSizeLevel;
+  setPrompterTextSizeLevel: (level: PrompterTextSizeLevel) => void;
+  prompterModeStateByMode: PrompterModeStateByMode;
+  setPrompterModeScrollOffset: (input: {
+    maxOffset: number;
+    mode: PrompterDisplayMode;
+    scrollOffset: number;
+  }) => void;
+  setPrompterModePlaybackStatus: (mode: PrompterDisplayMode, playbackStatus: PrompterPlaybackStatus) => void;
+  setPrompterModeSettings: (mode: PrompterDisplayMode, settings: PrompterModeSettingsUpdate) => void;
   togglePrompterSelection: (recipeId: string, scene: MockRecipeScene, elementId: string) => void;
   updateScenePrompterBlock: (
     recipeId: string,
@@ -94,7 +160,16 @@ type MockWorkspaceContextValue = {
   quickTakeProject: MockQuickTakeProject;
   getSceneTakeCollection: (recipeId: string, sceneId: string) => MockSceneTakeCollection;
   getSceneBestTake: (recipeId: string, sceneId: string) => MockProjectTake | null;
-  addSceneProjectTake: (recipeId: string, sceneId: string, uri: string) => void;
+  getSavedRecipeTakes: (
+    recipeId?: string,
+    options?: Omit<ListSavedRecipeTakesOptions, 'recipeId'>
+  ) => SavedRecipeTakeRecord[];
+  addSceneProjectTake: (
+    recipeId: string,
+    sceneId: string,
+    uri: string,
+    options?: { activeCutId?: string | null }
+  ) => MockProjectTake | null;
   deleteSceneProjectTake: (recipeId: string, sceneId: string, takeId: string) => void;
   setSceneBestProjectTake: (recipeId: string, sceneId: string, takeId: string) => void;
   markSceneProjectTakeGallerySaved: (recipeId: string, sceneId: string, takeId: string) => void;
@@ -112,7 +187,10 @@ type PrompterSelectionState = Record<string, Record<string, string[]>>;
 type RecipeTakeProjectState = Record<string, MockRecipeTakeProject>;
 type WorkspaceState = {
   recipes: MockRecipe[];
+  recipeEditorBoards: RecipeEditorBoardState;
   prompterSelections: PrompterSelectionState;
+  prompterTextSizeLevel: PrompterTextSizeLevel;
+  prompterModeStateByMode: PrompterModeStateByMode;
 };
 type StateUpdate<T> = T | ((current: T) => T);
 
@@ -201,12 +279,21 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
   const [recentReferences, setRecentReferences] = useState<MockReference[]>(recentReferencesSeed);
   const [workspaceState, setWorkspaceState] = useState<WorkspaceState>({
     recipes: recipesSeed,
+    recipeEditorBoards: createRecipeEditorBoardState(),
     prompterSelections: {},
+    prompterTextSizeLevel: DEFAULT_PROMPTER_TEXT_SIZE_LEVEL,
+    prompterModeStateByMode: createPrompterModeStateByMode(),
   });
   const [trendingReferences, setTrendingReferences] = useState<MockReference[]>(trendingReferencesSeed);
   const [recipeTakeProjects, setRecipeTakeProjects] = useState<RecipeTakeProjectState>({});
   const [quickTakeProject, setQuickTakeProject] = useState<MockQuickTakeProject>(() => createMockQuickTakeProject());
-  const { recipes, prompterSelections } = workspaceState;
+  const {
+    recipes,
+    recipeEditorBoards,
+    prompterSelections,
+    prompterModeStateByMode,
+    prompterTextSizeLevel,
+  } = workspaceState;
 
   const setRecipes = useCallback((update: StateUpdate<MockRecipe[]>) => {
     setWorkspaceState((current) => ({
@@ -219,6 +306,89 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
     setWorkspaceState((current) => ({
       ...current,
       prompterSelections: typeof update === 'function' ? update(current.prompterSelections) : update,
+    }));
+  }, []);
+
+  const setPrompterTextSizeLevel = useCallback((level: PrompterTextSizeLevel) => {
+    setWorkspaceState((current) => ({
+      ...current,
+      prompterTextSizeLevel: resolvePrompterTextSizeLevel(level),
+    }));
+  }, []);
+
+  const setPrompterModeScrollOffset = useCallback(({
+    maxOffset,
+    mode,
+    scrollOffset,
+  }: {
+    maxOffset: number;
+    mode: PrompterDisplayMode;
+    scrollOffset: number;
+  }) => {
+    setWorkspaceState((current) => ({
+      ...current,
+      prompterModeStateByMode: persistPrompterModeScrollOffset({
+        maxOffset,
+        mode,
+        scrollOffset,
+        state: current.prompterModeStateByMode,
+      }),
+    }));
+  }, []);
+
+  const setPrompterModePlaybackStatus = useCallback((
+    mode: PrompterDisplayMode,
+    playbackStatus: PrompterPlaybackStatus
+  ) => {
+    setWorkspaceState((current) => ({
+      ...current,
+      prompterModeStateByMode: persistPrompterModePlaybackStatus({
+        mode,
+        playbackStatus,
+        state: current.prompterModeStateByMode,
+      }),
+    }));
+  }, []);
+
+  const setPrompterModeSettings = useCallback((
+    mode: PrompterDisplayMode,
+    settings: PrompterModeSettingsUpdate
+  ) => {
+    setWorkspaceState((current) => {
+      const nextModeStateByMode = persistPrompterModeSettings({
+        mode,
+        settings,
+        state: current.prompterModeStateByMode,
+      });
+
+      return {
+        ...current,
+        prompterModeStateByMode: nextModeStateByMode,
+        prompterTextSizeLevel: settings.textSizeLevel
+          ? getPrompterModeState(nextModeStateByMode, mode).textSizeLevel
+          : current.prompterTextSizeLevel,
+      };
+    });
+  }, []);
+
+  const setRecipeEditorBoard = useCallback((board: ShootBoardRecipe) => {
+    setWorkspaceState((current) => ({
+      ...current,
+      recipeEditorBoards: setRecipeEditorBoardInState(current.recipeEditorBoards, board),
+    }));
+  }, []);
+
+  const updateRecipeEditorBoard = useCallback((
+    recipeId: string,
+    updater: (board: ShootBoardRecipe) => ShootBoardRecipe
+  ) => {
+    setWorkspaceState((current) => ({
+      ...current,
+      recipeEditorBoards: updateRecipeEditorBoardInState(
+        current.recipeEditorBoards,
+        recipeId,
+        updater
+      ),
     }));
   }, []);
 
@@ -287,6 +457,26 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
 
     return recipe;
   };
+
+  const createBlankShootBoardRecipe = useCallback((input: CreateBlankShootBoardRecipeInput = {}) => {
+    const recipeId = `recipe-blank-${Date.now().toString(36)}`;
+    const draft = createBlankShootBoardRecipeDraft({
+      id: recipeId,
+      title: input.title,
+    });
+    const board = createShootBoardRecipe(normalizeNativeRecipe(draft.recipe), { isSaved: true });
+
+    setWorkspaceState((current) => ({
+      ...current,
+      recipeEditorBoards: setRecipeEditorBoardInState(current.recipeEditorBoards, board),
+      recipes: [draft.recipe, ...current.recipes],
+    }));
+
+    return {
+      destination: draft.destination,
+      recipe: draft.recipe,
+    };
+  }, []);
 
   const createQuickShootRecipe = useCallback(({ blocks, title = 'Quick Shoot Recipe' }: CreateQuickShootRecipeInput) => {
     const visibleBlocks = blocks
@@ -387,43 +577,50 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       return null;
     }
 
-    const downloadedRecipeId = `downloaded-${sourceRecipe.id}`;
-    const existingDownloadedRecipe = recipes.find((recipe) => recipe.id === downloadedRecipeId);
+    const ownedRecipeId = getOwnedExploreTemplateRecipeId(sourceRecipe.id);
+    const existingOwnedRecipe = recipes.find((recipe) => isOwnedExploreTemplateRecipe(recipe, sourceRecipe.id));
 
-    if (existingDownloadedRecipe) {
-      return existingDownloadedRecipe;
+    if (existingOwnedRecipe) {
+      return existingOwnedRecipe;
     }
 
-    const downloadedRecipe: MockRecipe = {
-      ...sourceRecipe,
-      id: downloadedRecipeId,
-      ownership: 'downloaded',
-      savedAt: 'Saved just now',
-      shootStatus: 'ready',
-      shotSceneCount: 0,
-      totalSceneCount: sourceRecipe.scenes.length,
-    };
+    const ownedRecipe = createOwnedRecipeFromExploreTemplate(sourceRecipe, profileSeed);
 
-    setRecipes((current) => {
-      const currentDownloadedRecipe = current.find((recipe) => recipe.id === downloadedRecipeId);
+    setWorkspaceState((current) => {
+      const currentOwnedRecipe = current.recipes.find((recipe) => isOwnedExploreTemplateRecipe(recipe, sourceRecipe.id));
 
-      if (currentDownloadedRecipe) {
-        return current;
+      if (currentOwnedRecipe) {
+        return {
+          ...current,
+          recipeEditorBoards: copyRecipeEditorBoard(
+            current.recipeEditorBoards,
+            recipeId,
+            ownedRecipeId
+          ),
+        };
       }
 
-      return [downloadedRecipe, ...current];
+      return {
+        ...current,
+        recipes: [ownedRecipe, ...current.recipes],
+        recipeEditorBoards: copyRecipeEditorBoard(
+          current.recipeEditorBoards,
+          recipeId,
+          ownedRecipeId
+        ),
+      };
     });
 
-    return downloadedRecipe;
-  }, [recipes, setRecipes]);
+    return ownedRecipe;
+  }, [recipes]);
 
   const getContinueShootRecipe = useCallback(
-    () => selectContinueShootRecipe(recipes),
+    () => getHomeInProgressWorkflowRecipe(recipes),
     [recipes]
   );
 
   const getLatestShootableRecipe = useCallback(
-    () => selectLatestShootableRecipe(recipes),
+    () => getHomeRecentWorkflowRecipe(recipes),
     [recipes]
   );
 
@@ -435,9 +632,7 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
         return false;
       }
 
-      const downloadedRecipeId = `downloaded-${sourceRecipe.id}`;
-
-      return recipes.some((recipe) => recipe.id === downloadedRecipeId);
+      return recipes.some((recipe) => isOwnedExploreTemplateRecipe(recipe, sourceRecipe.id));
     },
     [recipes]
   );
@@ -665,17 +860,38 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
     [recipeTakeProjects]
   );
 
-  const addSceneProjectTake = useCallback((recipeId: string, sceneId: string, uri: string) => {
-    setRecipeTakeProjects((current) => {
-      const collection = selectSceneTakeCollection(current[recipeId], sceneId);
-      const take = createProjectTake(uri, collection.takes.length + 1);
+  const getSavedRecipeTakes = useCallback(
+    (recipeId?: string, options: Omit<ListSavedRecipeTakesOptions, 'recipeId'> = {}) =>
+      listSavedRecipeTakes(recipeTakeProjects, { ...options, recipeId }),
+    [recipeTakeProjects]
+  );
 
-      return {
-        ...current,
-        [recipeId]: addSceneTake(current[recipeId], recipeId, sceneId, take),
-      };
-    });
-  }, []);
+  const addSceneProjectTake = useCallback((
+    recipeId: string,
+    sceneId: string,
+    uri: string,
+    options: { activeCutId?: string | null } = {}
+  ) => {
+    const recipe = recipes.find((item) => item.id === recipeId);
+    const scene = recipe?.scenes.find((item) => item.id === sceneId);
+    const result = recipe && scene
+      ? createSavedRecipeTakeFromPrompterCompletion(recipeTakeProjects, {
+          activeCutId: options.activeCutId,
+          board: recipeEditorBoards[recipeId],
+          recipe,
+          recordingUri: uri,
+          scene,
+        })
+      : createSavedRecipeTake(recipeTakeProjects, {
+          recipeId,
+          recordingUri: uri,
+          sceneId,
+        });
+
+    setRecipeTakeProjects(result.projects);
+
+    return result.take;
+  }, [recipeEditorBoards, recipeTakeProjects, recipes]);
 
   const deleteSceneProjectTake = useCallback((recipeId: string, sceneId: string, takeId: string) => {
     setRecipeTakeProjects((current) => {
@@ -803,6 +1019,11 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
     ?? exploreRecipeSeeds.find((recipe) => recipe.id === recipeId)
     ?? null;
 
+  const getRecipeEditorBoard = useCallback(
+    (recipeId: string) => selectRecipeEditorBoard(recipeEditorBoards, recipeId),
+    [recipeEditorBoards]
+  );
+
   const value = useMemo<MockWorkspaceContextValue>(
     () => ({
       partnerCreators,
@@ -815,6 +1036,7 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       homeStats,
       sourceStats,
       toggleLikeReference,
+      createBlankShootBoardRecipe,
       createRecipeDraft,
       createQuickShootRecipe,
       downloadRecipe,
@@ -822,8 +1044,17 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       getLatestShootableRecipe,
       getRecipeById,
       isRecipeDownloaded,
+      getRecipeEditorBoard,
+      setRecipeEditorBoard,
+      updateRecipeEditorBoard,
       getPrompterSelection,
       setPrompterSelection,
+      prompterTextSizeLevel,
+      setPrompterTextSizeLevel,
+      prompterModeStateByMode,
+      setPrompterModeScrollOffset,
+      setPrompterModePlaybackStatus,
+      setPrompterModeSettings,
       togglePrompterSelection,
       updateScenePrompterBlock,
       updateScenePrompterBlockVisibility,
@@ -833,6 +1064,7 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       quickTakeProject,
       getSceneTakeCollection,
       getSceneBestTake,
+      getSavedRecipeTakes,
       addSceneProjectTake,
       deleteSceneProjectTake,
       setSceneBestProjectTake,
@@ -848,6 +1080,7 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       addScenePrompterBlock,
       addQuickProjectTake,
       addSceneProjectTake,
+      createBlankShootBoardRecipe,
       createRecipeDraft,
       createQuickShootRecipe,
       deleteQuickProjectTake,
@@ -857,7 +1090,9 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       getLatestShootableRecipe,
       getSceneBestTake,
       getSceneTakeCollection,
+      getSavedRecipeTakes,
       getPrompterSelection,
+      getRecipeEditorBoard,
       getRecipeById,
       hideScenePrompterBlock,
       homeStats,
@@ -867,10 +1102,17 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       markQuickProjectTakeShared,
       markSceneProjectTakeGallerySaved,
       markSceneProjectTakeShared,
+      prompterModeStateByMode,
       quickTakeProject,
       recentReferences,
       recipes,
       setPrompterSelection,
+      setPrompterModePlaybackStatus,
+      setPrompterModeScrollOffset,
+      setPrompterModeSettings,
+      setRecipeEditorBoard,
+      prompterTextSizeLevel,
+      setPrompterTextSizeLevel,
       setQuickBestProjectTake,
       setSceneBestProjectTake,
       sourceStats,
@@ -880,6 +1122,7 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       updateScenePrompterBlock,
       updateScenePrompterBlockContent,
       updateScenePrompterBlockVisibility,
+      updateRecipeEditorBoard,
     ]
   );
 

@@ -45,6 +45,10 @@ export type ShootBoardCut = {
   order: number;
   role: ShootBoardCutRole;
   roleLabel: string;
+  hook: string;
+  lineToSay: string;
+  shotAction: string;
+  note: string;
   durationSeconds: number;
   timeRangeLabel: string;
   title: string;
@@ -89,13 +93,17 @@ export type ShootBoardRecipe = {
 };
 
 export type ShootBoardCutTextPatch = {
+  hook?: string;
   instruction?: string;
   instructionKo?: string;
+  lineToSay?: string;
+  note?: string;
   requiredChecklist?: Array<{
     id: string;
     label?: string;
     labelKo?: string;
   }>;
+  shotAction?: string;
   shootingGuideline?: string;
   shootingGuidelineKo?: string;
   speakingLine?: string;
@@ -623,15 +631,34 @@ export function updateShootBoardCutText(
         })
       : cut.requiredChecklist;
 
+    const nextHook =
+      patch.hook ?? patch.instruction ?? cut.hook ?? cut.instruction;
+    const nextLineToSay =
+      patch.lineToSay ??
+      patch.speakingLine ??
+      cut.lineToSay ??
+      cut.speakingLine;
+    const nextShotAction =
+      patch.shotAction ??
+      patch.shootingGuideline ??
+      cut.shotAction ??
+      cut.shootingGuideline;
+    const nextNote = patch.note ?? cut.note ?? cut.notes ?? cut.purpose;
+
     return syncLegacyChecks({
       ...cut,
-      instruction: patch.instruction ?? cut.instruction,
+      hook: nextHook,
+      instruction: nextHook,
       instructionKo: patch.instructionKo ?? cut.instructionKo,
+      lineToSay: nextLineToSay,
+      note: nextNote,
+      notes: nextNote,
       prompterLine: patch.speakingLineKo ?? cut.prompterLine,
       requiredChecklist,
-      shootingGuideline: patch.shootingGuideline ?? cut.shootingGuideline,
+      shotAction: nextShotAction,
+      shootingGuideline: nextShotAction,
       shootingGuidelineKo: patch.shootingGuidelineKo ?? cut.shootingGuidelineKo,
-      speakingLine: patch.speakingLine ?? cut.speakingLine,
+      speakingLine: nextLineToSay,
       speakingLineKo: patch.speakingLineKo ?? cut.speakingLineKo,
       ...(patch.roleLabel !== undefined
         ? {
@@ -670,10 +697,15 @@ export function resetShootBoardCut(
 
     return syncLegacyChecks({
       ...cut,
+      hook: originalCut.hook ?? originalCut.instruction,
       instruction: originalCut.instruction,
       instructionKo: originalCut.instructionKo,
+      lineToSay: originalCut.lineToSay ?? originalCut.speakingLine,
+      note: originalCut.note ?? originalCut.notes ?? originalCut.purpose,
+      notes: originalCut.note ?? originalCut.notes ?? originalCut.purpose,
       prompterLine: originalCut.prompterLine,
       requiredChecklist,
+      shotAction: originalCut.shotAction ?? originalCut.shootingGuideline,
       shootingGuideline: originalCut.shootingGuideline,
       shootingGuidelineKo: originalCut.shootingGuidelineKo,
       speakingLine: originalCut.speakingLine,
@@ -731,10 +763,14 @@ export function createAddedShootBoardCut(
   return {
     durationSeconds: 5,
     finalTakeId: undefined,
+    hook: "",
     id: `custom-cut-${Date.now()}`,
     instruction: "",
     instructionKo: "",
     isShot: false,
+    lineToSay: "",
+    note: "",
+    notes: "",
     order,
     prompterLine: "",
     purpose: "",
@@ -746,6 +782,7 @@ export function createAddedShootBoardCut(
     role: "custom",
     roleLabel: "",
     sceneId: board.cuts[board.cuts.length - 1]?.sceneId,
+    shotAction: "",
     shootingDirections: [],
     shootingDirectionsKo: [],
     shootingGuideline: "",
@@ -775,6 +812,14 @@ export function appendShootBoardCut(
   return updateBoardCuts(board, cuts);
 }
 
+export function getShootBoardFullScript(board: ShootBoardRecipe): string {
+  return [...board.cuts]
+    .sort((first, second) => first.order - second.order)
+    .map((cut) => (cut.lineToSay || cut.speakingLine).trim())
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 export function getShootBoardHref(recipeId: string) {
   return `/recipe/${recipeId}`;
 }
@@ -782,6 +827,33 @@ export function getShootBoardHref(recipeId: string) {
 export function getRecipePrompterHref(recipeId: string, sceneId?: string) {
   return sceneId
     ? `/recipe/${recipeId}/prompter?sceneId=${sceneId}`
+    : `/recipe/${recipeId}/prompter`;
+}
+
+export function getRecipeRetakePrompterHref({
+  cut,
+  recipeId,
+  take,
+}: {
+  cut: Pick<ShootBoardCut, "id" | "sceneId">;
+  recipeId: string;
+  take?: Pick<ShootBoardTake, "id">;
+}) {
+  const query = new URLSearchParams();
+
+  if (cut.sceneId) {
+    query.set("sceneId", cut.sceneId);
+  }
+  query.set("cutId", cut.id);
+
+  if (take?.id) {
+    query.set("retakeTakeId", take.id);
+  }
+
+  const queryString = query.toString();
+
+  return queryString
+    ? `/recipe/${recipeId}/prompter?${queryString}`
     : `/recipe/${recipeId}/prompter`;
 }
 
@@ -834,10 +906,14 @@ function createShootBoardCut({
   return {
     durationSeconds: definition.durationSeconds,
     finalTakeId: definition.finalTakeId,
+    hook: definition.instruction,
     id,
     instruction: definition.instruction,
     instructionKo: definition.instructionKo,
     isShot,
+    lineToSay: definition.speakingLine,
+    note: definition.purpose,
+    notes: definition.purpose,
     order,
     prompterLine: definition.speakingLineKo,
     purpose: definition.purpose,
@@ -849,6 +925,7 @@ function createShootBoardCut({
     role: definition.role,
     roleLabel: roleDefinition.label,
     sceneId: scene?.id,
+    shotAction: definition.shootingGuideline,
     shootingDirections: createShootingDirections(definition),
     shootingDirectionsKo: createShootingDirectionsKo(definition),
     shootingGuideline: definition.shootingGuideline,
@@ -893,23 +970,30 @@ function createShootBoardCutFromScene(
   );
   const shootingDirections = getShootingDirections(scene, role);
   const shootingDirectionsKo = getShootingDirectionsKo(role);
+  const hook =
+    scene.recipe.appealPoint ||
+    scene.recipe.objective ||
+    scene.summary ||
+    roleDefinition.instruction;
+  const note =
+    scene.recipe.objective ||
+    `Show why {target viewer} should care about {payoff/result}.`;
+  const shotAction = shootingDirections[0] ?? roleDefinition.instruction;
 
   return {
     durationSeconds,
     finalTakeId: undefined,
+    hook,
     id: scene.id,
-    instruction:
-      scene.recipe.appealPoint ||
-      scene.recipe.objective ||
-      scene.summary ||
-      roleDefinition.instruction,
+    instruction: hook,
     instructionKo: roleDefinition.instructionKo,
     isShot,
+    lineToSay: speakingLine,
+    note,
+    notes: note,
     order: index + 1,
     prompterLine: speakingLine,
-    purpose:
-      scene.recipe.objective ||
-      `Show why {target viewer} should care about {payoff/result}.`,
+    purpose: note,
     purposeKo: roleDefinition.instructionKo,
     referenceVideoUrl: recipe.referenceVideoSource ?? recipe.sourceUrl,
     requiredChecklist,
@@ -918,9 +1002,10 @@ function createShootBoardCutFromScene(
     role,
     roleLabel: roleDefinition.label,
     sceneId: scene.id,
+    shotAction,
     shootingDirections,
     shootingDirectionsKo,
-    shootingGuideline: shootingDirections[0] ?? roleDefinition.instruction,
+    shootingGuideline: shotAction,
     shootingGuidelineKo:
       shootingDirectionsKo[0] ?? roleDefinition.instructionKo,
     speakingLine,
@@ -1065,11 +1150,11 @@ function getInitialTakeStatus(takes: ShootBoardTake[]): ShootBoardTakeStatus {
 }
 
 function createSceneTitle(order: number, roleLabel: string) {
-  return roleLabel ? `Scene #${order}: ${roleLabel}` : `Scene #${order}`;
+  return roleLabel ? `Cut #${order}: ${roleLabel}` : `Cut #${order}`;
 }
 
 function createSceneTitleKo(order: number, roleLabel: string) {
-  return roleLabel ? `장면 #${order}: ${roleLabel}` : `장면 #${order}`;
+  return roleLabel ? `컷 #${order}: ${roleLabel}` : `컷 #${order}`;
 }
 
 function getRoleForScene(

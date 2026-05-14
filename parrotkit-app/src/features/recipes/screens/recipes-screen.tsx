@@ -91,7 +91,7 @@ const recipeCopy = {
     myRecipes: 'My recipes',
     viewAll: 'View all',
     open: 'Open',
-    shoot: 'Shoot',
+    shoot: 'Film',
     publishTitle: 'Publish to community',
     publishBody: 'Share my recipe with other creators.',
     publishAction: 'Publish recipe',
@@ -200,7 +200,7 @@ const recipeCopy = {
 
 export function RecipesScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ view?: string }>();
+  const params = useLocalSearchParams<{ filter?: string; view?: string }>();
   const { language } = useAppLanguage();
   const copy = recipeCopy[language];
   const { exploreRecipes, recipes } = useMockWorkspace();
@@ -219,6 +219,12 @@ export function RecipesScreen() {
       setView(params.view);
     }
   }, [params.view, router]);
+
+  useEffect(() => {
+    if (filters.includes(params.filter as RecipeFilter)) {
+      setSelectedFilter(params.filter as RecipeFilter);
+    }
+  }, [params.filter]);
 
   const continueRecipe = useMemo(
     () => getContinueShootRecipe(recipes) ?? getLatestShootableRecipe(recipes) ?? recipes[0] ?? null,

@@ -8,17 +8,50 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View, type DimensionValue, type LayoutChangeEvent } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type DimensionValue,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { MockProjectTake } from '@/core/mocks/parrotkit-data';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
+import { hydrateExploreTemplateFilmingRecipe } from '@/features/explore/lib/explore-template-recipe-copy';
 import {
   NativeTakeReview,
   type NativeTakeReviewStatus,
 } from '@/features/recipes/components/native-take-review';
 import { NativeTakeTray } from '@/features/recipes/components/native-take-tray';
 import { createPrompterDraftBlock } from '@/features/recipes/lib/prompter-layout';
+import { getPrompterSavedTakeReturnHref } from '@/features/recipes/lib/prompter-take-save-state';
+import { getNextPrompterScrollOffset } from '@/features/recipes/lib/prompter-scroll';
+import {
+  getPrompterModeState,
+  resolvePrompterModeSwitchState,
+  type PrompterModeMaxOffsets,
+} from '@/features/recipes/lib/prompter-mode-state';
+import {
+  canAdjustPrompterTextSize,
+  getNextPrompterTextSizeLevel,
+  getPrompterScriptTextStyle,
+  getPrompterTextSizeMetrics,
+  type PrompterTextSizeLevel,
+} from '@/features/recipes/lib/prompter-text-size';
+import {
+  getActiveRecipePrompterCutText,
+  getActiveRecipePrompterFullScript,
+  getPrompterControlsLayoutModel,
+  getPrompterUiTextRenderModel,
+  type PrompterDisplayMode,
+} from '@/features/recipes/lib/prompter-display';
 import { ShootingSceneSwitcher } from '@/features/recipes/components/shooting-scene-switcher';
 import { normalizeNativeRecipe } from '@/features/recipes/lib/recipe-domain-normalizer';
 import { openTakeInShareSheet, saveTakeToGallery } from '@/features/recipes/lib/take-export';
@@ -28,20 +61,32 @@ export function RecipePrompterCameraScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
+    cutId?: string;
     lineToSay?: string;
     recipeId?: string;
+    retakeTakeId?: string;
     sceneId?: string;
     shootingGuideline?: string;
+    savedTemplateRecipeId?: string;
+    source?: string;
+    sourceRecipeId?: string;
   }>();
   const {
     addSceneProjectTake,
     deleteSceneProjectTake,
+    getRecipeEditorBoard,
     getRecipeById,
     getSceneBestTake,
     getSceneTakeCollection,
     markSceneProjectTakeGallerySaved,
     markSceneProjectTakeShared,
+    prompterModeStateByMode,
+    prompterTextSizeLevel,
+    setPrompterModePlaybackStatus,
+    setPrompterModeScrollOffset,
+    setPrompterModeSettings,
     setSceneBestProjectTake,
+    setPrompterTextSizeLevel,
   } = useMockWorkspace();
   const [permission, requestPermission] = useCameraPermissions();
   const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
@@ -52,16 +97,35 @@ export function RecipePrompterCameraScreen() {
   const [reviewUri, setReviewUri] = useState<string | null>(null);
   const [reviewStatus, setReviewStatus] = useState<NativeTakeReviewStatus>('idle');
   const [reviewStatusMessage, setReviewStatusMessage] = useState('');
+  const [savedReviewReturnHref, setSavedReviewReturnHref] = useState<string | null>(null);
   const [savingTake, setSavingTake] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [busyTakeId, setBusyTakeId] = useState<string | null>(null);
-  const rawRecipe = params.recipeId ? getRecipeById(params.recipeId) : null;
+  const rawRecipe = hydrateExploreTemplateFilmingRecipe({
+    getRecipeById,
+    routeRecipeId: params.recipeId,
+    savedTemplateRecipeId: params.savedTemplateRecipeId,
+    source: params.source,
+    sourceRecipeId: params.sourceRecipeId,
+  });
   const recipe = useMemo(() => (rawRecipe ? normalizeNativeRecipe(rawRecipe) : null), [rawRecipe]);
+  const shootBoard = recipe ? getRecipeEditorBoard(recipe.id) : null;
+  const fullScript = useMemo(
+    () => getActiveRecipePrompterFullScript({ recipe, shootBoard }),
+    [recipe, shootBoard]
+  );
   const [activeSceneId, setActiveSceneId] = useState(params.sceneId ?? recipe?.scenes[0]?.id ?? '');
   const [sceneBlocksById, setSceneBlocksById] = useState<Record<string, PrompterBlock[]>>({});
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [editRequestByBlockId, setEditRequestByBlockId] = useState<Record<string, number>>({});
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
+  const prompterScrollRef = useRef<ScrollView>(null);
+  const [prompterScrollOffset, setPrompterScrollOffset] = useState(0);
+  const [prompterScrollMaxOffset, setPrompterScrollMaxOffset] = useState(0);
+  const [prompterScrollMaxOffsetByMode, setPrompterScrollMaxOffsetByMode] =
+    useState<PrompterModeMaxOffsets>({});
+  const [prompterScrollViewportHeight, setPrompterScrollViewportHeight] = useState(0);
+  const [prompterDisplayMode, setPrompterDisplayMode] = useState<PrompterDisplayMode>('card');
 
   useEffect(() => {
     if (!activeSceneId && recipe?.scenes[0]) {
@@ -237,10 +301,134 @@ export function RecipePrompterCameraScreen() {
     setReviewUri(null);
     setReviewStatus('idle');
     setReviewStatusMessage('');
+    setSavedReviewReturnHref(null);
     setSavingTake(false);
     setSaveMessage('');
     setBusyTakeId(null);
-  }, [activeSceneId]);
+  }, [activeSceneId, params.cutId, params.retakeTakeId]);
+
+  useEffect(() => {
+    if (prompterDisplayMode === 'full-script' && !fullScript.trim()) {
+      setPrompterDisplayMode('card');
+    }
+  }, [fullScript, prompterDisplayMode]);
+
+  useEffect(() => {
+    const modeState = getPrompterModeState(prompterModeStateByMode, prompterDisplayMode);
+    const modeMaxOffset = prompterScrollMaxOffsetByMode[prompterDisplayMode];
+    const restoredOffset = Math.min(
+      modeState.scrollOffset,
+      typeof modeMaxOffset === 'number' ? modeMaxOffset : Number.MAX_SAFE_INTEGER
+    );
+
+    setPrompterScrollOffset(restoredOffset);
+    setPrompterTextSizeLevel(modeState.textSizeLevel);
+    prompterScrollRef.current?.scrollTo({ animated: false, y: restoredOffset });
+
+    if (typeof modeMaxOffset === 'number' && restoredOffset !== modeState.scrollOffset) {
+      setPrompterModeScrollOffset({
+        maxOffset: modeMaxOffset,
+        mode: prompterDisplayMode,
+        scrollOffset: restoredOffset,
+      });
+    }
+  }, [
+    prompterDisplayMode,
+    prompterModeStateByMode,
+    prompterScrollMaxOffsetByMode,
+    setPrompterModeScrollOffset,
+    setPrompterTextSizeLevel,
+  ]);
+
+  const handlePrompterScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const nextOffset = event.nativeEvent.contentOffset.y;
+
+    setPrompterScrollOffset(nextOffset);
+    setPrompterModeScrollOffset({
+      maxOffset: prompterScrollMaxOffset,
+      mode: prompterDisplayMode,
+      scrollOffset: nextOffset,
+    });
+  }, [prompterDisplayMode, prompterScrollMaxOffset, setPrompterModeScrollOffset]);
+
+  const handlePrompterViewportLayout = useCallback((event: LayoutChangeEvent) => {
+    const { height } = event.nativeEvent.layout;
+
+    setPrompterScrollViewportHeight(height);
+  }, []);
+
+  const handlePrompterContentSizeChange = useCallback((_width: number, height: number) => {
+    const nextMaxOffset = Math.max(0, height - prompterScrollViewportHeight);
+
+    setPrompterScrollMaxOffset(nextMaxOffset);
+    setPrompterScrollMaxOffsetByMode((current) => ({
+      ...current,
+      [prompterDisplayMode]: nextMaxOffset,
+    }));
+  }, [prompterDisplayMode, prompterScrollViewportHeight]);
+
+  const scrollPrompterTo = useCallback((offset: number) => {
+    const nextOffset = Math.min(Math.max(0, offset), prompterScrollMaxOffset);
+
+    setPrompterScrollOffset(nextOffset);
+    setPrompterModeScrollOffset({
+      maxOffset: prompterScrollMaxOffset,
+      mode: prompterDisplayMode,
+      scrollOffset: nextOffset,
+    });
+    prompterScrollRef.current?.scrollTo({ animated: true, y: nextOffset });
+  }, [prompterDisplayMode, prompterScrollMaxOffset, setPrompterModeScrollOffset]);
+
+  const handleStepPrompterScroll = useCallback((direction: 'up' | 'down') => {
+    scrollPrompterTo(getNextPrompterScrollOffset({
+      currentOffset: prompterScrollOffset,
+      direction,
+      maxOffset: prompterScrollMaxOffset,
+    }));
+  }, [prompterScrollMaxOffset, prompterScrollOffset, scrollPrompterTo]);
+
+  const handleResetPrompterScroll = useCallback(() => {
+    scrollPrompterTo(0);
+  }, [scrollPrompterTo]);
+
+  const handlePrompterDisplayModeChange = useCallback((mode: PrompterDisplayMode) => {
+    const switchState = resolvePrompterModeSwitchState({
+      currentMaxOffset: prompterScrollMaxOffset,
+      currentMode: prompterDisplayMode,
+      currentScrollOffset: prompterScrollOffset,
+      modeMaxOffsets: prompterScrollMaxOffsetByMode,
+      requestedMode: mode,
+      state: prompterModeStateByMode,
+    });
+
+    setPrompterModeScrollOffset({
+      maxOffset: prompterScrollMaxOffset,
+      mode: prompterDisplayMode,
+      scrollOffset: prompterScrollOffset,
+    });
+    setPrompterScrollOffset(switchState.restoredScrollOffset);
+    setPrompterTextSizeLevel(switchState.restoredModeState.textSizeLevel);
+    setPrompterDisplayMode(mode);
+    prompterScrollRef.current?.scrollTo({ animated: false, y: switchState.restoredScrollOffset });
+  }, [
+    prompterDisplayMode,
+    prompterModeStateByMode,
+    prompterScrollMaxOffset,
+    prompterScrollMaxOffsetByMode,
+    prompterScrollOffset,
+    setPrompterModeScrollOffset,
+    setPrompterTextSizeLevel,
+  ]);
+
+  const handleAdjustPrompterTextSize = useCallback((direction: 'decrease' | 'increase') => {
+    const nextLevel = getNextPrompterTextSizeLevel({
+      direction,
+      level: prompterTextSizeLevel,
+    });
+
+    setPrompterTextSizeLevel(nextLevel);
+    setPrompterModeSettings(prompterDisplayMode, { textSizeLevel: nextLevel });
+  }, [prompterDisplayMode, prompterTextSizeLevel, setPrompterModeSettings, setPrompterTextSizeLevel]);
 
   const handleRecordPress = useCallback(async () => {
     if (recording) {
@@ -257,10 +445,12 @@ export function RecipePrompterCameraScreen() {
     if (!camera) return;
 
     setSaveMessage('');
+    setSavedReviewReturnHref(null);
     setReviewUri(null);
     setReviewStatus('idle');
     setReviewStatusMessage('');
     setRecording(true);
+    setPrompterModePlaybackStatus(prompterDisplayMode, 'playing');
 
     const recordingPromise = camera.recordAsync({ maxDuration: 90 });
     recordingPromiseRef.current = recordingPromise;
@@ -281,31 +471,74 @@ export function RecipePrompterCameraScreen() {
       }
 
       setRecording(false);
+      setPrompterModePlaybackStatus(prompterDisplayMode, 'idle');
     }
-  }, [microphonePermission, recording, requestMicrophonePermission]);
+  }, [
+    microphonePermission,
+    prompterDisplayMode,
+    recording,
+    requestMicrophonePermission,
+    setPrompterModePlaybackStatus,
+  ]);
 
   const handleRetryReview = useCallback(() => {
     setReviewUri(null);
     setReviewStatus('idle');
     setReviewStatusMessage('');
+    setSavedReviewReturnHref(null);
     setSaveMessage('');
   }, []);
 
   const handleKeepTake = useCallback(() => {
+    if (reviewStatus === 'kept') {
+      if (savedReviewReturnHref) {
+        router.replace(savedReviewReturnHref as Href);
+        return;
+      }
+
+      handleBack();
+      return;
+    }
+
     if (!recipe || !activeScene || !reviewUri || savingTake) return;
 
     setSavingTake(true);
+    setReviewStatus('saving');
+    setReviewStatusMessage('Saving this take to the current cut.');
 
     try {
-      addSceneProjectTake(recipe.id, activeScene.id, reviewUri);
-      setReviewUri(null);
-      setReviewStatus('idle');
-      setReviewStatusMessage('');
-      setSaveMessage(`Kept locally in ${activeScene.title}.`);
+      const savedTake = addSceneProjectTake(recipe.id, activeScene.id, reviewUri, {
+        activeCutId: typeof params.cutId === 'string' ? params.cutId : null,
+      });
+      const returnHref = getPrompterSavedTakeReturnHref({
+        cutId: typeof params.cutId === 'string' ? params.cutId : null,
+        recipeId: recipe.id,
+        sceneId: activeScene.id,
+        takeId: savedTake?.id,
+      });
+
+      setSavedReviewReturnHref(returnHref);
+      setReviewStatus('kept');
+      setReviewStatusMessage(`Saved locally in ${activeScene.title}.`);
+      setSaveMessage(`Saved locally in ${activeScene.title}.`);
+    } catch {
+      setReviewStatus('failed');
+      setReviewStatusMessage('Could not save this take locally. Try again.');
     } finally {
       setSavingTake(false);
     }
-  }, [activeScene, addSceneProjectTake, recipe, reviewUri, savingTake]);
+  }, [
+    activeScene,
+    addSceneProjectTake,
+    handleBack,
+    params.cutId,
+    recipe,
+    reviewStatus,
+    reviewUri,
+    router,
+    savedReviewReturnHref,
+    savingTake,
+  ]);
 
   const handleSaveReviewToGallery = useCallback(async () => {
     if (!reviewUri) return;
@@ -382,6 +615,15 @@ export function RecipePrompterCameraScreen() {
   const statusLabel = saveMessage
     || (bestTake && sceneTakeCollection ? `${sceneTakeCollection.takes.length} local takes · Best ${bestTake.label}` : '')
     || (!microphonePermission?.granted ? 'Mic off: muted recording' : '');
+  const activeCutText = activeScene
+    ? getActiveRecipePrompterCutText({
+      fallbackActionLine: getCameraActionLine(activeScene),
+      fallbackLineToSay: getCameraPrimaryLine(activeScene),
+      sceneId: activeScene.id,
+      selectedCutId: typeof params.cutId === 'string' ? params.cutId : null,
+      shootBoard,
+    })
+    : null;
 
   if (!recipe || !activeScene) {
     return (
@@ -451,19 +693,26 @@ export function RecipePrompterCameraScreen() {
 
         <View pointerEvents="box-none" className="flex-1" onLayout={handleOverlayLayout}>
           <CameraCoachOverlay
-            lineToSay={
-              params.sceneId === activeScene.id && typeof params.lineToSay === 'string'
-                ? params.lineToSay
-                : undefined
-            }
+            fullScript={fullScript}
+            lineToSay={activeCutText?.lineToSay}
             recording={recording}
             scene={activeScene}
             sceneIndex={activeSceneIndex}
-            shootingGuideline={
-              params.sceneId === activeScene.id && typeof params.shootingGuideline === 'string'
-                ? params.shootingGuideline
-                : undefined
-            }
+            shootingGuideline={activeCutText?.shootingGuideline}
+            onPrompterContentSizeChange={handlePrompterContentSizeChange}
+            onPrompterDisplayModeChange={handlePrompterDisplayModeChange}
+            onPrompterScroll={handlePrompterScroll}
+            onPrompterScrollDown={() => handleStepPrompterScroll('down')}
+            onPrompterScrollReset={handleResetPrompterScroll}
+            onPrompterScrollUp={() => handleStepPrompterScroll('up')}
+            onPrompterTextSizeDecrease={() => handleAdjustPrompterTextSize('decrease')}
+            onPrompterTextSizeIncrease={() => handleAdjustPrompterTextSize('increase')}
+            onPrompterViewportLayout={handlePrompterViewportLayout}
+            prompterCanScrollDown={prompterScrollOffset < prompterScrollMaxOffset}
+            prompterCanScrollUp={prompterScrollOffset > 0}
+            prompterDisplayMode={prompterDisplayMode}
+            prompterScrollRef={prompterScrollRef}
+            prompterTextSizeLevel={prompterTextSizeLevel}
             totalScenes={recipe.scenes.length}
           />
         </View>
@@ -525,13 +774,12 @@ export function RecipePrompterCameraScreen() {
         <View style={styles.reviewOverlay}>
           <NativeTakeReview
             keepDisabled={savingTake}
-            keepLabel={savingTake ? 'Saving...' : 'Use take'}
             onKeep={handleKeepTake}
             onOpenIn={handleOpenReviewIn}
             onRetry={handleRetryReview}
             onSaveToGallery={handleSaveReviewToGallery}
             retryIconName="arrow-left"
-            retryLabel="Back"
+            retryLabel={reviewStatus === 'kept' ? 'Record another' : 'Back'}
             status={reviewStatus}
             statusMessage={reviewStatusMessage}
             uri={reviewUri}
@@ -543,27 +791,83 @@ export function RecipePrompterCameraScreen() {
 }
 
 function CameraCoachOverlay({
+  fullScript,
   lineToSay,
   recording,
   scene,
   sceneIndex,
   shootingGuideline,
+  onPrompterContentSizeChange,
+  onPrompterDisplayModeChange,
+  onPrompterScroll,
+  onPrompterScrollDown,
+  onPrompterScrollReset,
+  onPrompterScrollUp,
+  onPrompterTextSizeDecrease,
+  onPrompterTextSizeIncrease,
+  onPrompterViewportLayout,
+  prompterCanScrollDown,
+  prompterCanScrollUp,
+  prompterDisplayMode,
+  prompterScrollRef,
+  prompterTextSizeLevel,
   totalScenes,
 }: {
+  fullScript?: string;
   lineToSay?: string;
   recording: boolean;
   scene: NativeRecipeScene;
   sceneIndex: number;
   shootingGuideline?: string;
+  onPrompterContentSizeChange: (width: number, height: number) => void;
+  onPrompterDisplayModeChange: (mode: PrompterDisplayMode) => void;
+  onPrompterScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  onPrompterScrollDown: () => void;
+  onPrompterScrollReset: () => void;
+  onPrompterScrollUp: () => void;
+  onPrompterTextSizeDecrease: () => void;
+  onPrompterTextSizeIncrease: () => void;
+  onPrompterViewportLayout: (event: LayoutChangeEvent) => void;
+  prompterCanScrollDown: boolean;
+  prompterCanScrollUp: boolean;
+  prompterDisplayMode: PrompterDisplayMode;
+  prompterScrollRef: React.RefObject<ScrollView | null>;
+  prompterTextSizeLevel: PrompterTextSizeLevel;
   totalScenes: number;
 }) {
   const primaryLine = lineToSay?.trim() || getCameraPrimaryLine(scene);
   const actionLine = shootingGuideline?.trim() || getCameraActionLine(scene);
+  const prompterUiText = getPrompterUiTextRenderModel({
+    currentCutLines: getCameraPrompterLines(scene, primaryLine),
+    fullScript,
+    mode: prompterDisplayMode,
+  });
+  const prompterDisplay = prompterUiText.activeDisplay;
+  const prompterDisplayModeOptions = prompterUiText.modeOptions;
+  const textSizeMetrics = getPrompterTextSizeMetrics(prompterTextSizeLevel);
+  const primaryScriptTextStyle = getPrompterScriptTextStyle({
+    level: prompterTextSizeLevel,
+    role: 'primary',
+  });
+  const secondaryScriptTextStyle = getPrompterScriptTextStyle({
+    level: prompterTextSizeLevel,
+    role: 'secondary',
+  });
+  const canDecreaseTextSize = canAdjustPrompterTextSize({
+    direction: 'decrease',
+    level: prompterTextSizeLevel,
+  });
+  const canIncreaseTextSize = canAdjustPrompterTextSize({
+    direction: 'increase',
+    level: prompterTextSizeLevel,
+  });
   const progress = `${Math.max(12, ((sceneIndex + 1) / totalScenes) * 100)}%` as DimensionValue;
+  const isFullScriptMode = prompterDisplay.mode === 'full-script';
+  const prompterControlsLayout = getPrompterControlsLayoutModel({ mode: prompterDisplay.mode });
 
   return (
-    <View pointerEvents="none" style={styles.coachOverlay}>
-      <View>
+    <View pointerEvents="box-none" style={styles.coachOverlay}>
+      <View pointerEvents="none">
         <View style={styles.coachTopRow}>
           <View style={styles.scenePill}>
             <Text style={styles.scenePillText}>
@@ -581,18 +885,166 @@ function CameraCoachOverlay({
         </View>
       </View>
 
-      <View style={styles.coachPromptStack}>
-        <View style={styles.actionCue}>
+      <View pointerEvents="box-none" style={styles.coachPromptStack}>
+        <View pointerEvents="none" style={styles.actionCue}>
           <Text style={styles.coachLabel}>SHOOTING GUIDELINE</Text>
           <Text style={styles.actionText}>{actionLine}</Text>
         </View>
 
         <View style={styles.sayNowBlock}>
-          <Text style={styles.sayNowLabel}>LINE TO SAY</Text>
-          <Text style={styles.sayNowText}>{primaryLine}</Text>
+          <View style={styles.sayNowHeaderRow}>
+            <Text style={styles.sayNowLabel}>{prompterDisplay.label}</Text>
+          </View>
+
+          <View
+            accessibilityLabel="Persistent prompter controls"
+            nativeID={`prompter-${prompterControlsLayout.controlsRegion}`}
+            style={styles.prompterPersistentControlDock}
+          >
+            <View
+              accessibilityLabel="Prompter view mode"
+              style={styles.prompterModeSwitch}
+            >
+              {prompterDisplayModeOptions.map((option) => {
+                const selected = prompterDisplay.mode === option.mode;
+
+                return (
+                  <Pressable
+                    key={option.mode}
+                    accessibilityLabel={`Show ${option.label.toLowerCase()} view`}
+                    accessibilityRole="tab"
+                    accessibilityState={{ disabled: option.disabled, selected }}
+                    disabled={option.disabled}
+                    onPress={() => onPrompterDisplayModeChange(option.mode)}
+                    style={[
+                      styles.prompterModeButton,
+                      selected ? styles.prompterModeButtonSelected : null,
+                      option.disabled ? styles.prompterModeButtonDisabled : null,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.prompterModeButtonText,
+                        selected ? styles.prompterModeButtonTextSelected : null,
+                        option.disabled ? styles.prompterModeButtonTextDisabled : null,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <View style={styles.prompterPersistentButtonRow}>
+              <View style={styles.prompterTextSizeControls}>
+                <PrompterControlButton
+                  accessibilityLabel="Make prompter text smaller"
+                  disabled={!canDecreaseTextSize}
+                  iconName="format-font-size-decrease"
+                  onPress={onPrompterTextSizeDecrease}
+                />
+                <Text style={styles.prompterTextSizeLabel}>{textSizeMetrics.label}</Text>
+                <PrompterControlButton
+                  accessibilityLabel="Make prompter text larger"
+                  disabled={!canIncreaseTextSize}
+                  iconName="format-font-size-increase"
+                  onPress={onPrompterTextSizeIncrease}
+                />
+              </View>
+              <View style={styles.prompterScrollControls}>
+                <PrompterControlButton
+                  accessibilityLabel="Scroll prompter up"
+                  disabled={!prompterCanScrollUp}
+                  iconName="chevron-up"
+                  onPress={onPrompterScrollUp}
+                />
+                <PrompterControlButton
+                  accessibilityLabel="Reset prompter scroll"
+                  disabled={!prompterCanScrollUp}
+                  iconName="format-vertical-align-top"
+                  onPress={onPrompterScrollReset}
+                />
+                <PrompterControlButton
+                  accessibilityLabel="Scroll prompter down"
+                  disabled={!prompterCanScrollDown}
+                  iconName="chevron-down"
+                  onPress={onPrompterScrollDown}
+                />
+              </View>
+            </View>
+          </View>
+
+          <ScrollView
+            ref={prompterScrollRef}
+            accessibilityLabel={isFullScriptMode ? 'Scrollable full script prompter copy' : 'Manual scrolling prompter copy'}
+            bounces={false}
+            contentContainerStyle={[
+              styles.sayNowScrollContent,
+              isFullScriptMode ? styles.sayNowFullScriptScrollContent : null,
+            ]}
+            nestedScrollEnabled
+            onContentSizeChange={onPrompterContentSizeChange}
+            onLayout={onPrompterViewportLayout}
+            onScroll={onPrompterScroll}
+            scrollEventThrottle={16}
+            showsVerticalScrollIndicator={prompterCanScrollDown || prompterCanScrollUp}
+            style={[
+              styles.sayNowScroll,
+              isFullScriptMode ? styles.sayNowFullScriptScroll : null,
+            ]}
+          >
+            {prompterDisplay.lines.map((line, index) => (
+              <Text
+                key={`${line}-${index}`}
+                style={[
+                  styles.sayNowText,
+                  primaryScriptTextStyle,
+                  index > 0
+                    ? isFullScriptMode
+                      ? styles.sayNowFullScriptParagraph
+                      : [
+                        styles.sayNowTextSecondary,
+                        secondaryScriptTextStyle,
+                      ]
+                    : null,
+                ]}
+              >
+                {line}
+              </Text>
+            ))}
+          </ScrollView>
         </View>
       </View>
     </View>
+  );
+}
+
+function PrompterControlButton({
+  accessibilityLabel,
+  disabled,
+  iconName,
+  onPress,
+}: {
+  accessibilityLabel: string;
+  disabled: boolean;
+  iconName: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.prompterControlButton,
+        disabled ? styles.prompterControlButtonDisabled : null,
+        pressed && !disabled ? styles.prompterControlButtonPressed : null,
+      ]}
+    >
+      <MaterialCommunityIcons color={disabled ? 'rgba(255,255,255,0.28)' : '#ffffff'} name={iconName} size={17} />
+    </Pressable>
   );
 }
 
@@ -710,6 +1162,20 @@ function getCameraNextLine(scene: NativeRecipeScene) {
     || scene.recipe.cta?.trim()
     || 'Hold for one beat before stopping.'
   );
+}
+
+function getCameraPrompterLines(scene: NativeRecipeScene, primaryLine: string) {
+  const lines = [
+    primaryLine,
+    ...scene.recipe.scriptLines,
+    ...scene.prompter.blocks
+      .filter((block) => block.visible && block.type !== 'action')
+      .sort((first, second) => first.order - second.order)
+      .map((block) => block.content),
+    getCameraNextLine(scene),
+  ];
+
+  return Array.from(new Set(lines.map((line) => line.trim()).filter(Boolean)));
 }
 
 function OverlayIconButton({
@@ -876,6 +1342,84 @@ const styles = StyleSheet.create({
     height: 7,
     width: 7,
   },
+  prompterControlButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
+  },
+  prompterControlButtonDisabled: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  prompterControlButtonPressed: {
+    transform: [{ scale: 0.94 }],
+  },
+  prompterModeButton: {
+    alignItems: 'center',
+    borderRadius: 999,
+    justifyContent: 'center',
+    minWidth: 54,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+  },
+  prompterModeButtonDisabled: {
+    opacity: 0.42,
+  },
+  prompterModeButtonSelected: {
+    backgroundColor: '#ffffff',
+  },
+  prompterModeButtonText: {
+    color: 'rgba(255, 255, 255, 0.72)',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  prompterModeButtonTextDisabled: {
+    color: 'rgba(255, 255, 255, 0.38)',
+  },
+  prompterModeButtonTextSelected: {
+    color: '#020617',
+  },
+  prompterModeSwitch: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    padding: 3,
+  },
+  prompterPersistentButtonRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
+  prompterPersistentControlDock: {
+    gap: 8,
+    marginTop: 12,
+  },
+  prompterScrollControls: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  prompterTextSizeControls: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  prompterTextSizeLabel: {
+    color: 'rgba(255, 255, 255, 0.72)',
+    fontSize: 11,
+    fontWeight: '900',
+    minWidth: 34,
+    textAlign: 'center',
+  },
   recPill: {
     alignItems: 'center',
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
@@ -907,17 +1451,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 20,
   },
+  sayNowHeaderRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
   sayNowLabel: {
     color: '#a78bfa',
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.2,
   },
+  sayNowScroll: {
+    marginTop: 8,
+    maxHeight: 168,
+  },
+  sayNowFullScriptScroll: {
+    maxHeight: 244,
+  },
+  sayNowScrollContent: {
+    paddingBottom: 8,
+  },
+  sayNowFullScriptScrollContent: {
+    paddingBottom: 28,
+  },
   sayNowText: {
     color: '#ffffff',
-    fontSize: 30,
     fontWeight: '900',
-    lineHeight: 39,
+    paddingRight: 8,
+  },
+  sayNowFullScriptParagraph: {
+    marginTop: 16,
+  },
+  sayNowTextSecondary: {
+    color: 'rgba(255, 255, 255, 0.78)',
     marginTop: 8,
   },
   scenePill: {

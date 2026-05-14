@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "nativewind-env.d.ts",
+    "src/core/i18n/app-language.tsx",
+    "src/core/mocks/parrotkit-data.ts",
+    "src/core/providers/mock-workspace-provider.tsx",
+    "src/features/home/components/home-workspace-surface.tsx",
+    "src/features/home/lib/home-continue-workflow-card.test.ts",
+    "src/features/home/lib/home-continue-workflow-card.ts",
+    "src/features/home/lib/home-owned-recipe-cards.ts",
+    "src/features/home/lib/home-primary-cta.ts",
+    "src/features/home/lib/home-recipe-create-entry.ts",
+    "src/features/home/lib/home-workspace-sections.ts",
+    "src/features/recipes/lib/saved-take-home-access.ts",
+    "src/features/recipes/lib/saved-take-storage.ts",
+    "src/features/recipes/lib/shoot-board-model.ts",
+    "src/features/home/lib/home-workflow-resolution.ts"
+  ]
+}

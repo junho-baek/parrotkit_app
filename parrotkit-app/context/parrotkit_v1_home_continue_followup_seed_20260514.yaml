@@ -1,0 +1,119 @@
+metadata:
+  name: parrotkit_v1_home_continue_followup
+  version: "1.0"
+  created_by: hermes
+  created_at: "2026-05-14"
+  project: parrotkit-app
+  source_session_id: orch_733953cd8bc3
+  source_execution_id: exec_fa134f0988e5
+  source_job_id: job_1d426dd5c897
+
+goal: >
+  Finish only the remaining failed ParrotKit v1 navigation follow-up work:
+  Home must expose a clear Continue path/card that resumes the most relevant
+  workflow, while preserving the already-passed Home/Explore/My navigation and
+  레시피 생성 CTA changes.
+
+ontology_schema:
+  name: parrotkit_v1_home_continue_followup
+  description: >
+    Ontology for the final narrow ParrotKit follow-up after the previous run
+    passed bottom navigation, 레시피 생성 CTA, My saved access, regression checks,
+    and TypeScript, but failed Home Continue UI/wiring.
+  entities:
+    - ParrotKit app
+    - Home tab
+    - Continue card
+    - recent workflow
+    - in-progress workflow
+    - recipe detail route
+    - shoot-board route
+    - prompter route
+    - owned recipe cards
+    - 레시피 생성 floating CTA
+    - final report
+  relationships:
+    - Home selects a most relevant recent or in-progress workflow from existing app data.
+    - Home displays that workflow in a visible Continue section/card.
+    - Continue navigates to the correct route for that workflow using existing router/navigation patterns.
+    - Home still exposes owned recipe cards and the 레시피 생성 floating CTA.
+    - Bottom navigation remains exactly Home, Explore, My.
+  success_state: >
+    Home clearly shows a Continue section/card with a working resume action, the
+    action routes to the correct workflow destination, existing recipe cards and
+    레시피 생성 CTA remain intact, checks pass, and a final report records the result.
+
+context:
+  project: ParrotKit Expo / React Native app
+  workdir: /Users/junho/.ouroboros/worktrees/parrotkit-app/orch_78808bb15d74/parrotkit-app
+  previous_followup_run:
+    job_id: job_1d426dd5c897
+    session_id: orch_733953cd8bc3
+    execution_id: exec_fa134f0988e5
+    status: failed
+    progress: "8/10 AC complete, 23/26 Sub-AC complete, 3 failed"
+  already_passed_and_must_preserve:
+    - Bottom navigator shows exactly Home, Explore, My on iPhone simulator.
+    - Source and Recipes are not visible as bottom tabs.
+    - Existing floating plus-button creation pattern remains primary blank board creation entry.
+    - Primary creation CTA/user-facing label is "레시피 생성", not Shoot/New Shoot/Start Shoot.
+    - 레시피 생성 CTA reuses existing manual/blank recipe creation flow and opens a blank shoot-board.
+    - My has profile/settings and saved recipes/saved takes access without requiring a Recipes tab.
+    - Previously completed fixes from job_46a1bf0280ed did not regress.
+    - TypeScript or focused repo checks passed in the previous run.
+  failed_items_to_fix_only:
+    - AC 6: Home has clear paths to continue, 레시피 생성, and owned recipe cards.
+    - Sub-AC 6.1.2: Add a Home UI section/card that clearly presents the selected workflow as a continue/resume action.
+    - Sub-AC 6.1.3: Wire the continue action to navigate to the correct workflow destination using existing route helpers.
+    - AC 10: Final report includes changed files, verification commands/results, and remaining risks.
+  product_language_correction: >
+    Keep the primary creation CTA language as "레시피 생성". Do not introduce Shoot,
+    New Shoot, Start Shoot, or similar shoot-language as the user-facing primary
+    creation label. The internal destination may be a blank shoot-board, but the
+    user-facing product language is recipe creation.
+
+constraints:
+  - Only fix the failed Home Continue card/wiring and final report items.
+  - Do not rework bottom navigation; it already passed and must remain Home / Explore / My.
+  - Do not change the 레시피 생성 floating CTA except to preserve it.
+  - Do not reintroduce Source or Recipes as bottom tabs.
+  - Do not use Shoot/New Shoot/Start Shoot as primary creation CTA copy.
+  - Do not commit, push, or merge.
+  - Keep changes minimal and simulator-oriented.
+  - Web QA is out of scope; iPhone simulator is the UI gate.
+  - Respect AGENTS.md and src/AGENTS.md.
+
+requirements:
+  - Inspect the current Home implementation and existing route/data helpers before changing code.
+  - Add or fix a visible Continue section/card on Home that presents the selected recent/in-progress workflow.
+  - Use existing mock/data/state conventions to choose the relevant workflow; do not invent a new persistence system.
+  - Wire the Continue action to the correct existing route, such as recipe detail, shoot-board, or prompter route depending on existing helper conventions.
+  - Preserve Home owned recipe cards and their navigation.
+  - Preserve the 레시피 생성 floating CTA and its blank/manual recipe creation flow.
+  - Run TypeScript or the most focused available checks after changes.
+  - Write a final context/report file summarizing changed files, commands/results, and remaining risks.
+
+acceptance_criteria:
+  - "Home displays a clear Continue section/card for the most relevant recent or in-progress workflow."
+  - "The Continue card/action is visually distinct from owned recipe cards and 레시피 생성."
+  - "The Continue action navigates to the correct existing workflow destination using existing route/navigation helpers."
+  - "Home still shows owned recipe cards with navigation to recipe details."
+  - "The floating primary creation CTA remains labeled 레시피 생성 and still opens the blank/manual recipe creation flow."
+  - "Bottom navigation remains exactly Home, Explore, My; Source and Recipes do not return as bottom tabs."
+  - "Previously passed fixes from job_1d426dd5c897 do not regress."
+  - "TypeScript or focused repo checks pass after the change."
+  - "Final report includes changed files, verification commands/results, and any remaining risks."
+
+verification:
+  commands:
+    - ./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json
+  expected_manual_simulator_check:
+    - "Open iPhone simulator Home and verify a visible Continue card/section."
+    - "Tap Continue and verify it routes to the intended existing workflow destination."
+    - "Verify bottom tabs are Home, Explore, My only."
+    - "Verify floating creation CTA says 레시피 생성."
+
+notes_for_executor: >
+  This is a very narrow final corrective Seed. The prior run already passed most
+  navigation and CTA criteria. Do not broaden scope. Fix the Home Continue UI and
+  wiring, preserve everything else, then report clearly.

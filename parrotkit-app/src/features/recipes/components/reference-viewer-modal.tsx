@@ -282,8 +282,8 @@ function CutThumb({
 function formatSceneTitle(language: AppLanguage, cut: ShootBoardCut) {
   const role = cut.roleLabel || (language === "ko" ? cut.titleKo : cut.title);
   return language === "ko"
-    ? `Scene #${cut.order}: ${role}`
-    : `Scene #${cut.order}: ${role}`;
+    ? `컷 #${cut.order}: ${role}`
+    : `Cut #${cut.order}: ${role}`;
 }
 
 function getSpeakingLine(language: AppLanguage, cut: ShootBoardCut) {
@@ -306,14 +306,14 @@ const referenceCopy: Record<
     bookmark: "Bookmark reference",
     close: "Close reference",
     reference: "Reference",
-    shootThisScene: "Shoot this scene",
+    shootThisScene: "Film this cut",
     useAsGuide: "Use as guide",
   },
   ko: {
     bookmark: "레퍼런스 저장",
     close: "레퍼런스 닫기",
     reference: "Reference",
-    shootThisScene: "이 장면 촬영",
+    shootThisScene: "이 컷 촬영",
     useAsGuide: "가이드로 사용",
   },
 };

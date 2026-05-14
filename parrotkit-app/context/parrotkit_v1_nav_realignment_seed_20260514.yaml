@@ -1,0 +1,118 @@
+metadata:
+  name: parrotkit_v1_nav_realignment_simulator_only
+  version: "1.0"
+  created_by: hermes
+  created_at: "2026-05-14"
+  project: parrotkit-app
+  source_session_id: orch_78808bb15d74
+
+goal: >
+  Realign ParrotKit v1 with the original navigation and product plan, using
+  iPhone simulator UI QA as the acceptance gate. The app should use a simplified
+  creator workflow navigation model rather than a broad five-tab prototype.
+
+ontology_schema:
+  name: parrotkit_v1_nav_realignment
+  description: >
+    Ontology for simplifying ParrotKit v1 into Home, Explore, My navigation
+    while preserving creator workflow surfaces and simulator QA evidence.
+  entities:
+    - ParrotKit app
+    - bottom navigator
+    - Home tab
+    - Explore tab
+    - My tab
+    - Create screen
+    - Shoot board
+    - Prompter
+    - Saved recipes
+    - Saved takes
+    - Pro locked guidance
+    - iPhone simulator QA
+  relationships:
+    - Home exposes continue, create, and owned recipe access.
+    - Explore exposes template discovery, copy, and start-shooting.
+    - My exposes profile, settings, saved recipes, and saved takes.
+    - Reference link and Brand context remain locked secondary options for v1.
+    - Simulator screenshots and Metro logs are the UI acceptance evidence.
+  success_state: >
+    Simulator QA shows Home, Explore, My as the only bottom tabs, no critical
+    overlap issues, no assets/recipe-create ENOENT errors, preserved core flows,
+    and passing TypeScript/focused checks.
+
+context:
+  project: ParrotKit Expo / React Native app
+  workdir: /Users/junho/.ouroboros/worktrees/parrotkit-app/orch_78808bb15d74/parrotkit-app
+  original_v1_plan:
+    - Bottom tabs are Home, Explore, My only.
+    - Home prioritizes Continue, owned recipe cards, and fast create/blank shoot-board entry.
+    - Explore is template discovery/copy/start-shooting.
+    - My contains profile, settings, saved recipes, and saved takes access.
+    - Blank/Shoot-board flows proceed to card cut board, prompter, and saved takes.
+    - Reference link and Brand context stay Pro/secondary/locked guidance for v1.
+  current_problem: >
+    Simulator QA showed five bottom tabs: Home, Explore, Source, Recipes, My.
+    This conflicts with the agreed v1 plan. Simulator QA also found bottom
+    overlap issues and a Metro ENOENT asset error.
+  evidence:
+    web_board: qa-ui-screenshots/parrotkit_ui_qa_board_landscape.png
+    simulator_board: qa-ui-screenshots/simulator/parrotkit_simulator_qa_board.png
+    ui_qa_report: qa-ui-screenshots/ui_qa_report_20260514.md
+  previous_fixes_to_preserve:
+    - Manual blank shoot-board flow works.
+    - Reference link and Brand context show Pro/coming-soon locked guidance and do not open API/paid/upload flows.
+    - Saved take and saved recipe access fixes were implemented.
+    - Explore template copy/start filming flow should remain available.
+
+constraints:
+  - Keep the change minimal and simulator-oriented.
+  - Do not commit, push, or merge.
+  - Do not rework unrelated product areas.
+  - Do not restore Source or Recipes as bottom tabs.
+  - Preserve all previous failed-item fixes from session orch_78808bb15d74.
+  - Web QA is out of scope for this run; use iPhone simulator behavior as the UI gate.
+  - Do not add real paid/API/upload flows for Reference link or Brand context.
+  - Respect AGENTS.md and src/AGENTS.md.
+
+requirements:
+  - Bottom navigator must show exactly three tabs: Home, Explore, My.
+  - Remove Source and Recipes from the bottom navigator.
+  - Preserve routes/screens if needed, but they must not be primary bottom tabs.
+  - Home must expose Continue, creation entry, and owned recipe/recipe-card access clearly.
+  - My must expose profile/settings plus saved recipes/saved takes access clearly.
+  - Explore must remain the template discovery/copy/start-shooting surface.
+  - Fix simulator Create screen layout so the sticky Open shoot board CTA does not cover lower goal cards.
+  - Fix simulator My/Profile layout so bottom nav/FAB does not obscure liked/saved content.
+  - Fix or explain the truncated detail chip text such as Translate a.
+  - Resolve the Metro ENOENT error for assets/recipe-create by removing/fixing the broken asset reference or adding the intended directory only if truly required.
+  - Produce or update simulator screenshot evidence after the changes if feasible.
+  - Run focused TypeScript/checks available in the repo.
+
+acceptance_criteria:
+  - "iPhone simulator bottom nav shows exactly Home, Explore, My."
+  - "Source and Recipes are not visible as bottom tabs in simulator screenshots."
+  - "Home has clear paths to continue, create/blank shoot-board, and owned recipe cards."
+  - "My has profile/settings and saved recipes/saved takes access without requiring a Recipes tab."
+  - "Explore and Explore detail still expose template copy/start-shooting affordances."
+  - "Create screen lower cards are readable and tappable above the sticky CTA on iPhone simulator."
+  - "My/Profile content is not obscured by bottom nav or FAB on iPhone simulator."
+  - "Metro logs no longer show ENOENT for assets/recipe-create during simulator QA."
+  - "Reference link and Brand context remain locked Pro/coming-soon guidance only."
+  - "TypeScript or focused repo checks pass after the change."
+  - "Final report includes changed files, verification commands/results, and any remaining risks."
+
+verification:
+  commands:
+    - ./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json
+  simulator_routes_to_capture:
+    - /
+    - /explore
+    - /recipe-create
+    - /my
+    - /recipe/recipe-korean-diet-hook
+    - /recipe/recipe-korean-diet-hook/prompter?sceneId=scene-1
+
+notes_for_executor: >
+  This run is about restoring the agreed v1 product shape, not expanding scope.
+  If a decision is needed, prefer Home/Explore/My simplicity over adding new
+  navigation surfaces. Do not commit or push.

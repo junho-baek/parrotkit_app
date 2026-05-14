@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "nativewind-env.d.ts",
+    "src/features/home/components/home-workspace-surface.tsx",
+    "src/features/home/lib/home-recipe-create-entry.test.ts",
+    "src/features/home/lib/home-recipe-create-entry.ts"
+  ]
+}

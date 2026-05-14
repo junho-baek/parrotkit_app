@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "nativewind-env.d.ts",
+    "src/core/navigation/root-tab-config.test.ts",
+    "src/core/navigation/root-tab-config.ts"
+  ]
+}

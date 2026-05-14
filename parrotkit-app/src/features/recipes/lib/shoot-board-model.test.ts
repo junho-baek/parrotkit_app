@@ -5,7 +5,9 @@ import {
   createShootBoardRecipe,
   appendShootBoardCut,
   getRecipePrompterHref,
+  getRecipeRetakePrompterHref,
   getShootBoardCutCompletionState,
+  getShootBoardFullScript,
   getShootBoardHref,
   moveShootBoardCut,
   replaceShootBoardCutOrder,
@@ -68,6 +70,31 @@ if (
 if (board.cuts[0]?.title !== "Scene #1: Hook") {
   throw new Error(
     "Scene titles should use the required Scene #N: Role format.",
+  );
+}
+
+if (
+  board.cuts.some(
+    (cut) =>
+      typeof cut.hook !== "string" ||
+      typeof cut.lineToSay !== "string" ||
+      typeof cut.shotAction !== "string" ||
+      typeof cut.note !== "string",
+  )
+) {
+  throw new Error(
+    "Every cut card should store Hook, Line to Say, Shot/Action, and Note fields.",
+  );
+}
+
+if (
+  board.cuts[0]?.hook !== board.cuts[0]?.instruction ||
+  board.cuts[0]?.lineToSay !== board.cuts[0]?.speakingLine ||
+  board.cuts[0]?.shotAction !== board.cuts[0]?.shootingGuideline ||
+  board.cuts[0]?.note !== board.cuts[0]?.purpose
+) {
+  throw new Error(
+    "Cut-card fields should map from the existing shoot-board copy.",
   );
 }
 
@@ -191,6 +218,32 @@ if (
   );
 }
 
+const fullScriptBoard = updateShootBoardCutText(
+  replaceShootBoardCutOrder(board, [
+    board.cuts[2],
+    board.cuts[0],
+    board.cuts[1],
+    board.cuts[3],
+  ]),
+  board.cuts[1].id,
+  {
+    lineToSay: "   ",
+  },
+);
+const fullScript = getShootBoardFullScript(fullScriptBoard);
+if (
+  fullScript !==
+  [
+    board.cuts[2].lineToSay,
+    board.cuts[0].lineToSay,
+    board.cuts[3].lineToSay,
+  ].join("\n\n")
+) {
+  throw new Error(
+    "Full script should concatenate non-empty cut-card lines in playback order.",
+  );
+}
+
 const afterFirstShot = toggleShootBoardCutStatus(board, board.cuts[0].id);
 
 if (afterFirstShot.shotCount !== 1 || afterFirstShot.cuts[0]?.isShot !== true) {
@@ -216,9 +269,13 @@ if (addedCut.order !== 5 || addedCut.role !== "custom" || !addedCut.sceneId) {
 }
 
 if (
+  addedCut.hook !== "" ||
   addedCut.instruction !== "" ||
   addedCut.instructionKo !== "" ||
+  addedCut.lineToSay !== "" ||
+  addedCut.note !== "" ||
   addedCut.roleLabel !== "" ||
+  addedCut.shotAction !== "" ||
   addedCut.title !== "Scene #5" ||
   addedCut.speakingLine !== "" ||
   addedCut.speakingLineKo !== "" ||
@@ -262,9 +319,12 @@ const editedBoard = updateShootBoardCutText(board, board.cuts[0].id, {
 
 if (
   editedBoard.cuts[0]?.instruction !== "Edited instruction" ||
+  editedBoard.cuts[0]?.hook !== "Edited instruction" ||
   editedBoard.cuts[0]?.title !== "Scene #1: Edited Hook" ||
   editedBoard.cuts[0]?.speakingLine !== "Edited line to say" ||
+  editedBoard.cuts[0]?.lineToSay !== "Edited line to say" ||
   editedBoard.cuts[0]?.shootingGuideline !== "Edited shooting guideline" ||
+  editedBoard.cuts[0]?.shotAction !== "Edited shooting guideline" ||
   editedBoard.cuts[0]?.requiredChecklist[0]?.label !== "Edited checklist item"
 ) {
   throw new Error("Editing a scene should update the detailed card text.");
@@ -273,8 +333,11 @@ if (
 const resetBoard = resetShootBoardCut(editedBoard, board.cuts[0]);
 if (
   resetBoard.cuts[0]?.instruction !== board.cuts[0].instruction ||
+  resetBoard.cuts[0]?.hook !== board.cuts[0].hook ||
   resetBoard.cuts[0]?.speakingLine !== board.cuts[0].speakingLine ||
+  resetBoard.cuts[0]?.lineToSay !== board.cuts[0].lineToSay ||
   resetBoard.cuts[0]?.shootingGuideline !== board.cuts[0].shootingGuideline ||
+  resetBoard.cuts[0]?.shotAction !== board.cuts[0].shotAction ||
   resetBoard.cuts[0]?.requiredChecklist[0]?.label !==
     board.cuts[0].requiredChecklist[0].label
 ) {
@@ -295,5 +358,18 @@ if (
 ) {
   throw new Error(
     "Cut shooting actions should route to the prompter for the selected cut scene.",
+  );
+}
+
+if (
+  getRecipeRetakePrompterHref({
+    cut: board.cuts[1],
+    recipeId: board.id,
+    take: board.cuts[1].takes[0],
+  }) !==
+  "/recipe/recipe-korean-diet-hook/prompter?sceneId=scene-2&cutId=scene-2-proof&retakeTakeId=take-proof-1"
+) {
+  throw new Error(
+    "Retake actions should route to the relevant cut and saved take, not only the scene-level prompter.",
   );
 }

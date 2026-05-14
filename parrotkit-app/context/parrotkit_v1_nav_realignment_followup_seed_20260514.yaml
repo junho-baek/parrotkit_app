@@ -1,0 +1,126 @@
+metadata:
+  name: parrotkit_v1_nav_realignment_followup_recipe_creation_cta
+  version: "1.0"
+  created_by: hermes
+  created_at: "2026-05-14"
+  project: parrotkit-app
+  source_session_id: orch_79131e51c979
+  source_execution_id: exec_051ec2f0cb30
+  source_job_id: job_46a1bf0280ed
+
+goal: >
+  Complete only the failed and pending items from the previous ParrotKit v1
+  navigation realignment Seed run, with the corrected product language that the
+  primary floating CTA is "레시피 생성" rather than Shoot/New Shoot/Start Shoot.
+
+ontology_schema:
+  name: parrotkit_v1_nav_realignment_followup
+  description: >
+    Ontology for completing the remaining ParrotKit v1 navigation alignment
+    after the first Seed run partially failed. It preserves completed fixes,
+    removes Source/Recipes from bottom tabs, and uses recipe creation language
+    for the primary blank board entry.
+  entities:
+    - ParrotKit app
+    - bottom navigator
+    - Home tab
+    - Explore tab
+    - My tab
+    - floating plus button
+    - 레시피 생성 CTA
+    - blank shoot-board creation flow
+    - owned recipe cards
+    - saved recipes
+    - saved takes
+    - TypeScript verification
+    - iPhone simulator QA evidence
+  relationships:
+    - Bottom navigator exposes Home, Explore, and My only.
+    - The floating plus button remains the primary entry for creating a new blank recipe/shoot-board.
+    - User-facing CTA language is recipe creation, not shoot creation.
+    - Home exposes continue, recipe creation, and owned recipe card access.
+    - My exposes profile/settings/saved recipes/saved takes without needing a Recipes tab.
+  success_state: >
+    Remaining failed/pending ACs pass: Source/Recipes are not bottom tabs, Home
+    clearly exposes continue + 레시피 생성 + owned cards, My exposes saved access,
+    TypeScript/focused checks pass, and a final report records changed files and
+    risks. No completed fixes regress.
+
+context:
+  project: ParrotKit Expo / React Native app
+  workdir: /Users/junho/.ouroboros/worktrees/parrotkit-app/orch_78808bb15d74/parrotkit-app
+  previous_seed_run:
+    job_id: job_46a1bf0280ed
+    session_id: orch_79131e51c979
+    execution_id: exec_051ec2f0cb30
+    status: failed
+    progress: "6/11 AC complete, 13/14 Sub-AC complete, 1 failed"
+  previous_run_results:
+    completed:
+      - Explore and Explore detail still expose template copy/start-shooting affordances.
+      - Create screen lower cards are readable and tappable above sticky CTA.
+      - My/Profile content is not obscured by bottom nav or FAB.
+      - Metro ENOENT for assets/recipe-create was addressed.
+      - Reference link and Brand context remain locked Pro/coming-soon guidance.
+    failed_or_pending:
+      - AC 2: Source and Recipes are not visible as bottom tabs in simulator screenshots.
+      - AC 3: Home has clear paths to continue, create/blank shoot-board, and owned recipe cards.
+      - Sub-AC 3.2: Home exposes a clear path to create a new blank shoot-board.
+      - AC 4: My has profile/settings and saved recipes/saved takes access without requiring a Recipes tab.
+      - AC 10: TypeScript or focused repo checks pass after the change.
+      - AC 11: Final report includes changed files, verification commands/results, and remaining risks.
+  critical_product_correction: >
+    Do not label the primary creation CTA as "Shoot", "New Shoot", or "Start Shoot".
+    The existing floating plus button should remain the primary blank board creation
+    entry, but the user-facing CTA/language must be "레시피 생성". The underlying
+    behavior may reuse the existing manual/blank recipe creation flow that opens
+    a blank shoot-board. The product concept shown to the user is recipe creation,
+    not shoot creation.
+
+constraints:
+  - Work only on the failed or pending items from the previous Seed run.
+  - Preserve all completed fixes from the previous Seed run.
+  - Do not commit, push, or merge.
+  - Do not reintroduce Source or Recipes as bottom tabs.
+  - Do not use Shoot/New Shoot/Start Shoot as the primary floating CTA label.
+  - User-facing Korean CTA should be "레시피 생성" where the primary blank creation action is labeled.
+  - Keep changes minimal and simulator-oriented.
+  - Web QA is out of scope; iPhone simulator is the UI gate.
+  - Respect AGENTS.md and src/AGENTS.md.
+
+requirements:
+  - Ensure the bottom navigator has exactly Home, Explore, My.
+  - Ensure Source and Recipes are not visible as bottom tabs.
+  - Keep the existing floating plus button pattern as the primary creation entry.
+  - Change the floating creation CTA/user-facing label to "레시피 생성".
+  - Wire that CTA to the existing blank/manual recipe creation flow that opens a blank shoot-board.
+  - Ensure Home clearly exposes continue, 레시피 생성, and owned recipe cards.
+  - Ensure My clearly exposes profile/settings, saved recipes, and saved takes without a Recipes tab.
+  - Run TypeScript or focused repo checks.
+  - Write a final context/report file with changed files, verification commands/results, and remaining risks.
+
+acceptance_criteria:
+  - "Bottom navigator shows exactly Home, Explore, My on iPhone simulator."
+  - "Source and Recipes are not visible as bottom tabs."
+  - "The existing floating plus-button creation pattern remains available as the primary blank board creation entry."
+  - "The primary creation CTA/user-facing label is 레시피 생성, not Shoot, New Shoot, Start Shoot, or similar shoot-language."
+  - "The 레시피 생성 CTA reuses the existing manual/blank recipe creation flow and opens a blank shoot-board."
+  - "Home has clear paths to continue, 레시피 생성, and owned recipe cards."
+  - "My has profile/settings and saved recipes/saved takes access without requiring a Recipes bottom tab."
+  - "Previously completed fixes from job_46a1bf0280ed do not regress."
+  - "TypeScript or focused repo checks pass after the change."
+  - "Final report includes changed files, verification commands/results, and any remaining risks."
+
+verification:
+  commands:
+    - ./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json
+  expected_manual_simulator_check:
+    - "Open iPhone simulator Home and verify bottom tabs: Home, Explore, My only."
+    - "Verify the floating creation CTA is labeled 레시피 생성 and opens the blank recipe/shoot-board creation flow."
+    - "Verify My shows saved/profile access without a Recipes tab."
+
+notes_for_executor: >
+  This is a corrective follow-up. Do not broaden scope. The important user
+  correction is that the CTA copy must be 레시피 생성, not Shoot. Treat recipe
+  creation as the product language even if the internal implementation opens a
+  blank shoot-board.

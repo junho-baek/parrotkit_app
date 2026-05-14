@@ -7,10 +7,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppLanguage, type AppLanguage } from '@/core/i18n/app-language';
 import type { MockRecipe, MockRecipeScene } from '@/core/mocks/parrotkit-data';
+import { ugcMedia } from '@/core/mocks/ugc-media';
 import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient } from '@/core/theme/colors';
+import { getExploreTemplateDetailCopyAffordance } from '@/features/explore/lib/explore-template-copy-action';
+import { getExploreTemplateDetailStartShootingHref } from '@/features/explore/lib/explore-template-recipe-copy';
 import { isVerifiedCreatorRecipe } from '@/features/recipes/lib/recipe-ownership';
-import { getShootBoardHref } from '@/features/recipes/lib/shoot-board-model';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -24,9 +26,9 @@ const previewCopy = {
     included: 'Included',
     structurePreview: 'Structure Preview',
     creatorNotes: 'Creator notes',
-    save: 'Save',
-    saved: 'Saved',
-    startShooting: 'Start Shooting',
+    proLocked: 'Pro option',
+    comingSoon: 'Coming soon',
+    startShooting: 'Start filming',
     saves: 'saves',
     views: 'views',
     scenes: 'scenes',
@@ -48,8 +50,8 @@ const previewCopy = {
     included: '포함됨',
     structurePreview: '구성 미리보기',
     creatorNotes: '크리에이터 노트',
-    save: '저장',
-    saved: '저장됨',
+    proLocked: 'Pro 옵션',
+    comingSoon: '준비 중',
     startShooting: '촬영 시작',
     saves: '저장',
     views: '조회',
@@ -72,8 +74,8 @@ const previewCopy = {
   included: string;
   structurePreview: string;
   creatorNotes: string;
-  save: string;
-  saved: string;
+  proLocked: string;
+  comingSoon: string;
   startShooting: string;
   saves: string;
   views: string;
@@ -96,9 +98,21 @@ export function ExploreRecipeDetailScreen() {
   } = useMockWorkspace();
 
   const recipe = params.recipeId ? getRecipeById(params.recipeId) : null;
+  const staticDetail = !recipe && params.recipeId
+    ? getStaticExploreDetail(language, params.recipeId)
+    : null;
   const firstScene = recipe?.scenes[0] ?? null;
   const keyHook = firstScene ? getPrimaryPrompterLine(firstScene) : recipe?.summary ?? '';
-  const saved = recipe ? isRecipeDownloaded(recipe.id) || recipe.ownership === 'downloaded' : false;
+  const saved = recipe
+    ? isRecipeDownloaded(recipe.id)
+      || recipe.ownership === 'downloaded'
+      || recipe.ownership === 'owned'
+      || recipe.id.startsWith('downloaded-')
+    : false;
+  const detailCopyAffordance = getExploreTemplateDetailCopyAffordance({
+    copied: saved,
+    language,
+  });
   const tags = useMemo(() => (recipe ? getPreviewTags(language, recipe) : []), [language, recipe]);
 
   const handleBack = () => {
@@ -127,16 +141,25 @@ export function ExploreRecipeDetailScreen() {
   };
 
   const handleStartShooting = () => {
+    if (!recipe) {
+      return;
+    }
+
     const targetRecipe = ensureSavedRecipe();
 
     if (!targetRecipe) {
       return;
     }
 
-    router.push(getShootBoardHref(targetRecipe.id) as Href);
+    router.push(
+      getExploreTemplateDetailStartShootingHref({
+        savedRecipe: targetRecipe,
+        selectedTemplateRecipe: recipe,
+      }) as Href
+    );
   };
 
-  if (!recipe) {
+  if (!recipe && !staticDetail) {
     return (
       <View className="flex-1 items-center justify-center bg-canvas px-6">
         <Text className="text-center text-[26px] font-black text-ink">{copy.notFound}</Text>
@@ -146,6 +169,123 @@ export function ExploreRecipeDetailScreen() {
         </Pressable>
       </View>
     );
+  }
+
+  if (staticDetail) {
+    return (
+      <View className="flex-1 bg-canvas">
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ paddingBottom: Math.max(34, insets.bottom + 18) }}
+          contentInsetAdjustmentBehavior="never"
+          showsVerticalScrollIndicator={false}
+        >
+          <ImageBackground
+            imageStyle={styles.heroImage}
+            resizeMode="cover"
+            source={{ uri: staticDetail.image }}
+            style={styles.hero}
+          >
+            <LinearGradient
+              colors={['rgba(15,23,42,0.06)', 'rgba(15,23,42,0.50)', 'rgba(15,23,42,0.94)']}
+              locations={[0, 0.46, 1]}
+              style={StyleSheet.absoluteFill}
+            />
+
+            <View className="flex-1 justify-between px-5 pb-5" style={{ paddingTop: insets.top + 10 }}>
+              <View className="flex-row items-center justify-between">
+                <Pressable
+                  accessibilityLabel={copy.back}
+                  className="h-10 w-10 items-center justify-center rounded-full bg-black/35"
+                  onPress={handleBack}
+                >
+                  <MaterialCommunityIcons color="#fff" name="arrow-left" size={21} />
+                </Pressable>
+
+                <View style={styles.proBadge}>
+                  <MaterialCommunityIcons color="#fff" name="lock-outline" size={13} />
+                  <Text className="text-[10px] font-black text-white">{copy.proLocked}</Text>
+                </View>
+              </View>
+
+              <View className="gap-3">
+                <View className="flex-row flex-wrap gap-2">
+                  <View style={styles.heroBadge}>
+                    <Text className="text-[10px] font-black text-white">{staticDetail.badge}</Text>
+                  </View>
+                </View>
+
+                <Text className="text-[29px] font-black leading-[34px] text-white" numberOfLines={2}>
+                  {staticDetail.title}
+                </Text>
+                <Text style={styles.heroSummary} numberOfLines={3}>
+                  {staticDetail.summary}
+                </Text>
+                <View className="flex-row flex-wrap gap-2">
+                  <Text style={styles.heroMetaStrong}>{staticDetail.creatorHandle}</Text>
+                  <Text style={styles.heroMeta}>
+                    ♡ {formatCompactMetric(staticDetail.saveCount)} {copy.saves}
+                  </Text>
+                  <Text style={styles.heroMeta}>
+                    ◦ {formatCompactMetric(staticDetail.viewCount)} {copy.views}
+                  </Text>
+                </View>
+                <View className="flex-row flex-wrap gap-1.5">
+                  {staticDetail.tags.map((tag) => (
+                    <View key={tag} style={styles.heroTag}>
+                      <Text style={styles.heroTagText}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+          </ImageBackground>
+
+          <View className="gap-5 px-5 py-5">
+            <View className="gap-2">
+              <Text className="text-[16px] font-black text-ink">{copy.keyHook}</Text>
+              <Text className="text-[17px] font-black leading-7 text-slate-800">
+                "{staticDetail.keyHook}"
+              </Text>
+            </View>
+
+            <View className="gap-3">
+              <Text className="text-[16px] font-black text-ink">{copy.included}</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {staticDetail.includedItems.map((item) => (
+                  <View key={item.label} style={styles.includeChip}>
+                    <MaterialCommunityIcons color="#8c67ff" name={item.icon} size={17} />
+                    <Text className="text-[12px] font-black text-ink">{item.label}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.notesBox}>
+              <Text className="text-[13px] font-black text-ink">{copy.creatorNotes}</Text>
+              <Text className="mt-1 text-[13px] font-semibold leading-6 text-slate-700">
+                {staticDetail.notes}
+              </Text>
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              className="min-h-[52px] flex-row items-center justify-center gap-2 rounded-full border border-stroke bg-surface"
+              onPress={() => router.push('/recipe-create?mode=brand' as Href)}
+            >
+              <MaterialCommunityIcons color="#111827" name="lock-outline" size={18} />
+              <Text className="text-[14px] font-black text-ink">{copy.comingSoon}</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  const detailRecipe = recipe;
+
+  if (!detailRecipe) {
+    return null;
   }
 
   return (
@@ -159,7 +299,7 @@ export function ExploreRecipeDetailScreen() {
         <ImageBackground
           imageStyle={styles.heroImage}
           resizeMode="cover"
-          source={{ uri: recipe.thumbnail }}
+          source={{ uri: detailRecipe.thumbnail }}
           style={styles.hero}
         >
           <LinearGradient
@@ -182,8 +322,13 @@ export function ExploreRecipeDetailScreen() {
                 <View className="h-10 w-10 items-center justify-center rounded-full bg-black/35">
                   <MaterialCommunityIcons color="#fff" name="share-variant-outline" size={19} />
                 </View>
-                <Pressable className="h-10 w-10 items-center justify-center rounded-full bg-black/35" onPress={handleSave}>
-                  <MaterialCommunityIcons color="#fff" name={saved ? 'bookmark' : 'bookmark-outline'} size={20} />
+                <Pressable
+                  accessibilityLabel={detailCopyAffordance.label}
+                  accessibilityRole="button"
+                  className="h-10 w-10 items-center justify-center rounded-full bg-black/35"
+                  onPress={handleSave}
+                >
+                  <MaterialCommunityIcons color="#fff" name={detailCopyAffordance.iconName} size={20} />
                 </Pressable>
               </View>
             </View>
@@ -192,10 +337,10 @@ export function ExploreRecipeDetailScreen() {
               <View className="flex-row flex-wrap gap-2">
                 <View style={styles.heroBadge}>
                   <Text className="text-[10px] font-black text-white">
-                    {isVerifiedCreatorRecipe(recipe) ? copy.partnerCreator : copy.communityRecipe}
+                    {isVerifiedCreatorRecipe(detailRecipe) ? copy.partnerCreator : copy.communityRecipe}
                   </Text>
                 </View>
-                {isVerifiedCreatorRecipe(recipe) ? (
+                {isVerifiedCreatorRecipe(detailRecipe) ? (
                   <View style={styles.heroBadge}>
                     <MaterialCommunityIcons color="#fff" name="check-decagram" size={11} />
                     <Text className="text-[10px] font-black text-white">{copy.verified}</Text>
@@ -204,18 +349,18 @@ export function ExploreRecipeDetailScreen() {
               </View>
 
               <Text className="text-[29px] font-black leading-[34px] text-white" numberOfLines={2}>
-                {getPreviewTitle(language, recipe)}
+                {getPreviewTitle(language, detailRecipe)}
               </Text>
               <Text style={styles.heroSummary} numberOfLines={3}>
-                {getPreviewSummary(language, recipe)}
+                {getPreviewSummary(language, detailRecipe)}
               </Text>
               <View className="flex-row flex-wrap gap-2">
-                <Text style={styles.heroMetaStrong}>{recipe.ownerHandle}</Text>
+                <Text style={styles.heroMetaStrong}>{detailRecipe.ownerHandle}</Text>
                 <Text style={styles.heroMeta}>
-                  ♡ {formatCompactMetric(recipe.downloadCount)} {copy.saves}
+                  ♡ {formatCompactMetric(detailRecipe.downloadCount)} {copy.saves}
                 </Text>
                 <Text style={styles.heroMeta}>
-                  ◦ {formatCompactMetric(recipe.downloadCount * 6)} {copy.views}
+                  ◦ {formatCompactMetric(detailRecipe.downloadCount * 6)} {copy.views}
                 </Text>
               </View>
               <View className="flex-row flex-wrap gap-1.5">
@@ -253,19 +398,19 @@ export function ExploreRecipeDetailScreen() {
             <View className="flex-row items-center justify-between">
               <Text className="text-[16px] font-black text-ink">{copy.structurePreview}</Text>
               <Text className="text-[12px] font-bold text-muted">
-                {recipe.scenes.length} {copy.scenes} · 30s
+                {detailRecipe.scenes.length} {copy.scenes} · 30s
               </Text>
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View className="flex-row gap-3 pr-5">
-                {recipe.scenes.map((scene, index) => (
+                {detailRecipe.scenes.map((scene, index) => (
                   <StructurePreviewCard
                     key={scene.id}
                     language={language}
                     scene={scene}
                     sceneIndex={index}
-                    totalScenes={recipe.scenes.length}
+                    totalScenes={detailRecipe.scenes.length}
                   />
                 ))}
               </View>
@@ -275,18 +420,23 @@ export function ExploreRecipeDetailScreen() {
           <View style={styles.notesBox}>
             <Text className="text-[13px] font-black text-ink">{copy.creatorNotes}</Text>
             <Text className="mt-1 text-[13px] font-semibold leading-6 text-slate-700">
-              {getCreatorNotes(language, recipe)}
+              {getCreatorNotes(language, detailRecipe)}
             </Text>
           </View>
 
           <View className="flex-row gap-3 pt-1">
             <Pressable
+              accessibilityLabel={detailCopyAffordance.label}
               accessibilityRole="button"
               className="min-h-[52px] flex-1 flex-row items-center justify-center gap-2 rounded-full border border-stroke bg-surface"
               onPress={handleSave}
             >
-              <MaterialCommunityIcons color="#111827" name={saved ? 'bookmark' : 'bookmark-outline'} size={18} />
-              <Text className="text-[14px] font-black text-ink">{saved ? copy.saved : copy.save}</Text>
+              <MaterialCommunityIcons
+                color={detailCopyAffordance.kind === 'copy' ? '#8c67ff' : '#111827'}
+                name={detailCopyAffordance.iconName}
+                size={18}
+              />
+              <Text className="text-[14px] font-black text-ink">{detailCopyAffordance.label}</Text>
             </Pressable>
 
             <Pressable accessibilityRole="button" className="flex-[1.7] overflow-hidden rounded-full" onPress={handleStartShooting}>
@@ -421,6 +571,52 @@ function getPrimaryPrompterLine(scene: MockRecipeScene) {
     ?? scene.summary;
 }
 
+function getStaticExploreDetail(language: AppLanguage, detailId: string) {
+  if (detailId !== 'brand-request-serum-launch') {
+    return null;
+  }
+
+  if (language === 'ko') {
+    return {
+      badge: '기업 요청',
+      creatorHandle: '@glowbrand',
+      image: ugcMedia.beautyResult.image,
+      includedItems: [
+        { icon: 'lock-outline' as IconName, label: '브랜드 컨텍스트' },
+        { icon: 'script-text-outline' as IconName, label: '전환형 대본' },
+        { icon: 'camera-iris' as IconName, label: '프롬프터 준비' },
+        { icon: 'sparkles' as IconName, label: 'Pro 잠금' },
+      ],
+      keyHook: '제품 설명보다 먼저 결과와 사용감을 보여주는 3컷 구성으로 시작하세요.',
+      notes: '브랜드 컨텍스트와 레퍼런스 링크 기반 생성은 v1에서 Pro 잠금 옵션으로만 노출됩니다. 무료 흐름은 Home에서 빈 레시피를 만들고 직접 컷카드를 편집하는 방식으로 계속 사용할 수 있습니다.',
+      saveCount: 980,
+      summary: '판매 메시지 전에 제품 가치를 먼저 증명하는 브랜드용 촬영 가이드입니다.',
+      tags: ['뷰티', '브랜드 협업', '제품 홍보', 'Pro'],
+      title: '화장품 구매율 높이는 전환 가이드',
+      viewCount: 7200,
+    };
+  }
+
+  return {
+    badge: 'Brand request',
+    creatorHandle: '@glowbrand',
+    image: ugcMedia.beautyResult.image,
+    includedItems: [
+      { icon: 'lock-outline' as IconName, label: 'Brand context' },
+      { icon: 'script-text-outline' as IconName, label: 'Conversion script' },
+      { icon: 'camera-iris' as IconName, label: 'Prompter ready' },
+      { icon: 'sparkles' as IconName, label: 'Pro locked' },
+    ],
+    keyHook: 'Open with a three-cut result and texture proof before naming the product.',
+    notes: 'Brand context and reference-link assisted creation remain visible as Pro-locked v1 options. The free workflow still starts from Home with a blank recipe and editable cut cards.',
+    saveCount: 980,
+    summary: 'A brand-ready shooting guide for proving product value before the sales message.',
+    tags: ['Beauty', 'Brand Collab', 'Product Demo', 'Pro'],
+    title: 'Beauty Product Conversion Guide',
+    viewCount: 7200,
+  };
+}
+
 function getSceneDuration(scene: MockRecipeScene) {
   if (scene.startTime && scene.endTime) {
     return `${scene.startTime}-${scene.endTime}`;
@@ -506,6 +702,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 14,
+  },
+  proBadge: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.13)',
+    borderColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
   },
   roleDot: {
     borderRadius: 999,

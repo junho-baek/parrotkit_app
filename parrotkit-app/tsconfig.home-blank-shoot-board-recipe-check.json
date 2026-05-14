@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "nativewind-env.d.ts",
+    "src/features/recipes/lib/blank-shoot-board-recipe.test.ts",
+    "src/features/recipes/lib/blank-shoot-board-recipe.ts",
+    "src/core/providers/mock-workspace-provider.tsx",
+    "src/features/recipes/screens/recipe-create-screen.tsx"
+  ]
+}

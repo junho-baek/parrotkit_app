@@ -16,10 +16,8 @@ type AppLanguageCopy = {
   };
   nav: {
     explore: string;
-    home: string;
+    index: string;
     my: string;
-    recipes: string;
-    source: string;
   };
   sourceCta: {
     accessibilityHint: string;
@@ -53,7 +51,19 @@ type AppLanguageCopy = {
     likedEmptyBody: string;
     likedEmptyTitle: string;
     likedSection: string;
+    proSection: string;
+    proStatusBody: string;
+    proStatusTitle: string;
     savedLabel: string;
+    savedRecipesEmptyBody: string;
+    savedRecipesEmptyTitle: string;
+    savedRecipesSection: string;
+    savedTakeFinal: string;
+    savedTakeLocal: string;
+    savedTakeSaved: string;
+    savedTakesEmptyBody: string;
+    savedTakesEmptyTitle: string;
+    savedTakesSection: string;
     settingsSection: string;
     statsLikes: string;
     statsRecipes: string;
@@ -70,10 +80,8 @@ const APP_LANGUAGE_COPY: Record<AppLanguage, AppLanguageCopy> = {
     },
     nav: {
       explore: 'Explore',
-      home: 'Home',
+      index: 'Home',
       my: 'My',
-      recipes: 'Recipes',
-      source: 'Source',
     },
     sourceCta: {
       accessibilityHint: 'Open the add source sheet',
@@ -81,8 +89,8 @@ const APP_LANGUAGE_COPY: Record<AppLanguage, AppLanguageCopy> = {
       label: 'source',
     },
     home: {
-      continueAction: 'Continue Shoot',
-      continueSection: 'Continue',
+      continueAction: 'Open recipe board',
+      continueSection: 'Continue recent recipe',
       continueTitleFallback: 'Ready to shoot',
       edit: 'Edit',
       emptyAction: 'Quick Shoot',
@@ -107,7 +115,19 @@ const APP_LANGUAGE_COPY: Record<AppLanguage, AppLanguageCopy> = {
       likedEmptyBody: 'Like trending videos in Explore and they will show up here.',
       likedEmptyTitle: 'No liked references yet',
       likedSection: 'Liked References',
+      proSection: 'Pro',
+      proStatusBody: 'Reference links and brand context stay locked for v1. Blank recipes remain free.',
+      proStatusTitle: 'Free plan',
       savedLabel: 'SAVED',
+      savedRecipesEmptyBody: 'Create a blank recipe from Home and it will appear here.',
+      savedRecipesEmptyTitle: 'No saved recipes yet',
+      savedRecipesSection: 'Saved recipes',
+      savedTakeFinal: 'Final',
+      savedTakeLocal: 'Local',
+      savedTakeSaved: 'Saved',
+      savedTakesEmptyBody: 'Record and save a take from a cut card, then reopen it here.',
+      savedTakesEmptyTitle: 'No saved takes yet',
+      savedTakesSection: 'Saved takes',
       settingsSection: 'Settings',
       statsLikes: 'Likes',
       statsRecipes: 'Recipes',
@@ -122,10 +142,8 @@ const APP_LANGUAGE_COPY: Record<AppLanguage, AppLanguageCopy> = {
     },
     nav: {
       explore: '탐색',
-      home: '홈',
+      index: '홈',
       my: '마이',
-      recipes: '레시피',
-      source: '소스',
     },
     sourceCta: {
       accessibilityHint: '소스 추가 시트 열기',
@@ -133,8 +151,8 @@ const APP_LANGUAGE_COPY: Record<AppLanguage, AppLanguageCopy> = {
       label: '소스',
     },
     home: {
-      continueAction: '촬영 계속하기',
-      continueSection: '이어하기',
+      continueAction: '레시피 보드 열기',
+      continueSection: '최근 레시피 이어하기',
       continueTitleFallback: '촬영 준비 완료',
       edit: '편집',
       emptyAction: '바로 촬영',
@@ -159,7 +177,19 @@ const APP_LANGUAGE_COPY: Record<AppLanguage, AppLanguageCopy> = {
       likedEmptyBody: '탐색에서 저장한 인기 레퍼런스가 여기에 표시됩니다.',
       likedEmptyTitle: '아직 저장한 레퍼런스가 없어요',
       likedSection: '저장한 레퍼런스',
+      proSection: 'Pro',
+      proStatusBody: '레퍼런스 링크와 브랜드 컨텍스트는 v1에서 잠겨 있어요. 빈 레시피 만들기는 무료로 사용할 수 있습니다.',
+      proStatusTitle: '무료 플랜',
       savedLabel: '저장됨',
+      savedRecipesEmptyBody: '홈에서 빈 레시피를 만들면 여기에 표시됩니다.',
+      savedRecipesEmptyTitle: '아직 저장한 레시피가 없어요',
+      savedRecipesSection: '저장한 레시피',
+      savedTakeFinal: 'Final',
+      savedTakeLocal: '로컬',
+      savedTakeSaved: '저장됨',
+      savedTakesEmptyBody: '컷 카드에서 테이크를 저장하면 여기에서 다시 열 수 있어요.',
+      savedTakesEmptyTitle: '아직 저장한 테이크가 없어요',
+      savedTakesSection: '저장한 테이크',
       settingsSection: '설정',
       statsLikes: '좋아요',
       statsRecipes: '레시피',

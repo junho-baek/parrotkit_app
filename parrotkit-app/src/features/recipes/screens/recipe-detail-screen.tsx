@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAppLanguage, type AppLanguage } from "@/core/i18n/app-language";
-import type { MockProjectTake, MockRecipe } from "@/core/mocks/parrotkit-data";
+import type { MockRecipe } from "@/core/mocks/parrotkit-data";
 import { useMockWorkspace } from "@/core/providers/mock-workspace-provider";
 import { brandActionGradient } from "@/core/theme/colors";
 import { ReferenceViewerModal } from "@/features/recipes/components/reference-viewer-modal";
@@ -23,6 +23,8 @@ import { ShootBoardNoteCta } from "@/features/recipes/components/shoot-board-not
 import { ShootBoardStickyHeader } from "@/features/recipes/components/shoot-board-sticky-header";
 import { TakeReviewViewerModal } from "@/features/recipes/components/take-review-viewer-modal";
 import { normalizeNativeRecipe } from "@/features/recipes/lib/recipe-domain-normalizer";
+import { resolveSavedTakeReloadFlow } from "@/features/recipes/lib/saved-take-reload-flow";
+import type { SavedRecipeTakeRecord } from "@/features/recipes/lib/saved-take-storage";
 import {
   getSceneCardSummary,
   getSceneStrategyMeta,
@@ -32,10 +34,10 @@ import {
   createAddedShootBoardCut,
   createShootBoardRecipe,
   getRecipePrompterHref,
+  getRecipeRetakePrompterHref,
   replaceShootBoardCutOrder,
   resetShootBoardCut,
   selectShootBoardFinalTake,
-  setShootBoardChecklistItem,
   setShootBoardCutCompletion,
   type ShootBoardCut,
   type ShootBoardCutTextPatch,
@@ -51,7 +53,7 @@ type IconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
 const detailTabs: Array<{ id: DetailTab; label: string }> = [
   { id: "analysis", label: "Analysis" },
   { id: "recipe", label: "Recipe" },
-  { id: "shoot", label: "Shoot" },
+  { id: "shoot", label: "Film" },
 ];
 
 const detailCopy = {
@@ -65,7 +67,7 @@ const detailCopy = {
     scenes: "Scene details",
     save: "Save",
     saved: "Saved",
-    startShooting: "Start Shooting",
+    startShooting: "Start filming",
     startScene: "Start Scene",
     openScene: "Open workspace",
     saves: "saves",
@@ -139,24 +141,24 @@ type DetailCopy = (typeof detailCopy)["en"];
 
 const shootBoardCopy = {
   en: {
-    addScene: "Add scene",
+    addCut: "Add cut",
     back: "Back",
-    cutsBoard: "CUTS BOARD",
+    cutsList: "Cut cards",
     done: "Done",
     more: "More",
     preview: "View example",
     reorder: "Reorder",
     requiredChecks: "Required checks",
     shootingDirections: "Shooting directions",
-    shoot: "Shoot",
+    shoot: "Film",
     shootComplete: "Shot",
     shootIncomplete: "Unshot",
     speakingLine: "Line to say",
   },
   ko: {
-    addScene: "장면 추가",
+    addCut: "컷 추가",
     back: "뒤로",
-    cutsBoard: "CUTS BOARD",
+    cutsList: "컷 카드",
     done: "완료",
     more: "더보기",
     preview: "예시 보기",
@@ -179,15 +181,19 @@ export function RecipeDetailScreen() {
     recipeId?: string;
     sceneId?: string;
     tab?: DetailTab;
+    takeId?: string;
   }>();
   const { language } = useAppLanguage();
   const copy = detailCopy[language];
   const boardCopy = shootBoardCopy[language];
   const {
     downloadRecipe,
+    getRecipeEditorBoard,
     getRecipeById,
-    getSceneTakeCollection,
+    getSavedRecipeTakes,
     isRecipeDownloaded,
+    setSceneBestProjectTake,
+    setRecipeEditorBoard,
   } = useMockWorkspace();
   const recipe = params.recipeId ? getRecipeById(params.recipeId) : null;
   const nativeRecipe = useMemo(
@@ -205,6 +211,8 @@ export function RecipeDetailScreen() {
     string | null
   >(null);
   const [takeViewerCutId, setTakeViewerCutId] = useState<string | null>(null);
+  const [selectedTakeId, setSelectedTakeId] = useState<string | undefined>();
+  const boardStateRef = useRef<ShootBoardRecipe | null>(null);
   const originalCutSnapshotsRef = useRef<Record<string, ShootBoardCut>>({});
   const recipeSaved = recipe
     ? isRecipeSaved(recipe, isRecipeDownloaded(recipe.id))
@@ -230,40 +238,42 @@ export function RecipeDetailScreen() {
   }, [nativeRecipe, selectedSceneId]);
 
   useEffect(() => {
-    if (!nativeRecipe?.scenes.length || !params.sceneId) {
+    if (!params.tab || !isDetailTab(params.tab)) {
       return;
     }
 
-    if (nativeRecipe.scenes.some((scene) => scene.id === params.sceneId)) {
-      setSelectedSceneId(params.sceneId);
-    }
-
-    if (params.tab && isDetailTab(params.tab)) {
-      setActiveTab(params.tab);
-    }
-  }, [nativeRecipe, params.sceneId, params.tab]);
+    setActiveTab(params.tab);
+  }, [params.tab]);
 
   useEffect(() => {
     if (!nativeRecipe) {
+      boardStateRef.current = null;
       setBoardState(null);
       return;
     }
 
-    const nextBoard = createShootBoardRecipe(nativeRecipe, {
+    const originalBoard = createShootBoardRecipe(nativeRecipe, {
       isSaved: recipeSaved,
       shotCutIds: [],
     });
+    const existingBoard = getRecipeEditorBoard(nativeRecipe.id);
+    const nextBoard = existingBoard ?? originalBoard;
 
     originalCutSnapshotsRef.current = Object.fromEntries(
-      nextBoard.cuts.map((cut) => [cut.id, cut]),
+      originalBoard.cuts.map((cut) => [cut.id, cut]),
     );
+    boardStateRef.current = nextBoard;
     setBoardState(nextBoard);
+    if (!existingBoard) {
+      setRecipeEditorBoard(nextBoard);
+    }
     setReorderMode(false);
     setBoardDragActive(false);
     setExpandedCutIds([]);
     setReferenceViewerCutId(null);
     setTakeViewerCutId(null);
-  }, [nativeRecipe, recipeSaved]);
+    setSelectedTakeId(undefined);
+  }, [nativeRecipe, recipeSaved, setRecipeEditorBoard]);
 
   const shootBoard = boardState;
   const renderedShootBoard = useMemo(() => {
@@ -274,9 +284,20 @@ export function RecipeDetailScreen() {
     return hydrateShootBoardWithWorkspaceTakes(
       shootBoard,
       nativeRecipe.id,
-      getSceneTakeCollection,
+      getSavedRecipeTakes,
     );
-  }, [getSceneTakeCollection, nativeRecipe, shootBoard]);
+  }, [getSavedRecipeTakes, nativeRecipe, shootBoard]);
+  const selectedSavedTakeRecord = useMemo(() => {
+    if (!params.takeId || !nativeRecipe) {
+      return null;
+    }
+
+    return (
+      getSavedRecipeTakes(nativeRecipe.id).find(
+        (take) => take.takeId === params.takeId,
+      ) ?? null
+    );
+  }, [getSavedRecipeTakes, nativeRecipe, params.takeId]);
 
   useEffect(() => {
     if (!shootBoard?.cuts.length) {
@@ -296,6 +317,37 @@ export function RecipeDetailScreen() {
       return nextCut ? [nextCut.id] : [];
     });
   }, [shootBoard?.id, shootBoard?.totalCuts]);
+
+  useEffect(() => {
+    if (!params.sceneId || !renderedShootBoard?.cuts.length) {
+      return;
+    }
+
+    const reloadFlow = selectedSavedTakeRecord
+      ? resolveSavedTakeReloadFlow({
+          board: renderedShootBoard,
+          take: selectedSavedTakeRecord,
+        })
+      : null;
+    const targetCut = reloadFlow?.cut ?? renderedShootBoard.cuts.find(
+      (cut) => cut.sceneId === params.sceneId || cut.id === params.sceneId,
+    );
+
+    if (targetCut) {
+      setSelectedSceneId(null);
+      setExpandedCutIds([targetCut.id]);
+
+      if (params.takeId) {
+        setTakeViewerCutId(targetCut.id);
+        setSelectedTakeId(reloadFlow?.takeId ?? params.takeId);
+      }
+    }
+  }, [
+    params.sceneId,
+    params.takeId,
+    renderedShootBoard,
+    selectedSavedTakeRecord,
+  ]);
 
   if (!nativeRecipe) {
     return (
@@ -361,7 +413,7 @@ export function RecipeDetailScreen() {
     return recipe;
   };
 
-  const openPrompterForCut = (cut: ShootBoardCut | null) => {
+  const openPrompterForCut = (cut: ShootBoardCut | null, take?: ShootBoardTake) => {
     const targetRecipe = saveRecipe();
 
     if (!targetRecipe || !cut) {
@@ -374,6 +426,17 @@ export function RecipeDetailScreen() {
       return;
     }
 
+    if (take) {
+      router.push(
+        getRecipeRetakePrompterHref({
+          cut,
+          recipeId: targetRecipe.id,
+          take,
+        }) as Href,
+      );
+      return;
+    }
+
     const lineToSay =
       language === "ko"
         ? (cut.speakingLineKo ?? cut.speakingLine)
@@ -382,7 +445,11 @@ export function RecipeDetailScreen() {
       language === "ko"
         ? (cut.shootingGuidelineKo || cut.shootingGuideline)
         : cut.shootingGuideline;
-    const query = `lineToSay=${encodeURIComponent(lineToSay)}&shootingGuideline=${encodeURIComponent(shootingGuideline)}`;
+    const query = [
+      `cutId=${encodeURIComponent(cut.id)}`,
+      `lineToSay=${encodeURIComponent(lineToSay)}`,
+      `shootingGuideline=${encodeURIComponent(shootingGuideline)}`,
+    ].join("&");
 
     router.push(
       `${getRecipePrompterHref(targetRecipe.id, targetSceneId)}&${query.toString()}` as Href,
@@ -392,7 +459,16 @@ export function RecipeDetailScreen() {
   const updateBoard = (
     updater: (board: ShootBoardRecipe) => ShootBoardRecipe,
   ) => {
-    setBoardState((current) => (current ? updater(current) : current));
+    const currentBoard = boardStateRef.current;
+
+    if (!currentBoard) {
+      return;
+    }
+
+    const nextBoard = updater(currentBoard);
+    boardStateRef.current = nextBoard;
+    setBoardState(nextBoard);
+    setRecipeEditorBoard(nextBoard);
   };
 
   const handleReorderCuts = (cuts: ShootBoardCut[]) => {
@@ -404,12 +480,17 @@ export function RecipeDetailScreen() {
     setReferenceViewerCutId(cut.id);
   };
 
-  const openTakeViewer = (cut: ShootBoardCut | null) => {
+  const openTakeViewer = (cut: ShootBoardCut | null, take?: ShootBoardTake) => {
     if (!cut) return;
+    setSelectedTakeId(take?.id ?? cut.finalTakeId ?? cut.takes[0]?.id);
     setTakeViewerCutId(cut.id);
   };
 
   const selectFinalTake = (cut: ShootBoardCut, takeId: string) => {
+    setSelectedTakeId(takeId);
+    if (nativeRecipe && cut.sceneId) {
+      setSceneBestProjectTake(nativeRecipe.id, cut.sceneId, takeId);
+    }
     updateBoard((board) => selectShootBoardFinalTake(board, cut.id, takeId));
   };
 
@@ -427,16 +508,6 @@ export function RecipeDetailScreen() {
 
       return updatedBoard;
     });
-  };
-
-  const toggleRequiredCheck = (
-    cutId: string,
-    checklistItemId: string,
-    checked: boolean,
-  ) => {
-    updateBoard((board) =>
-      setShootBoardChecklistItem(board, cutId, checklistItemId, checked),
-    );
   };
 
   const updateCutText = (cutId: string, patch: ShootBoardCutTextPatch) => {
@@ -673,6 +744,7 @@ export function RecipeDetailScreen() {
               language={language}
               onToggleReorder={() => setReorderMode((current) => !current)}
               reorderMode={reorderMode}
+              title={boardCopy.cutsList}
             />
           </>
         }
@@ -680,10 +752,10 @@ export function RecipeDetailScreen() {
         onPreview={openReferenceViewer}
         onReorderCuts={handleReorderCuts}
         onResetCut={resetCutText}
+        onSetFinalTake={(cut, take) => selectFinalTake(cut, take.id)}
         onShoot={openPrompterForCut}
         onTake={openTakeViewer}
         onToggleExpanded={toggleExpandedCut}
-        onToggleRequiredCheck={toggleRequiredCheck}
         onToggleSceneComplete={toggleSceneCompletion}
         onUpdateCutText={updateCutText}
         reorderMode={reorderMode || boardDragActive}
@@ -719,14 +791,22 @@ export function RecipeDetailScreen() {
           cut={takeViewerCut}
           cuts={[...renderedShootBoard.cuts].sort((a, b) => a.order - b.order)}
           language={language}
-          onClose={() => setTakeViewerCutId(null)}
+          onClose={() => {
+            setTakeViewerCutId(null);
+            setSelectedTakeId(undefined);
+          }}
           onRetake={(cut) => {
             setTakeViewerCutId(null);
+            setSelectedTakeId(undefined);
             openPrompterForCut(cut);
           }}
-          onSelectCut={(cut) => setTakeViewerCutId(cut.id)}
+          onSelectCut={(cut) => {
+            setSelectedTakeId(cut.finalTakeId ?? cut.takes[0]?.id);
+            setTakeViewerCutId(cut.id);
+          }}
           onSelectFinal={(take, cut) => selectFinalTake(cut, take.id)}
-          onSelectTake={() => undefined}
+          onSelectTake={(take) => setSelectedTakeId(take.id)}
+          selectedTakeId={selectedTakeId}
           visible={takeViewerCutId !== null}
         />
       ) : null}
@@ -817,7 +897,7 @@ function FloatingAddSceneButton({
       ]}
     >
       <MaterialCommunityIcons color="#fff" name="plus" size={24} />
-      <Text className="text-[16px] font-black text-white">{copy.addScene}</Text>
+      <Text className="text-[16px] font-black text-white">{copy.addCut}</Text>
     </Pressable>
   );
 }
@@ -1381,19 +1461,24 @@ function formatShootBoardMeta(language: AppLanguage, board: ShootBoardRecipe) {
 function hydrateShootBoardWithWorkspaceTakes(
   board: ShootBoardRecipe,
   recipeId: string,
-  getSceneTakeCollection: ReturnType<
+  getSavedRecipeTakes: ReturnType<
     typeof useMockWorkspace
-  >["getSceneTakeCollection"],
+  >["getSavedRecipeTakes"],
 ): ShootBoardRecipe {
   let foundWorkspaceTakes = false;
   const cuts = board.cuts.map((cut) => {
     if (!cut.sceneId) return cut;
 
-    const collection = getSceneTakeCollection(recipeId, cut.sceneId);
-    if (!collection.takes.length) return cut;
+    const savedTakes = getSavedRecipeTakes(recipeId, {
+      cutId: cut.id,
+      sceneId: cut.sceneId,
+    });
+    if (!savedTakes.length) return cut;
 
     foundWorkspaceTakes = true;
-    const finalTakeId = collection.bestTakeId ?? collection.takes[0]?.id;
+    const finalTakeId =
+      savedTakes.find((take) => take.isFinalTake)?.takeId ??
+      savedTakes[0]?.takeId;
     const requiredChecklist = cut.requiredChecklist.map((item) => ({
       ...item,
       checked: true,
@@ -1407,7 +1492,7 @@ function hydrateShootBoardWithWorkspaceTakes(
       requiredChecks: requiredChecklist.map((item) => item.label),
       requiredChecksKo: requiredChecklist.map((item) => item.labelKo),
       takeStatus: finalTakeId ? ("final" as const) : ("saved" as const),
-      takes: collection.takes.map((take) =>
+      takes: savedTakes.map((take) =>
         mapWorkspaceTakeToBoardTake(take, cut, finalTakeId),
       ),
     };
@@ -1425,16 +1510,16 @@ function hydrateShootBoardWithWorkspaceTakes(
 }
 
 function mapWorkspaceTakeToBoardTake(
-  take: MockProjectTake,
+  take: SavedRecipeTakeRecord,
   cut: ShootBoardCut,
   finalTakeId?: string,
 ): ShootBoardTake {
   return {
-    durationSeconds: cut.durationSeconds,
-    id: take.id,
+    durationSeconds: take.durationSeconds ?? cut.durationSeconds,
+    id: take.takeId,
     label: take.label,
-    recordedAtLabel: take.createdAt,
-    status: take.id === finalTakeId ? "final" : "saved",
+    recordedAtLabel: take.recordedAtLabel,
+    status: take.takeId === finalTakeId ? "final" : "saved",
   };
 }
 
@@ -1505,7 +1590,7 @@ function getTabLabel(language: AppLanguage, tab: DetailTab) {
     return tab === "analysis" ? "예시" : tab === "recipe" ? "준비" : "촬영";
   }
 
-  return tab === "analysis" ? "Watch" : tab === "recipe" ? "Plan" : "Shoot";
+  return tab === "analysis" ? "Watch" : tab === "recipe" ? "Plan" : "Film";
 }
 
 function isDetailTab(value: string): value is DetailTab {
@@ -1599,7 +1684,7 @@ function getRecipePrepItems(
   return [
     {
       icon: "clock-outline",
-      label: "Shoot time",
+      label: "Film time",
       value: `${Math.max(12, recipe.totalSceneCount * 5)} min`,
     },
     {

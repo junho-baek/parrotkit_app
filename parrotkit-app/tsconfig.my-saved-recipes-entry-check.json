@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "nativewind-env.d.ts",
+    "src/core/i18n/app-language.tsx",
+    "src/core/mocks/parrotkit-data.ts",
+    "src/core/navigation/app-chrome-provider.tsx",
+    "src/core/navigation/app-top-bar.tsx",
+    "src/core/ui/app-screen-scroll-view.tsx",
+    "src/features/profile/lib/my-saved-recipes-entry.test.ts",
+    "src/features/profile/lib/profile-layout.ts",
+    "src/features/profile/screens/profile-screen.tsx",
+    "src/features/recipes/lib/saved-take-contract.ts",
+    "src/features/recipes/lib/saved-take-home-access.ts",
+    "src/features/recipes/lib/saved-take-storage.ts",
+    "src/features/recipes/lib/shoot-board-model.ts",
+    "src/features/recipes/lib/take-projects.ts"
+  ]
+}

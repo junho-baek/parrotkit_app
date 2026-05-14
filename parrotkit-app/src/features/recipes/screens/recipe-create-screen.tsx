@@ -2,32 +2,52 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { ComponentProps, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppLanguage, type AppLanguage } from '@/core/i18n/app-language';
+import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { brandActionGradient } from '@/core/theme/colors';
+import { getRecipeCreateScrollBottomPadding } from '@/features/recipes/lib/recipe-create-layout';
+import {
+  getRecipeCreateInitialState,
+  getRecipeCreateOptionPressState,
+  getRecipeCreateOptions,
+  type RecipeCreateLockedGuidanceMode,
+  type RecipeCreateMode,
+} from '@/features/recipes/lib/recipe-create-options';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
-type CreateMode = 'reference' | 'manual' | 'brand';
-
-const modes: CreateMode[] = ['reference', 'manual', 'brand'];
+type CreateMode = RecipeCreateMode;
+const creationOptions = getRecipeCreateOptions();
 
 const createCopy = {
   en: {
     title: 'Start a new recipe',
     subtitle: 'Choose how you want to create this recipe.',
     close: 'Close',
+    locked: 'Pro locked',
+    lockedState: 'Locked',
     cta: {
       reference: 'Generate from reference',
       manual: 'Start from blank',
-      brand: 'Upload brand brief',
+      brand: 'Brand context Pro / coming soon',
     },
     helper: {
       reference: 'Paste a video or post link and ParrotKit will draft the recipe structure.',
       manual: 'Start with a blank recipe and fill in the essentials yourself.',
-      brand: 'Upload a brand brief and convert it into creator-ready instructions.',
+      brand: 'Brand context setup is Pro / coming soon for v1.',
     },
+    lockedGuidance: {
+      reference: {
+        title: 'Reference link is Pro / coming soon',
+        body: 'Keep building the blank shoot-board now. Reference-link extraction stays locked for v1 and will not start an API flow.',
+      },
+      brand: {
+        title: 'Brand context is Pro / coming soon',
+        body: 'Keep building the blank shoot-board now. Brand-assisted setup stays locked for v1 and will not start a setup flow.',
+      },
+    } satisfies Record<RecipeCreateLockedGuidanceMode, { body: string; title: string }>,
     mode: {
       reference: {
         icon: 'link-variant' as IconName,
@@ -40,9 +60,9 @@ const createCopy = {
         body: 'Start with a blank recipe',
       },
       brand: {
-        icon: 'cloud-upload-outline' as IconName,
-        title: 'Brand brief',
-        body: 'Make a campaign recipe',
+        icon: 'lock-outline' as IconName,
+        title: 'Brand context',
+        body: 'Pro / coming soon',
       },
     } satisfies Record<CreateMode, { body: string; icon: IconName; title: string }>,
     fields: {
@@ -51,31 +71,44 @@ const createCopy = {
       manualTitle: 'Recipe basics',
       recipeTitle: 'Recipe title',
       recipeSummary: 'One-line summary',
-      brandTitle: 'Brief upload',
-      brandPlaceholder: 'PDF, doc, or image brief',
+      defaultRecipeTitle: 'Untitled shooting recipe',
+      brandTitle: 'Brand context',
+      brandPlaceholder: 'Pro / coming soon',
       included: 'What ParrotKit will draft',
       start: 'Start',
     },
     chips: {
       reference: ['Shot breakdown', 'Script draft', 'Prompter'],
       manual: ['Hook', 'Proof', 'CTA'],
-      brand: ['Must include', 'Avoid claims', 'Tone guide'],
+      brand: ['Pro', 'Coming soon', 'Locked'],
     } satisfies Record<CreateMode, string[]>,
   },
   ko: {
     title: '새 레시피 시작',
     subtitle: '어떤 방식으로 레시피를 만들지 선택하세요.',
     close: '닫기',
+    locked: 'Pro 잠금',
+    lockedState: '잠금',
     cta: {
       reference: '레퍼런스로 만들기',
       manual: '빈 레시피로 시작',
-      brand: '브랜드 브리프 업로드',
+      brand: '브랜드 컨텍스트 Pro / 준비 중',
     },
     helper: {
       reference: '영상이나 게시물 링크를 붙여넣으면 레시피 구조를 자동으로 잡아드려요.',
       manual: '빈 레시피에서 제목, 컷 구성, 문장을 직접 채워요.',
-      brand: '브랜드 브리프를 업로드하면 촬영 가능한 가이드로 바꿔드려요.',
+      brand: '브랜드 컨텍스트 설정은 v1에서 Pro / 준비 중입니다.',
     },
+    lockedGuidance: {
+      reference: {
+        title: '레퍼런스 링크는 Pro / 준비 중',
+        body: '지금은 빈 슛보드로 계속 만들 수 있어요. v1에서는 레퍼런스 링크 추출이 잠금 상태이며 API 흐름을 시작하지 않습니다.',
+      },
+      brand: {
+        title: '브랜드 컨텍스트는 Pro / 준비 중',
+        body: '지금은 빈 슛보드로 계속 만들 수 있어요. v1에서는 브랜드 기반 생성이 잠금 상태이며 별도 설정 흐름을 시작하지 않습니다.',
+      },
+    } satisfies Record<RecipeCreateLockedGuidanceMode, { body: string; title: string }>,
     mode: {
       reference: {
         icon: 'link-variant' as IconName,
@@ -88,9 +121,9 @@ const createCopy = {
         body: '빈 레시피로 시작',
       },
       brand: {
-        icon: 'cloud-upload-outline' as IconName,
-        title: '브랜드 브리프',
-        body: '캠페인 레시피 만들기',
+        icon: 'lock-outline' as IconName,
+        title: '브랜드 컨텍스트',
+        body: 'Pro / 준비 중',
       },
     } satisfies Record<CreateMode, { body: string; icon: IconName; title: string }>,
     fields: {
@@ -99,15 +132,16 @@ const createCopy = {
       manualTitle: '레시피 기본 정보',
       recipeTitle: '레시피 제목',
       recipeSummary: '한 줄 설명',
-      brandTitle: '브리프 업로드',
-      brandPlaceholder: 'PDF, 문서, 이미지 브리프',
+      defaultRecipeTitle: '새 촬영 레시피',
+      brandTitle: '브랜드 컨텍스트',
+      brandPlaceholder: 'Pro / 준비 중',
       included: 'ParrotKit이 만들어줄 항목',
       start: '시작하기',
     },
     chips: {
       reference: ['컷 분석', '대사 초안', '프롬프터'],
       manual: ['Hook', 'Proof', 'CTA'],
-      brand: ['필수 요소', '금지 표현', '톤 가이드'],
+      brand: ['Pro', '준비 중', '잠금'],
     } satisfies Record<CreateMode, string[]>,
   },
 } satisfies Record<AppLanguage, Record<string, unknown>>;
@@ -117,12 +151,22 @@ export function RecipeCreateScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ mode?: string }>();
   const { language } = useAppLanguage();
+  const { createBlankShootBoardRecipe } = useMockWorkspace();
   const copy = createCopy[language];
-  const initialMode = isCreateMode(params.mode) ? params.mode : 'reference';
-  const [selectedMode, setSelectedMode] = useState<CreateMode>(initialMode);
+  const initialState = getRecipeCreateInitialState(params.mode);
+  const [selectedMode, setSelectedMode] = useState<CreateMode>(initialState.selectedMode);
+  const [lockedGuidanceMode, setLockedGuidanceMode] = useState<RecipeCreateLockedGuidanceMode | undefined>(
+    initialState.lockedGuidanceMode
+  );
+  const [manualRecipeTitle, setManualRecipeTitle] = useState('');
   const modeCopy = copy.mode as Record<CreateMode, { body: string; icon: IconName; title: string }>;
   const ctaCopy = copy.cta as Record<CreateMode, string>;
   const helperCopy = copy.helper as Record<CreateMode, string>;
+  const fieldsCopy = copy.fields as Record<string, string>;
+  const lockedGuidanceCopy = copy.lockedGuidance as Record<RecipeCreateLockedGuidanceMode, { body: string; title: string }>;
+  const selectedOption = creationOptions.find((option) => option.id === selectedMode);
+  const lockedGuidance = lockedGuidanceMode ? lockedGuidanceCopy[lockedGuidanceMode] : undefined;
+  const scrollBottomPadding = getRecipeCreateScrollBottomPadding(insets.bottom);
 
   const back = () => {
     if (router.canGoBack()) {
@@ -135,10 +179,28 @@ export function RecipeCreateScreen() {
 
   const selected = modeCopy[selectedMode];
 
-  useEffect(() => {
-    if (isCreateMode(params.mode)) {
-      setSelectedMode(params.mode);
+  const selectCreateMode = (mode: CreateMode) => {
+    const nextState = getRecipeCreateOptionPressState(selectedMode, mode);
+    setSelectedMode(nextState.selectedMode);
+    setLockedGuidanceMode(nextState.lockedGuidanceMode);
+  };
+
+  const startSelectedFlow = () => {
+    if (selectedOption?.isProLocked || selectedMode !== 'manual') {
+      return;
     }
+
+    const created = createBlankShootBoardRecipe({
+      title: manualRecipeTitle.trim() || fieldsCopy.defaultRecipeTitle,
+    });
+
+    router.replace(created.destination as Href);
+  };
+
+  useEffect(() => {
+    const nextState = getRecipeCreateInitialState(params.mode);
+    setSelectedMode(nextState.selectedMode);
+    setLockedGuidanceMode(nextState.lockedGuidanceMode);
   }, [params.mode]);
 
   return (
@@ -146,7 +208,7 @@ export function RecipeCreateScreen() {
       <ScrollView
         automaticallyAdjustContentInsets={false}
         contentContainerStyle={{
-          paddingBottom: insets.bottom + 138,
+          paddingBottom: scrollBottomPadding,
           paddingHorizontal: 20,
           paddingTop: insets.top + 16,
         }}
@@ -168,16 +230,32 @@ export function RecipeCreateScreen() {
         </View>
 
         <View className="mt-5 gap-3">
-          {modes.map((mode) => (
+          {creationOptions.map((option) => (
             <CreateModeCard
-              item={modeCopy[mode]}
-              key={mode}
-              mode={mode}
-              onPress={() => setSelectedMode(mode)}
-              selected={mode === selectedMode}
+              item={modeCopy[option.id]}
+              key={option.id}
+              lockedGuidanceLabel={option.lockedGuidanceLabel}
+              lockedLabel={copy.lockedState as string}
+              mode={option.id}
+              onPress={() => selectCreateMode(option.id)}
+              proBadgeLabel={option.proBadgeLabel}
+              proLocked={option.isProLocked}
+              selected={option.id === selectedMode}
             />
           ))}
         </View>
+
+        {lockedGuidance ? (
+          <View style={styles.lockedGuidancePanel}>
+            <View style={styles.lockedGuidanceIcon}>
+              <MaterialCommunityIcons color="#fff" name="lock-outline" size={18} />
+            </View>
+            <View className="min-w-0 flex-1">
+              <Text className="text-[14px] font-black text-ink">{lockedGuidance.title}</Text>
+              <Text className="mt-1 text-[12px] font-semibold leading-5 text-muted">{lockedGuidance.body}</Text>
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.detailPanel}>
           <View className="flex-row items-center gap-3">
@@ -188,15 +266,22 @@ export function RecipeCreateScreen() {
             </View>
           </View>
 
-          <ModeDetail copy={copy} mode={selectedMode} />
+          <ModeDetail
+            copy={copy}
+            manualRecipeTitle={manualRecipeTitle}
+            mode={selectedMode}
+            onChangeManualRecipeTitle={setManualRecipeTitle}
+          />
         </View>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
-        <Pressable accessibilityRole="button" className="overflow-hidden rounded-[18px]">
+        <Pressable accessibilityRole="button" className="overflow-hidden rounded-[18px]" onPress={startSelectedFlow}>
           <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.ctaButton}>
-            <Text className="text-[16px] font-black text-white">{ctaCopy[selectedMode]}</Text>
-            <MaterialCommunityIcons color="#fff" name="arrow-right" size={20} />
+            <Text className="text-[16px] font-black text-white">
+              {selectedOption?.isProLocked ? `${ctaCopy[selectedMode]} · ${copy.locked as string}` : ctaCopy[selectedMode]}
+            </Text>
+            <MaterialCommunityIcons color="#fff" name={selectedOption?.isProLocked ? 'lock-outline' : 'arrow-right'} size={20} />
           </LinearGradient>
         </Pressable>
       </View>
@@ -206,13 +291,21 @@ export function RecipeCreateScreen() {
 
 function CreateModeCard({
   item,
+  lockedGuidanceLabel,
+  lockedLabel,
   mode,
   onPress,
+  proBadgeLabel,
+  proLocked,
   selected,
 }: {
   item: { body: string; icon: IconName; title: string };
+  lockedGuidanceLabel?: string;
+  lockedLabel: string;
   mode: CreateMode;
   onPress: () => void;
+  proBadgeLabel?: string;
+  proLocked: boolean;
   selected: boolean;
 }) {
   return (
@@ -223,9 +316,22 @@ function CreateModeCard({
     >
       <ModeIcon icon={item.icon} mode={mode} />
       <View className="min-w-0 flex-1">
-        <Text className="text-[15px] font-black text-ink">{item.title}</Text>
+        <View className="flex-row flex-wrap items-center gap-2">
+          <Text className="text-[15px] font-black text-ink">{item.title}</Text>
+          {proBadgeLabel ? (
+            <View style={styles.proBadge}>
+              <Text className="text-[10px] font-black text-white">{proBadgeLabel}</Text>
+            </View>
+          ) : null}
+          {proLocked ? (
+            <View style={styles.lockStateBadge}>
+              <MaterialCommunityIcons color="#64748b" name="lock-outline" size={12} />
+              <Text className="text-[10px] font-black text-slate-500">{lockedLabel}</Text>
+            </View>
+          ) : null}
+        </View>
         <Text className="mt-1 text-[12px] font-semibold text-muted" numberOfLines={2}>
-          {item.body}
+          {lockedGuidanceLabel ?? item.body}
         </Text>
       </View>
       <MaterialCommunityIcons color="#111827" name="chevron-right" size={22} />
@@ -244,9 +350,20 @@ function ModeIcon({ active, icon, mode }: { active?: boolean; icon: IconName; mo
   );
 }
 
-function ModeDetail({ copy, mode }: { copy: (typeof createCopy)['en']; mode: CreateMode }) {
+function ModeDetail({
+  copy,
+  manualRecipeTitle,
+  mode,
+  onChangeManualRecipeTitle,
+}: {
+  copy: (typeof createCopy)['en'];
+  manualRecipeTitle: string;
+  mode: CreateMode;
+  onChangeManualRecipeTitle: (value: string) => void;
+}) {
   const fields = copy.fields as Record<string, string>;
   const chips = copy.chips as Record<CreateMode, string[]>;
+  const lockedGuidance = copy.lockedGuidance as Record<RecipeCreateLockedGuidanceMode, { body: string; title: string }>;
 
   if (mode === 'reference') {
     return (
@@ -259,22 +376,52 @@ function ModeDetail({ copy, mode }: { copy: (typeof createCopy)['en']; mode: Cre
 
   if (mode === 'brand') {
     return (
-      <View className="mt-5 gap-4">
-        <View style={styles.uploadBox}>
-          <MaterialCommunityIcons color="#64748b" name="cloud-upload-outline" size={30} />
-          <Text className="mt-2 text-[13px] font-black text-ink">{fields.brandTitle}</Text>
-          <Text className="mt-1 text-[12px] font-semibold text-muted">{fields.brandPlaceholder}</Text>
+      <View className="mt-5">
+        <View style={styles.lockedDetailBox}>
+          <MaterialCommunityIcons color="#64748b" name="lock-outline" size={28} />
+          <Text className="mt-2 text-center text-[13px] font-black text-ink">{lockedGuidance.brand.title}</Text>
+          <Text className="mt-1 text-center text-[12px] font-semibold leading-5 text-muted">{lockedGuidance.brand.body}</Text>
         </View>
-        <IncludedChips chips={chips.brand} label={fields.included} />
       </View>
     );
   }
 
   return (
     <View className="mt-5 gap-4">
-      <SimpleField label={fields.manualTitle} value={fields.recipeTitle} />
+      <ManualTitleField
+        label={fields.manualTitle}
+        onChangeText={onChangeManualRecipeTitle}
+        placeholder={fields.defaultRecipeTitle}
+        value={manualRecipeTitle}
+      />
       <SimpleField label="" value={fields.recipeSummary} />
       <IncludedChips chips={chips.manual} label={fields.included} />
+    </View>
+  );
+}
+
+function ManualTitleField({
+  label,
+  onChangeText,
+  placeholder,
+  value,
+}: {
+  label: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+  value: string;
+}) {
+  return (
+    <View className="gap-2">
+      <Text className="text-[12px] font-black text-ink">{label}</Text>
+      <TextInput
+        accessibilityLabel={placeholder}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor="#94a3b8"
+        style={styles.titleInput}
+        value={value}
+      />
     </View>
   );
 }
@@ -304,10 +451,6 @@ function IncludedChips({ chips, label }: { chips: string[]; label: string }) {
       </View>
     </View>
   );
-}
-
-function isCreateMode(value: string | undefined): value is CreateMode {
-  return value === 'reference' || value === 'manual' || value === 'brand';
 }
 
 function modeActiveBorder(mode: CreateMode) {
@@ -400,14 +543,62 @@ const styles = StyleSheet.create({
     height: 66,
     width: 66,
   },
-  uploadBox: {
+  lockedGuidanceIcon: {
+    alignItems: 'center',
+    backgroundColor: '#111827',
+    borderRadius: 999,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+  lockedGuidancePanel: {
+    alignItems: 'center',
+    backgroundColor: '#fff7ed',
+    borderColor: '#fed7aa',
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 14,
+    padding: 14,
+  },
+  lockStateBadge: {
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  proBadge: {
+    alignItems: 'center',
+    backgroundColor: '#111827',
+    borderRadius: 999,
+    justifyContent: 'center',
+    minHeight: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  titleInput: {
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: 16,
+    borderWidth: 1,
+    color: '#111827',
+    fontSize: 14,
+    fontWeight: '700',
+    minHeight: 50,
+    paddingHorizontal: 14,
+  },
+  lockedDetailBox: {
     alignItems: 'center',
     backgroundColor: '#f8fafc',
     borderColor: '#dbe3ee',
     borderRadius: 18,
-    borderStyle: 'dashed',
     borderWidth: 1.5,
     justifyContent: 'center',
-    minHeight: 118,
+    minHeight: 132,
+    padding: 16,
   },
 });
