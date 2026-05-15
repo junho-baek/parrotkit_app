@@ -78,13 +78,28 @@ const draftContext = getRecipeCreateDraftContext({
   goalId: "recipe-product",
   mode: "reference",
   nicheId: "beauty",
-  referenceUrl: " https://example.com/reel ",
+  referenceUrl: " https://example.com/video ",
 });
 
-if (
-  draftContext.niche !== "Beauty" ||
-  draftContext.goal !== "UGC Recipe 판매" ||
-  draftContext.videoUrl !== "https://example.com/reel"
-) {
-  throw new Error("Draft context should preserve selected niche, goal, and trimmed reference URL.");
+if (draftContext.title !== "Beauty UGC Recipe 판매 Recipe") {
+  throw new Error("Draft context should derive a recipe title from the selected niche and goal.");
+}
+
+if (draftContext.videoUrl !== "https://example.com/video") {
+  throw new Error("Reference mode should trim and forward the provided reference URL.");
+}
+
+const customOtherDraftContext = getRecipeCreateDraftContext({
+  customNicheLabel: "Pet care",
+  goalId: "viral",
+  mode: "manual",
+  nicheId: "other",
+});
+
+if (customOtherDraftContext.title !== "Pet care Viral Recipe") {
+  throw new Error("Other niche should use the custom niche input when provided.");
+}
+
+if (!customOtherDraftContext.notes.includes("Niche: Pet care")) {
+  throw new Error("Other niche custom input should be reflected in the generated notes.");
 }

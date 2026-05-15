@@ -141,11 +141,13 @@ export function getRecipeCreateInitialScenes(
 }
 
 export function getRecipeCreateDraftContext({
+  customNicheLabel = "",
   goalId,
   mode,
   nicheId,
   referenceUrl = "",
 }: {
+  customNicheLabel?: string;
   goalId: RecipeCreateGoalId;
   mode: RecipeCreateMode;
   nicheId: RecipeCreateNicheId;
@@ -159,12 +161,14 @@ export function getRecipeCreateDraftContext({
     recipeCreateGoals[0];
   const modeLabel =
     mode === "reference" ? "Reference" : mode === "brand" ? "Brand" : "Blank";
+  const normalizedCustomNiche = customNicheLabel.trim();
+  const nicheLabel = niche.id === "other" && normalizedCustomNiche ? normalizedCustomNiche : niche.label;
 
   return {
     goal: goal.label,
-    niche: niche.label,
-    notes: `${modeLabel} recipe draft. Niche: ${niche.label}. Goal: ${goal.label}.`,
-    title: `${niche.label} ${goal.label} Recipe`,
+    niche: nicheLabel,
+    notes: `${modeLabel} recipe draft. Niche: ${nicheLabel}. Goal: ${goal.label}.`,
+    title: `${nicheLabel} ${goal.label} Recipe`,
     videoUrl: mode === "reference" ? referenceUrl.trim() : "",
   };
 }
