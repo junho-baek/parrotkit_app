@@ -1002,7 +1002,7 @@ Result: Implemented without committing per current task request. Moved the root 
 - Create: `src/features/recipes/screens/recipe-create-styles.ts`
 - Modify: `src/features/recipes/screens/recipe-create-screen.tsx`
 
-- [ ] **Step 1: Extract copy object**
+- [x] **Step 1: Extract copy object**
 
 Create `src/features/recipes/screens/recipe-create-copy.ts`:
 
@@ -1055,7 +1055,7 @@ export const recipeCreateCopy = {
 export type RecipeCreateCopy = (typeof recipeCreateCopy)['en'];
 ```
 
-- [ ] **Step 2: Extract styles**
+- [x] **Step 2: Extract styles**
 
 Run this extraction script from the app root:
 
@@ -1098,7 +1098,7 @@ NODE
 
 Expected: `src/features/recipes/screens/recipe-create-styles.ts` contains the exact existing `StyleSheet.create(...)` body under the exported name `recipeCreateStyles`.
 
-- [ ] **Step 3: Update screen imports**
+- [x] **Step 3: Update screen imports**
 
 In `recipe-create-screen.tsx`, add:
 
@@ -1109,7 +1109,7 @@ import { recipeCreateStyles as styles } from '@/features/recipes/screens/recipe-
 
 Remove the local `createCopy` object and local `const styles = StyleSheet.create(...)`.
 
-- [ ] **Step 4: Run create flow tests**
+- [x] **Step 4: Run create flow tests**
 
 Run:
 
@@ -1130,6 +1130,8 @@ cd /Users/junho/project/parrotkit-app
 git add parrotkit-app/src/features/recipes/screens/recipe-create-screen.tsx parrotkit-app/src/features/recipes/screens/recipe-create-copy.ts parrotkit-app/src/features/recipes/screens/recipe-create-styles.ts
 git commit -m "refactor: split recipe create screen support code"
 ```
+
+Result: Implemented without committing per current task request. Extracted the recipe create copy/config to `src/features/recipes/screens/recipe-create/recipe-create-copy.ts` and the React Native stylesheet to `src/features/recipes/screens/recipe-create/recipe-create-styles.ts`, then updated `recipe-create-screen.tsx` to import both while retaining local `StyleSheet` usage for absolute fill helpers. Verification: `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json` passed, `npm run check:architecture` passed, `git diff --check` passed, and an equivalent alias-hook invocation of `recipe-create-flow.test.ts` passed. The requested direct `NODE_PATH=src ./node_modules/.bin/sucrase-node src/features/recipes/lib/recipe-create-flow.test.ts` command failed before test execution because this runtime does not resolve `@/` imports. Linked context: `context/context_20260516_ddd_architecture_simplification.md`.
 
 ---
 

@@ -48,3 +48,29 @@ Task 7 from `plans/20260516_ddd_architecture_simplification.md` was implemented 
 
 - Runtime behavior should be unchanged because the implementation file was moved intact and the old core path remains as a shim.
 - The Task 7 commit step was intentionally skipped because the current request says not to commit.
+
+## Task 8: Recipe Create Screen Support Split
+
+## 작업
+
+Task 8 from `plans/20260516_ddd_architecture_simplification.md` was implemented without committing.
+
+## 변경
+
+- Added `src/features/recipes/screens/recipe-create/recipe-create-copy.ts` for the static recipe create copy/config object.
+- Added `src/features/recipes/screens/recipe-create/recipe-create-styles.ts` for the extracted `StyleSheet.create(...)` styles.
+- Updated `src/features/recipes/screens/recipe-create-screen.tsx` to import the extracted copy and styles.
+- Kept local `StyleSheet` imported in the screen because drawer backdrop and goal image overlay still use `StyleSheet.absoluteFillObject` and `StyleSheet.absoluteFill`.
+- Kept drawer JSX and behavior unchanged: backdrop dismiss, close button, title, mode tabs, niche grid, Other input, goal image cards, and bottom CTA remain in the screen.
+
+## 검증
+
+- PASS: `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json`
+- PASS: `npm run check:architecture`
+- PASS: `git diff --check`
+- BLOCKED/KNOWN FAIL: `NODE_PATH=src ./node_modules/.bin/sucrase-node src/features/recipes/lib/recipe-create-flow.test.ts` failed before test execution because this runtime does not resolve `@/` imports.
+- PASS: Equivalent alias-hook invocation with `node -r sucrase/register` ran `src/features/recipes/lib/recipe-create-flow.test.ts`.
+
+## 리스크
+
+- The direct `sucrase-node` alias limitation is pre-existing and matches earlier context notes for focused tests.
