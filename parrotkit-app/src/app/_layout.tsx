@@ -16,6 +16,7 @@ export default function RootLayout() {
           <MockWorkspaceProvider>
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="home" />
               <Stack.Screen
                 name="recipe/[recipeId]/index"
                 options={{

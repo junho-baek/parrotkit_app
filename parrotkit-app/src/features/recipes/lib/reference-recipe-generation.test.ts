@@ -1,4 +1,5 @@
 import {
+  buildLocalFallbackResult,
   getYouTubeThumbnailUrl,
   getYouTubeVideoId,
   isYouTubeReferenceUrl,
@@ -23,6 +24,20 @@ if (isYouTubeReferenceUrl('https://www.tiktok.com/@demo/video/123')) {
 
 if (getYouTubeThumbnailUrl(shortsUrl) !== 'https://img.youtube.com/vi/dtnIqkMmbs0/maxresdefault.jpg') {
   throw new Error('YouTube thumbnail fallback should use the parsed video id.');
+}
+
+const fallbackResult = buildLocalFallbackResult({
+  goalId: 'ad',
+  nicheId: 'beauty',
+  referenceUrl: ` ${shortsUrl} `,
+});
+
+if (fallbackResult.reference.url !== shortsUrl) {
+  throw new Error('Fallback reference generation should trim and preserve the pasted source URL.');
+}
+
+if (fallbackResult.reference.videoId !== 'dtnIqkMmbs0') {
+  throw new Error('Fallback reference generation should derive metadata from the pasted source URL.');
 }
 
 if (referenceBreakdownSteps.length !== 6) {

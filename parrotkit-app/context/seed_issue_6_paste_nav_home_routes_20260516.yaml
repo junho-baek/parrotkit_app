@@ -1,0 +1,79 @@
+metadata:
+  seed_id: parrotkit_issue_6_paste_nav_home_routes_20260516
+  issue: 6
+  repository: junho-baek/parrotkit_app
+  name: paste_nav_home_routes
+  version: "2.0.0"
+  created_at: "2026-05-16"
+  source_issue: "https://github.com/junho-baek/parrotkit_app/issues/6"
+  supersedes: parrotkit_issue_6_native_nav_home_hierarchy_20260516
+  update_reason: User clarified original ParrotKit bottom navigation used a centered Paste CTA for reference-link-to-recipe creation; three-tab native nav is no longer the target.
+
+goal: >
+  Restore ParrotKit's original app-style bottom navigation with a prominent centered
+  Paste action that accepts a reference link and starts recipe creation, while fixing
+  route/deep-link correctness so Home, Explore, Paste, Recipes, and My navigate to
+  the intended screens on iOS and Android.
+
+task_type: code
+
+constraints:
+  - "Read DESIGN.md before changing UI and follow it as the source of truth."
+  - "Do not preserve the prior three-tab-only constraint; it has been superseded."
+  - "Bottom navigation should expose Home, Explore, Paste, Recipes, and My."
+  - "Paste is the center primary CTA and may be circular/large compared with neighboring tabs."
+  - "Paste means users paste a short-form/reference link that becomes source material for recipe generation."
+  - "Paste should open a drawer/window with a visible paste-input affordance for reference-link-to-recipe creation, not a generic blank debug action."
+  - "Even if Paste is later Pro-gated, this v1 UI should show the paste drawer/window rather than dead-ending on a locked screen."
+  - "The bar may be custom instead of fully native if that preserves the center Paste CTA and drawer behavior."
+  - "The custom bar must still feel mobile-native, safe-area aware, and stable on iPhone and Android."
+  - "Fix navigation route mapping: Home opens Home, Explore opens Explore, Paste opens creation/paste flow, Recipes opens saved recipes, My opens My."
+  - "Root/deep-link routes used in QA should not fall into Unmatched Route for Home."
+  - "Avoid Shoot, New Shoot, Start Shoot, workflow, console, or debug copy in user-facing UI."
+  - "Avoid box-in-box and redundant CTA clusters."
+  - "Do not include QA screenshots or local plans in commits unless explicitly requested."
+
+acceptance_criteria:
+  - "five_slot_nav: iPhone and Android bottom navigation show Home, Explore, Paste, Recipes, and My."
+  - "center_paste_cta: Paste is a prominent centered CTA, preferably circular or orb-like, visually larger than the regular tabs, with an appropriate link/paste icon."
+  - "paste_opens_creation: Tapping Paste opens a drawer/window with a reference-link paste input and recipe creation affordance."
+  - "route_home_correct: Home tab and root Home deeplink open the Home screen, not Explore or a guide detail page."
+  - "route_explore_correct: Explore tab opens Explore and tapping Home from Explore returns to Home."
+  - "route_recipes_correct: Recipes tab opens saved recipes / recipe list, not Source or an unintended route."
+  - "route_my_correct: My tab opens My."
+  - "no_unmatched_route: QA navigation paths for Home do not show Unmatched Route."
+  - "icons_render: All nav icons render on iPhone and Android captures."
+  - "native_custom_feel: The custom nav feels polished and mobile-native with correct safe-area behavior."
+  - "home_copy_stable: Home copy remains concise and recipe/reference oriented with no workflow wording."
+  - "verification: TypeScript check passes and DESIGN.md lint has zero errors."
+  - "qa_evidence: Provide iPhone and Android captures for Home, Explore, Paste drawer/flow, Recipes, and My."
+
+ontology_schema:
+  name: ParrotKitPasteNavigation
+  description: Custom bottom navigation with centered Paste CTA and corrected route mapping.
+  fields:
+    - name: visible_tabs
+      type: array
+      description: "Expected user-facing nav slots: Home, Explore, Paste, Recipes, My."
+      required: true
+    - name: center_action
+      type: string
+      description: Primary center action, expected to be Paste.
+      required: true
+    - name: paste_flow_destination
+      type: string
+      description: Destination opened by Paste, expected link-paste/recipe creation drawer or flow.
+      required: true
+    - name: route_map
+      type: object
+      description: Mapping from nav slot/deeplink to screen.
+      required: true
+    - name: safe_area_state
+      type: string
+      description: Whether the custom nav respects iOS/Android safe areas.
+      required: true
+
+exit_conditions:
+  - name: issue_6_paste_nav_passed
+    description: Issue #6 is reimplemented around the centered Paste CTA and correct navigation routes.
+    criteria: "iPhone and Android captures show the five-slot nav with prominent circular/large Paste, each nav item routes correctly, Paste opens the paste-input drawer/window, root/Home does not hit unmatched route, and tsc plus DESIGN.md lint pass."

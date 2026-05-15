@@ -10,6 +10,7 @@ import {
   View,
   type DimensionValue,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   formatSceneCount,
@@ -28,6 +29,7 @@ import {
   getHomeOwnedRecipeCardsDestination,
   type HomeOwnedRecipeCardEntry,
 } from '@/features/home/lib/home-owned-recipe-cards';
+import { getHomeScrollBottomPadding } from '@/features/home/lib/home-layout';
 import { getHomeRecipeCreateEntry } from '@/features/home/lib/home-recipe-create-entry';
 import {
   getHomeContinueWorkflowCard,
@@ -43,11 +45,11 @@ import {
   getSavedTakeHomeDestination,
 } from '@/features/recipes/lib/saved-take-home-access';
 import type { SavedRecipeTakeRecord } from '@/features/recipes/lib/saved-take-storage';
-import { getShootBoardHref } from '@/features/recipes/lib/shoot-board-model';
 
 type HomeCopy = ReturnType<typeof useAppLanguage>['copy']['home'];
 
 export function HomeWorkspaceSurface() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { copy, language } = useAppLanguage();
   const homeCopy = copy.home;
@@ -81,10 +83,6 @@ export function HomeWorkspaceSurface() {
     hasSavedTakes: recentSavedTakes.length > 0,
   });
 
-  const openRecipe = (recipe: MockRecipe) => {
-    router.push(getShootBoardHref(recipe.id) as Href);
-  };
-
   const openSavedTake = (take: SavedRecipeTakeRecord) => {
     router.push(getSavedTakeHomeDestination(take) as Href);
   };
@@ -95,7 +93,7 @@ export function HomeWorkspaceSurface() {
 
   return (
     <View className="flex-1 bg-canvas">
-      <AppScreenScrollView>
+      <AppScreenScrollView bottomPadding={getHomeScrollBottomPadding(insets.bottom)}>
         <View className="gap-7 px-5">
           {sectionOrder[0] === 'continueRecentRecipe' ? (
             continueWorkflowCard ? (
@@ -103,7 +101,7 @@ export function HomeWorkspaceSurface() {
                 card={continueWorkflowCard}
                 copy={homeCopy}
                 language={language}
-                onOpenRecipe={() => openRecipe(continueWorkflowCard.recipe)}
+                onOpenRecipe={() => router.push(continueWorkflowHref as Href)}
                 onViewAll={() => router.push('/recipes' as Href)}
                 recipe={continueWorkflowCard.recipe}
               />
@@ -129,7 +127,7 @@ export function HomeWorkspaceSurface() {
 
           <View className="gap-3">
             <View className="flex-row items-center justify-between">
-              <Text className="text-[18px] font-black text-ink">
+              <Text className="min-w-0 flex-1 text-[18px] font-black text-ink" numberOfLines={1}>
                 {language === 'ko' ? '내 레시피' : 'My recipes'}
               </Text>
               <Text
@@ -164,7 +162,7 @@ export function HomeWorkspaceSurface() {
 
           <View className="gap-3">
             <View className="flex-row items-center justify-between">
-              <Text className="text-[18px] font-black text-ink">
+              <Text className="min-w-0 flex-1 text-[18px] font-black text-ink" numberOfLines={1}>
                 {language === 'ko' ? '저장한 테이크' : 'Saved takes'}
               </Text>
               <Text className="text-[13px] font-bold text-muted">
@@ -271,19 +269,21 @@ function ContinueRecipePanel({
   return (
     <View className="gap-3">
       <View className="flex-row items-center justify-between">
-        <Text className="text-[18px] font-black text-ink">{card.sectionTitle || copy.continueSection}</Text>
+        <Text className="min-w-0 flex-1 text-[18px] font-black text-ink" numberOfLines={1}>
+          {card.sectionTitle || copy.continueSection}
+        </Text>
         <Pressable accessibilityRole="button" hitSlop={8} onPress={onViewAll}>
           <Text className="text-[13px] font-bold text-violet">{copy.viewAll}</Text>
         </Pressable>
       </View>
 
-      <View style={styles.continueCard}>
-        <Pressable
-          accessibilityLabel={card.accessibilityLabel}
-          accessibilityRole="button"
-          className="flex-row gap-3"
-          onPress={onOpenRecipe}
-        >
+      <Pressable
+        accessibilityLabel={card.accessibilityLabel}
+        accessibilityRole="button"
+        onPress={onOpenRecipe}
+        style={styles.continueCard}
+      >
+        <View className="flex-row gap-3">
           <Image source={toImageSource(recipe.thumbnail)} style={styles.continueImage} />
           <View className="flex-1 justify-center gap-1.5">
             <Text className="text-[17px] font-black leading-[21px] text-ink" numberOfLines={2}>
@@ -296,9 +296,9 @@ function ContinueRecipePanel({
           <View className="items-center justify-center">
             <MaterialCommunityIcons color="#64748b" name="chevron-right" size={24} />
           </View>
-        </Pressable>
+        </View>
 
-        <View className="flex-row items-center gap-3">
+        <View>
           <View style={styles.progressTrack}>
             <LinearGradient
               colors={brandActionGradient}
@@ -307,9 +307,8 @@ function ContinueRecipePanel({
               style={[styles.progressFill, { width: progressWidth }]}
             />
           </View>
-          <Text className="text-[12px] font-black text-slate-500">{card.actionLabel}</Text>
         </View>
-      </View>
+      </Pressable>
     </View>
   );
 }
@@ -384,7 +383,7 @@ function HomeRecipeCard({
           </View>
         </ImageBackground>
       </Pressable>
-      <View className="gap-2.5 p-3">
+      <View className="min-w-0 gap-2.5 p-3">
         <Pressable accessibilityRole="button" onPress={onPress}>
           <Text className="text-[15px] font-black leading-[19px] text-ink" numberOfLines={2}>
             {recipe.title}
@@ -408,32 +407,28 @@ function HomeRecipeCard({
             {activityLabel}
           </Text>
         ) : null}
-        <View className="flex-row items-center justify-between gap-2 pt-1">
-          <Text className="flex-1 text-[12px] font-bold text-muted" numberOfLines={1}>
+        <View className="gap-2 pt-1">
+          <Text className="text-[12px] font-bold leading-4 text-muted" numberOfLines={1}>
             {formatSceneCount(language, recipe.totalSceneCount)}
           </Text>
-          <Pressable
-            accessibilityLabel={language === 'ko' ? `${entry.recipeTitle} 관리` : `Manage ${entry.recipeTitle}`}
-            accessibilityRole="button"
-            onPress={onManage}
-            style={styles.recipeCardManageButton}
-          >
-            <MaterialCommunityIcons color="#475569" name="cog-outline" size={14} />
-            <Text className="text-[11px] font-black text-slate-600">
-              {language === 'ko' ? '관리' : 'Manage'}
-            </Text>
-          </Pressable>
-          <Pressable
-            accessibilityLabel={language === 'ko' ? `${entry.recipeTitle} 촬영 시작` : `Start filming ${entry.recipeTitle}`}
-            accessibilityRole="button"
-            onPress={onStartFilming}
-            style={styles.recipeCardStartButton}
-          >
-            <MaterialCommunityIcons color="#fff" name="camera-outline" size={14} />
-            <Text className="text-[11px] font-black text-white">
-              {language === 'ko' ? '촬영 시작' : 'Start filming'}
-            </Text>
-          </Pressable>
+          <View className="flex-row items-center justify-end gap-2">
+            <Pressable
+              accessibilityLabel={language === 'ko' ? `${entry.recipeTitle} 관리` : `Manage ${entry.recipeTitle}`}
+              accessibilityRole="button"
+              onPress={onManage}
+              style={styles.recipeCardManageButton}
+            >
+              <MaterialCommunityIcons color="#475569" name="cog-outline" size={14} />
+            </Pressable>
+            <Pressable
+              accessibilityLabel={language === 'ko' ? `${entry.recipeTitle} 촬영 시작` : `Start filming ${entry.recipeTitle}`}
+              accessibilityRole="button"
+              onPress={onStartFilming}
+              style={styles.recipeCardStartButton}
+            >
+              <MaterialCommunityIcons color="#fff" name="camera-outline" size={14} />
+            </Pressable>
+          </View>
         </View>
       </View>
     </View>
@@ -468,7 +463,7 @@ function SavedTakeRow({
           {language === 'ko' ? `컷 ${primaryCard?.order ?? ''}` : `Cut ${primaryCard?.order ?? ''}`} · {title}
         </Text>
       </View>
-      <View className="items-end gap-1">
+      <View style={styles.savedTakeMeta}>
         <Text className="text-[11px] font-black text-violet" numberOfLines={1}>
           {take.label}
         </Text>
@@ -514,20 +509,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 42,
   },
-  continueButton: {
-    alignSelf: 'flex-end',
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  continueButtonGradient: {
-    alignItems: 'center',
-    borderRadius: 16,
-    flexDirection: 'row',
-    gap: 7,
-    minHeight: 46,
-    paddingHorizontal: 17,
-    paddingVertical: 12,
-  },
   continueCard: {
     backgroundColor: '#ffffff',
     borderColor: '#e2e8f0',
@@ -546,19 +527,6 @@ const styles = StyleSheet.create({
     height: 92,
     width: 92,
   },
-  continueStatePill: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: '#f5f3ff',
-    borderColor: '#ddd6fe',
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 4,
-    maxWidth: '100%',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
   emptyPanel: {
     borderColor: '#fed7aa',
     borderRadius: 26,
@@ -572,9 +540,9 @@ const styles = StyleSheet.create({
   progressTrack: {
     backgroundColor: '#e2e8f0',
     borderRadius: 999,
-    flex: 1,
     height: 5,
     overflow: 'hidden',
+    width: '100%',
   },
   recipeCard: {
     backgroundColor: '#ffffff',
@@ -615,11 +583,9 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     borderRadius: 999,
     borderWidth: 1,
-    flexDirection: 'row',
-    gap: 4,
+    height: 38,
     justifyContent: 'center',
-    minHeight: 30,
-    paddingHorizontal: 8,
+    width: 38,
   },
   recipeCardMedia: {
     height: 118,
@@ -630,11 +596,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#111827',
     borderRadius: 999,
-    flexDirection: 'row',
-    gap: 4,
-    minHeight: 30,
     justifyContent: 'center',
-    paddingHorizontal: 9,
+    height: 38,
+    width: 38,
   },
   recipeCardProgressFill: {
     borderRadius: 999,
@@ -678,6 +642,12 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     paddingHorizontal: 12,
+  },
+  savedTakeMeta: {
+    alignItems: 'flex-end',
+    flexShrink: 0,
+    gap: 4,
+    maxWidth: 58,
   },
   savedTakeRow: {
     alignItems: 'center',

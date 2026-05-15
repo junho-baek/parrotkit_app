@@ -9,30 +9,42 @@ const continuingEnglish = getHomePrimaryCta({
   recipeTitle: "Morning Launch Hook",
 });
 
-if (continuingEnglish.workflowLabel !== "Creator workflow") {
-  throw new Error("Home primary CTA must label the creator workflow in English.");
+function assertStableHomeCopy(copy: Record<string, string>, label: string) {
+  const userFacingCopy = Object.values(copy).join(" ");
+
+  if (/workflow|워크플로우|Shoot|New Shoot|Start Shoot|console|debug/i.test(userFacingCopy)) {
+    throw new Error(`${label} must stay concise, recipe-oriented, and free of workflow/debug wording.`);
+  }
+}
+
+if (continuingEnglish.recipeLabel !== "Creator recipe") {
+  throw new Error("Home primary CTA must label the creator recipe in English.");
 }
 
 if (continuingEnglish.title !== "Continue Morning Launch Hook") {
-  throw new Error("Home primary CTA must clearly name the recipe workflow to continue.");
+  throw new Error("Home primary CTA must clearly name the recipe to continue.");
 }
 
-if (continuingEnglish.actionLabel !== "Continue workflow") {
-  throw new Error("Home primary CTA must use a continuation-oriented primary action.");
+if (continuingEnglish.actionLabel !== "Continue recipe") {
+  throw new Error("Home primary CTA must use recipe-oriented continuation copy.");
 }
+
+assertStableHomeCopy(continuingEnglish, "Continuing English Home primary CTA");
 
 const startingEnglish = getHomePrimaryCta({
   hasContinueRecipe: false,
   language: "en",
 });
 
-if (startingEnglish.title !== "Start blank recipe workflow") {
-  throw new Error("Home primary CTA must name the blank workflow when there is no recent recipe.");
+if (startingEnglish.title !== "Create a blank recipe") {
+  throw new Error("Home primary CTA must name the blank recipe when there is no recent recipe.");
 }
 
 if (startingEnglish.actionLabel !== "Create recipe") {
   throw new Error("Home primary CTA empty state must open the manual recipe creation path.");
 }
+
+assertStableHomeCopy(startingEnglish, "Starting English Home primary CTA");
 
 const continuingKorean = getHomePrimaryCta({
   hasContinueRecipe: true,
@@ -40,13 +52,15 @@ const continuingKorean = getHomePrimaryCta({
   recipeTitle: "런칭 훅",
 });
 
-if (continuingKorean.workflowLabel !== "크리에이터 워크플로우") {
-  throw new Error("Home primary CTA must label the creator workflow in Korean.");
+if (continuingKorean.recipeLabel !== "크리에이터 레시피") {
+  throw new Error("Home primary CTA must label the creator recipe in Korean.");
 }
 
 if (continuingKorean.title !== "런칭 훅 이어하기") {
-  throw new Error("Home primary CTA Korean title must clearly name the workflow to continue.");
+  throw new Error("Home primary CTA Korean title must clearly name the recipe to continue.");
 }
+
+assertStableHomeCopy(continuingKorean, "Continuing Korean Home primary CTA");
 
 const startingKorean = getHomePrimaryCta({
   hasContinueRecipe: false,
@@ -57,13 +71,15 @@ if (startingKorean.actionLabel !== "레시피 생성") {
   throw new Error("Home primary CTA Korean blank creation action must use 레시피 생성.");
 }
 
+assertStableHomeCopy(startingKorean, "Starting Korean Home primary CTA");
+
 const continueDestination = getHomePrimaryCtaDestination({
   createDestination: "/recipe-create?mode=manual",
   recipeId: "recipe-korean-diet-hook",
 });
 
 if (continueDestination !== "/recipe/recipe-korean-diet-hook") {
-  throw new Error("Home primary CTA must open the selected creator workflow shoot board directly.");
+  throw new Error("Home primary CTA must open the selected creator recipe board directly.");
 }
 
 const createDestination = getHomePrimaryCtaDestination({
@@ -71,5 +87,5 @@ const createDestination = getHomePrimaryCtaDestination({
 });
 
 if (createDestination !== "/recipe-create?mode=manual") {
-  throw new Error("Home primary CTA must open the manual creation step when no workflow exists.");
+  throw new Error("Home primary CTA must open the manual creation step when no recipe exists.");
 }

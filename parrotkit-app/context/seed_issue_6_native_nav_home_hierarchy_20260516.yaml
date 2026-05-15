@@ -1,0 +1,73 @@
+metadata:
+  seed_id: parrotkit_issue_6_native_nav_home_hierarchy_20260516
+  issue: 6
+  repository: junho-baek/parrotkit_app
+  name: native_nav_home_hierarchy
+  version: "1.0.0"
+  created_at: "2026-05-16"
+  source_issue: "https://github.com/junho-baek/parrotkit_app/issues/6"
+
+goal: >
+  Fix ParrotKit Home and bottom navigation hierarchy so the app shows a native-like
+  three-tab bottom bar with only Home, Explore, and My, while Home uses concise
+  recipe language, removes redundant workflow copy/CTA clutter, and places the
+  lower Create recipe entry safely above the tab bar.
+
+task_type: code
+
+constraints:
+  - "Read DESIGN.md before changing UI and follow it as the source of truth."
+  - "Bottom navigation must expose exactly three user-facing tabs: Home, Explore, My."
+  - "Source and Recipes must not appear as visible bottom tabs on iOS or Android."
+  - "The tab bar should feel native/lightweight, not like a heavy custom boxed component."
+  - "Tab icons must render reliably in Expo Go/native QA on iOS and Android."
+  - "Home Continue must use recipe language, not workflow language."
+  - "Avoid Shoot, New Shoot, Start Shoot as user-facing creation CTA copy."
+  - "Home copy should be concise; do not add redundant label + heading + description scaffolding."
+  - "If the Continue card itself is tappable, do not add a duplicate large CTA button."
+  - "My recipes should appear before the lower Create recipe entry."
+  - "Create recipe should sit near the lower Home area above the native tab bar without overlap."
+  - "Do not include QA screenshots or local plans in commits unless explicitly requested."
+
+acceptance_criteria:
+  - "three_tabs_only: iPhone and Android bottom navigation show exactly Home, Explore, and My."
+  - "hidden_legacy_tabs: Source and Recipes are not visible as bottom tabs."
+  - "native_tab_feel: The bottom bar uses a lightweight/native-feeling presentation without boxed tab containers."
+  - "icons_render: Bottom tab icons render on iPhone and Android captures."
+  - "home_recipe_language: Home Continue copy uses recipe language and contains no user-facing workflow wording."
+  - "continue_cta_simplified: Continue card is tappable and has no redundant large duplicate CTA button."
+  - "home_ordering: My recipes appears above the lower Create recipe entry."
+  - "create_entry_safe: Create recipe entry is above the tab bar and does not overlap or clip."
+  - "no_clipping: Home has no clipped buttons, headings, or card text on iPhone or Android."
+  - "verification: TypeScript check passes and DESIGN.md lint has zero errors."
+  - "qa_evidence: Provide iPhone and Android Home screenshots after the fix."
+
+ontology_schema:
+  name: ParrotKitNativeNavHomeHierarchy
+  description: Native tab bar and Home hierarchy repair for ParrotKit v1.
+  fields:
+    - name: visible_tabs
+      type: array
+      description: User-facing bottom tabs expected to be Home, Explore, My.
+      required: true
+    - name: hidden_tabs
+      type: array
+      description: Legacy routes hidden from the tab bar, including Source and Recipes.
+      required: true
+    - name: tab_icon_state
+      type: string
+      description: Whether tab icons render on native captures.
+      required: true
+    - name: continue_copy_state
+      type: string
+      description: Whether Continue copy is concise and recipe-oriented.
+      required: true
+    - name: create_entry_position
+      type: string
+      description: Placement of the lower Create recipe entry relative to My recipes and the tab bar.
+      required: true
+
+exit_conditions:
+  - name: issue_6_native_home_passed
+    description: Issue #6 is implemented and verified with native Home evidence.
+    criteria: iPhone and Android Home captures show exactly Home/Explore/My, rendered icons, simplified recipe-oriented Home Continue, My recipes above Create recipe, and no clipping or overlap; tsc and DESIGN.md lint pass.

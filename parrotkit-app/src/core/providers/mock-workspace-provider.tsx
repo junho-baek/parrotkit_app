@@ -80,6 +80,10 @@ import type { PrompterDisplayMode } from '@/features/recipes/lib/prompter-displa
 import type { PrompterBlock } from '@/features/recipes/types/recipe-domain';
 
 type CreateRecipeDraftInput = {
+  referenceVideoSource?: string | number;
+  scenes?: MockRecipeScene[];
+  summary?: string;
+  thumbnail?: MockRecipe['thumbnail'];
   title: string;
   videoUrl?: string;
   niche?: string;
@@ -408,22 +412,37 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
     );
   };
 
-  const createRecipeDraft = ({ title, videoUrl = '', niche = '', goal = '', notes = '' }: CreateRecipeDraftInput) => {
+  const createRecipeDraft = ({
+    goal = '',
+    niche = '',
+    notes = '',
+    referenceVideoSource,
+    scenes,
+    summary,
+    thumbnail,
+    title,
+    videoUrl = '',
+  }: CreateRecipeDraftInput) => {
     const platform = guessPlatform(videoUrl);
     const draftId = `recipe-${Date.now().toString(36)}`;
     const resolvedTitle = title.trim() || 'Untitled Recipe Draft';
+    const resolvedScenes = scenes?.length ? scenes : buildScenes(resolvedTitle, niche, goal, notes);
+    const resolvedThumbnail =
+      thumbnail ??
+      (platform === 'YouTube Shorts'
+        ? 'https://img.youtube.com/vi/isQbx375vSo/maxresdefault.jpg'
+        : 'https://images.unsplash.com/photo-1492724441997-5dc865305da7?auto=format&fit=crop&w=900&q=80');
 
     const recipe: MockRecipe = {
       id: draftId,
       title: resolvedTitle,
       creator: '@parrotkit',
       platform,
-      thumbnail: platform === 'YouTube Shorts'
-        ? 'https://img.youtube.com/vi/isQbx375vSo/maxresdefault.jpg'
-        : 'https://images.unsplash.com/photo-1492724441997-5dc865305da7?auto=format&fit=crop&w=900&q=80',
+      thumbnail: resolvedThumbnail,
       savedAt: 'Saved just now',
       sourceUrl: videoUrl.trim(),
-      summary: `${resolvedTitle} is now a local draft recipe shell you can shape before wiring real analysis.`,
+      referenceVideoSource,
+      summary: summary?.trim() || `${resolvedTitle} is now a local draft recipe shell you can shape before wiring real analysis.`,
       niche: niche.trim() || 'Creator',
       goal: goal.trim() || 'Sharper pacing',
       notes: notes.trim(),
@@ -434,8 +453,8 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       downloadCount: 0,
       shootStatus: 'draft',
       shotSceneCount: 0,
-      totalSceneCount: 3,
-      scenes: buildScenes(resolvedTitle, niche, goal, notes),
+      totalSceneCount: resolvedScenes.length,
+      scenes: resolvedScenes,
     };
 
     const reference: MockReference = {

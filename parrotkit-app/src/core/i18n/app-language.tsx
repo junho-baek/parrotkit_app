@@ -18,6 +18,8 @@ type AppLanguageCopy = {
     explore: string;
     index: string;
     my: string;
+    recipes: string;
+    source: string;
   };
   sourceCta: {
     accessibilityHint: string;
@@ -82,6 +84,8 @@ const APP_LANGUAGE_COPY: Record<AppLanguage, AppLanguageCopy> = {
       explore: 'Explore',
       index: 'Home',
       my: 'My',
+      recipes: 'Recipes',
+      source: 'Paste',
     },
     sourceCta: {
       accessibilityHint: 'Open the new recipe drawer',
@@ -91,14 +95,14 @@ const APP_LANGUAGE_COPY: Record<AppLanguage, AppLanguageCopy> = {
     home: {
       continueAction: 'Open recipe board',
       continueSection: 'Continue recent recipe',
-      continueTitleFallback: 'Ready to shoot',
+      continueTitleFallback: 'Recipe ready',
       edit: 'Edit',
-      emptyAction: 'Quick Shoot',
-      emptyBody: 'Open a blank prompter, write one cue, and record the first take.',
-      emptyTitle: 'Start with a blank prompter',
+      emptyAction: 'Create recipe',
+      emptyBody: 'Create a blank recipe and it will appear here.',
+      emptyTitle: 'No recipes yet',
       readyStatus: 'Ready',
       recentSection: 'Recent recipes',
-      quickStartSection: 'Start your recipes quickly',
+      quickStartSection: 'Create recipes quickly',
       statusDownloaded: 'Saved',
       statusInProgress: 'In progress',
       statusOwned: 'Owned',
@@ -144,6 +148,8 @@ const APP_LANGUAGE_COPY: Record<AppLanguage, AppLanguageCopy> = {
       explore: '탐색',
       index: '홈',
       my: '마이',
+      recipes: '레시피',
+      source: 'Paste',
     },
     sourceCta: {
       accessibilityHint: '새 레시피 드로어 열기',
@@ -153,11 +159,11 @@ const APP_LANGUAGE_COPY: Record<AppLanguage, AppLanguageCopy> = {
     home: {
       continueAction: '레시피 보드 열기',
       continueSection: '최근 레시피 이어하기',
-      continueTitleFallback: '촬영 준비 완료',
+      continueTitleFallback: '레시피 준비 완료',
       edit: '편집',
-      emptyAction: '바로 촬영',
-      emptyBody: '빈 프롬프터를 열고 첫 큐를 적은 뒤 바로 첫 테이크를 찍어보세요.',
-      emptyTitle: '빈 프롬프터로 시작하기',
+      emptyAction: '레시피 생성',
+      emptyBody: '빈 레시피를 만들면 여기에 표시됩니다.',
+      emptyTitle: '아직 만든 레시피가 없어요',
       readyStatus: '준비됨',
       recentSection: '최근 레시피',
       quickStartSection: '내 레시피 빠르게 시작하기',

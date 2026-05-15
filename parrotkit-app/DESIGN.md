@@ -254,12 +254,29 @@ The drawer should include:
 
 Reference Link and Brand Context may remain Pro/secondary/locked in v1. They should not launch unfinished API/upload/setup flows.
 
+### Bottom navigation and creation entry
+
+ParrotKit may use a custom app-style bottom navigation instead of the fully native tab primitive when the center creation action needs drawer behavior.
+
+Preferred v1 bottom navigation model:
+
+- `Home`
+- `Explore`
+- `Paste` as the larger center action
+- `Recipes`
+- `My`
+
+`Paste` is not a generic plus button. It means: paste a short-form/reference link, use that reference as source material, then open the recipe creation drawer/flow. The center Paste action may be circular and visually larger than the neighboring tabs, but should still feel integrated with the bottom bar rather than like a random floating debug button.
+
+If Paste is planned as a Pro feature, the current v1 interaction should still open a drawer/window that clearly shows the paste affordance. Do not dead-end the user on a generic locked screen; the product should make the Paste-to-recipe promise visible.
+
 ### CTA copy
 
 Primary creation entry:
 
-- Korean: `레시피 생성`
-- English: `Create recipe`
+- English nav CTA: `Paste`
+- Korean explanatory/action copy may still use `레시피 생성` when the context is recipe creation rather than link paste.
+- English contextual copy may still use `Create recipe` in drawer/card contexts when no link paste is involved.
 
 Recipe drawer CTA:
 

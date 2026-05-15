@@ -1,16 +1,16 @@
 export type HomeWorkspaceSectionId =
   | 'continueRecentRecipe'
   | 'welcome'
-  | 'quickStartRecipes'
-  | 'recentRecipes'
-  | 'savedTakes';
+  | 'myRecipes'
+  | 'savedTakes'
+  | 'createRecipe';
 
 const HOME_WORKSPACE_SECTION_ORDER: HomeWorkspaceSectionId[] = [
   'continueRecentRecipe',
   'welcome',
-  'quickStartRecipes',
-  'recentRecipes',
+  'myRecipes',
   'savedTakes',
+  'createRecipe',
 ];
 
 export function getHomeWorkspaceSectionOrder(_: {

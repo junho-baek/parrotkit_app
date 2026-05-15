@@ -45,6 +45,16 @@ if (!/router\.push\(continueWorkflowHref as Href\)/.test(homeWorkspaceSurfaceSou
   throw new Error('Home Continue primary action must open the overview route with highlightCutId metadata.');
 }
 
+if (
+  !/<Pressable(?=[\s\S]*accessibilityLabel=\{card\.accessibilityLabel\})(?=[\s\S]*onPress=\{onOpenRecipe\})(?=[\s\S]*style=\{styles\.continueCard\})/.test(homeWorkspaceSurfaceSource)
+) {
+  throw new Error('Home Continue card itself must be the tappable recipe CTA.');
+}
+
+if (/>\{card\.actionLabel\}<\/Text>/.test(homeWorkspaceSurfaceSource)) {
+  throw new Error('Home Continue card must not render a duplicate actionLabel CTA when the card itself is tappable.');
+}
+
 if (!/highlightCutId\?: string/.test(recipeDetailScreenSource)) {
   throw new Error('Recipe overview route params must accept highlightCutId metadata.');
 }
@@ -141,6 +151,14 @@ const inProgressCard = getHomeContinueWorkflowCard({
   selection: getHomeWorkflowSelection([inProgressRecipe]),
 });
 
+function assertNoWorkflowCopy(fields: string[], label: string) {
+  const copy = fields.join(' ');
+
+  if (/workflow|워크플로우/i.test(copy)) {
+    throw new Error(`${label} must use recipe language and must not expose workflow copy.`);
+  }
+}
+
 if (!inProgressCard) {
   throw new Error('Home must render a continue card when a selected workflow exists.');
 }
@@ -149,8 +167,8 @@ if (inProgressCard.reason !== 'inProgress') {
   throw new Error('Home continue card must preserve that the selected workflow is in progress.');
 }
 
-if (inProgressCard.sectionTitle !== '이어갈 워크플로우') {
-  throw new Error('Home continue section must clearly label an in-progress selected workflow.');
+if (inProgressCard.sectionTitle !== '이어갈 레시피') {
+  throw new Error('Home continue section must clearly label an in-progress selected recipe.');
 }
 
 if (inProgressCard.stateLabel !== '진행 중') {
@@ -161,13 +179,25 @@ if (inProgressCard.title !== '런칭 훅 이어하기') {
   throw new Error('Home continue card must present the selected workflow as a Korean continue path.');
 }
 
-if (inProgressCard.actionLabel !== '워크플로우 계속하기') {
-  throw new Error('Home continue card primary action must be continuation-oriented.');
+if (inProgressCard.actionLabel !== '레시피 이어가기') {
+  throw new Error('Home continue card primary action must use recipe language.');
 }
 
 if (/Shoot|New Shoot|Start Shoot/i.test(inProgressCard.actionLabel)) {
   throw new Error('Home continue card must not use Shoot/New Shoot/Start Shoot copy.');
 }
+
+assertNoWorkflowCopy(
+  [
+    inProgressCard.accessibilityLabel,
+    inProgressCard.actionLabel,
+    inProgressCard.body,
+    inProgressCard.sectionTitle,
+    inProgressCard.stateLabel,
+    inProgressCard.title,
+  ],
+  'Home in-progress Continue card',
+);
 
 const recentCard = getHomeContinueWorkflowCard({
   language: 'en',
@@ -182,8 +212,8 @@ if (recentCard.reason !== 'recent') {
   throw new Error('Home continue card must preserve that the selected workflow is recent.');
 }
 
-if (recentCard.sectionTitle !== 'Recent workflow') {
-  throw new Error('Home continue section must clearly label a recent selected workflow.');
+if (recentCard.sectionTitle !== 'Recent recipe') {
+  throw new Error('Home continue section must clearly label a recent selected recipe.');
 }
 
 if (recentCard.stateLabel !== 'Recent') {
@@ -197,6 +227,18 @@ if (recentCard.title !== 'Continue 런칭 훅') {
 if (/in progress/i.test(recentCard.body)) {
   throw new Error('Home recent workflow card must not describe a ready recent workflow as in progress.');
 }
+
+assertNoWorkflowCopy(
+  [
+    recentCard.accessibilityLabel,
+    recentCard.actionLabel,
+    recentCard.body,
+    recentCard.sectionTitle,
+    recentCard.stateLabel,
+    recentCard.title,
+  ],
+  'Home recent Continue card',
+);
 
 const checklistCompleteButMyTakeMissingRecipe: MockRecipe = {
   ...baseRecipe,

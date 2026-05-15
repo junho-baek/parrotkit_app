@@ -24,6 +24,46 @@ export type RecipeCreatePrimaryAction =
   | "open-reference-drawer"
   | "open-shoot-board";
 
+export type RecipeCreateModeInputConfig =
+  | { visible: false }
+  | {
+      editable: boolean;
+      inputMode: "text" | "url";
+      keyboardType: "default" | "url";
+      placeholder: string;
+      value: string;
+      visible: true;
+    };
+
+export type RecipeCreateSubmitState = {
+  enabled: boolean;
+  referenceLinkError: "invalid-url" | null;
+};
+
+export type RecipeCreateReferenceLinkValidationState =
+  | "empty"
+  | "invalid"
+  | "valid";
+
+export function getRecipeCreateReferenceLinkValidationState(
+  referenceUrl: string,
+): RecipeCreateReferenceLinkValidationState {
+  const trimmedUrl = referenceUrl.trim();
+
+  if (!trimmedUrl) {
+    return "empty";
+  }
+
+  try {
+    const parsedUrl = new URL(trimmedUrl);
+    return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:"
+      ? "valid"
+      : "invalid";
+  } catch {
+    return "invalid";
+  }
+}
+
 export const recipeCreateModes: RecipeCreateMode[] = [
   "manual",
   "reference",
@@ -132,6 +172,62 @@ export function getRecipeCreatePrimaryAction(
 ): RecipeCreatePrimaryAction {
   void mode;
   return "open-shoot-board";
+}
+
+export function getRecipeCreateModeInputConfig({
+  brandPlaceholder,
+  linkPlaceholder,
+  mode,
+  referenceUrl,
+}: {
+  brandPlaceholder: string;
+  linkPlaceholder: string;
+  mode: RecipeCreateMode;
+  referenceUrl: string;
+}): RecipeCreateModeInputConfig {
+  if (mode === "manual") {
+    return { visible: false };
+  }
+
+  if (mode === "reference") {
+    return {
+      editable: true,
+      inputMode: "url",
+      keyboardType: "url",
+      placeholder: linkPlaceholder,
+      value: referenceUrl,
+      visible: true,
+    };
+  }
+
+  return {
+    editable: false,
+    inputMode: "text",
+    keyboardType: "default",
+    placeholder: brandPlaceholder,
+    value: "",
+    visible: true,
+  };
+}
+
+export function getRecipeCreateSubmitState({
+  mode,
+  referenceUrl,
+}: {
+  mode: RecipeCreateMode;
+  referenceUrl: string;
+}): RecipeCreateSubmitState {
+  if (mode === "reference") {
+    const validationState =
+      getRecipeCreateReferenceLinkValidationState(referenceUrl);
+
+    return {
+      enabled: validationState === "valid",
+      referenceLinkError: validationState === "invalid" ? "invalid-url" : null,
+    };
+  }
+
+  return { enabled: true, referenceLinkError: null };
 }
 
 export function getRecipeCreateInitialScenes(

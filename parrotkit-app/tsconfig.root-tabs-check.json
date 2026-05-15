@@ -6,6 +6,18 @@
   "include": [
     "nativewind-env.d.ts",
     "src/core/navigation/root-tab-config.test.ts",
-    "src/core/navigation/root-tab-config.ts"
+    "src/core/navigation/paste-drawer-state.test.ts",
+    "src/core/navigation/paste-drawer-state.ts",
+    "src/core/navigation/root-tab-safe-area.test.ts",
+    "src/core/navigation/root-tab-safe-area.ts",
+    "src/core/navigation/root-tab-viewport-matrix.test.ts",
+    "src/core/navigation/root-tab-ios-layout-verification.test.ts",
+    "src/core/navigation/root-tab-android-layout-verification.test.ts",
+    "src/core/navigation/root-tab-viewport-matrix.ts",
+    "src/core/navigation/root-tab-icons.ts",
+    "src/core/navigation/root-tab-config.ts",
+    "src/core/navigation/root-native-tabs.tsx",
+    "src/app/_layout.tsx",
+    "src/app/home.tsx"
   ]
 }

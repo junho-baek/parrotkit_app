@@ -182,7 +182,8 @@ export function buildLocalFallbackResult({
   nicheId: RecipeCreateNicheId;
   referenceUrl: string;
 }): ReferenceRecipeGenerationResult {
-  const videoId = getYouTubeVideoId(referenceUrl) || 'dtnIqkMmbs0';
+  const trimmedReferenceUrl = referenceUrl.trim();
+  const videoId = getYouTubeVideoId(trimmedReferenceUrl) || 'dtnIqkMmbs0';
   const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
 
   return {
@@ -191,7 +192,7 @@ export function buildLocalFallbackResult({
       platform: 'youtube-shorts',
       thumbnailUrl,
       title: 'YouTube Shorts Reference',
-      url: referenceUrl,
+      url: trimmedReferenceUrl,
       videoId,
     },
     generation: {

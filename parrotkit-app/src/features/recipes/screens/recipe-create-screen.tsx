@@ -21,8 +21,10 @@ import { brandActionGradient } from '@/core/theme/colors';
 import { toImageSource } from '@/core/ui/image-source';
 import {
   getInitialRecipeCreateMode,
+  getRecipeCreateModeInputConfig,
   getRecipeCreateDraftContext,
   getRecipeCreatePrimaryAction,
+  getRecipeCreateSubmitState,
   isRecipeCreateModePro,
   recipeCreateGoals,
   recipeCreateModes,
@@ -31,6 +33,10 @@ import {
   type RecipeCreateMode,
   type RecipeCreateNicheId,
 } from '@/features/recipes/lib/recipe-create-flow';
+import {
+  buildLocalFallbackResult,
+  mapGeneratedRecipeToMockScenes,
+} from '@/features/recipes/lib/reference-recipe-generation';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -40,6 +46,7 @@ const createCopy = {
     close: 'Close',
     pro: 'Pro',
     linkPlaceholder: 'Paste a TikTok, Reels, Shorts, or product page link',
+    invalidLink: 'Paste a valid link starting with http:// or https://',
     brandPlaceholder: 'Add brand context, product sheet, or campaign brief',
     nicheQuestion: "What's the niche?",
     otherPlaceholder: 'Type your niche',
@@ -56,6 +63,7 @@ const createCopy = {
     close: '닫기',
     pro: 'Pro',
     linkPlaceholder: 'TikTok, Reels, Shorts, 제품 페이지 링크 붙여넣기',
+    invalidLink: 'http:// 또는 https://로 시작하는 링크를 붙여넣어 주세요',
     brandPlaceholder: '브랜드 컨텍스트, 제품 자료, 캠페인 브리프 추가',
     nicheQuestion: '니치는 무엇인가요?',
     otherPlaceholder: '기타 니치 입력',
@@ -69,22 +77,41 @@ const createCopy = {
   },
 } satisfies Record<AppLanguage, Record<string, unknown>>;
 
-export function RecipeCreateScreen() {
+type RecipeCreateScreenProps = {
+  initialMode?: RecipeCreateMode;
+  onClose?: () => void;
+  onCreated?: (recipeId: string) => void;
+};
+
+export function RecipeCreateScreen({
+  initialMode: initialModeOverride,
+  onClose,
+  onCreated,
+}: RecipeCreateScreenProps = {}) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ mode?: string }>();
   const { language } = useAppLanguage();
   const { createRecipeDraft } = useMockWorkspace();
   const copy = createCopy[language];
-  const initialMode = getInitialRecipeCreateMode(params.mode);
+  const initialMode = initialModeOverride ?? getInitialRecipeCreateMode(params.mode);
   const [selectedMode, setSelectedMode] = useState<RecipeCreateMode>(initialMode);
   const [selectedNicheId, setSelectedNicheId] = useState<RecipeCreateNicheId>('beauty');
   const [selectedGoalId, setSelectedGoalId] = useState<RecipeCreateGoalId>('ad');
   const [referenceUrl, setReferenceUrl] = useState('');
   const [customNicheLabel, setCustomNicheLabel] = useState('');
   const modeCopy = copy.mode as Record<RecipeCreateMode, { icon: IconName; tab: string }>;
+  const submitState = getRecipeCreateSubmitState({
+    mode: selectedMode,
+    referenceUrl,
+  });
 
-  const back = () => {
+  const dismissDrawer = () => {
+    if (onClose) {
+      onClose();
+      return;
+    }
+
     if (router.canGoBack()) {
       router.back();
       return;
@@ -94,6 +121,10 @@ export function RecipeCreateScreen() {
   };
 
   const handlePrimaryAction = () => {
+    if (!submitState.enabled) {
+      return;
+    }
+
     const action = getRecipeCreatePrimaryAction(selectedMode);
 
     if (action !== 'open-shoot-board') {
@@ -107,18 +138,47 @@ export function RecipeCreateScreen() {
       nicheId: selectedNicheId,
       referenceUrl,
     });
-    const recipe = createRecipeDraft(draft);
+    const referenceResult =
+      selectedMode === 'reference'
+        ? buildLocalFallbackResult({
+            goalId: selectedGoalId,
+            nicheId: selectedNicheId,
+            referenceUrl,
+          })
+        : null;
+    const recipe = createRecipeDraft({
+      ...draft,
+      ...(referenceResult
+        ? {
+            referenceVideoSource: referenceResult.reference.url,
+            scenes: mapGeneratedRecipeToMockScenes(referenceResult),
+            summary: referenceResult.recipe.oneLineDescription,
+            thumbnail: referenceResult.reference.thumbnailUrl,
+            title: referenceResult.recipe.title,
+          }
+        : null),
+    });
+
+    if (onCreated) {
+      onCreated(recipe.id);
+      return;
+    }
 
     router.replace(`/recipe/${recipe.id}` as Href);
   };
 
   useEffect(() => {
-    setSelectedMode(getInitialRecipeCreateMode(params.mode));
-  }, [params.mode]);
+    setSelectedMode(initialModeOverride ?? getInitialRecipeCreateMode(params.mode));
+  }, [initialModeOverride, params.mode]);
 
   return (
     <View style={styles.overlay}>
-      <Pressable accessibilityLabel={copy.close as string} onPress={back} style={StyleSheet.absoluteFillObject} />
+      <Pressable
+        accessibilityLabel={copy.close as string}
+        onPress={dismissDrawer}
+        style={StyleSheet.absoluteFillObject}
+        testID="recipe-create-dismiss-backdrop"
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -133,7 +193,13 @@ export function RecipeCreateScreen() {
         <View style={styles.handle} />
 
         <View style={styles.header}>
-          <Pressable accessibilityLabel={copy.close as string} accessibilityRole="button" hitSlop={12} onPress={back}>
+          <Pressable
+            accessibilityLabel={copy.close as string}
+            accessibilityRole="button"
+            hitSlop={12}
+            onPress={dismissDrawer}
+            testID="recipe-create-close-button"
+          >
             <MaterialCommunityIcons color="#05070d" name="close" size={29} />
           </Pressable>
         </View>
@@ -164,6 +230,9 @@ export function RecipeCreateScreen() {
             mode={selectedMode}
             onChangeReferenceUrl={setReferenceUrl}
             referenceUrl={referenceUrl}
+            referenceLinkError={
+              submitState.referenceLinkError ? (copy.invalidLink as string) : null
+            }
           />
 
           <QuestionTitle title={copy.nicheQuestion as string} />
@@ -210,12 +279,19 @@ export function RecipeCreateScreen() {
         </ScrollView>
 
         <View style={styles.footer}>
-          <Pressable accessibilityRole="button" onPress={handlePrimaryAction} style={styles.primaryButtonPressable}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !submitState.enabled }}
+            disabled={!submitState.enabled}
+            onPress={handlePrimaryAction}
+            style={styles.primaryButtonPressable}
+            testID="recipe-create-primary-action"
+          >
             <LinearGradient
               colors={brandActionGradient}
               end={{ x: 1, y: 1 }}
               start={{ x: 0, y: 0 }}
-              style={styles.ctaButton}
+              style={[styles.ctaButton, !submitState.enabled ? styles.ctaButtonDisabled : null]}
             >
               <Text style={styles.ctaText}>{copy.cta as string}</Text>
               <MaterialCommunityIcons color="#fff" name="arrow-right" size={25} />
@@ -259,35 +335,69 @@ function ModeInput({
   mode,
   onChangeReferenceUrl,
   referenceUrl,
+  referenceLinkError,
 }: {
   brandPlaceholder: string;
   linkPlaceholder: string;
   mode: RecipeCreateMode;
   onChangeReferenceUrl: (value: string) => void;
   referenceUrl: string;
+  referenceLinkError: string | null;
 }) {
   if (mode === 'manual') {
     return <View style={styles.modeInputSpacer} />;
   }
 
   const iconName: IconName = mode === 'brand' ? 'briefcase-outline' : 'link-variant';
-  const placeholder = mode === 'brand' ? brandPlaceholder : linkPlaceholder;
+  const inputConfig = getRecipeCreateModeInputConfig({
+    brandPlaceholder,
+    linkPlaceholder,
+    mode,
+    referenceUrl,
+  });
+
+  if (!inputConfig.visible) {
+    return <View style={styles.modeInputSpacer} />;
+  }
 
   return (
-    <View style={styles.underlineInputRow}>
-      <MaterialCommunityIcons color="#64748b" name={iconName} size={25} />
-      <TextInput
-        autoCapitalize="none"
-        autoCorrect={false}
-        editable={mode === 'reference'}
-        inputMode={mode === 'reference' ? 'url' : 'text'}
-        keyboardType={mode === 'reference' ? 'url' : 'default'}
-        onChangeText={onChangeReferenceUrl}
-        placeholder={placeholder}
-        placeholderTextColor="#9aa5b8"
-        style={styles.underlineInput}
-        value={mode === 'reference' ? referenceUrl : ''}
-      />
+    <View>
+      <View
+        style={[
+          styles.underlineInputRow,
+          referenceLinkError ? styles.underlineInputRowError : null,
+        ]}
+      >
+        <MaterialCommunityIcons
+          color={referenceLinkError ? '#e5484d' : '#64748b'}
+          name={iconName}
+          size={25}
+        />
+        <TextInput
+          accessibilityHint={referenceLinkError ?? undefined}
+          accessibilityLabel={inputConfig.placeholder}
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={inputConfig.editable}
+          inputMode={inputConfig.inputMode}
+          keyboardType={inputConfig.keyboardType}
+          onChangeText={onChangeReferenceUrl}
+          placeholder={inputConfig.placeholder}
+          placeholderTextColor="#9aa5b8"
+          style={styles.underlineInput}
+          testID={mode === 'reference' ? 'recipe-create-reference-link-input' : undefined}
+          value={inputConfig.value}
+        />
+      </View>
+      {referenceLinkError ? (
+        <Text
+          accessibilityRole="alert"
+          style={styles.inputErrorText}
+          testID="recipe-create-reference-link-error"
+        >
+          {referenceLinkError}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -395,6 +505,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 62,
   },
+  ctaButtonDisabled: {
+    opacity: 0.45,
+  },
   ctaText: {
     color: '#ffffff',
     fontSize: 18,
@@ -474,6 +587,14 @@ const styles = StyleSheet.create({
   },
   modeInputSpacer: {
     height: 22,
+  },
+  inputErrorText: {
+    color: '#e5484d',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0,
+    lineHeight: 18,
+    marginTop: 8,
   },
   modeTab: {
     alignItems: 'center',
@@ -639,5 +760,8 @@ const styles = StyleSheet.create({
     marginTop: 34,
     minHeight: 50,
     paddingBottom: 10,
+  },
+  underlineInputRowError: {
+    borderBottomColor: '#e5484d',
   },
 });
