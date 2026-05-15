@@ -47,7 +47,7 @@ import {
 import {
   createShootBoardRecipe,
   type ShootBoardRecipe,
-} from '@/features/recipes/lib/shoot-board-model';
+} from '@/domain/shoot-board/shoot-board-model';
 import {
   addQuickTake,
   createProjectTake,
@@ -77,7 +77,7 @@ import {
   type PrompterPlaybackStatus,
 } from '@/features/recipes/lib/prompter-mode-state';
 import type { PrompterDisplayMode } from '@/features/recipes/lib/prompter-display';
-import type { PrompterBlock } from '@/features/recipes/types/recipe-domain';
+import type { PrompterBlock } from '@/domain/recipes/native-recipe';
 
 type CreateRecipeDraftInput = {
   referenceVideoSource?: string | number;

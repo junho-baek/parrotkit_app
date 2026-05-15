@@ -692,7 +692,7 @@ Task 4 result (2026-05-16):
 - Modify: `src/features/recipes/lib/shoot-board-model.ts`
 - Modify: `src/features/recipes/types/recipe-domain.ts`
 
-- [ ] **Step 1: Move native recipe type file**
+- [x] **Step 1: Move native recipe type file**
 
 Run:
 
@@ -702,7 +702,7 @@ mkdir -p src/domain/recipes
 git mv src/features/recipes/types/recipe-domain.ts src/domain/recipes/native-recipe.ts
 ```
 
-- [ ] **Step 2: Add compatibility shim for old native recipe path**
+- [x] **Step 2: Add compatibility shim for old native recipe path**
 
 Create `src/features/recipes/types/recipe-domain.ts`:
 
@@ -710,7 +710,7 @@ Create `src/features/recipes/types/recipe-domain.ts`:
 export * from '@/domain/recipes/native-recipe';
 ```
 
-- [ ] **Step 3: Move shoot board model**
+- [x] **Step 3: Move shoot board model**
 
 Run:
 
@@ -720,7 +720,7 @@ mkdir -p src/domain/shoot-board
 git mv src/features/recipes/lib/shoot-board-model.ts src/domain/shoot-board/shoot-board-model.ts
 ```
 
-- [ ] **Step 4: Update moved shoot board imports**
+- [x] **Step 4: Update moved shoot board imports**
 
 In `src/domain/shoot-board/shoot-board-model.ts`, replace:
 
@@ -734,7 +734,7 @@ with:
 from "@/domain/recipes/native-recipe"
 ```
 
-- [ ] **Step 5: Add compatibility shim for old shoot board path**
+- [x] **Step 5: Add compatibility shim for old shoot board path**
 
 Create `src/features/recipes/lib/shoot-board-model.ts`:
 
@@ -742,7 +742,7 @@ Create `src/features/recipes/lib/shoot-board-model.ts`:
 export * from '@/domain/shoot-board/shoot-board-model';
 ```
 
-- [ ] **Step 6: Run shoot board tests**
+- [x] **Step 6: Run shoot board tests**
 
 Run:
 
@@ -754,7 +754,7 @@ NODE_PATH=src ./node_modules/.bin/sucrase-node src/features/recipes/lib/shoot-bo
 
 Expected: both commands pass.
 
-- [ ] **Step 7: Run architecture checker**
+- [x] **Step 7: Run architecture checker**
 
 Run:
 
@@ -774,6 +774,17 @@ cd /Users/junho/project/parrotkit-app
 git add parrotkit-app/src/domain parrotkit-app/src/features/recipes/lib/shoot-board-model.ts parrotkit-app/src/features/recipes/types/recipe-domain.ts
 git commit -m "refactor: move shoot board model to domain"
 ```
+
+Task 5 result (2026-05-16):
+- Created pure domain modules `src/domain/recipes/native-recipe.ts` and `src/domain/shoot-board/shoot-board-model.ts`.
+- Kept `src/features/recipes/types/recipe-domain.ts` and `src/features/recipes/lib/shoot-board-model.ts` as compatibility re-exports.
+- Replaced React Native `ImageSourcePropType` in domain with a structural `NativeRecipeImageSource` type and replaced `ugcMedia` imports with equivalent fallback image URI objects.
+- Updated safe imports in `src/core/providers/mock-workspace-provider.tsx`, `src/core/mocks/parrotkit-data.test.ts`, and `src/features/recipes/lib/recipe-domain-normalizer.ts` to point directly at domain modules.
+- Verification passed: `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json`.
+- Verification expected-failed: `npm run check:architecture` still reports `core/navigation/root-native-tabs.tsx` and remaining provider feature imports; no `domain_is_pure` failures were reported.
+- Focused shoot-board test: direct `NODE_PATH=src ./node_modules/.bin/sucrase-node src/features/recipes/lib/shoot-board-model.test.ts` still fails before assertions because this runner does not resolve `@/`; the equivalent `node -r sucrase/register` run with a local alias hook reaches the existing `Scene titles should use the required Scene #N: Role format.` assertion.
+- Context note: `context/context_20260516_shoot_board_domain_model.md`.
+- Commit step skipped per explicit request not to commit.
 
 ---
 

@@ -4,7 +4,7 @@ import {
   recipesSeed,
 } from "./parrotkit-data";
 import { normalizeNativeRecipe } from "../../features/recipes/lib/recipe-domain-normalizer";
-import { createShootBoardRecipe } from "../../features/recipes/lib/shoot-board-model";
+import { createShootBoardRecipe } from "../../domain/shoot-board/shoot-board-model";
 
 const runnableRecipe = recipesSeed.find(
   (recipe) => recipe.id === "recipe-english-expert-shortcut",

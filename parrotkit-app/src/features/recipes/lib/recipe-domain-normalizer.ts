@@ -8,7 +8,7 @@ import {
   PrompterBlockType,
   PrompterPositionPreset,
   ReferenceSignalType,
-} from '@/features/recipes/types/recipe-domain';
+} from '@/domain/recipes/native-recipe';
 
 function compactText(value: unknown) {
   return String(value ?? '').replace(/\s+/g, ' ').trim();
