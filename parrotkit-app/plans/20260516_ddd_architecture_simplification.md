@@ -898,7 +898,7 @@ Result: Implemented without committing per current task request. Moved the works
 - Modify: `src/app/(tabs)/_layout.tsx`
 - Modify: `src/core/navigation/root-tab-config.test.ts`
 
-- [ ] **Step 1: Move root native tabs into app shell**
+- [x] **Step 1: Move root native tabs into app shell**
 
 Run:
 
@@ -908,15 +908,15 @@ mkdir -p src/app-shell/navigation
 git mv src/core/navigation/root-native-tabs.tsx src/app-shell/navigation/root-native-tabs.tsx
 ```
 
-- [ ] **Step 2: Add old navigation path shim**
+- [x] **Step 2: Add old navigation path shim**
 
 Create `src/core/navigation/root-native-tabs.tsx`:
 
 ```ts
-export { RootNativeTabs, default } from '@/app-shell/navigation/root-native-tabs';
+export { RootNativeTabs, RootNativeTabs as default } from '@/app-shell/navigation/root-native-tabs';
 ```
 
-- [ ] **Step 3: Update route shell import**
+- [x] **Step 3: Update route shell import**
 
 Modify `src/app/(tabs)/_layout.tsx`:
 
@@ -924,7 +924,7 @@ Modify `src/app/(tabs)/_layout.tsx`:
 export { RootNativeTabs as default } from '@/app-shell/navigation/root-native-tabs';
 ```
 
-- [ ] **Step 4: Rewrite root tab source-string assertions**
+- [x] **Step 4: Rewrite root tab source-string assertions**
 
 In `src/core/navigation/root-tab-config.test.ts`, replace exact source string checks with route file existence and tab config behavior:
 
@@ -954,7 +954,7 @@ if (!appShellSource.includes('RecipeCreateScreen')) {
 }
 ```
 
-- [ ] **Step 5: Run architecture checker**
+- [x] **Step 5: Run architecture checker**
 
 Run:
 
@@ -969,7 +969,7 @@ Expected:
 Architecture boundary check passed.
 ```
 
-- [ ] **Step 6: Run nav tests and TypeScript**
+- [x] **Step 6: Run nav tests and TypeScript**
 
 Run:
 
@@ -990,6 +990,8 @@ cd /Users/junho/project/parrotkit-app
 git add parrotkit-app/src/app-shell parrotkit-app/src/core/navigation/root-native-tabs.tsx 'parrotkit-app/src/app/(tabs)/_layout.tsx' parrotkit-app/src/core/navigation/root-tab-config.test.ts
 git commit -m "refactor: move root navigation shell to app shell"
 ```
+
+Result: Implemented without committing per current task request. Moved the root native tab shell implementation to `src/app-shell/navigation/root-native-tabs.tsx`, replaced the old core path with a compatibility re-export, updated the tab route layout to import from app-shell, and updated the root tab contract test to inspect the app-shell source for Paste drawer behavior. Verification: `npm run check:architecture` passed, `NODE_PATH=src ./node_modules/.bin/sucrase-node src/core/navigation/root-tab-config.test.ts` passed, and `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json` passed. Linked context: `context/context_20260516_ddd_architecture_simplification.md`.
 
 ---
 

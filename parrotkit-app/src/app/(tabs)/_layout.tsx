@@ -1,1 +1,1 @@
-export { RootNativeTabs as default } from '@/core/navigation/root-native-tabs';
+export { RootNativeTabs as default } from '@/app-shell/navigation/root-native-tabs';

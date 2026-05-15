@@ -24,3 +24,27 @@ Task 6 from `plans/20260516_ddd_architecture_simplification.md` was implemented 
 
 - Feature screens still import `useMockWorkspace` from the old core path by design; the compatibility shim keeps those imports working until later cleanup.
 - The application provider still imports feature helper modules temporarily, as allowed by the Task 6 scope.
+
+## Task 7: Root Navigation Shell App Shell Layer
+
+## 작업
+
+Task 7 from `plans/20260516_ddd_architecture_simplification.md` was implemented without committing.
+
+## 변경
+
+- Moved the current root native tabs implementation from `src/core/navigation/root-native-tabs.tsx` to `src/app-shell/navigation/root-native-tabs.tsx`.
+- Replaced `src/core/navigation/root-native-tabs.tsx` with a compatibility re-export so old core imports continue to work.
+- Updated `src/app/(tabs)/_layout.tsx` to import `RootNativeTabs` from `@/app-shell/navigation/root-native-tabs`.
+- Updated `src/core/navigation/root-tab-config.test.ts` so Paste drawer source assertions read the app-shell implementation instead of the core compatibility shim.
+
+## 검증
+
+- PASS: `npm run check:architecture`
+- PASS: `NODE_PATH=src ./node_modules/.bin/sucrase-node src/core/navigation/root-tab-config.test.ts`
+- PASS: `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json`
+
+## 리스크
+
+- Runtime behavior should be unchanged because the implementation file was moved intact and the old core path remains as a shim.
+- The Task 7 commit step was intentionally skipped because the current request says not to commit.

@@ -139,26 +139,31 @@ if (otherRootTabHrefs.includes(myHref)) {
   throw new Error('My tab must not route to Home, Explore, Paste, or Recipes.');
 }
 
-const recipesRouteSource = readFileSync(resolve(__dirname, '../../app/(tabs)/recipes.tsx'), 'utf8').trim();
+const routeFiles = [
+  '../../app/(tabs)/index.tsx',
+  '../../app/(tabs)/explore.tsx',
+  '../../app/(tabs)/source.tsx',
+  '../../app/(tabs)/recipes.tsx',
+  '../../app/(tabs)/my.tsx',
+];
 
-if (recipesRouteSource !== "export { RecipesScreen as default } from '@/features/recipes/screens/recipes-screen';") {
-  throw new Error('The /recipes tab route must render RecipesScreen, not Source or another unintended screen.');
-}
+for (const routeFile of routeFiles) {
+  const source = readFileSync(resolve(__dirname, routeFile), 'utf8').trim();
 
-const myRouteSource = readFileSync(resolve(__dirname, '../../app/(tabs)/my.tsx'), 'utf8').trim();
-
-if (myRouteSource !== "export { ProfileScreen as default } from '@/features/profile/screens/profile-screen';") {
-  throw new Error('The /my tab route must render ProfileScreen, not another unintended screen.');
-}
-
-const exploreRouteSource = readFileSync(resolve(__dirname, '../../app/(tabs)/explore.tsx'), 'utf8').trim();
-
-if (exploreRouteSource !== "export { ExploreScreen as default } from '@/features/explore/screens/explore-screen';") {
-  throw new Error('The /explore tab route must render ExploreScreen, not Home or another unintended screen.');
+  if (!source.includes('export {') || !source.includes(' as default }')) {
+    throw new Error(`${routeFile} must stay a thin Expo Router export wrapper.`);
+  }
 }
 
 const rootHomeRouteSource = readFileSync(resolve(__dirname, '../../app/(tabs)/index.tsx'), 'utf8').trim();
-const rootNativeTabsSource = readFileSync(resolve(__dirname, './root-native-tabs.tsx'), 'utf8');
+const rootNativeTabsSource = readFileSync(
+  resolve(__dirname, '../../app-shell/navigation/root-native-tabs.tsx'),
+  'utf8'
+);
+
+if (!rootNativeTabsSource.includes('RecipeCreateScreen')) {
+  throw new Error('Root app shell must compose RecipeCreateScreen for the Paste drawer.');
+}
 
 if (!rootNativeTabsSource.includes('active={pasteDrawerState.open}')) {
   throw new Error('The centered Paste action must show active feedback while the paste drawer is open.');
