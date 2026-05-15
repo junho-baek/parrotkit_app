@@ -1,38 +1,27 @@
 import { ugcMedia } from '@/core/mocks/ugc-media';
-import type { AppImageSource } from '@/core/ui/image-source';
+import type {
+  CreatorTrust,
+  PartnerCreator,
+  Recipe,
+  RecipeOwnership,
+  RecipePlatform,
+  RecipeScene,
+  RecipeShootStatus,
+  RecipeVerification,
+  Reference,
+} from '@/domain/recipes/recipe';
 import type { SavedTakePersistenceContract } from '@/features/recipes/lib/saved-take-contract';
 
-export type MockPlatform = 'TikTok' | 'Instagram Reels' | 'YouTube Shorts';
+export type MockPlatform = RecipePlatform;
 
-export type MockCreatorTrust = 'verified' | 'community';
-export type MockRecipeOwnership = 'owned' | 'downloaded' | 'remixed' | 'community';
-export type MockRecipeVerification = 'verified_creator' | 'community';
-export type MockRecipeShootStatus = 'continue' | 'ready' | 'draft';
+export type MockCreatorTrust = CreatorTrust;
+export type MockRecipeOwnership = RecipeOwnership;
+export type MockRecipeVerification = RecipeVerification;
+export type MockRecipeShootStatus = RecipeShootStatus;
 
-export type MockReference = {
-  id: string;
-  title: string;
-  creator: string;
-  thumbnail: AppImageSource;
-  duration: string;
-  views: string;
-  likes: number;
-  category: string;
-  platform: MockPlatform;
-  videoUrl: string;
-  createdAt: string;
-  isLiked: boolean;
-  recipeId?: string;
-};
+export type MockReference = Reference;
 
-export type MockPartnerCreator = {
-  id: string;
-  name: string;
-  handle: string;
-  avatar: string;
-  trust: MockCreatorTrust;
-  specialty: string;
-};
+export type MockPartnerCreator = PartnerCreator;
 
 export type MockTakeExportStatus = 'local' | 'gallery_saved' | 'shared';
 
@@ -69,81 +58,9 @@ export type MockQuickTakeProject = {
   takes: MockProjectTake[];
 };
 
-export type MockRecipeScene = {
-  id: string;
-  isOptional?: boolean;
-  sceneNumber?: number;
-  title: string;
-  summary: string;
-  startTime?: string;
-  endTime?: string;
-  thumbnail?: AppImageSource;
-  analysisLines: string[];
-  recipeLines: string[];
-  prompterLines: string[];
-  analysis?: {
-    transcriptOriginal?: string[];
-    transcriptSnippet?: string | null;
-    motionDescription?: string;
-    whyItWorks?: string[];
-    referenceSignals?: Array<{ type: string; text: string }>;
-  };
-  recipe?: {
-    objective?: string;
-    appealPoint?: string;
-    keyLine?: string;
-    scriptLines?: string[];
-    keyMood?: string;
-    keyAction?: string;
-    mustInclude?: string[];
-    mustAvoid?: string[];
-    cta?: string;
-  };
-  prompter?: {
-    blocks?: Array<{
-      id: string;
-      type: 'key_line' | 'keyword' | 'appeal_point' | 'mood' | 'action' | 'warning' | 'cta';
-      label?: string;
-      content: string;
-      accentColor?: string;
-      visible: boolean;
-      size: 'sm' | 'md' | 'lg' | 'xl';
-      positionPreset: 'top' | 'upperThird' | 'center' | 'lowerThird' | 'bottom';
-      scale?: number;
-      x?: number;
-      y?: number;
-      order: number;
-    }>;
-  };
-  progress?: number;
-};
+export type MockRecipeScene = RecipeScene;
 
-export type MockRecipe = {
-  id: string;
-  title: string;
-  creator: string;
-  platform: MockPlatform;
-  thumbnail: AppImageSource;
-  savedAt: string;
-  sourceUrl: string;
-  referenceVideoSource?: string | number;
-  summary: string;
-  niche: string;
-  goal: string;
-  notes: string;
-  ownership: MockRecipeOwnership;
-  verification: MockRecipeVerification;
-  ownerHandle: string;
-  ownerName: string;
-  downloadCount: number;
-  explicitCompletion?: boolean;
-  shootStatus: MockRecipeShootStatus;
-  shotSceneCount: number;
-  totalSceneCount: number;
-  lastShotAt?: string;
-  remixOfRecipeId?: string;
-  scenes: MockRecipeScene[];
-};
+export type MockRecipe = Recipe;
 
 export type MockProfile = {
   name: string;

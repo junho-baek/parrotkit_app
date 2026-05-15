@@ -324,7 +324,7 @@ Commit note: this commit is allowed to expose the current architectural debt. Th
 - Create: `src/domain/recipes/recipe.ts`
 - Modify: `src/core/mocks/parrotkit-data.ts`
 
-- [ ] **Step 1: Create recipe domain type file**
+- [x] **Step 1: Create recipe domain type file**
 
 Create `src/domain/recipes/recipe.ts`:
 
@@ -438,7 +438,7 @@ export type Recipe = {
 };
 ```
 
-- [ ] **Step 2: Convert mock type declarations to aliases**
+- [x] **Step 2: Convert mock type declarations to aliases**
 
 Modify the top of `src/core/mocks/parrotkit-data.ts`:
 
@@ -470,7 +470,7 @@ export type MockRecipe = Recipe;
 
 Keep the existing `MockTakeExportStatus`, `MockProjectTake`, `MockSceneTakeCollection`, `MockRecipeTakeProject`, `MockQuickTakeProject`, `MockProfile`, seed arrays, and helper functions in the same file for now.
 
-- [ ] **Step 3: Run recipe type verification**
+- [x] **Step 3: Run recipe type verification**
 
 Run:
 
@@ -490,6 +490,8 @@ cd /Users/junho/project/parrotkit-app
 git add parrotkit-app/src/domain/recipes/recipe.ts parrotkit-app/src/core/mocks/parrotkit-data.ts
 git commit -m "refactor: extract recipe domain types"
 ```
+
+Task 3 implementation note: code changes and verification completed on 2026-05-16, but commit was intentionally skipped because the task request said not to commit. See `context/context_20260516_recipe_domain_types.md`.
 
 ---
 
