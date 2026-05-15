@@ -18,8 +18,8 @@ if (getGlobalCreateCtaDestination() !== "/recipe-create?mode=manual") {
   throw new Error("Floating creation CTA must open the blank/manual recipe creation flow.");
 }
 
-if (!shouldShowGlobalCreateCta("/")) {
-  throw new Error("Floating creation CTA must remain available on Home.");
+if (shouldShowGlobalCreateCta("/")) {
+  throw new Error("Floating creation CTA should hide on Home because Home has its own recipe creation entry.");
 }
 
 if (shouldShowGlobalCreateCta("/recipe-create")) {

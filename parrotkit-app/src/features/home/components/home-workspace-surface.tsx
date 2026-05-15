@@ -24,10 +24,6 @@ import { brandActionGradient } from '@/core/theme/colors';
 import { AppScreenScrollView } from '@/core/ui/app-screen-scroll-view';
 import { toImageSource } from '@/core/ui/image-source';
 import {
-  getHomePrimaryCta,
-  getHomePrimaryCtaDestination,
-} from '@/features/home/lib/home-primary-cta';
-import {
   getHomeOwnedRecipeCardEntries,
   getHomeOwnedRecipeCardsDestination,
   type HomeOwnedRecipeCardEntry,
@@ -69,15 +65,6 @@ export function HomeWorkspaceSurface() {
   const recipeCards = getHomeOwnedRecipeCardEntries(recipes).slice(0, 6);
   const recentSavedTakes = savedTakes.slice(0, 4);
   const recipeCreateEntry = getHomeRecipeCreateEntry(language);
-  const primaryCta = getHomePrimaryCta({
-    hasContinueRecipe: Boolean(heroRecipe),
-    language,
-    recipeTitle: heroRecipe?.title,
-  });
-  const primaryCtaDestination = getHomePrimaryCtaDestination({
-    createDestination: recipeCreateEntry.destination,
-    recipeId: heroRecipe?.id,
-  });
   const continueWorkflowEntry = getHomeContinueWorkflowEntry({
     createDestination: recipeCreateEntry.destination,
     savedTakes,
@@ -117,7 +104,6 @@ export function HomeWorkspaceSurface() {
                 copy={homeCopy}
                 language={language}
                 onOpenRecipe={() => openRecipe(continueWorkflowCard.recipe)}
-                onPrimary={() => router.push(continueWorkflowHref as Href)}
                 onViewAll={() => router.push('/recipes' as Href)}
                 recipe={continueWorkflowCard.recipe}
               />
@@ -132,28 +118,14 @@ export function HomeWorkspaceSurface() {
           ) : null}
 
           <View className="gap-1.5">
-            <Text className="text-[30px] font-black leading-[34px] text-ink">
+            <Text className="text-[25px] font-black leading-[30px] text-ink">
               {homeCopy.welcomeTitle}
             </Text>
-            <Text className="text-[15px] font-semibold leading-6 text-muted">
+            <Text className="text-[14px] font-semibold leading-5 text-muted">
               {homeCopy.welcomeSubtitle}
             </Text>
           </View>
 
-          <PrimaryWorkflowCta
-            actionLabel={primaryCta.actionLabel}
-            body={primaryCta.body}
-            onPress={() => router.push(primaryCtaDestination as Href)}
-            title={primaryCta.title}
-            workflowLabel={primaryCta.workflowLabel}
-          />
-
-          <BlankShootBoardEntry
-            accessibilityLabel={recipeCreateEntry.accessibilityLabel}
-            label={recipeCreateEntry.label}
-            language={language}
-            onPress={() => router.push(recipeCreateEntry.destination as Href)}
-          />
 
           <View className="gap-3">
             <View className="flex-row items-center justify-between">
@@ -229,6 +201,13 @@ export function HomeWorkspaceSurface() {
               </View>
             )}
           </View>
+          <BlankShootBoardEntry
+            accessibilityLabel={recipeCreateEntry.accessibilityLabel}
+            label={recipeCreateEntry.label}
+            language={language}
+            onPress={() => router.push(recipeCreateEntry.destination as Href)}
+          />
+
         </View>
       </AppScreenScrollView>
     </View>
@@ -269,63 +248,11 @@ function BlankShootBoardEntry({
   );
 }
 
-function PrimaryWorkflowCta({
-  actionLabel,
-  body,
-  onPress,
-  title,
-  workflowLabel,
-}: {
-  actionLabel: string;
-  body: string;
-  onPress: () => void;
-  title: string;
-  workflowLabel: string;
-}) {
-  return (
-    <Pressable
-      accessibilityLabel={`${workflowLabel}: ${title}`}
-      accessibilityRole="button"
-      onPress={onPress}
-      style={styles.primaryWorkflowCard}
-    >
-      <LinearGradient
-        colors={['#111827', '#3b2f70']}
-        end={{ x: 1, y: 1 }}
-        start={{ x: 0, y: 0 }}
-        style={styles.primaryWorkflowGradient}
-      >
-        <View className="min-w-0 flex-1 gap-2">
-          <View style={styles.primaryWorkflowPill}>
-            <MaterialCommunityIcons color="#c4b5fd" name="movie-open-play-outline" size={14} />
-            <Text className="text-[11px] font-black uppercase text-violet-100" numberOfLines={1}>
-              {workflowLabel}
-            </Text>
-          </View>
-          <Text className="text-[20px] font-black leading-6 text-white" numberOfLines={2}>
-            {title}
-          </Text>
-          <Text className="text-[13px] font-semibold leading-5 text-slate-200" numberOfLines={2}>
-            {body}
-          </Text>
-        </View>
-        <View style={styles.primaryWorkflowAction}>
-          <Text className="text-[13px] font-black text-slate-950" numberOfLines={1}>
-            {actionLabel}
-          </Text>
-          <MaterialCommunityIcons color="#111827" name="arrow-right" size={18} />
-        </View>
-      </LinearGradient>
-    </Pressable>
-  );
-}
-
 function ContinueRecipePanel({
   copy,
   card,
   language,
   onOpenRecipe,
-  onPrimary,
   onViewAll,
   recipe,
 }: {
@@ -333,7 +260,6 @@ function ContinueRecipePanel({
   copy: HomeCopy;
   language: AppLanguage;
   onOpenRecipe: () => void;
-  onPrimary: () => void;
   onViewAll: () => void;
   recipe: MockRecipe;
 }) {
@@ -363,49 +289,26 @@ function ContinueRecipePanel({
             <Text className="text-[17px] font-black leading-[21px] text-ink" numberOfLines={2}>
               {card.title || copy.continueTitleFallback}
             </Text>
-            <View style={styles.continueStatePill}>
-              <MaterialCommunityIcons color="#6d28d9" name="progress-clock" size={13} />
-              <Text className="text-[11px] font-black text-violet" numberOfLines={1}>
-                {card.stateLabel}
-              </Text>
-            </View>
             <Text className="text-[13px] font-bold text-muted" numberOfLines={1}>
-              {recipe.ownerHandle} · {card.supportingProgressLabel}
+              {card.supportingProgressLabel}{activityLabel ? ` · ${activityLabel}` : ''}
             </Text>
-            <Text className="text-[12px] font-semibold leading-4 text-muted" numberOfLines={2}>
-              {card.body}
-            </Text>
-            {activityLabel ? (
-              <Text className="text-[12px] font-semibold text-slate-400" numberOfLines={1}>
-                {activityLabel}
-              </Text>
-            ) : null}
           </View>
           <View className="items-center justify-center">
             <MaterialCommunityIcons color="#64748b" name="chevron-right" size={24} />
           </View>
         </Pressable>
 
-        <View style={styles.progressTrack}>
-          <LinearGradient
-            colors={brandActionGradient}
-            end={{ x: 1, y: 0 }}
-            start={{ x: 0, y: 0 }}
-            style={[styles.progressFill, { width: progressWidth }]}
-          />
+        <View className="flex-row items-center gap-3">
+          <View style={styles.progressTrack}>
+            <LinearGradient
+              colors={brandActionGradient}
+              end={{ x: 1, y: 0 }}
+              start={{ x: 0, y: 0 }}
+              style={[styles.progressFill, { width: progressWidth }]}
+            />
+          </View>
+          <Text className="text-[12px] font-black text-slate-500">{card.actionLabel}</Text>
         </View>
-
-        <Pressable
-          accessibilityLabel={card.actionLabel}
-          accessibilityRole="button"
-          onPress={onPrimary}
-          style={styles.continueButton}
-        >
-          <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.continueButtonGradient}>
-            <MaterialCommunityIcons color="#fff" name="play" size={18} />
-            <Text className="text-[14px] font-black text-white">{card.actionLabel}</Text>
-          </LinearGradient>
-        </Pressable>
       </View>
     </View>
   );
@@ -656,43 +559,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
-  primaryWorkflowAction: {
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    flexDirection: 'row',
-    gap: 6,
-    justifyContent: 'center',
-    minHeight: 46,
-    paddingHorizontal: 14,
-  },
-  primaryWorkflowCard: {
-    borderRadius: 22,
-    overflow: 'hidden',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.16,
-    shadowRadius: 24,
-  },
-  primaryWorkflowGradient: {
-    borderRadius: 22,
-    gap: 15,
-    padding: 18,
-  },
-  primaryWorkflowPill: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderColor: 'rgba(255,255,255,0.16)',
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 5,
-    maxWidth: '100%',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-  },
   emptyPanel: {
     borderColor: '#fed7aa',
     borderRadius: 26,
@@ -706,6 +572,7 @@ const styles = StyleSheet.create({
   progressTrack: {
     backgroundColor: '#e2e8f0',
     borderRadius: 999,
+    flex: 1,
     height: 5,
     overflow: 'hidden',
   },

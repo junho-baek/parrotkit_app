@@ -1,7 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { usePathname } from 'expo-router';
-import { Icon, Label, NativeTabs, VectorIcon } from 'expo-router/unstable-native-tabs';
-import { DynamicColorIOS, Platform, StyleSheet, View } from 'react-native';
+import { Tabs, usePathname } from 'expo-router';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { useAppLanguage } from '@/core/i18n/app-language';
 import { AppTopBar } from '@/core/navigation/app-top-bar';
@@ -15,54 +14,48 @@ import { type RootTabName, rootTabNames } from '@/core/navigation/root-tab-confi
 export function RootNativeTabs() {
   return (
     <NavigationChromeProvider>
-      <RootNativeTabsContent />
+      <RootTabsContent />
     </NavigationChromeProvider>
   );
 }
 
-function RootNativeTabsContent() {
+function RootTabsContent() {
   const { homeQuickShootChromeHidden } = useNavigationChrome();
   const pathname = usePathname();
   const { copy } = useAppLanguage();
-  const isIOS = Platform.OS === 'ios';
   const screenOwnsTopBar = pathname === '/recipes' || pathname.startsWith('/recipes/');
   const hiddenChromeColor = 'transparent';
-  const iosTintColor = isIOS
-    ? DynamicColorIOS({
-        dark: '#ffffff',
-        light: '#111827',
-      })
-    : '#111827';
-  const tabTintColor = homeQuickShootChromeHidden ? hiddenChromeColor : iosTintColor;
-  const tabLabelColor = homeQuickShootChromeHidden
-    ? hiddenChromeColor
-    : isIOS
-      ? iosTintColor
-      : '#57534e';
 
   return (
     <View className="flex-1 bg-canvas">
-      <NativeTabs
-        badgeBackgroundColor={homeQuickShootChromeHidden ? hiddenChromeColor : '#ff9568'}
-        backgroundColor={homeQuickShootChromeHidden ? hiddenChromeColor : isIOS ? null : '#ffffff'}
-        blurEffect={isIOS ? (homeQuickShootChromeHidden ? 'none' : 'systemChromeMaterial') : undefined}
-        disableTransparentOnScrollEdge={isIOS && !homeQuickShootChromeHidden}
-        iconColor={homeQuickShootChromeHidden ? { default: hiddenChromeColor, selected: hiddenChromeColor } : undefined}
-        labelStyle={{
-          color: tabLabelColor,
-        }}
-        labelVisibilityMode={homeQuickShootChromeHidden ? 'unlabeled' : undefined}
-        minimizeBehavior={isIOS ? 'onScrollDown' : undefined}
-        shadowColor={homeQuickShootChromeHidden ? hiddenChromeColor : undefined}
-        tintColor={tabTintColor}
+      <Tabs
+        screenOptions={({ route }) => ({
+          headerShown: false,
+          tabBarActiveTintColor: homeQuickShootChromeHidden ? hiddenChromeColor : '#111827',
+          tabBarInactiveTintColor: homeQuickShootChromeHidden ? hiddenChromeColor : '#94a3b8',
+          tabBarIcon: ({ color, focused, size }) => (
+            <MaterialCommunityIcons
+              color={color}
+              name={getRootTabIcon(route.name as RootTabName, focused)}
+              size={Math.max(size, 22)}
+            />
+          ),
+          tabBarLabel: getRootTabLabel(copy.nav, route.name as RootTabName),
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: '800',
+          },
+          tabBarStyle: homeQuickShootChromeHidden
+            ? styles.hiddenTabBar
+            : [styles.tabBar, Platform.OS === 'android' ? styles.androidTabBar : null],
+        })}
       >
         {rootTabNames.map((tabName) => (
-          <NativeTabs.Trigger key={tabName} name={tabName}>
-            <RootTabIcon tabName={tabName} />
-            <Label hidden={homeQuickShootChromeHidden}>{getRootTabLabel(copy.nav, tabName)}</Label>
-          </NativeTabs.Trigger>
+          <Tabs.Screen key={tabName} name={tabName} />
         ))}
-      </NativeTabs>
+        <Tabs.Screen name="source" options={{ href: null }} />
+        <Tabs.Screen name="recipes" options={{ href: null }} />
+      </Tabs>
 
       {homeQuickShootChromeHidden ? null : (
         <>
@@ -78,38 +71,14 @@ function RootNativeTabsContent() {
   );
 }
 
-function RootTabIcon({ tabName }: { tabName: RootTabName }) {
+function getRootTabIcon(tabName: RootTabName, focused: boolean) {
   switch (tabName) {
     case 'index':
-      return (
-        <Icon
-          androidSrc={{
-            default: <VectorIcon family={MaterialCommunityIcons} name="home-variant-outline" />,
-            selected: <VectorIcon family={MaterialCommunityIcons} name="home-variant" />,
-          }}
-          sf={{ default: 'house', selected: 'house.fill' }}
-        />
-      );
+      return focused ? 'home-variant' : 'home-variant-outline';
     case 'explore':
-      return (
-        <Icon
-          androidSrc={{
-            default: <VectorIcon family={MaterialCommunityIcons} name="compass-outline" />,
-            selected: <VectorIcon family={MaterialCommunityIcons} name="compass" />,
-          }}
-          sf={{ default: 'safari', selected: 'safari.fill' }}
-        />
-      );
+      return focused ? 'compass' : 'compass-outline';
     case 'my':
-      return (
-        <Icon
-          androidSrc={{
-            default: <VectorIcon family={MaterialCommunityIcons} name="account-outline" />,
-            selected: <VectorIcon family={MaterialCommunityIcons} name="account" />,
-          }}
-          sf={{ default: 'person', selected: 'person.fill' }}
-        />
-      );
+      return focused ? 'account' : 'account-outline';
   }
 }
 
@@ -118,6 +87,20 @@ function getRootTabLabel(copy: Record<RootTabName, string>, tabName: RootTabName
 }
 
 const styles = StyleSheet.create({
+  androidTabBar: {
+    height: 72,
+    paddingBottom: 10,
+    paddingTop: 8,
+  },
+  hiddenTabBar: {
+    backgroundColor: 'transparent',
+    borderTopColor: 'transparent',
+    elevation: 0,
+    opacity: 0,
+  },
+  tabBar: {
+    backgroundColor: '#ffffff',
+  },
   topChromeLayer: {
     ...StyleSheet.absoluteFillObject,
     elevation: 30,

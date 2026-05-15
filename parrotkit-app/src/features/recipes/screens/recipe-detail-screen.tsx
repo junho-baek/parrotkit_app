@@ -158,7 +158,7 @@ const shootBoardCopy = {
   en: {
     addCut: "Add cut",
     back: "Back",
-    cutsList: "Cut cards",
+    cutsList: "Shooting board",
     done: "Done",
     more: "More",
     preview: "View example",
@@ -173,7 +173,7 @@ const shootBoardCopy = {
   ko: {
     addCut: "컷 추가",
     back: "뒤로",
-    cutsList: "컷 카드",
+    cutsList: "촬영 보드",
     done: "완료",
     more: "더보기",
     preview: "예시 보기",
@@ -817,11 +817,6 @@ export function RecipeDetailScreen() {
         reorderMode={reorderMode || boardDragActive}
       />
 
-      <FloatingAddSceneButton
-        bottomInset={insets.bottom}
-        copy={boardCopy}
-        onPress={addCut}
-      />
 
       {referenceViewerCut ? (
         <ReferenceViewerModal
@@ -910,12 +905,6 @@ function CutBoardHeader({
             size={17}
           />
         </View>
-        <Text
-          className="mt-0.5 text-[13px] font-bold text-muted"
-          numberOfLines={1}
-        >
-          {formatShootBoardMeta(language, board)}
-        </Text>
       </View>
 
       <Pressable
@@ -934,29 +923,6 @@ function CutBoardHeader({
   );
 }
 
-function FloatingAddSceneButton({
-  bottomInset,
-  copy,
-  onPress,
-}: {
-  bottomInset: number;
-  copy: ShootBoardCopy;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={[
-        styles.v2FloatingAddButton,
-        { bottom: Math.max(bottomInset, 12) + 10 },
-      ]}
-    >
-      <MaterialCommunityIcons color="#fff" name="plus" size={24} />
-      <Text className="text-[16px] font-black text-white">{copy.addCut}</Text>
-    </Pressable>
-  );
-}
 
 function RecipePrepSnapshot({
   copy,

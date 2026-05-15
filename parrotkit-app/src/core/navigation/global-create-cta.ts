@@ -7,6 +7,7 @@ export type GlobalCreateCta = {
 };
 
 const hiddenCreateCtaPaths = new Set([
+  "/",
   "/explore",
   "/recipe-create",
   "/source",

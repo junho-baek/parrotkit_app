@@ -1,0 +1,125 @@
+metadata:
+  seed_id: parrotkit_emergency_ui_patch_20260515
+  product: ParrotKit
+  repository: junho-baek/parrotkit_app
+  created_at: "2026-05-15T23:20:00+09:00"
+  source: Telegram QA feedback after native iOS/Android capture
+  priority: urgent
+
+goal: >
+  Restore ParrotKit v1 native mobile UI quality after QA regressions by making
+  the bottom navigation native-like with only Home/Explore/My, removing box-in-box
+  visual drift, restoring the recipe creation drawer density, and returning the
+  shooting board to a board-like layout instead of a nested card stack.
+
+context:
+  current_worktree: /Users/junho/.ouroboros/worktrees/parrotkit-app/orch_78808bb15d74/parrotkit-app
+  design_source_of_truth: DESIGN.md
+  latest_qa_contact_sheet: qa-ui-screenshots/native-qa-20260515/ui-fix-after-qa-feedback/qa_feedback_contact_sheet.png
+  important_note: >
+    There may be uncommitted partial Hermes edits in the worktree. Treat them as
+    a checkpoint to review, not as automatically accepted implementation.
+
+constraints:
+  - All work must follow DESIGN.md before changing UI.
+  - iPhone and Android native Expo QA captures are required; web QA is out of scope.
+  - Bottom navigation must expose only Home, Explore, My.
+  - User-facing primary copy must avoid Shoot/New Shoot/Start Shoot and avoid workflow language.
+  - Avoid mechanical label + heading + description structures.
+  - Avoid box-in-box layouts unless the inner surface is a real media/input/selection target.
+  - Recipe creation must remain a bottom drawer/modal sheet.
+  - Recipe/shooting board must open as a page, not a drawer/sheet.
+  - Keep ParrotKit palette coral-first: #FF9568 primary warmth; #DE81C1 and #8C67FF as gradient continuation/accent only.
+
+acceptance_criteria:
+  - id: AC1
+    title: Native-like 3-tab bottom navigation
+    criteria:
+      - Bottom tabs show exactly Home, Explore, My on iOS and Android.
+      - Source and Recipes are not visible as bottom tabs.
+      - Icons render reliably in Expo Go/native QA.
+      - Tab bar feels native/lightweight, not a heavy custom boxed component.
+  - id: AC2
+    title: Home copy and CTA hierarchy simplified
+    criteria:
+      - Continue card uses recipe language, not workflow language.
+      - Redundant descriptions are removed; heading/progress carry the meaning.
+      - Continue card is tappable; duplicate CTA buttons are removed or reduced to one inline affordance.
+      - My recipes appears before the lower create recipe entry.
+      - Create recipe sits near the lower area above the native tab bar without overlapping it.
+      - No clipped buttons/text on iOS or Android.
+  - id: AC3
+    title: Explore cards are single CTA surfaces
+    criteria:
+      - Recommended and browse guide cards do not contain competing purple action buttons.
+      - Tapping a card/row opens its detail page.
+      - Browse rows use a simple chevron/text affordance only if needed.
+      - No nested button clusters inside content cards.
+  - id: AC4
+    title: Recipe creation drawer density and no box-in-box
+    criteria:
+      - Drawer remains bottom modal with dim backdrop and rounded top sheet.
+      - Niche options show icons/text without inner icon boxes.
+      - What’s the goal image options render three per row on phone width.
+      - Right-side wasted whitespace is removed.
+      - Other/기타 selection still reveals custom input and persists into draft context.
+  - id: AC5
+    title: Shooting board is a board page, not a card pile
+    criteria:
+      - Opening a recipe board displays a full page, not a drawer/sheet presentation.
+      - Board header keeps only useful heading/navigation; redundant description/meta is removed.
+      - Section copy says board/촬영 보드, not Cut cards as the main concept.
+      - The layout feels like an editable shooting board, not isolated nested cards.
+      - Cut content keeps Line to say, 촬영 가이드/shot guide, and checklist as primary elements.
+  - id: AC6
+    title: Reference video/image sits beside the copy
+    criteria:
+      - Reference media thumbnail appears beside the relevant cut copy on phone width where feasible.
+      - Reference media is not a separate nested card block below the copy unless width forces stacking.
+      - Reference/take UI avoids box-in-box and redundant labels.
+  - id: AC7
+    title: Typography feels Toss-like but not oversized
+    criteria:
+      - Headings use strong weight but moderated mobile sizes.
+      - Descriptions are removed unless they add decision-critical information.
+      - Labels are not repeated when titles/buttons are self-explanatory.
+  - id: AC8
+    title: Native QA evidence
+    criteria:
+      - Provide iPhone captures for Home, Explore, drawer, goal grid, board page, reference/copy area.
+      - Provide Android captures for the same six states.
+      - Generate a contact sheet and note remaining regressions if any.
+      - TypeScript passes with tsc --noEmit.
+      - DESIGN.md lint has zero errors.
+
+implementation_tasks:
+  - title: Fix bottom navigation and Home hierarchy
+    covers: [AC1, AC2, AC7]
+  - title: Simplify Explore card CTA model
+    covers: [AC3, AC7]
+  - title: Restore drawer goal grid and remove box-in-box
+    covers: [AC4, AC7]
+  - title: Rework shooting board page layout and reference placement
+    covers: [AC5, AC6, AC7]
+  - title: Native QA capture package
+    covers: [AC8]
+
+evaluation_principles:
+  - name: DESIGN.md compliance
+    weight: 0.3
+    description: UI follows ParrotKit guardrails: native feeling, coral-first palette, no console/workflow drift, no box-in-box.
+  - name: Native mobile visual QA
+    weight: 0.3
+    description: iPhone and Android screenshots show the intended layout without clipping or tab/drawer regressions.
+  - name: Product copy minimalism
+    weight: 0.2
+    description: Copy is concise, user-facing, and avoids redundant label/heading/description scaffolding.
+  - name: Functional integrity
+    weight: 0.2
+    description: Existing navigation, drawer input, recipe detail opening, and board interactions still work.
+
+exit_conditions:
+  - All acceptance criteria pass.
+  - tsc --noEmit exits 0.
+  - npx -y @google/design.md lint DESIGN.md has 0 errors.
+  - iPhone and Android contact sheet is attached to the implementation summary.

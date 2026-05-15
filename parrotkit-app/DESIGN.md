@@ -178,6 +178,19 @@ Avoid over-structured UI like:
 - repeated labels that restate the button
 - implementation copy disguised as explanation
 
+
+## Simplicity Guardrails
+
+These rules are mandatory for agents changing the UI:
+
+- Do not create box-in-box layouts. A card may contain text, media, icons, and progress, but avoid nested bordered cards inside another bordered card unless the inner surface is actual media.
+- Do not add redundant CTA buttons when the whole card already acts as the CTA. Prefer card press + chevron or clear title over multiple buttons.
+- Avoid the word `workflow` in user-facing copy. Users continue recipes, boards, cuts, and takes.
+- Avoid mechanical `label + heading + description` blocks. If the heading or button copy explains the action, remove the label/description.
+- Prefer fewer, slightly smaller text sizes with strong weight over oversized headings everywhere. Toss-like means clear hierarchy, not giant text on every screen.
+- Explore cards are content CTAs. Pressing the card opens detail; do not place multiple competing purple buttons inside the card.
+- Recipe boards are pages, not drawers. They should show the board directly and keep only useful content: cut title, line to say, 촬영 가이드/shot guide, checklist/progress, and saved takes.
+
 ## Layout
 
 Mobile screens should answer one user question at a time.

@@ -2,7 +2,17 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { ComponentProps, useEffect, useState } from 'react';
-import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ImageBackground,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppLanguage, type AppLanguage } from '@/core/i18n/app-language';
@@ -34,7 +44,7 @@ const createCopy = {
     nicheQuestion: "What's the niche?",
     otherPlaceholder: 'Type your niche',
     goalQuestion: "What's the goal?",
-    cta: 'Open shoot board',
+    cta: 'Open recipe board',
     mode: {
       manual: { icon: 'plus-box-outline' as IconName, tab: 'Blank' },
       reference: { icon: 'link-variant' as IconName, tab: 'Link' },
@@ -50,7 +60,7 @@ const createCopy = {
     nicheQuestion: '니치는 무엇인가요?',
     otherPlaceholder: '기타 니치 입력',
     goalQuestion: '목표는 무엇인가요?',
-    cta: 'Open shoot board',
+    cta: '레시피 보드 열기',
     mode: {
       manual: { icon: 'plus-box-outline' as IconName, tab: 'Blank' },
       reference: { icon: 'link-variant' as IconName, tab: 'Link' },
@@ -110,7 +120,8 @@ export function RecipeCreateScreen() {
     <View style={styles.overlay}>
       <Pressable accessibilityLabel={copy.close as string} onPress={back} style={StyleSheet.absoluteFillObject} />
 
-      <View
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={[
           styles.sheet,
           {
@@ -170,7 +181,7 @@ export function RecipeCreateScreen() {
 
           {selectedNicheId === 'other' ? (
             <View style={styles.otherInputRow}>
-              <MaterialCommunityIcons color="#8c67ff" name="dots-horizontal-circle-outline" size={24} />
+              <MaterialCommunityIcons color="#ff9568" name="dots-horizontal-circle-outline" size={24} />
               <TextInput
                 accessibilityLabel={copy.otherPlaceholder as string}
                 autoCapitalize="words"
@@ -211,7 +222,7 @@ export function RecipeCreateScreen() {
             </LinearGradient>
           </Pressable>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -235,7 +246,7 @@ function CreateModeTab({
       onPress={onPress}
       style={[styles.modeTab, selected ? styles.modeTabActive : null]}
     >
-      <MaterialCommunityIcons color={selected ? '#8c67ff' : '#64748b'} name={item.icon} size={23} />
+      <MaterialCommunityIcons color={selected ? '#ff9568' : '#64748b'} name={item.icon} size={23} />
       <Text style={[styles.modeTabText, selected ? styles.modeTabTextActive : null]}>{item.tab}</Text>
       {isRecipeCreateModePro(mode) ? <ProBadge label={proLabel} /> : null}
     </Pressable>
@@ -302,16 +313,12 @@ function NicheOption({
       onPress={onPress}
       style={[styles.nicheOption, selected ? styles.nicheOptionActive : null]}
     >
-      <View style={styles.nicheFallback}>
-        <MaterialCommunityIcons color={selected ? '#8c67ff' : '#94a3b8'} name={getNicheIcon(niche.id)} size={24} />
-      </View>
+      <MaterialCommunityIcons color={selected ? '#ff9568' : '#94a3b8'} name={getNicheIcon(niche.id)} size={25} />
       <Text numberOfLines={1} style={[styles.nicheLabel, selected ? styles.nicheLabelActive : null]}>
         {label}
       </Text>
       {selected ? (
-        <View style={styles.nicheCheck}>
-          <MaterialCommunityIcons color="#ffffff" name="check" size={16} />
-        </View>
+        <MaterialCommunityIcons color="#ff9568" name="check-circle" size={20} style={styles.nicheCheck} />
       ) : null}
     </Pressable>
   );
@@ -395,29 +402,29 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
   },
   footer: {
-    paddingHorizontal: 25,
+    paddingHorizontal: 20,
     paddingTop: 16,
   },
   goalCard: {
-    aspectRatio: 0.72,
+    aspectRatio: 0.78,
     borderRadius: 18,
     justifyContent: 'flex-end',
     overflow: 'hidden',
   },
   goalCardActive: {
-    borderColor: '#8c67ff',
+    borderColor: '#ff9568',
     borderWidth: 2,
-    shadowColor: '#8c67ff',
+    shadowColor: '#ff9568',
     shadowOffset: { height: 8, width: 0 },
     shadowOpacity: 0.23,
     shadowRadius: 16,
   },
   goalCardPressable: {
-    flexBasis: '30.8%',
+    flexBasis: '31.6%',
   },
   goalCheck: {
     alignItems: 'center',
-    backgroundColor: '#8c67ff',
+    backgroundColor: '#ff9568',
     borderRadius: 999,
     height: 38,
     justifyContent: 'center',
@@ -437,7 +444,7 @@ const styles = StyleSheet.create({
   goalGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 14,
+    gap: 8,
     paddingBottom: 8,
   },
   goalImage: {
@@ -482,8 +489,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   modeTabActive: {
-    backgroundColor: '#f1ebff',
-    borderColor: '#f1ebff',
+    backgroundColor: '#fff1eb',
+    borderColor: '#fff1eb',
   },
   modeTabText: {
     color: '#64748b',
@@ -501,23 +508,9 @@ const styles = StyleSheet.create({
     marginTop: 28,
   },
   nicheCheck: {
-    alignItems: 'center',
-    backgroundColor: '#8c67ff',
-    borderRadius: 999,
-    height: 24,
-    justifyContent: 'center',
     position: 'absolute',
-    right: 7,
-    top: 7,
-    width: 24,
-  },
-  nicheFallback: {
-    alignItems: 'center',
-    backgroundColor: '#eef2f7',
-    borderRadius: 18,
-    height: 46,
-    justifyContent: 'center',
-    width: 46,
+    right: 8,
+    top: 8,
   },
   nicheGrid: {
     flexDirection: 'row',
@@ -533,7 +526,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   nicheLabelActive: {
-    color: '#8c67ff',
+    color: '#ff9568',
   },
   nicheOption: {
     alignItems: 'center',
@@ -549,9 +542,9 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   nicheOptionActive: {
-    borderColor: '#8c67ff',
+    borderColor: '#ff9568',
     borderWidth: 1.5,
-    shadowColor: '#8c67ff',
+    shadowColor: '#ff9568',
     shadowOffset: { height: 5, width: 0 },
     shadowOpacity: 0.12,
     shadowRadius: 10,
@@ -566,7 +559,7 @@ const styles = StyleSheet.create({
   },
   otherInputRow: {
     alignItems: 'center',
-    borderColor: '#d9ccff',
+    borderColor: '#ffd8c8',
     borderRadius: 20,
     borderWidth: 1.5,
     flexDirection: 'row',
@@ -602,15 +595,15 @@ const styles = StyleSheet.create({
   },
   questionTitle: {
     color: '#05070d',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '900',
     letterSpacing: 0,
-    marginBottom: 18,
+    marginBottom: 14,
     marginTop: 32,
   },
   scrollContent: {
-    paddingBottom: 18,
-    paddingHorizontal: 25,
+    paddingBottom: 118,
+    paddingHorizontal: 20,
   },
   sheet: {
     alignSelf: 'center',
@@ -622,10 +615,10 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#05070d',
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '900',
     letterSpacing: 0,
-    lineHeight: 38,
+    lineHeight: 33,
     marginTop: 6,
   },
   underlineInput: {
@@ -639,7 +632,7 @@ const styles = StyleSheet.create({
   },
   underlineInputRow: {
     alignItems: 'center',
-    borderBottomColor: '#8c67ff',
+    borderBottomColor: '#ff9568',
     borderBottomWidth: 1.5,
     flexDirection: 'row',
     gap: 16,

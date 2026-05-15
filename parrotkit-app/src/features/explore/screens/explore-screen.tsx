@@ -304,11 +304,8 @@ export function ExploreScreen() {
               {recommendedCards.map((card) => (
                 <RecommendedRecipeCard
                   card={card}
-                  copy={copy}
                   key={card.id}
-                  onAction={() => handleAction(card)}
                   onPress={() => openCard(card)}
-                  onStartShooting={() => shootRecipe(card)}
                 />
               ))}
             </View>
@@ -354,11 +351,8 @@ export function ExploreScreen() {
             {visibleCards.map((card) => (
               <BrowseRecipeRow
                 card={card}
-                copy={copy}
                 key={card.id}
-                onAction={() => handleAction(card)}
                 onPress={() => openCard(card)}
-                onStartShooting={() => shootRecipe(card)}
               />
             ))}
           </View>
@@ -403,20 +397,11 @@ function CategoryShortcut({
 
 function RecommendedRecipeCard({
   card,
-  copy,
-  onAction,
   onPress,
-  onStartShooting,
 }: {
   card: ExploreRecipeCardModel;
-  copy: ExploreCopy;
-  onAction: () => void;
   onPress: () => void;
-  onStartShooting: () => void;
 }) {
-  const actionAffordance = getExploreTemplateActionAffordance(card.action);
-  const showsStartShooting = Boolean(card.recipe) && card.action !== 'shoot';
-
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.recommendedCard}>
       <ImageBackground
@@ -441,25 +426,9 @@ function RecommendedRecipeCard({
               {card.creatorHandle}
             </Text>
 
-            <View className="flex-row items-center justify-end gap-2">
-              {showsStartShooting ? (
-                <Pressable accessibilityRole="button" onPress={onStartShooting} style={styles.recommendedShootCta}>
-                  <View className="flex-row items-center gap-1.5">
-                    <MaterialCommunityIcons color="#fff" name="camera-outline" size={14} />
-                    <Text className="text-[12px] font-black text-white">{copy.actions.shoot}</Text>
-                  </View>
-                </Pressable>
-              ) : null}
-              <Pressable accessibilityRole="button" onPress={onAction} style={styles.recommendedCta}>
-                <View className="flex-row items-center gap-1.5">
-                  <MaterialCommunityIcons
-                    color={actionAffordance.kind === 'copy' ? '#8c67ff' : '#111827'}
-                    name={actionAffordance.iconName}
-                    size={14}
-                  />
-                  <Text className="text-[12px] font-black text-ink">{copy.actions[card.action]}</Text>
-                </View>
-              </Pressable>
+            <View className="flex-row items-center gap-1.5">
+              <Text className="text-[12px] font-black text-white">Open guide</Text>
+              <MaterialCommunityIcons color="#fff" name="chevron-right" size={16} />
             </View>
           </View>
         </View>
@@ -470,20 +439,11 @@ function RecommendedRecipeCard({
 
 function BrowseRecipeRow({
   card,
-  copy,
-  onAction,
   onPress,
-  onStartShooting,
 }: {
   card: ExploreRecipeCardModel;
-  copy: ExploreCopy;
-  onAction: () => void;
   onPress: () => void;
-  onStartShooting: () => void;
 }) {
-  const actionAffordance = getExploreTemplateActionAffordance(card.action);
-  const showsStartShooting = Boolean(card.recipe) && card.action !== 'shoot';
-
   return (
     <Pressable accessibilityRole="button" className="flex-row gap-3 py-3" onPress={onPress}>
       <Image source={toImageSource(card.image)} style={styles.rowImage} />
@@ -492,11 +452,7 @@ function BrowseRecipeRow({
           <Text className="min-w-0 flex-1 text-[15px] font-black leading-[19px] text-ink" numberOfLines={2}>
             {card.title}
           </Text>
-          <MaterialCommunityIcons
-            color={actionAffordance.kind === 'deferred' ? '#94a3b8' : '#8c67ff'}
-            name={actionAffordance.iconName}
-            size={17}
-          />
+          <MaterialCommunityIcons color="#94a3b8" name="chevron-right" size={18} />
         </View>
         <Text className="text-[11px] font-semibold leading-4 text-muted" numberOfLines={2}>
           {card.description}
@@ -511,27 +467,9 @@ function BrowseRecipeRow({
             </View>
           ))}
         </View>
-        <View className="flex-row items-center justify-between gap-2">
-          <View className="min-w-0 flex-1 flex-row gap-3">
-            <Text className="text-[10px] font-bold text-muted">{formatCompactMetric(card.saveCount)} {copy.stats.saves}</Text>
-            <Text className="text-[10px] font-bold text-muted">{formatCompactMetric(card.viewCount)} {copy.stats.views}</Text>
-          </View>
-          <View className="flex-row items-center gap-2">
-            {showsStartShooting ? (
-              <Pressable accessibilityRole="button" onPress={onStartShooting} style={styles.rowShootCta}>
-                <View className="flex-row items-center gap-1.5">
-                  <MaterialCommunityIcons color="#fff" name="camera-outline" size={13} />
-                  <Text className="text-[11px] font-black text-white">{copy.actions.shoot}</Text>
-                </View>
-              </Pressable>
-            ) : null}
-            <Pressable accessibilityRole="button" onPress={onAction} style={styles.rowCta}>
-              <View className="flex-row items-center gap-1.5">
-                <MaterialCommunityIcons color="#8c67ff" name={actionAffordance.iconName} size={13} />
-                <Text className="text-[11px] font-black text-violet">{copy.actions[card.action]}</Text>
-              </View>
-            </Pressable>
-          </View>
+        <View className="min-w-0 flex-row gap-3">
+          <Text className="text-[10px] font-bold text-muted">{formatCompactMetric(card.saveCount)} saves</Text>
+          <Text className="text-[10px] font-bold text-muted">{formatCompactMetric(card.viewCount)} views</Text>
         </View>
       </View>
     </Pressable>

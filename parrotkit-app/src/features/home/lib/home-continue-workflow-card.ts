@@ -52,11 +52,11 @@ export function getHomeContinueWorkflowCard({
   const sectionTitle =
     language === 'ko'
       ? isInProgress
-        ? '이어갈 워크플로우'
-        : '최근 워크플로우'
+        ? '이어갈 레시피'
+        : '최근 레시피'
       : isInProgress
-        ? 'Continue workflow'
-        : 'Recent workflow';
+        ? 'Continue recipe'
+        : 'Recent recipe';
   const stateLabel =
     language === 'ko'
       ? isInProgress
@@ -68,15 +68,15 @@ export function getHomeContinueWorkflowCard({
   const body =
     language === 'ko'
       ? isInProgress
-        ? `${supportingProgressLabel} 진행 중. 선택한 레시피 보드로 돌아가 다음 컷을 이어갑니다.`
-        : `${supportingProgressLabel} 구성됨. 최근 레시피 보드로 돌아가 촬영 흐름을 이어갑니다.`
+        ? `${supportingProgressLabel}`
+        : `${supportingProgressLabel}`
       : isInProgress
-        ? `${supportingProgressLabel} in progress. Return to the selected recipe board and continue the next cut.`
-        : `${supportingProgressLabel} prepared. Return to the recent recipe board and continue the workflow.`;
+        ? `${supportingProgressLabel}`
+        : `${supportingProgressLabel}`;
   const title = language === 'ko' ? `${recipeTitle} 이어하기` : `Continue ${recipeTitle}`;
 
   return {
-    actionLabel: language === 'ko' ? '워크플로우 계속하기' : 'Continue workflow',
+    actionLabel: language === 'ko' ? '레시피 이어가기' : 'Continue recipe',
     accessibilityLabel:
       language === 'ko'
         ? `${sectionTitle}: ${title}`
@@ -152,9 +152,9 @@ export function getHomeEmptyWorkflowFallback({
     actionLabel: language === 'ko' ? '레시피 생성' : 'Create recipe',
     body:
       language === 'ko'
-        ? '아직 이어갈 레시피가 없어요. 빈 레시피를 만들고 컷 보드를 채워 촬영을 시작하세요.'
-        : 'No in-progress or recent workflow yet. Create a blank recipe, fill the cut board, and start filming.',
+        ? '빈 레시피를 만들고 컷 보드를 채워보세요.'
+        : 'Create a blank recipe and fill the cut board.',
     destination: createDestination,
-    title: language === 'ko' ? '새 레시피 워크플로우 시작' : 'Start a new recipe workflow',
+    title: language === 'ko' ? '새 레시피 만들기' : 'Create a new recipe',
   };
 }
