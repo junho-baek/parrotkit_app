@@ -504,7 +504,7 @@ Task 3 implementation note: code changes and verification completed on 2026-05-1
 - Modify: `src/features/recipes/lib/saved-take-storage.ts`
 - Modify: `src/features/recipes/lib/take-projects.ts`
 
-- [ ] **Step 1: Create domain saved take contract**
+- [x] **Step 1: Create domain saved take contract**
 
 Create `src/domain/takes/saved-take-contract.ts`:
 
@@ -590,7 +590,7 @@ function formatSavedTakeTime(date: Date) {
 }
 ```
 
-- [ ] **Step 2: Keep old feature import path as a shim**
+- [x] **Step 2: Keep old feature import path as a shim**
 
 Replace `src/features/recipes/lib/saved-take-contract.ts` with:
 
@@ -637,7 +637,7 @@ function createCardSnapshot(card: ShootBoardCut): SavedTakeCardSnapshot {
 }
 ```
 
-- [ ] **Step 3: Update core mock import**
+- [x] **Step 3: Update core mock import**
 
 In `src/core/mocks/parrotkit-data.ts`, replace:
 
@@ -651,7 +651,7 @@ with:
 import type { SavedTakePersistenceContract } from '@/domain/takes/saved-take-contract';
 ```
 
-- [ ] **Step 4: Run saved take tests**
+- [x] **Step 4: Run saved take tests**
 
 Run:
 
@@ -672,6 +672,15 @@ cd /Users/junho/project/parrotkit-app
 git add parrotkit-app/src/domain/takes/saved-take-contract.ts parrotkit-app/src/features/recipes/lib/saved-take-contract.ts parrotkit-app/src/core/mocks/parrotkit-data.ts
 git commit -m "refactor: move saved take contract to domain"
 ```
+
+Task 4 result (2026-05-16):
+- Created `src/domain/takes/saved-take-contract.ts` as a pure domain contract with a structural card input because `src/domain/shoot-board/shoot-board-model.ts` does not exist yet.
+- Kept `src/features/recipes/lib/saved-take-contract.ts` as a compatibility re-export from the domain module.
+- Updated `src/core/mocks/parrotkit-data.ts` to import `SavedTakePersistenceContract` from the domain module.
+- Verification passed: `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json`.
+- Verification passed: focused saved take contract test via `node` with `sucrase/register` and a local `@/` alias resolver. Direct `NODE_PATH=src ./node_modules/.bin/sucrase-node src/features/recipes/lib/saved-take-contract.test.ts` failed because the current Node resolver does not map `@/`.
+- Verification expected-failed: `npm run check:architecture` still reports later provider/navigation feature imports; `src/core/mocks/parrotkit-data.ts` is no longer in the failure list.
+- Commit step skipped per explicit request not to commit.
 
 ---
 

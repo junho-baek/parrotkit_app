@@ -10,7 +10,7 @@ import type {
   RecipeVerification,
   Reference,
 } from '@/domain/recipes/recipe';
-import type { SavedTakePersistenceContract } from '@/features/recipes/lib/saved-take-contract';
+import type { SavedTakePersistenceContract } from '@/domain/takes/saved-take-contract';
 
 export type MockPlatform = RecipePlatform;
 
