@@ -1315,7 +1315,7 @@ Create `context/context_20260516_ddd_architecture_simplification.md`:
 - These should be split by workflow in separate plans after this architecture baseline lands.
 ```
 
-- [ ] **Step 4: Mark plan result**
+- [x] **Step 4: Mark plan result**
 
 Append to this plan under `## 결과`:
 
@@ -1335,7 +1335,7 @@ Append to this plan under `## 결과`:
 - 연결 context: `context/context_20260516_ddd_architecture_simplification.md`
 ```
 
-- [ ] **Step 5: Commit context and plan completion**
+- [x] **Step 5: Commit context and plan completion**
 
 Run:
 
@@ -1345,7 +1345,7 @@ git add parrotkit-app/context/context_20260516_ddd_architecture_simplification.m
 git commit -m "docs: record DDD architecture simplification"
 ```
 
-- [ ] **Step 6: Sync and push**
+- [x] **Step 6: Sync and push**
 
 Run:
 
@@ -1381,3 +1381,26 @@ Expected: push succeeds without force push.
 - `Recipe`, `RecipeScene`, `SavedTakePersistenceContract`, `ShootBoardRecipe`, and `NativeRecipe` names are kept stable through compatibility shims.
 - Old feature import paths remain active while domain paths become the preferred internal paths.
 - `core` boundary is enforced only after provider and navigation shell relocation, so the plan does not require impossible intermediate green states.
+
+## 결과
+
+- 완료 커밋:
+  - `chore: align Expo native dependencies`
+  - `test: add architecture boundary guard`
+  - `refactor: extract recipe domain types`
+  - `refactor: move saved take contract to domain`
+  - `refactor: move shoot board model to domain`
+  - `refactor: move workspace provider to application`
+  - `refactor: move root tabs shell to app shell`
+  - `refactor: split recipe create screen support code`
+  - `refactor: split recipe detail board state`
+- 추가 design cleanup: `fix: align user-facing copy with design guide`
+- 연결 context:
+  - `context/context_20260516_ddd_architecture_simplification.md`
+  - `context/context_20260516_design_copy_cleanup.md`
+- 최종 검증:
+  - PASS: TypeScript
+  - PASS: architecture boundary guard
+  - PASS: focused alias-hook tests for recipe create flow, recipe detail board state, and root tab config
+  - PASS: Expo Go simulator smoke for Home and recipe create drawer
+  - BLOCKED: native dev-client iOS build fails in Xcode linker before app install; details recorded in context.

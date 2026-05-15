@@ -100,3 +100,42 @@ Task 9 from `plans/20260516_ddd_architecture_simplification.md` was implemented 
 
 - Helper placement uses the requested `screens/recipe-detail/` support directory, so its import path differs from the original plan example.
 - The helper uses a narrow structural `GetSavedRecipeTakes` type instead of importing the workspace provider hook, avoiding a screen/provider dependency cycle.
+
+## Final Verification And QA
+
+## 검증
+
+- PASS: `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json`
+- PASS: `npm run check:architecture`
+- PASS: focused alias-hook test bundle:
+  - `src/features/recipes/lib/recipe-create-flow.test.ts`
+  - `src/features/recipes/screens/recipe-detail/recipe-detail-board-state.test.ts`
+  - `src/core/navigation/root-tab-config.test.ts`
+- PASS: `npx expo install --check`
+- PASS: Expo Go simulator smoke on iPhone 17 Pro:
+  - Home rendered.
+  - Center `Paste` action opened the recipe create bottom drawer.
+  - Drawer showed dim backdrop, drag handle, close affordance, `New recipe`, Blank/Link/Brand tabs, niche grid, goal cards, and `Open recipe board`.
+  - `Other` niche revealed custom input and accepted `PetCare`.
+
+## 산출물
+
+- `output/playwright/native-qa-20260516/expo-go-home.png`
+- `output/playwright/native-qa-20260516/expo-go-recipe-create-drawer.png`
+- `output/playwright/native-qa-20260516/expo-go-recipe-create-other-petcare.png`
+- Native build logs:
+  - `/tmp/parrotkit-ios-build.log`
+  - `/tmp/parrotkit-ios-build-clean.log`
+
+## Native Build Blocker
+
+- `npm run ios -- --device "iPhone 17 Pro"` failed in Xcode linker with `Undefined symbols for architecture arm64`; debug log showed `_OBJC_CLASS_$_RCTPackagerConnection` referenced from `libexpo-dev-launcher.a`.
+- `EXPO_DEBUG=1 npx expo run:ios --device "iPhone 17 Pro" --no-bundler --no-build-cache` also failed at native link. The clean build log exposed a SwiftUI private framework link issue: `cannot link directly with 'SwiftUICore' because product being built is not an allowed client of it`.
+- `npx expo install --check` still reports dependencies are up to date, so this appears to be an iOS dev-client/Xcode/native linker issue rather than a TypeScript or architecture-refactor issue.
+
+## Design Review Notes
+
+- Checked `DESIGN.md` after implementation.
+- Recipe creation drawer flow matches the required bottom drawer pattern.
+- Removed two user-facing English `workflow` strings in a separate design cleanup commit.
+- Remaining `workflow` matches are internal file/function/import names.
