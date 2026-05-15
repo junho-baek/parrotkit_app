@@ -1138,11 +1138,11 @@ Result: Implemented without committing per current task request. Extracted the r
 ### Task 9: Split Recipe Detail Board Orchestration
 
 **Files:**
-- Create: `src/features/recipes/screens/recipe-detail-board-state.ts`
+- Create: `src/features/recipes/screens/recipe-detail/recipe-detail-board-state.ts`
 - Modify: `src/features/recipes/screens/recipe-detail-screen.tsx`
-- Test: `src/features/recipes/screens/recipe-detail-board-state.test.ts`
+- Test: `src/features/recipes/screens/recipe-detail/recipe-detail-board-state.test.ts`
 
-- [ ] **Step 1: Extract board UI state pure functions**
+- [x] **Step 1: Extract board UI state pure functions**
 
 Move these functions from `recipe-detail-screen.tsx` into `src/features/recipes/screens/recipe-detail-board-state.ts`:
 
@@ -1170,7 +1170,7 @@ function hydrateShootBoardWithWorkspaceTakes(
 ): ShootBoardRecipe
 ```
 
-- [ ] **Step 2: Write board state test**
+- [x] **Step 2: Write board state test**
 
 Create `src/features/recipes/screens/recipe-detail-board-state.test.ts`:
 
@@ -1195,7 +1195,7 @@ if (state.highlightState !== 'none') {
 }
 ```
 
-- [ ] **Step 3: Update recipe detail imports**
+- [x] **Step 3: Update recipe detail imports**
 
 In `recipe-detail-screen.tsx`, import:
 
@@ -1208,7 +1208,7 @@ import {
 
 Remove local copies of those functions.
 
-- [ ] **Step 4: Run board state and TypeScript checks**
+- [x] **Step 4: Run board state and TypeScript checks**
 
 Run:
 
@@ -1229,6 +1229,8 @@ cd /Users/junho/project/parrotkit-app
 git add parrotkit-app/src/features/recipes/screens/recipe-detail-screen.tsx parrotkit-app/src/features/recipes/screens/recipe-detail-board-state.ts parrotkit-app/src/features/recipes/screens/recipe-detail-board-state.test.ts
 git commit -m "refactor: extract recipe detail board state"
 ```
+
+Result: Implemented without committing per current task request. Extracted board overview state and workspace-take hydration helpers from `recipe-detail-screen.tsx` into `src/features/recipes/screens/recipe-detail/recipe-detail-board-state.ts`, added `src/features/recipes/screens/recipe-detail/recipe-detail-board-state.test.ts`, and kept React components/styles in the screen. Verification: `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json` passed, `npm run check:architecture` passed, focused board-state test passed with the alias-hook invocation, and `git diff --check` passed. The direct `NODE_PATH=src ./node_modules/.bin/sucrase-node src/features/recipes/screens/recipe-detail/recipe-detail-board-state.test.ts` command failed before test execution because this runtime does not resolve `@/` imports used by the helper dependency chain. Linked context: `context/context_20260516_ddd_architecture_simplification.md`.
 
 ---
 

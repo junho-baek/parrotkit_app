@@ -24,7 +24,6 @@ import { ShootBoardStickyHeader } from "@/features/recipes/components/shoot-boar
 import { TakeReviewViewerModal } from "@/features/recipes/components/take-review-viewer-modal";
 import { normalizeNativeRecipe } from "@/features/recipes/lib/recipe-domain-normalizer";
 import { resolveSavedTakeReloadFlow } from "@/features/recipes/lib/saved-take-reload-flow";
-import type { SavedRecipeTakeRecord } from "@/features/recipes/lib/saved-take-storage";
 import {
   getSceneCardSummary,
   getSceneStrategyMeta,
@@ -33,7 +32,6 @@ import {
   appendShootBoardCut,
   createAddedShootBoardCut,
   createShootBoardRecipe,
-  getNextRequiredShootBoardCutWithoutSavedMyTake,
   getRecipePrompterHref,
   getRecipeRetakePrompterHref,
   replaceShootBoardCutOrder,
@@ -47,23 +45,16 @@ import {
   updateShootBoardCutText,
 } from "@/features/recipes/lib/shoot-board-model";
 import {
+  getBoardOverviewUiState,
+  hydrateShootBoardWithWorkspaceTakes,
+} from "@/features/recipes/screens/recipe-detail/recipe-detail-board-state";
+import {
   NativeRecipe,
   NativeRecipeScene,
 } from "@/features/recipes/types/recipe-domain";
 
 type DetailTab = "analysis" | "recipe" | "shoot";
 type IconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
-type BoardOverviewHighlightState =
-  | "next-required-missing-mytake"
-  | "requested-cut"
-  | "none";
-type BoardOverviewUiState = {
-  nextRequiredCutId: string | null;
-  routeHighlightCutId: string | null;
-  highlightCutId: string | null;
-  highlightState: BoardOverviewHighlightState;
-  cameraEntryRequiresTap: true;
-};
 
 const detailTabs: Array<{ id: DetailTab; label: string }> = [
   { id: "analysis", label: "Analysis" },
@@ -1478,120 +1469,6 @@ function formatShootBoardMeta(language: AppLanguage, board: ShootBoardRecipe) {
   }
 
   return `${board.totalCuts} cuts · ${board.totalDurationSeconds}s · ${board.shotCount} / ${board.totalCuts} shot`;
-}
-
-function getBoardOverviewUiState({
-  board,
-  getSavedRecipeTakes,
-  nativeRecipe,
-  routeHighlightCutId,
-}: {
-  board: ShootBoardRecipe | null;
-  getSavedRecipeTakes: ReturnType<
-    typeof useMockWorkspace
-  >["getSavedRecipeTakes"];
-  nativeRecipe: NativeRecipe | null;
-  routeHighlightCutId: string | null;
-}): BoardOverviewUiState {
-  if (!board || !nativeRecipe) {
-    return {
-      nextRequiredCutId: null,
-      routeHighlightCutId,
-      highlightCutId: null,
-      highlightState: "none",
-      cameraEntryRequiresTap: true,
-    };
-  }
-
-  const nextRequiredCut = getNextRequiredShootBoardCutWithoutSavedMyTake({
-    board,
-    recipe: nativeRecipe,
-    savedTakes: getSavedRecipeTakes(nativeRecipe.id),
-  });
-  const nextRequiredCutId = nextRequiredCut?.id ?? null;
-  const routeHighlightExists =
-    routeHighlightCutId !== null &&
-    board.cuts.some((cut) => cut.id === routeHighlightCutId);
-  const highlightCutId =
-    nextRequiredCutId ?? (routeHighlightExists ? routeHighlightCutId : null);
-  const highlightState: BoardOverviewHighlightState = nextRequiredCutId
-    ? "next-required-missing-mytake"
-    : routeHighlightExists
-      ? "requested-cut"
-      : "none";
-
-  return {
-    nextRequiredCutId,
-    routeHighlightCutId,
-    highlightCutId,
-    highlightState,
-    cameraEntryRequiresTap: true,
-  };
-}
-
-function hydrateShootBoardWithWorkspaceTakes(
-  board: ShootBoardRecipe,
-  recipeId: string,
-  getSavedRecipeTakes: ReturnType<
-    typeof useMockWorkspace
-  >["getSavedRecipeTakes"],
-): ShootBoardRecipe {
-  let foundWorkspaceTakes = false;
-  const cuts = board.cuts.map((cut) => {
-    if (!cut.sceneId) return cut;
-
-    const savedTakes = getSavedRecipeTakes(recipeId, {
-      cutId: cut.id,
-      sceneId: cut.sceneId,
-    });
-    if (!savedTakes.length) return cut;
-
-    foundWorkspaceTakes = true;
-    const finalTakeId =
-      savedTakes.find((take) => take.isFinalTake)?.takeId ??
-      savedTakes[0]?.takeId;
-    const requiredChecklist = cut.requiredChecklist.map((item) => ({
-      ...item,
-      checked: true,
-    }));
-
-    return {
-      ...cut,
-      finalTakeId,
-      isShot: true,
-      requiredChecklist,
-      requiredChecks: requiredChecklist.map((item) => item.label),
-      requiredChecksKo: requiredChecklist.map((item) => item.labelKo),
-      takeStatus: finalTakeId ? ("final" as const) : ("saved" as const),
-      takes: savedTakes.map((take) =>
-        mapWorkspaceTakeToBoardTake(take, cut, finalTakeId),
-      ),
-    };
-  });
-
-  if (!foundWorkspaceTakes) {
-    return board;
-  }
-
-  return {
-    ...board,
-    cuts,
-    shotCount: cuts.filter((cut) => cut.isShot).length,
-  };
-}
-
-function mapWorkspaceTakeToBoardTake(
-  take: SavedRecipeTakeRecord,
-  cut: ShootBoardCut,
-  finalTakeId?: string,
-): ShootBoardTake {
-  return {
-    durationSeconds: take.durationSeconds ?? cut.durationSeconds,
-    id: take.takeId,
-    label: take.label,
-    recordedAtLabel: take.recordedAtLabel,
-    status: take.takeId === finalTakeId ? "final" : "saved",
-  };
 }
 
 function isRecipeSaved(recipe: MockRecipe, downloadedFromExplore: boolean) {

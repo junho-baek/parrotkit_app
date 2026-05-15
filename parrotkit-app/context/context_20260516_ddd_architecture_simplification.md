@@ -74,3 +74,29 @@ Task 8 from `plans/20260516_ddd_architecture_simplification.md` was implemented 
 ## 리스크
 
 - The direct `sucrase-node` alias limitation is pre-existing and matches earlier context notes for focused tests.
+
+## Task 9: Recipe Detail Board Orchestration Split
+
+## 작업
+
+Task 9 from `plans/20260516_ddd_architecture_simplification.md` was implemented without committing.
+
+## 변경
+
+- Added `src/features/recipes/screens/recipe-detail/recipe-detail-board-state.ts` for board overview highlight state and workspace saved-take hydration helpers.
+- Added `src/features/recipes/screens/recipe-detail/recipe-detail-board-state.test.ts` covering the empty board overview state contract.
+- Updated `src/features/recipes/screens/recipe-detail-screen.tsx` to import the extracted helpers and removed the local board overview/hydration helper copies.
+- Kept recipe detail React components, styles, and UI behavior unchanged.
+
+## 검증
+
+- PASS: `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json`
+- PASS: `npm run check:architecture`
+- PASS: `node -r sucrase/register -e "const Module=require('module');const path=require('path');const root=process.cwd();const original=Module._resolveFilename;Module._resolveFilename=function(request,parent,isMain,options){if(request.startsWith('@/')) return original.call(this,path.join(root,'src',request.slice(2)),parent,isMain,options);return original.call(this,request,parent,isMain,options);};require('./src/features/recipes/screens/recipe-detail/recipe-detail-board-state.test.ts');"`
+- BLOCKED/KNOWN FAIL: `NODE_PATH=src ./node_modules/.bin/sucrase-node src/features/recipes/screens/recipe-detail/recipe-detail-board-state.test.ts` failed before test execution because this runtime does not resolve `@/` imports used by the helper dependency chain.
+- PASS: `git diff --check`
+
+## 리스크
+
+- Helper placement uses the requested `screens/recipe-detail/` support directory, so its import path differs from the original plan example.
+- The helper uses a narrow structural `GetSavedRecipeTakes` type instead of importing the workspace provider hook, avoiding a screen/provider dependency cycle.
