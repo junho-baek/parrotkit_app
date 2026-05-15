@@ -609,7 +609,7 @@ function getStaticExploreDetail(language: AppLanguage, detailId: string) {
       { icon: 'sparkles' as IconName, label: 'Pro locked' },
     ],
     keyHook: 'Open with a three-cut result and texture proof before naming the product.',
-    notes: 'Brand context and reference-link assisted creation remain visible as Pro-locked v1 options. The free workflow still starts from Home with a blank recipe and editable cut cards.',
+    notes: 'Brand context and reference-link assisted creation remain visible as Pro-locked v1 options. Free creation still starts from Home with a blank recipe and editable cut cards.',
     saveCount: 980,
     summary: 'A brand-ready shooting guide for proving product value before the sales message.',
     tags: ['Beauty', 'Brand Collab', 'Product Demo', 'Pro'],

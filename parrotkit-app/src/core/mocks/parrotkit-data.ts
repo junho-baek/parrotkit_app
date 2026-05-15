@@ -589,7 +589,7 @@ export const profileSeed: MockProfile = {
   name: 'Junho Baek',
   handle: '@junho',
   role: 'Creative systems builder',
-  bio: 'Turning viral references into reusable creator workflows for web and mobile.',
+  bio: 'Turning viral references into reusable creator recipes for web and mobile.',
   focusTags: ['Creator tools', 'Recipe systems', 'Mobile product'],
   streakDays: 18,
 };
