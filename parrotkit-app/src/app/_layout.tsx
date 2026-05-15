@@ -6,7 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { AppLanguageProvider } from "@/core/i18n/app-language";
 import { AppThemeProvider } from "@/core/providers/app-theme-provider";
-import { MockWorkspaceProvider } from "@/core/providers/mock-workspace-provider";
+import { MockWorkspaceProvider } from "@/application/workspace/mock-workspace-provider";
 
 export default function RootLayout() {
   return (

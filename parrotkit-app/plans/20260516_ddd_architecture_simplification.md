@@ -795,7 +795,7 @@ Task 5 result (2026-05-16):
 - Modify: `src/core/providers/mock-workspace-provider.tsx`
 - Modify: `src/app/_layout.tsx`
 
-- [ ] **Step 1: Move provider file**
+- [x] **Step 1: Move provider file**
 
 Run:
 
@@ -805,7 +805,7 @@ mkdir -p src/application/workspace
 git mv src/core/providers/mock-workspace-provider.tsx src/application/workspace/mock-workspace-provider.tsx
 ```
 
-- [ ] **Step 2: Add old provider path shim**
+- [x] **Step 2: Add old provider path shim**
 
 Create `src/core/providers/mock-workspace-provider.tsx`:
 
@@ -816,7 +816,7 @@ export {
 } from '@/application/workspace/mock-workspace-provider';
 ```
 
-- [ ] **Step 3: Update root layout to import application provider**
+- [x] **Step 3: Update root layout to import application provider**
 
 In `src/app/_layout.tsx`, replace:
 
@@ -830,7 +830,7 @@ with:
 import { MockWorkspaceProvider } from "@/application/workspace/mock-workspace-provider";
 ```
 
-- [ ] **Step 4: Update moved provider imports to domain paths**
+- [x] **Step 4: Update moved provider imports to domain paths**
 
 In `src/application/workspace/mock-workspace-provider.tsx`, replace imports:
 
@@ -850,7 +850,7 @@ from '@/domain/recipes/native-recipe'
 
 Keep `saved-take-storage` in feature path until the take storage module is moved in a separate commit.
 
-- [ ] **Step 5: Verify core no longer owns workspace orchestration**
+- [x] **Step 5: Verify core no longer owns workspace orchestration**
 
 Run:
 
@@ -865,7 +865,7 @@ Expected:
 no matches
 ```
 
-- [ ] **Step 6: Run TypeScript**
+- [x] **Step 6: Run TypeScript**
 
 Run:
 
@@ -885,6 +885,8 @@ cd /Users/junho/project/parrotkit-app
 git add parrotkit-app/src/application/workspace/mock-workspace-provider.tsx parrotkit-app/src/core/providers/mock-workspace-provider.tsx parrotkit-app/src/app/_layout.tsx
 git commit -m "refactor: move workspace provider to application layer"
 ```
+
+Result: Implemented without committing per current task request. Moved the workspace provider implementation to `src/application/workspace/mock-workspace-provider.tsx`, replaced the old core provider file with a compatibility re-export for `MockWorkspaceProvider` and `useMockWorkspace`, and updated `src/app/_layout.tsx` to import the provider from the application layer. Verification: `rg -n "@/features/" src/core/providers src/core/mocks` returned no matches, `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json` passed, `npm run check:architecture` still fails only for `src/core/navigation/root-native-tabs.tsx` importing `@/features/recipes/screens/recipe-create-screen` as expected until Task 7, and `git diff --check` passed. Linked context: `context/context_20260516_ddd_architecture_simplification.md`.
 
 ---
 
