@@ -824,11 +824,17 @@ export function RecipeDetailScreen() {
   );
   const boardHeader = (
     <>
-      <ShootBoardBodyHeader
-        board={renderedShootBoard}
-        language={language}
-        onOpenNote={() => setNoteEntryOpen(true)}
-      />
+      {activeBoardTab === "board" ? (
+        <ShootBoardBodyHeader
+          board={renderedShootBoard}
+          language={language}
+          onOpenNote={() => setNoteEntryOpen(true)}
+        />
+      ) : (
+        <View style={styles.breakdownBodyHeader}>
+          <Text style={styles.breakdownBodyTitle}>{renderedShootBoard.title}</Text>
+        </View>
+      )}
       {boardTabSwitch}
       {activeBoardTab === "board" ? (
         <>
@@ -1765,6 +1771,18 @@ function getStructureColor(index: number) {
 }
 
 const styles = StyleSheet.create({
+  breakdownBodyHeader: {
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingTop: 26,
+  },
+  breakdownBodyTitle: {
+    color: "#111827",
+    fontSize: 32,
+    fontWeight: "900",
+    letterSpacing: 0,
+    lineHeight: 38,
+  },
   boardTabButton: {
     alignItems: "center",
     borderRadius: 10,

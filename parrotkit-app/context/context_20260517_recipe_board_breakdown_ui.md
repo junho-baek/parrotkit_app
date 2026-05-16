@@ -21,5 +21,19 @@ The Recipe Analysis Contract can store Sandcastle-level detail, but `DESIGN.md` 
 
 ## Verification
 
-Pending final verification.
+PASS:
 
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/lib/recipe-breakdown-summary.test.ts`
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/screens/recipe-detail/recipe-detail-breakdown-tab-contract.test.ts`
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/components/shoot-board-scene-card-design-contract.test.ts`
+- `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json`
+- `npm run check:architecture`
+- `npx -y @google/design.md lint DESIGN.md`
+- `git diff --check`
+
+Android QA evidence:
+
+- `output/playwright/recipe-board-breakdown-20260517/android-board.png`
+- `output/playwright/recipe-board-breakdown-20260517/android-breakdown.png`
+
+iOS fresh capture remains blocked because `xcrun simctl openurl` and screenshot commands timed out with exit 124. No stale iOS screenshot was reused.

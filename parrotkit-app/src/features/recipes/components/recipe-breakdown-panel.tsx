@@ -9,31 +9,17 @@ export function RecipeBreakdownPanel({
 }) {
   return (
     <View style={{ gap: 22, paddingHorizontal: 20, paddingTop: 18 }}>
-      <View style={{ gap: 7 }}>
-        <Text
-          numberOfLines={2}
-          style={{
-            color: "#111827",
-            fontSize: 24,
-            fontWeight: "900",
-            letterSpacing: 0,
-            lineHeight: 30,
-          }}
-        >
-          {breakdown.title}
-        </Text>
-        <Text
-          style={{
-            color: "#475569",
-            fontSize: 15,
-            fontWeight: "600",
-            letterSpacing: 0,
-            lineHeight: 22,
-          }}
-        >
-          {breakdown.applyToYourShoot.body}
-        </Text>
-      </View>
+      <Text
+        style={{
+          color: "#475569",
+          fontSize: 15,
+          fontWeight: "600",
+          letterSpacing: 0,
+          lineHeight: 22,
+        }}
+      >
+        {breakdown.applyToYourShoot.body}
+      </Text>
 
       <BreakdownSection
         body={breakdown.hook.body}
@@ -79,4 +65,3 @@ function BreakdownSection({ body, title }: { body: string; title: string }) {
     </View>
   );
 }
-
