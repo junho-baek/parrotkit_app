@@ -12,6 +12,7 @@ const mediaSlotSource = readFileSync(
 );
 const cutReferencePreviewStyle = getStyleBlock("cutReferencePreview");
 const cutReferenceSlotStyle = getStyleBlock("cutReferenceSlot");
+const takeViewerPreviewStyle = getStyleBlock("takeViewerPreview");
 const mediaSlotRootStyle = getStyleBlockFromSource(mediaSlotSource, "root");
 const mediaSlotPreviewStyle = getStyleBlockFromSource(
   mediaSlotSource,
@@ -47,12 +48,20 @@ if (!mediaSlotPreviewStyle.includes("aspectRatio: 9 / 16")) {
   throw new Error("My Take media slot must use 9:16 short-form framing.");
 }
 
+if (!takeViewerPreviewStyle.includes("aspectRatio: 9 / 16")) {
+  throw new Error("Expanded My Take preview must use 9:16 short-form framing.");
+}
+
 if (/height:\s*120/.test(cutReferencePreviewStyle + cutReferenceSlotStyle)) {
   throw new Error("Cut reference preview should not be a fixed 16:9-like strip.");
 }
 
 if (/height:\s*\d+/.test(mediaSlotRootStyle + mediaSlotPreviewStyle)) {
   throw new Error("My Take media slot should not use fixed-height framing.");
+}
+
+if (/height:\s*\d+/.test(takeViewerPreviewStyle)) {
+  throw new Error("Expanded My Take preview should not use fixed-height framing.");
 }
 
 for (const removedStyleName of [

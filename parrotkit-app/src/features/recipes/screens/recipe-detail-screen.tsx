@@ -1,4 +1,5 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { Href, useLocalSearchParams, useRouter } from "expo-router";
 import { ComponentProps, useEffect, useMemo, useRef, useState } from "react";
@@ -778,6 +779,7 @@ export function RecipeDetailScreen() {
 
   return (
     <View className="flex-1 bg-canvas">
+      <StatusBar style="light" />
       <ShootBoardSessionHeader
         board={renderedShootBoard}
         copy={boardCopy}

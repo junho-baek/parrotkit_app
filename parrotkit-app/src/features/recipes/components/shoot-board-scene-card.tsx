@@ -1242,12 +1242,13 @@ const styles = StyleSheet.create({
   },
   takeViewerPreview: {
     alignItems: "center",
+    aspectRatio: 9 / 16,
     backgroundColor: "#111827",
     borderRadius: 12,
-    height: 116,
     justifyContent: "center",
     overflow: "hidden",
     position: "relative",
+    width: 112,
   },
   takeViewerPreviewEmpty: {
     backgroundColor: "#f8fafc",

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="820" viewBox="0 0 920 820">
+  <style>
+    .bg { fill: #f8fafc; }
+    .title { fill: #111827; font: 800 24px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .label { fill: #334155; font: 800 15px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .note { fill: #64748b; font: 600 12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .frame { fill: #ffffff; stroke: #e2e8f0; stroke-width: 1; rx: 18; }
+    .warn { fill: #fff7ed; stroke: #fed7aa; stroke-width: 1; rx: 18; }
+    .warnText { fill: #9a3412; font: 700 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  </style>
+  <rect class="bg" width="920" height="820"/>
+  <text x="28" y="42" class="title">Shooting Session Board Redesign QA</text>
+  <text x="28" y="68" class="note">Android fresh evidence from current Metro on port 8096. iOS Simulator capture is blocked by simctl timeout.</text>
+  <rect x="28" y="96" width="410" height="650" class="frame"/>
+  <text x="48" y="124" class="label">Android overview</text>
+  <image href="android-board-overview.png" x="88" y="148" width="300" height="570" preserveAspectRatio="xMidYMin meet"/>
+  <rect x="482" y="96" width="410" height="650" class="frame"/>
+  <text x="502" y="124" class="label">Android note expanded</text>
+  <image href="android-note-expanded.png" x="532" y="148" width="310" height="570" preserveAspectRatio="xMidYMin meet"/>
+  <rect x="28" y="764" width="864" height="34" class="warn"/>
+  <text x="48" y="786" class="warnText">iPhone fresh capture attempted but blocked: simctl timed out and Simulator window was not available to Computer Use.</text>
+</svg>

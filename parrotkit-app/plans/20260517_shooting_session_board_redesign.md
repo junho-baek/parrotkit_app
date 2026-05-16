@@ -1073,3 +1073,19 @@ Plan complete and saved to `plans/20260517_shooting_session_board_redesign.md`.
 2. **Inline Execution** - execute tasks in this session with checkpoints.
 
 For this repo, Subagent-Driven is recommended because session header, note surface, and cut-card media hierarchy are separable and easier to review independently.
+
+## 결과
+
+- Implemented with Subagent-Driven task slices and review checkpoints.
+- Added dark shooting session header with top-bar `Done` / `완료`.
+- Added body title header and note entry surface.
+- Added execution-first cut titles.
+- Changed Reference and My Take media to 9:16 frames.
+- Quieted the cut-list header and strengthened cut-row design contracts.
+- Fixed board status bar contrast with screen-local `StatusBar style="light"`.
+- Android runtime QA passed with fresh screenshots.
+- iPhone fresh capture remains blocked by local `simctl` timeout / Simulator window capture failure.
+
+## 연결된 context
+
+- `context/context_20260517_shooting_session_board_redesign.md`
