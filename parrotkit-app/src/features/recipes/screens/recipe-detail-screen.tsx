@@ -20,6 +20,7 @@ import { brandActionGradient } from "@/core/theme/colors";
 import { ReferenceViewerModal } from "@/features/recipes/components/reference-viewer-modal";
 import { ShootBoardDraggableList } from "@/features/recipes/components/shoot-board-draggable-list";
 import { ShootBoardNoteCta } from "@/features/recipes/components/shoot-board-note-cta";
+import { ShootBoardSessionHeader } from "@/features/recipes/components/shoot-board-session-header";
 import { ShootBoardStickyHeader } from "@/features/recipes/components/shoot-board-sticky-header";
 import { TakeReviewViewerModal } from "@/features/recipes/components/take-review-viewer-modal";
 import { normalizeNativeRecipe } from "@/features/recipes/lib/recipe-domain-normalizer";
@@ -179,8 +180,6 @@ const shootBoardCopy = {
     speakingLine: "말할 문장",
   },
 } satisfies Record<AppLanguage, Record<string, string>>;
-
-type ShootBoardCopy = (typeof shootBoardCopy)["en"];
 
 export function RecipeDetailScreen() {
   const router = useRouter();
@@ -776,10 +775,12 @@ export function RecipeDetailScreen() {
 
   return (
     <View className="flex-1 bg-canvas">
-      <CutBoardHeader
+      <ShootBoardSessionHeader
         board={renderedShootBoard}
         copy={boardCopy}
+        language={language}
         onBack={handleBack}
+        onDone={handleBack}
         onMore={() => setReorderMode((current) => !current)}
         topInset={insets.top}
       />
@@ -870,64 +871,6 @@ export function RecipeDetailScreen() {
           visible={takeViewerCutId !== null}
         />
       ) : null}
-    </View>
-  );
-}
-
-function CutBoardHeader({
-  board,
-  copy,
-  onBack,
-  onMore,
-  topInset,
-}: {
-  board: ShootBoardRecipe;
-  copy: ShootBoardCopy;
-  onBack: () => void;
-  onMore: () => void;
-  topInset: number;
-}) {
-  return (
-    <View style={[styles.cutBoardHeaderShell, { paddingTop: topInset + 12 }]}>
-      <View style={styles.cutBoardHeaderRow}>
-        <Pressable
-          accessibilityLabel={copy.back}
-          accessibilityRole="button"
-          onPress={onBack}
-          style={styles.cutBoardBackButton}
-        >
-          <MaterialCommunityIcons color="#111827" name="arrow-left" size={24} />
-        </Pressable>
-
-        <View className="min-w-0 flex-1 px-2">
-          <View className="flex-row items-center gap-1">
-            <Text
-              className="min-w-0 flex-shrink text-[17px] font-black leading-6 text-ink"
-              numberOfLines={1}
-            >
-              {board.title}
-            </Text>
-            <MaterialCommunityIcons
-              color="#111827"
-              name="chevron-down"
-              size={17}
-            />
-          </View>
-        </View>
-
-        <Pressable
-          accessibilityLabel={copy.more}
-          accessibilityRole="button"
-          onPress={onMore}
-          style={styles.cutBoardMoreButton}
-        >
-          <MaterialCommunityIcons
-            color="#111827"
-            name="dots-horizontal"
-            size={24}
-          />
-        </Pressable>
-      </View>
     </View>
   );
 }
@@ -1745,40 +1688,6 @@ function getStructureColor(index: number) {
 }
 
 const styles = StyleSheet.create({
-  cutBoardBackButton: {
-    alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderColor: "#e2e8f0",
-    borderRadius: 999,
-    borderWidth: 1,
-    height: 42,
-    justifyContent: "center",
-    width: 42,
-  },
-  cutBoardHeaderShell: {
-    backgroundColor: "#ffffff",
-    borderBottomColor: "#e2e8f0",
-    borderBottomWidth: 1,
-    gap: 10,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
-  },
-  cutBoardHeaderRow: {
-    alignItems: "center",
-    backgroundColor: "#ffffff",
-    flexDirection: "row",
-    gap: 10,
-  },
-  cutBoardMoreButton: {
-    alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderColor: "#e2e8f0",
-    borderRadius: 14,
-    borderWidth: 1,
-    height: 42,
-    justifyContent: "center",
-    width: 42,
-  },
   v2FloatingAddButton: {
     alignItems: "center",
     backgroundColor: "#111827",
