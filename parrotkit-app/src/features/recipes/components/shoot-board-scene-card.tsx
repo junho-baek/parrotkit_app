@@ -906,14 +906,13 @@ const styles = StyleSheet.create({
   },
   cutReferencePreview: {
     alignItems: "center",
+    aspectRatio: 9 / 16,
     backgroundColor: "#111827",
-    borderRadius: 12,
-    flex: 1,
-    height: 120,
+    borderRadius: 14,
     justifyContent: "center",
     overflow: "hidden",
     position: "relative",
-    width: "100%",
+    width: 86,
   },
   cutReferencePreviewEmpty: {
     backgroundColor: "#f8fafc",
@@ -936,10 +935,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
   },
   cutReferenceSlot: {
-    alignSelf: "stretch",
-    height: 120,
+    alignSelf: "flex-start",
     marginBottom: 10,
-    width: "100%",
   },
   checklistCount: {
     color: "#64748b",

@@ -170,10 +170,9 @@ const styles = StyleSheet.create({
   },
   root: {
     backgroundColor: "#ffffff",
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1.2,
     flexShrink: 0,
-    height: 96,
     overflow: "hidden",
     width: 72,
   },
@@ -188,12 +187,11 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.985 }],
   },
   pressable: {
-    flex: 1,
     position: "relative",
   },
   preview: {
+    aspectRatio: 9 / 16,
     backgroundColor: "#f8fafc",
-    height: 67,
     overflow: "hidden",
     position: "relative",
     width: "100%",

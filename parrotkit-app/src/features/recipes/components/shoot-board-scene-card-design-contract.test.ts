@@ -6,6 +6,34 @@ const source = readFileSync(
   "utf8",
 );
 
+const mediaSlotSource = readFileSync(
+  join(__dirname, "shoot-board-media-slot.tsx"),
+  "utf8",
+);
+const cutReferencePreviewStyle = getStyleBlock("cutReferencePreview");
+const cutReferenceSlotStyle = getStyleBlock("cutReferenceSlot");
+const mediaSlotRootStyle = getStyleBlockFromSource(mediaSlotSource, "root");
+const mediaSlotPreviewStyle = getStyleBlockFromSource(
+  mediaSlotSource,
+  "preview",
+);
+
+if (!cutReferencePreviewStyle.includes("aspectRatio: 9 / 16")) {
+  throw new Error("Cut reference preview must use 9:16 short-form framing.");
+}
+
+if (!mediaSlotPreviewStyle.includes("aspectRatio: 9 / 16")) {
+  throw new Error("My Take media slot must use 9:16 short-form framing.");
+}
+
+if (/height:\s*120/.test(cutReferencePreviewStyle + cutReferenceSlotStyle)) {
+  throw new Error("Cut reference preview should not be a fixed 16:9-like strip.");
+}
+
+if (/height:\s*\d+/.test(mediaSlotRootStyle + mediaSlotPreviewStyle)) {
+  throw new Error("My Take media slot should not use fixed-height framing.");
+}
+
 for (const removedStyleName of [
   "editorSection",
   "referenceViewerSection",
@@ -86,7 +114,11 @@ for (const cardCentricCopy of ["Open card", "card pile", "card-centric"]) {
 }
 
 function getStyleBlock(styleName: string) {
-  const match = source.match(
+  return getStyleBlockFromSource(source, styleName);
+}
+
+function getStyleBlockFromSource(sourceText: string, styleName: string) {
+  const match = sourceText.match(
     new RegExp(`\\n  ${styleName}: \\{[\\s\\S]*?\\n  \\},`),
   );
 
