@@ -12,11 +12,6 @@ export type ExploreTemplateStartFilmingInput = {
   sourceRecipeId: string;
 };
 
-export type ExploreTemplateCardStartShootingInput = {
-  savedRecipe: Pick<MockRecipe, "id" | "scenes">;
-  sourceRecipe: Pick<MockRecipe, "id" | "remixOfRecipeId">;
-};
-
 export type ExploreTemplateDetailStartShootingInput = {
   savedRecipe: Pick<MockRecipe, "id" | "scenes">;
   selectedTemplateRecipe: Pick<MockRecipe, "id" | "remixOfRecipeId">;
@@ -81,17 +76,6 @@ export function getExploreTemplateStartFilmingHref({
   }
 
   return `/recipe/${encodeURIComponent(savedRecipeId)}/prompter?${query.toString()}`;
-}
-
-export function getExploreTemplateCardStartShootingHref({
-  savedRecipe,
-  sourceRecipe,
-}: ExploreTemplateCardStartShootingInput) {
-  return getExploreTemplateStartFilmingHref({
-    savedRecipeId: savedRecipe.id,
-    sceneId: savedRecipe.scenes[0]?.id,
-    sourceRecipeId: sourceRecipe.remixOfRecipeId ?? sourceRecipe.id,
-  });
 }
 
 export function getExploreTemplateDetailStartShootingHref({

@@ -75,6 +75,23 @@ export function getBoardOverviewUiState({
   };
 }
 
+export function getExplicitSceneExpansionCutId({
+  board,
+  sceneId,
+}: {
+  board: Pick<ShootBoardRecipe, "cuts"> | null;
+  sceneId?: string | null;
+}): string | null {
+  if (!sceneId || !board?.cuts.length) {
+    return null;
+  }
+
+  return (
+    board.cuts.find((cut) => cut.sceneId === sceneId || cut.id === sceneId)
+      ?.id ?? null
+  );
+}
+
 export function hydrateShootBoardWithWorkspaceTakes(
   board: ShootBoardRecipe,
   recipeId: string,
@@ -94,15 +111,19 @@ export function hydrateShootBoardWithWorkspaceTakes(
     const finalTakeId =
       savedTakes.find((take) => take.isFinalTake)?.takeId ??
       savedTakes[0]?.takeId;
-    const requiredChecklist = cut.requiredChecklist.map((item) => ({
-      ...item,
-      checked: true,
-    }));
+    const hasExplicitWorkspaceTakeState =
+      cut.takeStatus !== "none" || cut.takes.length > 0 || Boolean(cut.finalTakeId);
+    const requiredChecklist = hasExplicitWorkspaceTakeState
+      ? cut.requiredChecklist
+      : cut.requiredChecklist.map((item) => ({
+          ...item,
+          checked: true,
+        }));
 
     return {
       ...cut,
       finalTakeId,
-      isShot: true,
+      isShot: hasExplicitWorkspaceTakeState ? cut.isShot : true,
       requiredChecklist,
       requiredChecks: requiredChecklist.map((item) => item.label),
       requiredChecksKo: requiredChecklist.map((item) => item.labelKo),

@@ -37,6 +37,7 @@ import {
   replaceShootBoardCutOrder,
   resetShootBoardCut,
   selectShootBoardFinalTake,
+  setShootBoardChecklistItem,
   setShootBoardCutCompletion,
   type ShootBoardCut,
   type ShootBoardCutTextPatch,
@@ -45,6 +46,7 @@ import {
   updateShootBoardCutText,
 } from "@/features/recipes/lib/shoot-board-model";
 import {
+  getExplicitSceneExpansionCutId,
   getBoardOverviewUiState,
   hydrateShootBoardWithWorkspaceTakes,
 } from "@/features/recipes/screens/recipe-detail/recipe-detail-board-state";
@@ -225,6 +227,7 @@ export function RecipeDetailScreen() {
   const [selectedTakeId, setSelectedTakeId] = useState<string | undefined>();
   const boardStateRef = useRef<ShootBoardRecipe | null>(null);
   const originalCutSnapshotsRef = useRef<Record<string, ShootBoardCut>>({});
+  const handledExplicitSceneExpansionKeyRef = useRef<string | null>(null);
   const recipeSaved = recipe
     ? isRecipeSaved(recipe, isRecipeDownloaded(recipe.id))
     : false;
@@ -327,25 +330,32 @@ export function RecipeDetailScreen() {
 
   useEffect(() => {
     if (!shootBoard?.cuts.length) {
+      setExpandedCutIds([]);
       return;
     }
 
     setExpandedCutIds((current) => {
-      if (
-        current.some((cutId) => shootBoard.cuts.some((cut) => cut.id === cutId))
-      ) {
-        return current;
-      }
-
-      const nextCut =
-        shootBoard.cuts.find((cut) => !cut.isShot) ?? shootBoard.cuts[0];
-
-      return nextCut ? [nextCut.id] : [];
+      return current.filter((cutId) =>
+        shootBoard.cuts.some((cut) => cut.id === cutId),
+      );
     });
   }, [shootBoard?.id, shootBoard?.totalCuts]);
 
   useEffect(() => {
     if (!params.sceneId || !renderedShootBoard?.cuts.length) {
+      if (!params.sceneId) {
+        handledExplicitSceneExpansionKeyRef.current = null;
+      }
+      return;
+    }
+
+    const explicitSceneExpansionKey = `${renderedShootBoard.id}:${
+      params.sceneId
+    }:${params.takeId ?? ""}`;
+    if (
+      handledExplicitSceneExpansionKeyRef.current ===
+      explicitSceneExpansionKey
+    ) {
       return;
     }
 
@@ -355,13 +365,18 @@ export function RecipeDetailScreen() {
           take: selectedSavedTakeRecord,
         })
       : null;
-    const targetCut = reloadFlow?.cut ?? renderedShootBoard.cuts.find(
-      (cut) => cut.sceneId === params.sceneId || cut.id === params.sceneId,
-    );
+    const explicitCutId = getExplicitSceneExpansionCutId({
+      board: renderedShootBoard,
+      sceneId: params.sceneId,
+    });
+    const targetCut =
+      reloadFlow?.cut ??
+      renderedShootBoard.cuts.find((cut) => cut.id === explicitCutId);
 
     if (targetCut) {
       setSelectedSceneId(null);
       setExpandedCutIds([targetCut.id]);
+      handledExplicitSceneExpansionKeyRef.current = explicitSceneExpansionKey;
 
       if (params.takeId) {
         setTakeViewerCutId(targetCut.id);
@@ -371,29 +386,10 @@ export function RecipeDetailScreen() {
   }, [
     params.sceneId,
     params.takeId,
-    renderedShootBoard,
+    renderedShootBoard?.id,
+    renderedShootBoard?.cuts.length,
     selectedSavedTakeRecord,
   ]);
-
-  useEffect(() => {
-    const highlightedCutId = boardOverviewState.highlightCutId;
-
-    if (
-      !highlightedCutId ||
-      params.sceneId ||
-      !renderedShootBoard?.cuts.length
-    ) {
-      return;
-    }
-
-    const targetCut = renderedShootBoard.cuts.find(
-      (cut) => cut.id === highlightedCutId,
-    );
-
-    if (targetCut) {
-      setExpandedCutIds([targetCut.id]);
-    }
-  }, [boardOverviewState.highlightCutId, params.sceneId, renderedShootBoard]);
 
   if (!nativeRecipe) {
     return (
@@ -542,17 +538,20 @@ export function RecipeDetailScreen() {
 
   const toggleSceneCompletion = (cutId: string, complete: boolean) => {
     updateBoard((board) => {
-      const updatedBoard = setShootBoardCutCompletion(board, cutId, complete);
-      const updatedCut = updatedBoard.cuts.find((cut) => cut.id === cutId);
-      const nextCut = updatedCut?.isShot
-        ? (updatedBoard.cuts.find((cut) => !cut.isShot) ?? updatedBoard.cuts[0])
-        : updatedCut;
+      return setShootBoardCutCompletion(board, cutId, complete);
+    });
+  };
 
-      if (nextCut) {
-        setExpandedCutIds([nextCut.id]);
-      }
+  const toggleChecklistItem = (
+    cutId: string,
+    itemId: string,
+    checked: boolean,
+  ) => {
+    updateBoard((board) => {
+      const sourceBoard =
+        renderedShootBoard?.id === board.id ? renderedShootBoard : board;
 
-      return updatedBoard;
+      return setShootBoardChecklistItem(sourceBoard, cutId, itemId, checked);
     });
   };
 
@@ -802,6 +801,7 @@ export function RecipeDetailScreen() {
         onSetFinalTake={(cut, take) => selectFinalTake(cut, take.id)}
         onShoot={openPrompterForCut}
         onTake={openTakeViewer}
+        onToggleChecklistItem={toggleChecklistItem}
         onToggleExpanded={toggleExpandedCut}
         onToggleSceneComplete={toggleSceneCompletion}
         onUpdateCutText={updateCutText}

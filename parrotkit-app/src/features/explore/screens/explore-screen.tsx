@@ -21,22 +21,14 @@ import { useMockWorkspace } from '@/core/providers/mock-workspace-provider';
 import { AppScreenScrollView } from '@/core/ui/app-screen-scroll-view';
 import { toImageSource, type AppImageSource } from '@/core/ui/image-source';
 import { getExploreCardDetailPath } from '@/features/explore/lib/explore-card-routing';
-import {
-  getExploreTemplateAction,
-  getExploreTemplateActionAffordance,
-  type ExploreTemplateAction,
-} from '@/features/explore/lib/explore-template-copy-action';
-import { getExploreTemplateCardStartShootingHref } from '@/features/explore/lib/explore-template-recipe-copy';
 import { isVerifiedCreatorRecipe } from '@/features/recipes/lib/recipe-ownership';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 type OriginFilter = 'all' | 'partners' | 'community' | 'brand';
 type CategoryFilter = 'beauty' | 'food' | 'fitness' | 'tech' | 'life' | 'all';
-type ExploreAction = ExploreTemplateAction;
 type ExploreOrigin = 'partner' | 'community' | 'brand';
 
 type ExploreRecipeCardModel = {
-  action: ExploreAction;
   category: CategoryFilter;
   chips: string[];
   creatorHandle: string;
@@ -59,7 +51,7 @@ type ExploreCopy = {
   viewAll: string;
   browse: string;
   savedIconLabel: string;
-  actions: Record<ExploreAction, string>;
+  openGuide: string;
   stats: {
     saves: string;
     views: string;
@@ -88,11 +80,7 @@ const exploreCopy: Record<AppLanguage, ExploreCopy> = {
     viewAll: 'View all',
     browse: 'Browse Guides',
     savedIconLabel: 'Saved recipes',
-    actions: {
-      apply: 'Apply',
-      copy: 'Copy template',
-      shoot: 'Film',
-    },
+    openGuide: 'Open guide',
     stats: {
       saves: 'saves',
       views: 'views',
@@ -131,11 +119,7 @@ const exploreCopy: Record<AppLanguage, ExploreCopy> = {
     viewAll: '전체 보기',
     browse: '가이드 둘러보기',
     savedIconLabel: '저장한 레시피',
-    actions: {
-      apply: '지원하기',
-      copy: '템플릿 복사',
-      shoot: '촬영하기',
-    },
+    openGuide: '가이드 열기',
     stats: {
       saves: '저장',
       views: '조회',
@@ -174,21 +158,17 @@ export function ExploreScreen() {
   const router = useRouter();
   const { language } = useAppLanguage();
   const copy = exploreCopy[language];
-  const {
-    downloadRecipe,
-    exploreRecipes,
-    isRecipeDownloaded,
-  } = useMockWorkspace();
+  const { exploreRecipes } = useMockWorkspace();
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
   const [selectedFilter, setSelectedFilter] = useState<OriginFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   const cards = useMemo(
     () => [
-      ...exploreRecipes.map((recipe) => createRecipeCardModel(recipe, language, isRecipeDownloaded(recipe.id))),
+      ...exploreRecipes.map((recipe) => createRecipeCardModel(recipe, language)),
       createBrandRequestCardModel(copy),
     ],
-    [copy, exploreRecipes, isRecipeDownloaded, language]
+    [copy, exploreRecipes, language]
   );
 
   const filteredCards = useMemo(() => {
@@ -217,36 +197,6 @@ export function ExploreScreen() {
 
   const openCard = (card: ExploreRecipeCardModel) => {
     router.push(getExploreCardDetailPath(card) as Href);
-  };
-
-  const saveRecipe = (card: ExploreRecipeCardModel) => {
-    if (card.recipe) {
-      downloadRecipe(card.recipe.id);
-    }
-  };
-
-  const shootRecipe = (card: ExploreRecipeCardModel) => {
-    if (!card.recipe) return;
-
-    const targetRecipe = downloadRecipe(card.recipe.id) ?? card.recipe;
-    router.push(getExploreTemplateCardStartShootingHref({
-      savedRecipe: targetRecipe,
-      sourceRecipe: card.recipe,
-    }) as Href);
-  };
-
-  const handleAction = (card: ExploreRecipeCardModel) => {
-    if (card.action === 'apply') {
-      router.push('/recipe-create?mode=brand' as Href);
-      return;
-    }
-
-    if (card.action === 'shoot') {
-      shootRecipe(card);
-      return;
-    }
-
-    saveRecipe(card);
   };
 
   return (
@@ -305,6 +255,7 @@ export function ExploreScreen() {
                 <RecommendedRecipeCard
                   card={card}
                   key={card.id}
+                  openGuideLabel={copy.openGuide}
                   onPress={() => openCard(card)}
                 />
               ))}
@@ -352,6 +303,7 @@ export function ExploreScreen() {
               <BrowseRecipeRow
                 card={card}
                 key={card.id}
+                openGuideLabel={copy.openGuide}
                 onPress={() => openCard(card)}
               />
             ))}
@@ -397,13 +349,22 @@ function CategoryShortcut({
 
 function RecommendedRecipeCard({
   card,
+  openGuideLabel,
   onPress,
 }: {
   card: ExploreRecipeCardModel;
+  openGuideLabel: string;
   onPress: () => void;
 }) {
+  const openGuideAccessibilityLabel = `${openGuideLabel} ${card.title}`;
+
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.recommendedCard}>
+    <Pressable
+      accessibilityLabel={openGuideAccessibilityLabel}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={styles.recommendedCard}
+    >
       <ImageBackground
         imageStyle={styles.recommendedImage}
         resizeMode="cover"
@@ -427,7 +388,9 @@ function RecommendedRecipeCard({
             </Text>
 
             <View className="flex-row items-center gap-1.5">
-              <Text className="text-[12px] font-black text-white">Open guide</Text>
+              <Text className="text-[12px] font-black text-white">
+                {openGuideLabel}
+              </Text>
               <MaterialCommunityIcons color="#fff" name="chevron-right" size={16} />
             </View>
           </View>
@@ -439,13 +402,22 @@ function RecommendedRecipeCard({
 
 function BrowseRecipeRow({
   card,
+  openGuideLabel,
   onPress,
 }: {
   card: ExploreRecipeCardModel;
+  openGuideLabel: string;
   onPress: () => void;
 }) {
+  const openGuideAccessibilityLabel = `${openGuideLabel} ${card.title}`;
+
   return (
-    <Pressable accessibilityRole="button" className="flex-row gap-3 py-3" onPress={onPress}>
+    <Pressable
+      accessibilityLabel={openGuideAccessibilityLabel}
+      accessibilityRole="button"
+      className="flex-row gap-3 py-3"
+      onPress={onPress}
+    >
       <Image source={toImageSource(card.image)} style={styles.rowImage} />
       <View className="min-w-0 flex-1 gap-1">
         <View className="flex-row items-start justify-between gap-2">
@@ -478,19 +450,12 @@ function BrowseRecipeRow({
 
 function createRecipeCardModel(
   recipe: MockRecipe,
-  language: AppLanguage,
-  downloaded: boolean
+  language: AppLanguage
 ): ExploreRecipeCardModel {
   const verified = isVerifiedCreatorRecipe(recipe);
   const origin = verified ? 'partner' : 'community';
-  const action = getExploreTemplateAction({
-    downloaded,
-    hasRecipe: true,
-    origin,
-  });
 
   return {
-    action,
     category: getRecipeCategory(recipe),
     chips: getRecipeChips(recipe, language),
     creatorHandle: recipe.ownerHandle,
@@ -509,7 +474,6 @@ function createRecipeCardModel(
 
 function createBrandRequestCardModel(copy: ExploreCopy): ExploreRecipeCardModel {
   return {
-    action: 'apply',
     category: 'beauty',
     chips: copy.brandRequest.chips,
     creatorHandle: copy.brandRequest.creatorHandle,
@@ -654,18 +618,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     width: 286,
   },
-  recommendedCta: {
-    backgroundColor: '#ffffff',
-    borderRadius: 999,
-    paddingHorizontal: 15,
-    paddingVertical: 9,
-  },
-  recommendedShootCta: {
-    backgroundColor: '#8c67ff',
-    borderRadius: 999,
-    paddingHorizontal: 15,
-    paddingVertical: 9,
-  },
   recommendedImage: {
     borderRadius: 26,
   },
@@ -679,18 +631,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '900',
     lineHeight: 29,
-  },
-  rowCta: {
-    backgroundColor: '#f4f0ff',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  rowShootCta: {
-    backgroundColor: '#8c67ff',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
   },
   rowImage: {
     backgroundColor: '#e2e8f0',

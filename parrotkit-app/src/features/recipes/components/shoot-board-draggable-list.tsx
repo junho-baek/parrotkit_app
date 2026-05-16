@@ -27,6 +27,7 @@ export function ShootBoardDraggableList({
   onSetFinalTake,
   onShoot,
   onTake,
+  onToggleChecklistItem,
   onToggleExpanded,
   onToggleSceneComplete,
   onUpdateCutText,
@@ -45,6 +46,11 @@ export function ShootBoardDraggableList({
   onSetFinalTake: (cut: ShootBoardCut, take: ShootBoardTake) => void;
   onShoot: (cut: ShootBoardCut, take?: ShootBoardTake) => void;
   onTake: (cut: ShootBoardCut, take?: ShootBoardTake) => void;
+  onToggleChecklistItem: (
+    cutId: string,
+    itemId: string,
+    checked: boolean,
+  ) => void;
   onToggleExpanded: (cutId: string) => void;
   onToggleSceneComplete: (cutId: string, complete: boolean) => void;
   onUpdateCutText: (cutId: string, patch: ShootBoardCutTextPatch) => void;
@@ -73,6 +79,9 @@ export function ShootBoardDraggableList({
           onSetFinalTake={(take) => onSetFinalTake(cut, take)}
           onShoot={(take) => onShoot(cut, take)}
           onTake={(take) => onTake(cut, take)}
+          onToggleChecklistItem={(itemId, checked) =>
+            onToggleChecklistItem(cut.id, itemId, checked)
+          }
           onToggleExpanded={() => onToggleExpanded(cut.id)}
           onToggleSceneComplete={(complete) =>
             onToggleSceneComplete(cut.id, complete)

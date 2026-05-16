@@ -1,9 +1,6 @@
-import { exploreRecipeSeeds, profileSeed } from "@/core/mocks/parrotkit-data";
-
 import {
   createOwnedRecipeFromExploreTemplate,
   EXPLORE_TEMPLATE_START_SOURCE,
-  getExploreTemplateCardStartShootingHref,
   getExploreTemplateDetailStartShootingHref,
   getExploreTemplateStartFilmingHref,
   getOwnedExploreTemplateRecipeId,
@@ -11,11 +8,31 @@ import {
   isOwnedExploreTemplateRecipe,
 } from "./explore-template-recipe-copy";
 
-const sourceRecipe = exploreRecipeSeeds[0];
+const profileSeed = {
+  handle: "@creator",
+  name: "Creator",
+};
 
-if (!sourceRecipe) {
-  throw new Error("Explore template fixture is required for copy validation.");
-}
+const sourceRecipe = {
+  id: "template-1",
+  ownerHandle: "@brand",
+  ownerName: "Brand",
+  ownership: "shared",
+  remixOfRecipeId: undefined,
+  savedAt: undefined,
+  scenes: [
+    {
+      id: "scene-1",
+      prompterLines: ["Keep the serum close to the lens."],
+      recipe: {
+        keyLine: "Show the texture in one clean pass.",
+      },
+    },
+  ],
+  shootStatus: "ready",
+  shotSceneCount: 0,
+  totalSceneCount: 1,
+} as any;
 
 const ownedRecipe = createOwnedRecipeFromExploreTemplate(sourceRecipe);
 const expectedOwnedRecipeId = getOwnedExploreTemplateRecipeId(sourceRecipe.id);
@@ -94,24 +111,6 @@ if (startFilmingUrl.searchParams.get("sourceRecipeId") !== sourceRecipe.id) {
 
 if (startFilmingUrl.searchParams.get("sceneId") !== ownedRecipe.scenes[0]?.id) {
   throw new Error("Explore start-filming should enter filming on the first saved template cut.");
-}
-
-const cardStartShootingHref = getExploreTemplateCardStartShootingHref({
-  savedRecipe: ownedRecipe,
-  sourceRecipe,
-});
-const cardStartShootingUrl = new URL(cardStartShootingHref, "https://parrotkit.local");
-
-if (cardStartShootingUrl.pathname !== `/recipe/${ownedRecipe.id}/prompter`) {
-  throw new Error("Explore template card start-shooting should open the creator workflow for the saved template.");
-}
-
-if (cardStartShootingUrl.searchParams.get("sourceRecipeId") !== sourceRecipe.id) {
-  throw new Error("Explore template card start-shooting should preserve the selected source template id.");
-}
-
-if (cardStartShootingUrl.searchParams.get("sceneId") !== ownedRecipe.scenes[0]?.id) {
-  throw new Error("Explore template card start-shooting should enter on the first selected template cut.");
 }
 
 const detailStartShootingHref = getExploreTemplateDetailStartShootingHref({
