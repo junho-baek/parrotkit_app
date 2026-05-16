@@ -21,3 +21,12 @@
 - `context/context_20260411_playwright_cli_ignore.md`를 운영 hygiene source 페이지로 추가했다.
 - `wiki/concepts/mobile-native-shell.md`와 `wiki/entities/parrotkit-app.md`를 새로 만들고, `ParrotKit`, `dev-only` 관련 기존 페이지를 보강했다.
 - `wiki/index.md`와 `wiki/overview.md`를 2026-04-11 범위까지 확장했다.
+
+## [2026-05-17] ingest | May app seeds, plans, and shooting-board pass
+
+- 4월 말 web/native parity superpower plan, 5월 초 app context, 5월 14-16일 seed/issue burn-down, 5월 17일 Recipe Analysis Contract와 shooting session board context를 하나의 source bundle로 정리했다.
+- `wiki/sources/may-2026-native-app-seeds-plans-context.md`를 추가했다.
+- `wiki/concepts/recipe-analysis-contract.md`와 `wiki/concepts/native-shooting-board.md`를 추가했다.
+- `wiki/analyses/context-map-may-2026-app.md`를 추가해 root `context/`와 nested `parrotkit-app/context/`의 읽는 순서를 정리했다.
+- `wiki/index.md`, `wiki/overview.md`, `wiki/entities/parrotkit.md`, `wiki/entities/parrotkit-app.md`, `wiki/concepts/mobile-native-shell.md`를 2026년 5월 앱 작업 기준으로 갱신했다.
+- 사용자 지시에 따라 `wiki/` 외 파일은 수정하지 않았다.

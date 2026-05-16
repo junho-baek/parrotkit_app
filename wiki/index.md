@@ -1,6 +1,6 @@
 # 인덱스 | Index
 
-ParrotKit 위키의 진입점이다. 현재는 2026년 4월 초 웹앱 구조/운영 문맥에 더해, 2026-04-11의 Expo 모바일 셸 전개와 작업트리 hygiene 변경까지 반영했다.
+ParrotKit 위키의 진입점이다. 현재는 2026년 4월 초 웹앱 구조/운영 문맥, 2026-04-11의 Expo 모바일 셸 전개, 그리고 2026년 5월 중순 `parrotkit-app` 중심의 seed/plan/context/superpower plan 수렴까지 반영했다.
 
 ## Overview
 
@@ -16,6 +16,7 @@ ParrotKit 위키의 진입점이다. 현재는 2026년 4월 초 웹앱 구조/�
 - [dev-only 운영 규칙 보정 | AGENTS Dev-Only Correction](sources/agents-dev-only-correction.md): 문서상 Git 운영 기준을 실제 `dev` 흐름에 맞춘 수정.
 - [모바일 네이티브 셸 전개 | Parrotkit App Mobile Native Shell on April 11](sources/parrotkit-app-mobile-native-shell-apr-11.md): Expo 앱 scaffold, native tabs 전환, prebuild/iOS simulator 검증 정리.
 - [Playwright CLI 작업트리 정리 | Playwright CLI Worktree Ignore](sources/playwright-cli-ignore.md): agent 산출물 ignore 규칙을 anchored path로 정리한 운영 hygiene 기록.
+- [2026년 5월 네이티브 앱 시드/플랜/컨텍스트 묶음 | May 2026 Native App Seeds, Plans, And Context](sources/may-2026-native-app-seeds-plans-context.md): 4월 말 web parity 계획부터 5월 17일 Recipe Analysis Contract와 shooting session board까지 흩어진 앱 문맥을 하나로 묶은 source bundle.
 
 ## Concepts
 
@@ -25,6 +26,8 @@ ParrotKit 위키의 진입점이다. 현재는 2026년 4월 초 웹앱 구조/�
 - [레시피 상세 UI 단순화 | Recipe Detail UI Simplification](concepts/recipe-detail-ui-simplification.md): 4월 8일 상세 화면 변화의 공통 방향.
 - [dev-only 멀티클론 워크플로 | Dev-Only Multi-Clone Workflow](concepts/dev-only-multi-clone-workflow.md): 이 저장소의 작업/동기화/검증 규칙.
 - [모바일 네이티브 셸 | Mobile Native Shell](concepts/mobile-native-shell.md): Expo Router native tabs 기반 mobile shell의 현재 기준선.
+- [네이티브 촬영 보드 | Native Shooting Board](concepts/native-shooting-board.md): `/recipe/:id`가 설명형 detail에서 active short-form filming session board로 이동한 흐름.
+- [레시피 분석 계약 | Recipe Analysis Contract](concepts/recipe-analysis-contract.md): Sandcastle 수준 분석을 저장하되 shooting board에는 execution-first projection만 보여주는 계약.
 
 ## Entities
 
@@ -36,3 +39,4 @@ ParrotKit 위키의 진입점이다. 현재는 2026년 4월 초 웹앱 구조/�
 ## Analyses
 
 - [2026년 4월 context 맵 | Context Map for April 2026](analyses/context-map-april-2026.md): 최근 context 묶음이 무엇을 말하는지 빠르게 파악하는 안내 문서.
+- [2026년 5월 앱 context 맵 | Context Map for May 2026 App Work](analyses/context-map-may-2026-app.md): root와 nested app 아래에 섞인 5월 앱 seed/plan/context를 읽는 순서.
