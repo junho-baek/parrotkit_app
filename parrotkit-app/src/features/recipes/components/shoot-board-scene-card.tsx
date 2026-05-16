@@ -116,15 +116,8 @@ export function ShootBoardSceneCard({
           <View style={styles.compactCopy}>
             <Pressable accessibilityRole="button" onPress={onToggleExpanded}>
               <View style={styles.compactMetaRow}>
-                {highlighted ? (
-                  <View style={styles.nextCutPill}>
-                    <Text style={styles.nextCutText}>
-                      {language === "ko" ? "다음 컷" : "Next cut"}
-                    </Text>
-                  </View>
-                ) : null}
                 <Text numberOfLines={1} style={styles.compactTimeText}>
-                  {cut.timeRangeLabel}
+                  {formatCutTimelineLabel(language, cut)}
                 </Text>
               </View>
               <View style={styles.compactTitleRow}>
@@ -225,29 +218,43 @@ export function ShootBoardSceneCard({
           </View>
         </View>
       ) : (
-        <>
-          <CutReferencePreview
-            language={language}
-            referenceViewer={referenceViewer}
-            timeRangeLabel={cut.timeRangeLabel}
-            onPreview={onPreview}
-          />
-
-          <View className="flex-row items-start gap-2">
+        <View style={styles.compactRow}>
+          <View style={styles.referenceAnchor}>
+            {referenceThumbnailSource ? (
+              <>
+                <Image
+                  accessibilityIgnoresInvertColors
+                  resizeMode="cover"
+                  source={referenceThumbnailSource}
+                  style={styles.referencePreviewImage}
+                />
+                <View style={styles.referencePreviewShade} />
+              </>
+            ) : null}
             <Pressable
               accessibilityRole="button"
-              className="min-w-0 flex-1"
-              onPress={onToggleExpanded}
+              onPress={onPreview}
+              style={({ pressed }) => [
+                styles.referenceAnchorButton,
+                pressed && styles.referencePreviewPressed,
+              ]}
             >
-              <View className="flex-row flex-wrap items-center gap-2">
-                <Text
-                  className="rounded-full px-2.5 py-1 text-[12px] font-black text-white"
-                  style={{ backgroundColor: accent.main }}
-                >
-                  {headerParts.numberLabel}
+              <View style={styles.referencePlay}>
+                <MaterialCommunityIcons color="#111827" name="play" size={15} />
+              </View>
+            </Pressable>
+          </View>
+
+          <View style={styles.compactCopy}>
+            <Pressable accessibilityRole="button" onPress={onToggleExpanded}>
+              <View style={styles.compactMetaRow}>
+                <Text numberOfLines={1} style={styles.compactTimeText}>
+                  {formatCutTimelineLabel(language, cut)}
                 </Text>
-                <Text className="text-[13px] font-black text-muted">
-                  {formatCutDuration(language, cut.durationSeconds)}
+              </View>
+              <View style={styles.compactTitleRow}>
+                <Text numberOfLines={2} style={styles.compactTitle}>
+                  {headerParts.executionTitle}
                 </Text>
                 <MaterialCommunityIcons
                   color="#64748b"
@@ -255,73 +262,65 @@ export function ShootBoardSceneCard({
                   size={18}
                 />
               </View>
-            <Text
-              className="mt-1 text-[13px] font-semibold leading-5 text-ink"
-              numberOfLines={3}
-            >
-              {language === "ko"
-                ? (cut.instructionKo ?? cut.instruction)
-                : cut.instruction}
-            </Text>
+              <Text numberOfLines={2} style={styles.compactApplication}>
+                {language === "ko"
+                  ? (cut.instructionKo ?? cut.instruction)
+                  : cut.instruction}
+              </Text>
             </Pressable>
 
-            {reorderMode ? (
-              <TouchableOpacity
-                activeOpacity={0.72}
-                accessibilityLabel={language === "ko" ? "순서 변경" : "Reorder"}
+            <View style={styles.expandedHeaderActions}>
+              <Pressable
+                accessibilityLabel={editing ? "Done editing" : "Edit"}
                 accessibilityRole="button"
-                delayLongPress={180}
-                onLongPress={onDragStart}
-                style={styles.dragHandle}
+                onPress={() => setEditing((current) => !current)}
+                style={[
+                  styles.expandedHeaderAction,
+                  editing && styles.expandedHeaderActionActive,
+                ]}
               >
                 <MaterialCommunityIcons
-                  color={accent.main}
-                  name="drag-vertical"
-                  size={21}
+                  color={editing ? "#ffffff" : "#7c3aed"}
+                  name={editing ? "check" : "pencil-outline"}
+                  size={14}
                 />
-              </TouchableOpacity>
-            ) : null}
+              </Pressable>
+              <Pressable
+                accessibilityLabel={language === "ko" ? "원래대로" : "Reset"}
+                accessibilityRole="button"
+                onPress={onReset}
+                style={styles.expandedHeaderAction}
+              >
+                <MaterialCommunityIcons
+                  color="#64748b"
+                  name="restore"
+                  size={14}
+                />
+              </Pressable>
+            </View>
           </View>
-        </>
+
+          {reorderMode ? (
+            <TouchableOpacity
+              activeOpacity={0.72}
+              accessibilityLabel={language === "ko" ? "순서 변경" : "Reorder"}
+              accessibilityRole="button"
+              delayLongPress={180}
+              onLongPress={onDragStart}
+              style={styles.dragHandle}
+            >
+              <MaterialCommunityIcons
+                color={accent.main}
+                name="drag-vertical"
+                size={21}
+              />
+            </TouchableOpacity>
+          ) : null}
+        </View>
       )}
 
       {expanded ? (
         <View style={styles.expandedBody}>
-          <View className="flex-row justify-end gap-2">
-            <Pressable
-              accessibilityRole="button"
-              className={`flex-row items-center gap-1 rounded-full border px-3 py-1.5 ${
-                editing ? "border-violet bg-violet" : "border-stroke bg-white"
-              }`}
-              onPress={() => setEditing((current) => !current)}
-            >
-              <MaterialCommunityIcons
-                color={editing ? "#ffffff" : "#8b5cf6"}
-                name={editing ? "check" : "pencil-outline"}
-                size={14}
-              />
-              <Text
-                className={`text-[11px] font-black ${editing ? "text-white" : "text-violet"}`}
-              >
-                {editing ? "Done" : "Edit"}
-              </Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              className="flex-row items-center gap-1 rounded-full border border-stroke bg-white px-3 py-1.5"
-              onPress={onReset}
-            >
-              <MaterialCommunityIcons
-                color="#64748b"
-                name="restore"
-                size={14}
-              />
-              <Text className="text-[11px] font-black text-muted">
-                {language === "ko" ? "원래대로" : "Reset"}
-              </Text>
-            </Pressable>
-          </View>
-
           <View style={styles.boardPrimaryArea}>
             <View style={styles.boardCopyColumn}>
               {editorFields.map((field) => (
@@ -437,9 +436,7 @@ export function ShootBoardSceneCard({
                     : "Opens the saved take review viewer."
               }
               accessibilityLabel={
-                language === "ko"
-                  ? "저장된 테이크"
-                  : "Saved takes"
+                language === "ko" ? "저장된 테이크" : "Saved takes"
               }
               accessibilityRole="button"
               accessibilityState={{
@@ -753,8 +750,8 @@ function DetailInput({
   value: string;
 }) {
   return (
-    <View className="gap-1.5">
-      <Text className="text-[12px] font-black text-ink">{title}</Text>
+    <View style={editing ? styles.detailEditRow : styles.detailReadRow}>
+      <Text style={styles.detailTitle}>{title}</Text>
       {editing ? (
         <TextInput
           multiline
@@ -765,71 +762,8 @@ function DetailInput({
           value={value}
         />
       ) : (
-        <Text className="text-[13px] font-semibold leading-5 text-ink">
-          {value}
-        </Text>
+        <Text style={styles.detailReadValue}>{value}</Text>
       )}
-    </View>
-  );
-}
-
-function CutReferencePreview({
-  language,
-  referenceViewer,
-  timeRangeLabel,
-  onPreview,
-}: {
-  language: AppLanguage;
-  referenceViewer: ReturnType<typeof getCutCardReferenceViewerSection>;
-  timeRangeLabel: string;
-  onPreview: () => void;
-}) {
-  const disabled = referenceViewer.sourceKind === "empty";
-
-  return (
-    <View style={styles.cutReferenceSlot}>
-      <Pressable
-        accessibilityHint={
-          language === "ko"
-            ? disabled
-              ? "사용 가능한 레퍼런스가 없습니다."
-              : "레퍼런스 미리보기를 엽니다."
-            : disabled
-              ? "No reference is available."
-              : "Opens the reference preview."
-        }
-        accessibilityLabel={language === "ko" ? "컷 레퍼런스" : "Cut reference"}
-        accessibilityRole="button"
-        accessibilityState={{ disabled }}
-        disabled={disabled}
-        onPress={onPreview}
-        style={[
-          styles.cutReferencePreview,
-          disabled && styles.cutReferencePreviewEmpty,
-        ]}
-      >
-        {referenceViewer.thumbnailUrl ? (
-          <>
-            <Image
-              accessibilityIgnoresInvertColors
-              resizeMode="cover"
-              source={{ uri: referenceViewer.thumbnailUrl }}
-              style={styles.referencePreviewImage}
-            />
-            <View style={styles.referencePreviewShade} />
-          </>
-        ) : null}
-        <View style={styles.referencePreviewIcon}>
-          <MaterialCommunityIcons
-            color={disabled ? "#94a3b8" : "#ffffff"}
-            name={disabled ? "image-plus" : "play"}
-            size={22}
-          />
-        </View>
-        <View style={styles.cutReferenceTimePill}>
-          <Text style={styles.cutReferenceTimeText}>{timeRangeLabel}</Text>
-        </View>
-      </Pressable>
     </View>
   );
 }
@@ -855,8 +789,9 @@ function getBoardFieldTitle(
 }
 
 function getChecklistProgressLabel(cut: ShootBoardCut, language: AppLanguage) {
-  const checkedCount = cut.requiredChecklist.filter((item) => item.checked)
-    .length;
+  const checkedCount = cut.requiredChecklist.filter(
+    (item) => item.checked,
+  ).length;
 
   return language === "ko"
     ? `${checkedCount}/${cut.requiredChecklist.length} 완료`
@@ -893,6 +828,15 @@ function isBlankEditableCut(cut: ShootBoardCut) {
 
 function formatCutDuration(language: AppLanguage, durationSeconds: number) {
   return language === "ko" ? `${durationSeconds}초` : `${durationSeconds}s`;
+}
+
+function formatCutTimelineLabel(language: AppLanguage, cut: ShootBoardCut) {
+  const durationLabel =
+    language === "ko"
+      ? `예상 ${formatCutDuration(language, cut.durationSeconds)}`
+      : formatCutDuration(language, cut.durationSeconds);
+
+  return `${cut.timeRangeLabel} · ${durationLabel}`;
 }
 
 function getRoleAccent(role: ShootBoardCut["role"]) {
@@ -1082,40 +1026,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
     lineHeight: 16,
   },
-  cutReferencePreview: {
-    alignItems: "center",
-    aspectRatio: 9 / 16,
-    backgroundColor: "#111827",
-    borderRadius: 14,
-    justifyContent: "center",
-    overflow: "hidden",
-    position: "relative",
-    width: 86,
-  },
-  cutReferencePreviewEmpty: {
-    backgroundColor: "#f8fafc",
-    borderColor: "#e2e8f0",
-    borderWidth: 1,
-  },
-  cutReferenceTimePill: {
-    backgroundColor: "rgba(255,255,255,0.92)",
-    borderRadius: 999,
-    bottom: 8,
-    left: 8,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    position: "absolute",
-  },
-  cutReferenceTimeText: {
-    color: "#111827",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0,
-  },
-  cutReferenceSlot: {
-    alignSelf: "flex-start",
-    marginBottom: 10,
-  },
   referenceAnchor: {
     alignItems: "center",
     aspectRatio: 9 / 16,
@@ -1192,16 +1102,36 @@ const styles = StyleSheet.create({
     width: 28,
   },
   expandedBody: {
-    gap: 14,
-    marginTop: 12,
-    paddingTop: 13,
+    gap: 10,
+    marginTop: 10,
   },
   expandedActionArea: {
     flexDirection: "row",
   },
+  expandedHeaderAction: {
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderColor: "#e2e8f0",
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 32,
+    justifyContent: "center",
+    width: 32,
+  },
+  expandedHeaderActionActive: {
+    backgroundColor: "#8c67ff",
+    borderColor: "#8c67ff",
+  },
+  expandedHeaderActions: {
+    flexDirection: "row",
+    gap: 6,
+  },
   expandedTakeActionRow: {
     flexDirection: "row",
     gap: 8,
+  },
+  detailEditRow: {
+    gap: 6,
   },
   detailEditInput: {
     backgroundColor: "#f8fafc",
@@ -1214,10 +1144,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
+  detailReadRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 10,
+    minHeight: 28,
+  },
+  detailReadValue: {
+    color: "#111827",
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0,
+    lineHeight: 19,
+  },
+  detailTitle: {
+    color: "#111827",
+    flexShrink: 0,
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0,
+    lineHeight: 18,
+    width: 96,
+  },
   boardCopyColumn: {
     flex: 1,
     flexBasis: 210,
-    gap: 14,
+    gap: 9,
     minWidth: 0,
   },
   boardPrimaryArea: {
@@ -1232,26 +1185,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fffaf7",
     borderBottomColor: "#ffd7c7",
     borderLeftColor: "#ff9568",
-  },
-  nextCutPill: {
-    backgroundColor: "#fff1ea",
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  nextCutText: {
-    color: "#c05621",
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 0,
-  },
-  referencePreviewIcon: {
-    alignItems: "center",
-    backgroundColor: "rgba(15,23,42,0.62)",
-    borderRadius: 999,
-    height: 44,
-    justifyContent: "center",
-    width: 44,
   },
   referencePreviewImage: {
     ...StyleSheet.absoluteFillObject,

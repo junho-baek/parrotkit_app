@@ -10,11 +10,10 @@ const mediaSlotSource = readFileSync(
   join(__dirname, "shoot-board-media-slot.tsx"),
   "utf8",
 );
-const cutReferencePreviewStyle = getStyleBlock("cutReferencePreview");
-const cutReferenceSlotStyle = getStyleBlock("cutReferenceSlot");
 const referenceAnchorStyle = getStyleBlock("referenceAnchor");
 const cardStyle = getStyleBlock("card");
 const highlightedCardStyle = getStyleBlock("highlightedCard");
+const detailReadRowStyle = getStyleBlock("detailReadRow");
 const takeViewerPreviewStyle = getStyleBlock("takeViewerPreview");
 const mediaSlotRootStyle = getStyleBlockFromSource(mediaSlotSource, "root");
 const mediaSlotPreviewStyle = getStyleBlockFromSource(
@@ -26,6 +25,11 @@ const collapsedRowSource = getSourceBetween(
   "{!expanded ? (",
   "      ) : (",
 );
+const compactPreviewRowsSource = getSourceBetween(
+  collapsedRowSource,
+  "<View style={styles.compactToolRows}>",
+  "            <View style={styles.compactActionRow}>",
+);
 const reorderHandleSource = getConditionalSource(
   source,
   "reorderMode",
@@ -33,28 +37,37 @@ const reorderHandleSource = getConditionalSource(
   ") : null}",
 );
 
-if (!cutReferencePreviewStyle.includes("aspectRatio: 9 / 16")) {
-  throw new Error("Cut reference preview must use 9:16 short-form framing.");
-}
-
 if (!referenceAnchorStyle.includes("aspectRatio: 9 / 16")) {
-  throw new Error("Collapsed reference anchor must use 9:16 short-form framing.");
+  throw new Error(
+    "Collapsed reference anchor must use 9:16 short-form framing.",
+  );
 }
 
 if (referenceAnchorStyle.includes("width: 72")) {
-  throw new Error("Collapsed reference anchor must not shrink back to a tiny play affordance.");
+  throw new Error(
+    "Collapsed reference anchor must not shrink back to a tiny play affordance.",
+  );
 }
 
 if (!/width:\s*(8[8-9]|9\d|1\d{2})/.test(referenceAnchorStyle)) {
-  throw new Error("Collapsed reference anchor must stay wide enough to read as video.");
+  throw new Error(
+    "Collapsed reference anchor must stay wide enough to read as video.",
+  );
 }
 
 if (!cardStyle.includes("borderBottomWidth: 1")) {
-  throw new Error("Collapsed cut rows should use a list divider instead of a full boxed card border.");
+  throw new Error(
+    "Collapsed cut rows should use a list divider instead of a full boxed card border.",
+  );
 }
 
-if (cardStyle.includes("borderWidth: 1") || cardStyle.includes("borderRadius: 14")) {
-  throw new Error("Collapsed cut rows must not reintroduce full rounded card boxes.");
+if (
+  cardStyle.includes("borderWidth: 1") ||
+  cardStyle.includes("borderRadius: 14")
+) {
+  throw new Error(
+    "Collapsed cut rows must not reintroduce full rounded card boxes.",
+  );
 }
 
 if (
@@ -62,7 +75,9 @@ if (
   highlightedCardStyle.includes("#8b5cf6") ||
   highlightedCardStyle.includes("shadowOpacity")
 ) {
-  throw new Error("Next-cut emphasis should use a light label/accent, not a purple boxed highlight.");
+  throw new Error(
+    "Current-cut emphasis should use a subtle accent, not a purple boxed highlight.",
+  );
 }
 
 if (!mediaSlotPreviewStyle.includes("aspectRatio: 9 / 16")) {
@@ -73,12 +88,10 @@ if (!takeViewerPreviewStyle.includes("aspectRatio: 9 / 16")) {
   throw new Error("Expanded My Take preview must use 9:16 short-form framing.");
 }
 
-if (/height:\s*120/.test(cutReferencePreviewStyle + cutReferenceSlotStyle)) {
-  throw new Error("Cut reference preview should not be a fixed 16:9-like strip.");
-}
-
 if (/height:\s*\d+/.test(referenceAnchorStyle)) {
-  throw new Error("Collapsed reference anchor should not use fixed-height framing.");
+  throw new Error(
+    "Collapsed reference anchor should not use fixed-height framing.",
+  );
 }
 
 if (/height:\s*\d+/.test(mediaSlotRootStyle + mediaSlotPreviewStyle)) {
@@ -86,13 +99,19 @@ if (/height:\s*\d+/.test(mediaSlotRootStyle + mediaSlotPreviewStyle)) {
 }
 
 if (/height:\s*\d+/.test(takeViewerPreviewStyle)) {
-  throw new Error("Expanded My Take preview should not use fixed-height framing.");
+  throw new Error(
+    "Expanded My Take preview should not use fixed-height framing.",
+  );
 }
 
 for (const removedStyleName of [
   "editorSection",
   "referenceViewerSection",
   "takeViewerSection",
+  "CutReferencePreview",
+  "cutReferencePreview",
+  "cutReferenceSlot",
+  "cutReferenceTimePill",
 ]) {
   if (source.includes(removedStyleName)) {
     throw new Error(
@@ -110,12 +129,14 @@ for (const requiredConcept of [
   "requiredChecklist",
   "getChecklistProgressLabel",
   "onToggleChecklistItem",
-  "CutReferencePreview",
-  "cutReferencePreview",
   "Film",
   "actionControls.retake",
   "actionControls.setFinal",
   "onSetFinalTake",
+  "formatCutTimelineLabel",
+  "getBoardFieldTitle(field.id, field.label, language)",
+  "styles.expandedHeaderActions",
+  "styles.detailReadRow",
 ]) {
   if (!source.includes(requiredConcept)) {
     throw new Error(
@@ -160,14 +181,24 @@ for (const redundantTakeLabel of ["No take yet", "0 takes", "Take saved"]) {
 }
 
 if (!collapsedRowSource.includes("headerParts.executionTitle")) {
-  throw new Error("Collapsed cut rows must use execution title as the primary name.");
+  throw new Error(
+    "Collapsed cut rows must use execution title as the primary name.",
+  );
+}
+
+if (
+  !detailReadRowStyle.includes('flexDirection: "row"') ||
+  !source.includes("editing ? styles.detailEditRow : styles.detailReadRow")
+) {
+  throw new Error(
+    "Expanded read-only details should stay compact row details, not vertical slots.",
+  );
 }
 
 for (const compactMarker of [
   "styles.compactRow",
   "styles.referenceAnchor",
   "styles.compactMetaRow",
-  "styles.nextCutPill",
   "styles.compactTimeText",
   "styles.compactCopy",
   "styles.compactToolRows",
@@ -175,7 +206,31 @@ for (const compactMarker of [
   "styles.compactTakeButton",
 ]) {
   if (!collapsedRowSource.includes(compactMarker)) {
-    throw new Error(`Collapsed cut rows must include compact marker: ${compactMarker}.`);
+    throw new Error(
+      `Collapsed cut rows must include compact marker: ${compactMarker}.`,
+    );
+  }
+}
+
+if (
+  !source.includes("cut.timeRangeLabel} ·") ||
+  !source.includes("formatCutDuration(language, cut.durationSeconds)")
+) {
+  throw new Error(
+    "Collapsed row timeline must include range plus expected duration.",
+  );
+}
+
+for (const redundantNextCutLabel of [
+  "Next cut",
+  "다음 컷",
+  "nextCutPill",
+  "nextCutText",
+]) {
+  if (source.includes(redundantNextCutLabel)) {
+    throw new Error(
+      `Current cut should not use redundant list labels: ${redundantNextCutLabel}.`,
+    );
   }
 }
 
@@ -194,13 +249,28 @@ for (const redundantReferenceLabel of [
   }
 }
 
+for (const previewRowsContract of [
+  "previewRows.map",
+  "onPress={onToggleExpanded}",
+  "row.label",
+  "row.value",
+]) {
+  if (!compactPreviewRowsSource.includes(previewRowsContract)) {
+    throw new Error(
+      `Line to Say / Shot guide preview rows must stay tappable to expand: ${previewRowsContract}.`,
+    );
+  }
+}
+
 for (const removedCollapsedBox of [
   "styles.collapsedMediaSlots",
   "ShootBoardMediaSlot",
   "styles.collapsedActionColumn",
 ]) {
   if (collapsedRowSource.includes(removedCollapsedBox)) {
-    throw new Error(`Collapsed rows must not keep the old media-slot box: ${removedCollapsedBox}.`);
+    throw new Error(
+      `Collapsed rows must not keep the old media-slot box: ${removedCollapsedBox}.`,
+    );
   }
 }
 
@@ -208,7 +278,7 @@ assertSourceOrder(collapsedRowSource, [
   "styles.referenceAnchor",
   "referenceThumbnailSource",
   "styles.compactMetaRow",
-  "cut.timeRangeLabel",
+  "formatCutTimelineLabel(language, cut)",
   "headerParts.executionTitle",
   "previewRows.map",
   "row.label",
@@ -220,7 +290,6 @@ assertSourceOrder(collapsedRowSource, [
 for (const unboxedBoardArea of [
   "boardPrimaryArea",
   "boardCopyColumn",
-  "cutReferencePreview",
   "savedTakesArea",
   "checklistRail",
 ]) {
@@ -280,7 +349,9 @@ function getConditionalSource(
   end: string,
 ) {
   const conditionalMatch = sourceText.match(
-    new RegExp(`\\{${conditionName}\\s*\\?\\s*\\([\\s\\S]*?${escapeRegExp(end)}`),
+    new RegExp(
+      `\\{${conditionName}\\s*\\?\\s*\\([\\s\\S]*?${escapeRegExp(end)}`,
+    ),
   );
 
   if (!conditionalMatch) {
@@ -307,9 +378,7 @@ function assertSourceOrder(sourceText: string, orderedMarkers: string[]) {
     }
 
     if (currentIndex <= previousIndex) {
-      throw new Error(
-        `Collapsed row source order is wrong near ${marker}.`,
-      );
+      throw new Error(`Collapsed row source order is wrong near ${marker}.`);
     }
 
     previousIndex = currentIndex;
