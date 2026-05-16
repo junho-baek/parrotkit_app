@@ -3,6 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
 import {
   Image,
+  type ImageSourcePropType,
   Pressable,
   StyleSheet,
   Text,
@@ -67,6 +68,12 @@ export function ShootBoardSceneCard({
   const headerParts = getCutCardHeaderParts(cut, language);
   const previewRows = getCutCardBodyPreviewRows(cut, language);
   const referenceViewer = getCutCardReferenceViewerSection(cut, language);
+  const referenceThumbnailSource = getReferenceThumbnailSource(
+    cut,
+    referenceViewer,
+  );
+  const referenceAnchorLabel =
+    language === "ko" ? "레퍼런스" : "Reference";
   const takeViewer = getCutCardTakeViewerSection(cut, language, {
     loading: takeViewerLoading,
   });
@@ -83,29 +90,41 @@ export function ShootBoardSceneCard({
     >
       {!expanded ? (
         <View style={styles.compactRow}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onPreview}
-            style={({ pressed }) => [
-              styles.referenceAnchor,
-              pressed && styles.referencePreviewPressed,
-            ]}
-          >
-            {referenceViewer.thumbnailUrl ? (
+          <View style={styles.referenceAnchor}>
+            {referenceThumbnailSource ? (
               <>
                 <Image
                   accessibilityIgnoresInvertColors
                   resizeMode="cover"
-                  source={{ uri: referenceViewer.thumbnailUrl }}
+                  source={referenceThumbnailSource}
                   style={styles.referencePreviewImage}
                 />
                 <View style={styles.referencePreviewShade} />
               </>
             ) : null}
-            <View style={styles.referencePlay}>
-              <MaterialCommunityIcons color="#111827" name="play" size={15} />
+            <Pressable
+              accessibilityRole="button"
+              onPress={onPreview}
+              style={({ pressed }) => [
+                styles.referenceAnchorButton,
+                pressed && styles.referencePreviewPressed,
+              ]}
+            >
+              <View style={styles.referencePlay}>
+                <MaterialCommunityIcons color="#111827" name="play" size={15} />
+              </View>
+            </Pressable>
+            <View pointerEvents="none" style={styles.referenceAnchorTime}>
+              <Text numberOfLines={1} style={styles.referenceAnchorTimeText}>
+                {cut.timeRangeLabel}
+              </Text>
             </View>
-          </Pressable>
+            <View pointerEvents="none" style={styles.referenceAnchorLabel}>
+              <Text numberOfLines={1} style={styles.referenceAnchorLabelText}>
+                {referenceAnchorLabel}
+              </Text>
+            </View>
+          </View>
 
           <View style={styles.compactCopy}>
             <Pressable accessibilityRole="button" onPress={onToggleExpanded}>
@@ -845,6 +864,21 @@ function getChecklistProgressLabel(cut: ShootBoardCut, language: AppLanguage) {
     : `${checkedCount}/${cut.requiredChecklist.length} done`;
 }
 
+function getReferenceThumbnailSource(
+  cut: ShootBoardCut,
+  referenceViewer: ReturnType<typeof getCutCardReferenceViewerSection>,
+): ImageSourcePropType | undefined {
+  if (cut.thumbnailSource) {
+    return cut.thumbnailSource as ImageSourcePropType;
+  }
+
+  if (referenceViewer.thumbnailUrl) {
+    return { uri: referenceViewer.thumbnailUrl };
+  }
+
+  return undefined;
+}
+
 function isBlankEditableCut(cut: ShootBoardCut) {
   return (
     cut.role === "custom" &&
@@ -977,6 +1011,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
   },
   compactRow: {
+    alignItems: "flex-start",
     flexDirection: "row",
     gap: 14,
   },
@@ -1074,13 +1109,55 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   referenceAnchor: {
+    alignItems: "center",
     aspectRatio: 9 / 16,
-    backgroundColor: "#f1f5f9",
+    backgroundColor: "#111827",
+    borderColor: "rgba(15,23,42,0.12)",
+    borderWidth: 1,
     borderRadius: 13,
     flexShrink: 0,
+    justifyContent: "center",
     overflow: "hidden",
     position: "relative",
-    width: 72,
+    width: 94,
+  },
+  referenceAnchorButton: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  referenceAnchorLabel: {
+    backgroundColor: "rgba(15,23,42,0.72)",
+    borderRadius: 999,
+    bottom: 7,
+    left: 7,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    position: "absolute",
+    right: 7,
+  },
+  referenceAnchorLabelText: {
+    color: "#ffffff",
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0,
+    textAlign: "center",
+  },
+  referenceAnchorTime: {
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderRadius: 999,
+    left: 7,
+    maxWidth: 72,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    position: "absolute",
+    top: 7,
+  },
+  referenceAnchorTimeText: {
+    color: "#111827",
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0,
   },
   checklistCount: {
     color: "#64748b",
@@ -1210,11 +1287,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     height: 26,
     justifyContent: "center",
-    left: "50%",
-    marginLeft: -13,
-    marginTop: -13,
-    position: "absolute",
-    top: "50%",
     width: 26,
   },
   shootButton: {

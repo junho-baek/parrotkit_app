@@ -39,6 +39,14 @@ if (!referenceAnchorStyle.includes("aspectRatio: 9 / 16")) {
   throw new Error("Collapsed reference anchor must use 9:16 short-form framing.");
 }
 
+if (referenceAnchorStyle.includes("width: 72")) {
+  throw new Error("Collapsed reference anchor must not shrink back to a tiny play affordance.");
+}
+
+if (!/width:\s*(8[8-9]|9\d|1\d{2})/.test(referenceAnchorStyle)) {
+  throw new Error("Collapsed reference anchor must stay wide enough to read as video.");
+}
+
 if (!mediaSlotPreviewStyle.includes("aspectRatio: 9 / 16")) {
   throw new Error("My Take media slot must use 9:16 short-form framing.");
 }
@@ -140,6 +148,8 @@ if (!collapsedRowSource.includes("headerParts.executionTitle")) {
 for (const compactMarker of [
   "styles.compactRow",
   "styles.referenceAnchor",
+  "styles.referenceAnchorLabel",
+  "styles.referenceAnchorTime",
   "styles.compactCopy",
   "styles.compactToolRows",
   "styles.compactFilmButton",
@@ -162,6 +172,8 @@ for (const removedCollapsedBox of [
 
 assertSourceOrder(collapsedRowSource, [
   "styles.referenceAnchor",
+  "referenceThumbnailSource",
+  "referenceAnchorLabel",
   "headerParts.executionTitle",
   "previewRows.map",
   "row.label",
