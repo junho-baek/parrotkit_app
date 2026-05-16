@@ -14,14 +14,26 @@ export function ShootBoardStickyHeader({
   reorderMode: boolean;
   title?: string;
 }) {
+  const displayTitle = getQuietListTitle(language, title);
+
   return (
     <View className="border-b border-stroke bg-canvas px-4 py-3">
       <View className="flex-row items-center justify-between">
-        <Text className="text-[18px] font-black tracking-[0.2px] text-ink">
-          {title ?? (language === 'ko' ? '컷 카드' : 'Cut cards')}
+        <Text className="text-[16px] font-black text-ink">
+          {displayTitle}
         </Text>
         <Pressable
+          accessibilityLabel={
+            reorderMode
+              ? language === 'ko'
+                ? '순서 변경 완료'
+                : 'Finish reordering'
+              : language === 'ko'
+                ? '순서 변경'
+                : 'Reorder cuts'
+          }
           accessibilityRole="button"
+          accessibilityState={{ selected: reorderMode }}
           className="flex-row items-center gap-1.5 rounded-full px-2 py-1"
           onPress={onToggleReorder}
         >
@@ -33,4 +45,14 @@ export function ShootBoardStickyHeader({
       </View>
     </View>
   );
+}
+
+function getQuietListTitle(language: AppLanguage, title?: string) {
+  const defaultTitle = language === 'ko' ? '컷 리스트' : 'Cut list';
+
+  if (!title || title === '촬영 보드' || title === 'Shooting board') {
+    return defaultTitle;
+  }
+
+  return title;
 }

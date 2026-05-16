@@ -17,6 +17,27 @@ const mediaSlotPreviewStyle = getStyleBlockFromSource(
   mediaSlotSource,
   "preview",
 );
+const collapsedRowSource = getSourceBetween(
+  source,
+  "<CutReferencePreview",
+  "<View style={styles.expandedBody}>",
+);
+const collapsedBodySource = getSourceBetween(
+  source,
+  '<View className="mt-2 gap-1.5">',
+  "            </View>\n          )}",
+);
+const collapsedActionSource = getSourceBetween(
+  source,
+  "{!expanded ? (",
+  "{expanded ? (",
+);
+const reorderHandleSource = getConditionalSource(
+  source,
+  "reorderMode",
+  "<TouchableOpacity",
+  ") : null}",
+);
 
 if (!cutReferencePreviewStyle.includes("aspectRatio: 9 / 16")) {
   throw new Error("Cut reference preview must use 9:16 short-form framing.");
@@ -89,6 +110,49 @@ for (const removedControl of [
   }
 }
 
+if (
+  !reorderHandleSource.includes("<TouchableOpacity") ||
+  !reorderHandleSource.includes("onLongPress={onDragStart}") ||
+  !reorderHandleSource.includes("styles.dragHandle")
+) {
+  throw new Error("Reorder handle should render only in reorder mode.");
+}
+
+for (const redundantTakeLabel of ["No take yet", "0 takes", "Take saved"]) {
+  if (source.includes(redundantTakeLabel)) {
+    throw new Error(
+      `Collapsed rows must not show redundant take-state labels: ${redundantTakeLabel}.`,
+    );
+  }
+}
+
+if (!collapsedBodySource.includes("headerParts.executionTitle")) {
+  throw new Error(
+    "Collapsed cut rows must use execution title as the primary name.",
+  );
+}
+
+assertSourceOrder(collapsedRowSource, [
+  "CutReferencePreview",
+  "headerParts.numberLabel",
+  "formatCutDuration",
+  "headerParts.executionTitle",
+]);
+
+assertSourceOrder(collapsedBodySource, [
+  "headerParts.executionTitle",
+  "previewRows.map",
+  "row.label",
+  "row.value",
+]);
+
+assertSourceOrder(collapsedActionSource, [
+  "styles.collapsedMediaSlots",
+  "ShootBoardMediaSlot",
+  "styles.collapsedActionColumn",
+  "actionStatus.ctaLabel",
+]);
+
 for (const unboxedBoardArea of [
   "boardPrimaryArea",
   "boardCopyColumn",
@@ -127,4 +191,67 @@ function getStyleBlockFromSource(sourceText: string, styleName: string) {
   }
 
   return match[0];
+}
+
+function getSourceBetween(sourceText: string, start: string, end: string) {
+  const startIndex = sourceText.indexOf(start);
+
+  if (startIndex === -1) {
+    throw new Error(`Expected source marker to exist: ${start}`);
+  }
+
+  const endIndex = sourceText.indexOf(end, startIndex + start.length);
+
+  if (endIndex === -1) {
+    throw new Error(`Expected source marker to exist after ${start}: ${end}`);
+  }
+
+  return sourceText.slice(startIndex, endIndex);
+}
+
+function getConditionalSource(
+  sourceText: string,
+  conditionName: string,
+  requiredBodyMarker: string,
+  end: string,
+) {
+  const conditionalMatch = sourceText.match(
+    new RegExp(`\\{${conditionName}\\s*\\?\\s*\\([\\s\\S]*?${escapeRegExp(end)}`),
+  );
+
+  if (!conditionalMatch) {
+    throw new Error(`Expected conditional source for ${conditionName}.`);
+  }
+
+  if (!conditionalMatch[0].includes(requiredBodyMarker)) {
+    throw new Error(
+      `Expected ${conditionName} conditional to include ${requiredBodyMarker}.`,
+    );
+  }
+
+  return conditionalMatch[0];
+}
+
+function assertSourceOrder(sourceText: string, orderedMarkers: string[]) {
+  let previousIndex = -1;
+
+  for (const marker of orderedMarkers) {
+    const currentIndex = sourceText.indexOf(marker);
+
+    if (currentIndex === -1) {
+      throw new Error(`Expected collapsed row source to include ${marker}.`);
+    }
+
+    if (currentIndex <= previousIndex) {
+      throw new Error(
+        `Collapsed row source order is wrong near ${marker}.`,
+      );
+    }
+
+    previousIndex = currentIndex;
+  }
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
