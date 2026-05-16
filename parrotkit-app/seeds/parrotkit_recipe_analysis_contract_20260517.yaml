@@ -1,0 +1,218 @@
+metadata:
+  seed_id: parrotkit_recipe_analysis_contract_20260517
+  name: parrotkit_recipe_analysis_contract
+  product: ParrotKit
+  version: "1.0.0"
+  created_at: "2026-05-17T02:55:00+09:00"
+  source:
+    - User-provided Sandcastle AI screenshots
+    - Conversation decision: A Recipe Analysis Contract is primary; D Reference Intelligence Layer is future-facing
+    - Ouroboros CLI partial interview auto_b0a0703c1c5b / interview_ca635fee86514c4b
+  ambiguity_note: >
+    Ouroboros CLI did not complete A-grade seed generation because the interview
+    phase repeatedly hit its 120s phase limit. This seed is a product-authored
+    crystallization using the saved interview and user decisions.
+
+goal: >
+  Define a durable Recipe Analysis Contract for ParrotKit so every recipe can
+  preserve why a reference short-form video works, then translate that analysis
+  into creator-facing shooting guidance without cluttering the shooting board.
+
+task_type: spec
+
+product_decision:
+  immediate_center: Recipe Analysis Contract
+  future_layer: Reference Intelligence Layer
+  rationale: >
+    ParrotKit should learn from Sandcastle's video-analysis taxonomy, but the
+    shipped recipe surface should stay execution-first. A recipe stores the full
+    analysis contract for reuse, while the shooting board exposes only what helps
+    the creator film the next take.
+
+constraints:
+  - Follow `parrotkit-app/DESIGN.md` for all UI derived from this seed.
+  - Do not expose analysis internals as repeated labels, badges, or console-like metadata.
+  - Do not attach a Hook section to every cut by default; hook belongs to the whole reference/video or the opening execution beat.
+  - Do not create box-in-box shooting-board layouts.
+  - Keep creator-facing copy short, concrete, and execution-first.
+  - Reference media is the source being learned from; My Take is the user's filmed result.
+  - Completion/check state should be based on saved My Take state, not decorative progress labels.
+  - The immediate seed does not require raw video processing, a vault UI, channel ingestion, auth, deployment, or database migration.
+
+recipe_analysis_contract:
+  name: RecipeAnalysisContract
+  description: >
+    Stable analysis model stored with a ParrotKit recipe. It captures why the
+    reference works and how the user should adapt it into a shootable recipe.
+  required_fields:
+    - name: reference_summary
+      type: string
+      description: One concise paragraph explaining what the reference video does and for whom.
+    - name: topic
+      type: string
+      description: The content subject, category, or niche.
+    - name: idea_seed
+      type: string
+      description: The reusable content idea behind the video.
+    - name: unique_angle
+      type: string
+      description: The specific perspective, authority, constraint, or contrast that makes the idea distinct.
+    - name: common_belief_to_challenge
+      type: string
+      description: The viewer assumption the content pushes against.
+    - name: contrarian_reality
+      type: string
+      description: The alternate truth or reframing that creates useful contrast.
+    - name: supporting_evidence
+      type: array
+      description: Specific proof points, examples, product claims, demonstrations, or observations.
+    - name: hook
+      type: object
+      description: Video-level opening promise, not a repeated field for every cut.
+      fields:
+        - name: category
+          type: string
+          examples: [Authority, Problem, Question, Comparison, List, Contrarian]
+        - name: formula
+          type: string
+          description: Reusable hook pattern with placeholders.
+        - name: spoken_hook
+          type: string
+          description: Actual or adapted opening line.
+        - name: why_it_works
+          type: string
+          description: Why the hook creates attention, trust, or curiosity.
+        - name: user_application
+          type: string
+          description: How this creator should adapt the hook for their case.
+    - name: storytelling_format
+      type: object
+      description: The video's narrative shape.
+      fields:
+        - name: category
+          type: string
+          examples: [Listicle, Review, Demo, BeforeAfter, CaseStudy, Tutorial]
+        - name: description
+          type: string
+        - name: why_it_works
+          type: string
+    - name: visual_layout
+      type: object
+      description: The visible production pattern to learn from.
+      fields:
+        - name: category
+          type: string
+          examples: [InWorldVlog, ProductDemo, TalkingHead, ScreenLed, HandsOnly]
+        - name: sub_category
+          type: string
+        - name: visible_structure
+          type: string
+          description: How subject, product, captions, framing, and movement are arranged.
+        - name: user_application
+          type: string
+          description: How the creator can reproduce the structure in their own setting.
+    - name: reference_principle
+      type: string
+      description: The most important reusable lesson from the reference.
+    - name: your_application
+      type: string
+      description: How the current creator should adapt the reference for their niche, product, or goal.
+    - name: shooting_board_projection
+      type: object
+      description: The limited subset shown during filming.
+      fields:
+        - name: execution_title
+          type: string
+          description: User-readable action name for the beat or cut.
+        - name: line_to_say
+          type: string
+          description: A speakable line or prompt.
+        - name: shot_guide
+          type: string
+          description: Concrete filming direction.
+        - name: reference_usage
+          type: string
+          description: What to notice in the reference while filming.
+        - name: my_take_relationship
+          type: string
+          description: What counts as a useful saved take for this beat.
+
+shooting_board_rules:
+  - Show execution titles, not internal taxonomy names, as the main row title.
+  - Keep `Line to say` and `Shot guide` as filming tools, not explanatory essays.
+  - Show reference media as the source anchor and My Take as the filmed result.
+  - Remove empty-state labels such as `No take yet` or `0 takes` when the take preview itself can communicate state.
+  - Avoid progress bars on recipe cards when Continue or My Take state can carry progress.
+  - If reference-analysis details are available, collapse them behind concise rows such as `Why this works` or `Apply to yours`; do not show the whole taxonomy by default.
+
+future_reference_intelligence_layer:
+  description: >
+    Later, ParrotKit may analyze many videos into reusable libraries similar to
+    Sandcastle's Ideas, Hooks, and Channels screens. This is intentionally not
+    required for the immediate recipe contract.
+  future_objects:
+    - name: IdeaVault
+      purpose: Store reusable idea seeds and unique angles generated from analyzed videos.
+    - name: HookVault
+      purpose: Store reusable hook formulas with category, source, and performance metadata.
+    - name: StoryFormatVault
+      purpose: Store storytelling formats and examples across reference videos.
+    - name: VisualLayoutVault
+      purpose: Store visual production patterns that can be mapped into shot guides.
+    - name: ChannelSourceLibrary
+      purpose: Track creators/channels used as reference sources.
+
+acceptance_criteria:
+  - id: AC1
+    title: Contract covers Sandcastle-level insight
+    criteria:
+      - The model includes summary, idea seed, unique angle, challenged belief, contrarian reality, supporting evidence, hook, storytelling format, and visual layout.
+      - The model distinguishes analysis storage from creator-facing filming guidance.
+  - id: AC2
+    title: Hook is video-level, not repeated per cut
+    criteria:
+      - Hook category/formula/spoken hook are defined once for the reference or opening beat.
+      - Ordinary cuts do not get generic Hook labels by default.
+  - id: AC3
+    title: Shooting board projection is execution-first
+    criteria:
+      - The filming surface can derive execution title, line to say, shot guide, reference usage, and My Take relationship.
+      - The projection avoids redundant labels and long analytical copy.
+  - id: AC4
+    title: DESIGN.md guardrails are preserved
+    criteria:
+      - Derived UI avoids box-in-box layouts.
+      - User-facing copy does not expose backend, workflow, or analysis-console terminology.
+      - Reference and My Take have distinct roles.
+  - id: AC5
+    title: Future vaults are acknowledged but out of MVP
+    criteria:
+      - Ideas, hooks, formats, layouts, and channels can be modeled later.
+      - Immediate implementation does not require multi-video ingestion or vault UI.
+
+evaluation_principles:
+  - name: CreatorUsefulness
+    weight: 0.3
+    description: The contract helps a creator understand what to film next, not just why an example is interesting.
+  - name: AnalyticalCompleteness
+    weight: 0.25
+    description: Sandcastle-level strategic insight is preserved for future reuse.
+  - name: UIRestraint
+    weight: 0.25
+    description: The shooting board remains clean, execution-first, and compliant with DESIGN.md.
+  - name: FutureExtensibility
+    weight: 0.2
+    description: The contract can later feed idea, hook, format, visual, and channel vaults.
+
+non_goals:
+  - Build raw video analysis in this seed.
+  - Build idea/hook/channel vault screens now.
+  - Add authentication, cloud sync, paid services, or deployment work.
+  - Force every recipe to expose the full analysis taxonomy in the UI.
+  - Treat generated progress labels as completion state.
+
+exit_conditions:
+  - The seed can guide future schema, prompt, and UI work without re-litigating the product taxonomy.
+  - The shooting board can derive concise filming guidance from the full analysis contract.
+  - Future multi-video intelligence can be layered on without changing the core recipe contract.
+
