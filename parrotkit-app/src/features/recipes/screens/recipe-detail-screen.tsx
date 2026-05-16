@@ -18,6 +18,7 @@ import { useAppLanguage, type AppLanguage } from "@/core/i18n/app-language";
 import type { MockRecipe } from "@/core/mocks/parrotkit-data";
 import { useMockWorkspace } from "@/core/providers/mock-workspace-provider";
 import { brandActionGradient } from "@/core/theme/colors";
+import { RecipeBreakdownPanel } from "@/features/recipes/components/recipe-breakdown-panel";
 import { ReferenceViewerModal } from "@/features/recipes/components/reference-viewer-modal";
 import { ShootBoardBodyHeader } from "@/features/recipes/components/shoot-board-body-header";
 import { ShootBoardDraggableList } from "@/features/recipes/components/shoot-board-draggable-list";
@@ -25,6 +26,7 @@ import { ShootBoardNoteCta } from "@/features/recipes/components/shoot-board-not
 import { ShootBoardSessionHeader } from "@/features/recipes/components/shoot-board-session-header";
 import { ShootBoardStickyHeader } from "@/features/recipes/components/shoot-board-sticky-header";
 import { TakeReviewViewerModal } from "@/features/recipes/components/take-review-viewer-modal";
+import { getRecipeBreakdownSummary } from "@/features/recipes/lib/recipe-breakdown-summary";
 import { normalizeNativeRecipe } from "@/features/recipes/lib/recipe-domain-normalizer";
 import { resolveSavedTakeReloadFlow } from "@/features/recipes/lib/saved-take-reload-flow";
 import {
@@ -216,6 +218,7 @@ export function RecipeDetailScreen() {
   );
 
   const [activeTab, setActiveTab] = useState<DetailTab>("recipe");
+  const [activeBoardTab, setActiveBoardTab] = useState<"board" | "breakdown">("board");
   const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null);
   const [boardState, setBoardState] = useState<ShootBoardRecipe | null>(null);
   const [reorderMode, setReorderMode] = useState(false);
@@ -291,6 +294,7 @@ export function RecipeDetailScreen() {
     setNoteEntryOpen(false);
     setReorderMode(false);
     setBoardDragActive(false);
+    setActiveBoardTab("board");
     setExpandedCutIds([]);
     setReferenceViewerCutId(null);
     setTakeViewerCutId(null);
@@ -323,6 +327,11 @@ export function RecipeDetailScreen() {
       renderedShootBoard,
       routeHighlightedCutId,
     ],
+  );
+  const recipeBreakdown = useMemo(
+    () =>
+      nativeRecipe ? getRecipeBreakdownSummary(nativeRecipe, language) : null,
+    [language, nativeRecipe],
   );
   const selectedSavedTakeRecord = useMemo(() => {
     if (!params.takeId || !nativeRecipe) {
@@ -776,6 +785,78 @@ export function RecipeDetailScreen() {
     ? (renderedShootBoard.cuts.find((cut) => cut.id === takeViewerCutId) ??
       null)
     : null;
+  const boardTabSwitch = (
+    <View style={styles.boardTabSwitch}>
+      {(["board", "breakdown"] as const).map((tab) => {
+        const active = activeBoardTab === tab;
+        const label =
+          tab === "board"
+            ? language === "ko"
+              ? "보드"
+              : "Board"
+            : language === "ko"
+              ? "분석"
+              : "Breakdown";
+
+        return (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            key={tab}
+            onPress={() => setActiveBoardTab(tab)}
+            style={[
+              styles.boardTabButton,
+              active && styles.boardTabButtonActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.boardTabText,
+                active && styles.boardTabTextActive,
+              ]}
+            >
+              {label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+  const boardHeader = (
+    <>
+      <ShootBoardBodyHeader
+        board={renderedShootBoard}
+        language={language}
+        onOpenNote={() => setNoteEntryOpen(true)}
+      />
+      {boardTabSwitch}
+      {activeBoardTab === "board" ? (
+        <>
+          <ShootBoardNoteCta
+            checked={renderedShootBoard.boardNoteChecked ?? false}
+            expanded={noteEntryOpen}
+            language={language}
+            value={renderedShootBoard.boardNote ?? ""}
+            onChangeText={(boardNote) => updateBoardNote({ boardNote })}
+            onClose={() => setNoteEntryOpen(false)}
+            onToggleChecked={() =>
+              updateBoardNote({
+                boardNoteChecked: !(
+                  renderedShootBoard.boardNoteChecked ?? false
+                ),
+              })
+            }
+          />
+          <ShootBoardStickyHeader
+            language={language}
+            onToggleReorder={() => setReorderMode((current) => !current)}
+            reorderMode={reorderMode}
+            title={boardCopy.cutsList}
+          />
+        </>
+      ) : null}
+    </>
+  );
 
   return (
     <View className="flex-1 bg-canvas">
@@ -790,54 +871,38 @@ export function RecipeDetailScreen() {
         topInset={insets.top}
       />
 
-      <ShootBoardDraggableList
-        contentContainerStyle={{ paddingBottom: insets.bottom + 112 }}
-        cuts={renderedShootBoard.cuts}
-        expandedCutIds={expandedCutIds}
-        highlightedCutId={boardOverviewState.highlightCutId ?? undefined}
-        language={language}
-        ListHeaderComponent={
-          <>
-            <ShootBoardBodyHeader
-              board={renderedShootBoard}
-              language={language}
-              onOpenNote={() => setNoteEntryOpen(true)}
-            />
-            <ShootBoardNoteCta
-              checked={renderedShootBoard.boardNoteChecked ?? false}
-              expanded={noteEntryOpen}
-              language={language}
-              value={renderedShootBoard.boardNote ?? ""}
-              onChangeText={(boardNote) => updateBoardNote({ boardNote })}
-              onClose={() => setNoteEntryOpen(false)}
-              onToggleChecked={() =>
-                updateBoardNote({
-                  boardNoteChecked: !(
-                    renderedShootBoard.boardNoteChecked ?? false
-                  ),
-                })
-              }
-            />
-            <ShootBoardStickyHeader
-              language={language}
-              onToggleReorder={() => setReorderMode((current) => !current)}
-              reorderMode={reorderMode}
-              title={boardCopy.cutsList}
-            />
-          </>
-        }
-        onDragStateChange={setBoardDragActive}
-        onPreview={openReferenceViewer}
-        onReorderCuts={handleReorderCuts}
-        onResetCut={resetCutText}
-        onSetFinalTake={(cut, take) => selectFinalTake(cut, take.id)}
-        onShoot={openPrompterForCut}
-        onTake={openTakeViewer}
-        onToggleChecklistItem={toggleChecklistItem}
-        onToggleExpanded={toggleExpandedCut}
-        onUpdateCutText={updateCutText}
-        reorderMode={reorderMode || boardDragActive}
-      />
+      {activeBoardTab === "board" ? (
+        <ShootBoardDraggableList
+          contentContainerStyle={{ paddingBottom: insets.bottom + 112 }}
+          cuts={renderedShootBoard.cuts}
+          expandedCutIds={expandedCutIds}
+          highlightedCutId={boardOverviewState.highlightCutId ?? undefined}
+          language={language}
+          ListHeaderComponent={boardHeader}
+          onDragStateChange={setBoardDragActive}
+          onPreview={openReferenceViewer}
+          onReorderCuts={handleReorderCuts}
+          onResetCut={resetCutText}
+          onSetFinalTake={(cut, take) => selectFinalTake(cut, take.id)}
+          onShoot={openPrompterForCut}
+          onTake={openTakeViewer}
+          onToggleChecklistItem={toggleChecklistItem}
+          onToggleExpanded={toggleExpandedCut}
+          onUpdateCutText={updateCutText}
+          reorderMode={reorderMode || boardDragActive}
+        />
+      ) : (
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ paddingBottom: insets.bottom + 44 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {boardHeader}
+          {recipeBreakdown ? (
+            <RecipeBreakdownPanel breakdown={recipeBreakdown} />
+          ) : null}
+        </ScrollView>
+      )}
 
 
       {referenceViewerCut ? (
@@ -1700,6 +1765,35 @@ function getStructureColor(index: number) {
 }
 
 const styles = StyleSheet.create({
+  boardTabButton: {
+    alignItems: "center",
+    borderRadius: 10,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 38,
+  },
+  boardTabButtonActive: {
+    backgroundColor: "#ffffff",
+  },
+  boardTabSwitch: {
+    alignSelf: "stretch",
+    backgroundColor: "#f1f5f9",
+    borderRadius: 14,
+    flexDirection: "row",
+    gap: 4,
+    marginHorizontal: 20,
+    marginTop: 10,
+    padding: 4,
+  },
+  boardTabText: {
+    color: "#64748b",
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0,
+  },
+  boardTabTextActive: {
+    color: "#111827",
+  },
   v2FloatingAddButton: {
     alignItems: "center",
     backgroundColor: "#111827",
