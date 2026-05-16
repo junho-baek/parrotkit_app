@@ -12,6 +12,7 @@ const mediaSlotSource = readFileSync(
 );
 const cutReferencePreviewStyle = getStyleBlock("cutReferencePreview");
 const cutReferenceSlotStyle = getStyleBlock("cutReferenceSlot");
+const referenceAnchorStyle = getStyleBlock("referenceAnchor");
 const takeViewerPreviewStyle = getStyleBlock("takeViewerPreview");
 const mediaSlotRootStyle = getStyleBlockFromSource(mediaSlotSource, "root");
 const mediaSlotPreviewStyle = getStyleBlockFromSource(
@@ -20,18 +21,8 @@ const mediaSlotPreviewStyle = getStyleBlockFromSource(
 );
 const collapsedRowSource = getSourceBetween(
   source,
-  "<CutReferencePreview",
-  "<View style={styles.expandedBody}>",
-);
-const collapsedBodySource = getSourceBetween(
-  source,
-  '<View className="mt-2 gap-1.5">',
-  "            </View>\n          )}",
-);
-const collapsedActionSource = getSourceBetween(
-  source,
   "{!expanded ? (",
-  "{expanded ? (",
+  "      ) : (",
 );
 const reorderHandleSource = getConditionalSource(
   source,
@@ -44,6 +35,10 @@ if (!cutReferencePreviewStyle.includes("aspectRatio: 9 / 16")) {
   throw new Error("Cut reference preview must use 9:16 short-form framing.");
 }
 
+if (!referenceAnchorStyle.includes("aspectRatio: 9 / 16")) {
+  throw new Error("Collapsed reference anchor must use 9:16 short-form framing.");
+}
+
 if (!mediaSlotPreviewStyle.includes("aspectRatio: 9 / 16")) {
   throw new Error("My Take media slot must use 9:16 short-form framing.");
 }
@@ -54,6 +49,10 @@ if (!takeViewerPreviewStyle.includes("aspectRatio: 9 / 16")) {
 
 if (/height:\s*120/.test(cutReferencePreviewStyle + cutReferenceSlotStyle)) {
   throw new Error("Cut reference preview should not be a fixed 16:9-like strip.");
+}
+
+if (/height:\s*\d+/.test(referenceAnchorStyle)) {
+  throw new Error("Collapsed reference anchor should not use fixed-height framing.");
 }
 
 if (/height:\s*\d+/.test(mediaSlotRootStyle + mediaSlotPreviewStyle)) {
@@ -87,7 +86,6 @@ for (const requiredConcept of [
   "onToggleChecklistItem",
   "CutReferencePreview",
   "cutReferencePreview",
-  "badgeLabel",
   "Film",
   "actionControls.retake",
   "actionControls.setFinal",
@@ -135,31 +133,41 @@ for (const redundantTakeLabel of ["No take yet", "0 takes", "Take saved"]) {
   }
 }
 
-if (!collapsedBodySource.includes("headerParts.executionTitle")) {
-  throw new Error(
-    "Collapsed cut rows must use execution title as the primary name.",
-  );
+if (!collapsedRowSource.includes("headerParts.executionTitle")) {
+  throw new Error("Collapsed cut rows must use execution title as the primary name.");
+}
+
+for (const compactMarker of [
+  "styles.compactRow",
+  "styles.referenceAnchor",
+  "styles.compactCopy",
+  "styles.compactToolRows",
+  "styles.compactFilmButton",
+  "styles.compactTakeButton",
+]) {
+  if (!collapsedRowSource.includes(compactMarker)) {
+    throw new Error(`Collapsed cut rows must include compact marker: ${compactMarker}.`);
+  }
+}
+
+for (const removedCollapsedBox of [
+  "styles.collapsedMediaSlots",
+  "ShootBoardMediaSlot",
+  "styles.collapsedActionColumn",
+]) {
+  if (collapsedRowSource.includes(removedCollapsedBox)) {
+    throw new Error(`Collapsed rows must not keep the old media-slot box: ${removedCollapsedBox}.`);
+  }
 }
 
 assertSourceOrder(collapsedRowSource, [
-  "CutReferencePreview",
-  "headerParts.numberLabel",
-  "formatCutDuration",
-  "headerParts.executionTitle",
-]);
-
-assertSourceOrder(collapsedBodySource, [
+  "styles.referenceAnchor",
   "headerParts.executionTitle",
   "previewRows.map",
   "row.label",
   "row.value",
-]);
-
-assertSourceOrder(collapsedActionSource, [
-  "styles.collapsedMediaSlots",
-  "ShootBoardMediaSlot",
-  "styles.collapsedActionColumn",
   "actionStatus.ctaLabel",
+  "My Take",
 ]);
 
 for (const unboxedBoardArea of [

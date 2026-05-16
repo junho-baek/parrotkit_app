@@ -13,11 +13,9 @@ import { TouchableOpacity } from "react-native-gesture-handler";
 
 import type { AppLanguage } from "@/core/i18n/app-language";
 import { brandActionGradient } from "@/core/theme/colors";
-import { ShootBoardMediaSlot } from "@/features/recipes/components/shoot-board-media-slot";
 import { getCutCardActionStatus } from "@/features/recipes/lib/cut-card-action-status";
 import { getCutCardBodyPreviewRows } from "@/features/recipes/lib/cut-card-body-preview";
 import { getCutCardHeaderParts } from "@/features/recipes/lib/cut-card-header";
-import { getCutCardMediaSlots } from "@/features/recipes/lib/cut-card-media-slots";
 import { getCutCardReferenceViewerSection } from "@/features/recipes/lib/cut-card-reference-viewer-section";
 import { getCutCardTakeViewerSection } from "@/features/recipes/lib/cut-card-take-viewer-section";
 import {
@@ -67,7 +65,6 @@ export function ShootBoardSceneCard({
   const accent = getRoleAccent(cut.role);
   const editorFields = getCutCardEditorFieldDefinitions(language);
   const headerParts = getCutCardHeaderParts(cut, language);
-  const mediaSlots = getCutCardMediaSlots(cut);
   const previewRows = getCutCardBodyPreviewRows(cut, language);
   const referenceViewer = getCutCardReferenceViewerSection(cut, language);
   const takeViewer = getCutCardTakeViewerSection(cut, language, {
@@ -84,36 +81,162 @@ export function ShootBoardSceneCard({
         highlighted && styles.highlightedCard,
       ]}
     >
-      <CutReferencePreview
-        language={language}
-        referenceViewer={referenceViewer}
-        timeRangeLabel={cut.timeRangeLabel}
-        onPreview={onPreview}
-      />
+      {!expanded ? (
+        <View style={styles.compactRow}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onPreview}
+            style={({ pressed }) => [
+              styles.referenceAnchor,
+              pressed && styles.referencePreviewPressed,
+            ]}
+          >
+            {referenceViewer.thumbnailUrl ? (
+              <>
+                <Image
+                  accessibilityIgnoresInvertColors
+                  resizeMode="cover"
+                  source={{ uri: referenceViewer.thumbnailUrl }}
+                  style={styles.referencePreviewImage}
+                />
+                <View style={styles.referencePreviewShade} />
+              </>
+            ) : null}
+            <View style={styles.referencePlay}>
+              <MaterialCommunityIcons color="#111827" name="play" size={15} />
+            </View>
+          </Pressable>
 
-      <View className="flex-row items-start gap-2">
-        <Pressable
-          accessibilityRole="button"
-          className="min-w-0 flex-1"
-          onPress={onToggleExpanded}
-        >
-          <View className="flex-row flex-wrap items-center gap-2">
-            <Text
-              className="rounded-full px-2.5 py-1 text-[12px] font-black text-white"
-              style={{ backgroundColor: accent.main }}
-            >
-              {headerParts.numberLabel}
-            </Text>
-            <Text className="text-[13px] font-black text-muted">
-              {formatCutDuration(language, cut.durationSeconds)}
-            </Text>
-            <MaterialCommunityIcons
-              color="#64748b"
-              name={expanded ? "chevron-up" : "chevron-down"}
-              size={18}
-            />
+          <View style={styles.compactCopy}>
+            <Pressable accessibilityRole="button" onPress={onToggleExpanded}>
+              <View style={styles.compactTitleRow}>
+                <Text numberOfLines={2} style={styles.compactTitle}>
+                  {headerParts.executionTitle}
+                </Text>
+                <MaterialCommunityIcons
+                  color="#64748b"
+                  name="chevron-down"
+                  size={18}
+                />
+              </View>
+              <Text numberOfLines={2} style={styles.compactApplication}>
+                {language === "ko"
+                  ? (cut.instructionKo ?? cut.instruction)
+                  : cut.instruction}
+              </Text>
+            </Pressable>
+
+            <View style={styles.compactToolRows}>
+              {previewRows.map((row) => (
+                <Pressable
+                  accessibilityRole="button"
+                  key={row.id}
+                  onPress={onToggleExpanded}
+                  style={styles.compactToolRow}
+                >
+                  <Text numberOfLines={1} style={styles.compactToolLabel}>
+                    {row.label}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.compactToolValue}>
+                    {row.value}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <View style={styles.compactActionRow}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => onShoot()}
+                style={styles.compactFilmButton}
+              >
+                <MaterialCommunityIcons
+                  color="#ffffff"
+                  name="video-outline"
+                  size={15}
+                />
+                <Text style={styles.compactFilmText}>
+                  {actionStatus.ctaLabel}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => onTake()}
+                style={styles.compactTakeButton}
+              >
+                <MaterialCommunityIcons
+                  color={cut.takes.length > 0 ? "#7c3aed" : "#64748b"}
+                  name={
+                    cut.takes.length > 0
+                      ? "check-circle"
+                      : "plus-circle-outline"
+                  }
+                  size={15}
+                />
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.compactTakeText,
+                    cut.takes.length > 0 && styles.compactTakeTextSaved,
+                  ]}
+                >
+                  {cut.takes.length > 0
+                    ? `My Take ${cut.takes.length}`
+                    : "My Take"}
+                </Text>
+              </Pressable>
+              {reorderMode ? (
+                <TouchableOpacity
+                  activeOpacity={0.72}
+                  accessibilityLabel={
+                    language === "ko" ? "순서 변경" : "Reorder"
+                  }
+                  accessibilityRole="button"
+                  delayLongPress={180}
+                  onLongPress={onDragStart}
+                  style={styles.dragHandle}
+                >
+                  <MaterialCommunityIcons
+                    color={accent.main}
+                    name="drag-vertical"
+                    size={21}
+                  />
+                </TouchableOpacity>
+              ) : null}
+            </View>
           </View>
-          {expanded ? (
+        </View>
+      ) : (
+        <>
+          <CutReferencePreview
+            language={language}
+            referenceViewer={referenceViewer}
+            timeRangeLabel={cut.timeRangeLabel}
+            onPreview={onPreview}
+          />
+
+          <View className="flex-row items-start gap-2">
+            <Pressable
+              accessibilityRole="button"
+              className="min-w-0 flex-1"
+              onPress={onToggleExpanded}
+            >
+              <View className="flex-row flex-wrap items-center gap-2">
+                <Text
+                  className="rounded-full px-2.5 py-1 text-[12px] font-black text-white"
+                  style={{ backgroundColor: accent.main }}
+                >
+                  {headerParts.numberLabel}
+                </Text>
+                <Text className="text-[13px] font-black text-muted">
+                  {formatCutDuration(language, cut.durationSeconds)}
+                </Text>
+                <MaterialCommunityIcons
+                  color="#64748b"
+                  name="chevron-up"
+                  size={18}
+                />
+              </View>
             <Text
               className="mt-1 text-[13px] font-semibold leading-5 text-ink"
               numberOfLines={3}
@@ -122,88 +245,27 @@ export function ShootBoardSceneCard({
                 ? (cut.instructionKo ?? cut.instruction)
                 : cut.instruction}
             </Text>
-          ) : (
-            <View className="mt-2 gap-1.5">
-              <Text className="text-[15px] font-black leading-5 text-ink">
-                {headerParts.executionTitle}
-              </Text>
-              {previewRows.map((row) => (
-                <View className="min-w-0 flex-row gap-2" key={row.id}>
-                  <Text
-                    className="w-[76px] shrink-0 text-[11px] font-black leading-4 text-muted"
-                    numberOfLines={1}
-                  >
-                    {row.label}
-                  </Text>
-                  <Text
-                    className="min-w-0 flex-1 text-[12px] font-semibold leading-4 text-ink"
-                    numberOfLines={row.numberOfLines}
-                  >
-                    {row.value}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </Pressable>
+            </Pressable>
 
-        {reorderMode ? (
-          <TouchableOpacity
-            activeOpacity={0.72}
-            accessibilityLabel={language === "ko" ? "순서 변경" : "Reorder"}
-            accessibilityRole="button"
-            delayLongPress={180}
-            onLongPress={onDragStart}
-            style={styles.dragHandle}
-          >
-            <MaterialCommunityIcons color={accent.main} name="drag-vertical" size={21} />
-          </TouchableOpacity>
-        ) : null}
-
-      </View>
-
-      {!expanded ? (
-        <View style={styles.collapsedActionArea}>
-          <View style={styles.collapsedMediaSlots}>
-            {mediaSlots.map((slot) => (
-              <ShootBoardMediaSlot
-                badgeLabel={slot.badgeLabel}
-                caption={undefined}
-                key={slot.id}
-                label={slot.label}
-                onPress={() => onTake()}
-                status={slot.status}
-                thumbnailUrl={slot.thumbnailUrl}
-                timeRangeLabel={undefined}
-              />
-            ))}
-          </View>
-
-          <View style={styles.collapsedActionColumn}>
-            <Pressable
-              accessibilityRole="button"
-              className="overflow-hidden rounded-[12px]"
-              onPress={() => onShoot()}
-            >
-              <LinearGradient
-                colors={brandActionGradient}
-                end={{ x: 1, y: 1 }}
-                start={{ x: 0, y: 0 }}
-                style={styles.collapsedShootButton}
+            {reorderMode ? (
+              <TouchableOpacity
+                activeOpacity={0.72}
+                accessibilityLabel={language === "ko" ? "순서 변경" : "Reorder"}
+                accessibilityRole="button"
+                delayLongPress={180}
+                onLongPress={onDragStart}
+                style={styles.dragHandle}
               >
                 <MaterialCommunityIcons
-                  color="#fff"
-                  name="video-outline"
-                  size={16}
+                  color={accent.main}
+                  name="drag-vertical"
+                  size={21}
                 />
-                <Text className="text-[12px] font-black text-white">
-                  {actionStatus.ctaLabel}
-                </Text>
-              </LinearGradient>
-            </Pressable>
+              </TouchableOpacity>
+            ) : null}
           </View>
-        </View>
-      ) : null}
+        </>
+      )}
 
       {expanded ? (
         <View style={styles.expandedBody}>
@@ -880,29 +942,102 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.035,
     shadowRadius: 14,
   },
-  collapsedActionArea: {
+  compactActionRow: {
     flexDirection: "row",
-    gap: 8,
-    marginTop: 10,
-  },
-  collapsedMediaSlots: {
-    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
-  collapsedShootButton: {
+  compactApplication: {
+    color: "#64748b",
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0,
+    lineHeight: 18,
+    marginTop: 3,
+  },
+  compactCopy: {
+    flex: 1,
+    gap: 9,
+    minWidth: 0,
+  },
+  compactFilmButton: {
     alignItems: "center",
+    backgroundColor: "#111827",
     borderRadius: 12,
     flexDirection: "row",
     gap: 6,
     justifyContent: "center",
-    minHeight: 40,
-    paddingHorizontal: 12,
+    minHeight: 38,
+    paddingHorizontal: 14,
   },
-  collapsedActionColumn: {
+  compactFilmText: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  compactRow: {
+    flexDirection: "row",
+    gap: 14,
+  },
+  compactTakeButton: {
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+    borderRadius: 12,
     flex: 1,
+    flexDirection: "row",
+    gap: 6,
     justifyContent: "center",
-    minHeight: 96,
-    minWidth: 0,
+    minHeight: 38,
+    minWidth: 104,
+    paddingHorizontal: 10,
+  },
+  compactTakeText: {
+    color: "#64748b",
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  compactTakeTextSaved: {
+    color: "#7c3aed",
+  },
+  compactTitle: {
+    color: "#111827",
+    flex: 1,
+    fontSize: 17,
+    fontWeight: "900",
+    letterSpacing: 0,
+    lineHeight: 22,
+  },
+  compactTitleRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 8,
+  },
+  compactToolLabel: {
+    color: "#64748b",
+    flexShrink: 0,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0,
+    lineHeight: 16,
+    width: 72,
+  },
+  compactToolRow: {
+    flexDirection: "row",
+    gap: 8,
+    minHeight: 20,
+  },
+  compactToolRows: {
+    gap: 5,
+  },
+  compactToolValue: {
+    color: "#111827",
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0,
+    lineHeight: 16,
   },
   cutReferencePreview: {
     alignItems: "center",
@@ -937,6 +1072,15 @@ const styles = StyleSheet.create({
   cutReferenceSlot: {
     alignSelf: "flex-start",
     marginBottom: 10,
+  },
+  referenceAnchor: {
+    aspectRatio: 9 / 16,
+    backgroundColor: "#f1f5f9",
+    borderRadius: 13,
+    flexShrink: 0,
+    overflow: "hidden",
+    position: "relative",
+    width: 72,
   },
   checklistCount: {
     color: "#64748b",
@@ -1059,6 +1203,19 @@ const styles = StyleSheet.create({
   referencePreviewShade: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(15,23,42,0.18)",
+  },
+  referencePlay: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.88)",
+    borderRadius: 999,
+    height: 26,
+    justifyContent: "center",
+    left: "50%",
+    marginLeft: -13,
+    marginTop: -13,
+    position: "absolute",
+    top: "50%",
+    width: 26,
   },
   shootButton: {
     alignItems: "center",
