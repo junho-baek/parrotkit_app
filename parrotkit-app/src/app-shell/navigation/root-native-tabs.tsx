@@ -194,7 +194,7 @@ function RootTabsContent() {
             key={tabName}
             name={tabName}
             options={{
-              href: rootTabHrefs[tabName],
+              href: getRootTabScreenHref(tabName),
             }}
           />
         ))}
@@ -229,6 +229,15 @@ function RootTabsContent() {
 
 function getRootTabLabel(copy: Record<RootTabName, string>, tabName: RootTabName) {
   return copy[tabName];
+}
+
+function getRootTabScreenHref(tabName: RootTabName) {
+  if (tabName === 'paste') {
+    // Expo Router hides `href: null` tab items on iOS/Expo Go; the custom button intercepts press.
+    return '/' as Href;
+  }
+
+  return rootTabHrefs[tabName];
 }
 
 function RootTabButton({

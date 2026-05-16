@@ -192,6 +192,14 @@ if (!rootNativeTabsSource.includes('RecipeCreateScreen')) {
   throw new Error('Root app shell must compose RecipeCreateScreen for the Paste drawer.');
 }
 
+if (
+  !rootNativeTabsSource.includes('function getRootTabScreenHref') ||
+  !rootNativeTabsSource.includes("if (tabName === 'paste')") ||
+  !rootNativeTabsSource.includes("return '/' as Href")
+) {
+  throw new Error('Paste must stay visible on iOS tabs while its custom button keeps it as an in-place action.');
+}
+
 if (!rootNativeTabsSource.includes('active={pasteDrawerState.open}')) {
   throw new Error('The centered Paste action must show active feedback while the paste drawer is open.');
 }
