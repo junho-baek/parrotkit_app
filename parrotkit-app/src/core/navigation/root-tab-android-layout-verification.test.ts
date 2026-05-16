@@ -22,7 +22,7 @@ if (androidViewports.length < 2) {
   throw new Error('Android bottom navigation verification must cover multiple representative Android viewports.');
 }
 
-const centerTabIndex = rootTabNames.indexOf('source');
+const centerTabIndex = rootTabNames.indexOf('paste');
 
 if (centerTabIndex !== 2) {
   throw new Error('Paste must remain the centered third slot in the five-tab bottom navigation.');

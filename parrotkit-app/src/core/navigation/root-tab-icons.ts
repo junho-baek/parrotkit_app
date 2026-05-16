@@ -20,7 +20,7 @@ export const rootTabIconNames: Record<
     focused: 'compass',
     unfocused: 'compass-outline',
   },
-  source: {
+  paste: {
     focused: 'link-variant',
     unfocused: 'link-variant',
   },

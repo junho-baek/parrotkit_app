@@ -12,7 +12,7 @@ import {
 export type RootBottomNavQaViewport = {
   bottomInset: number;
   deviceName: string;
-  expectedCenterAction: Extract<RootTabName, 'source'>;
+  expectedCenterAction: Extract<RootTabName, 'paste'>;
   expectedPasteFlowHref: typeof rootPasteActionHref;
   expectedRoutes: typeof rootTabHrefs;
   expectedVisibleTabs: typeof rootTabNames;
@@ -37,7 +37,7 @@ export const rootBottomNavQaViewports = [
   {
     bottomInset: 34,
     deviceName: 'iPhone 13 mini',
-    expectedCenterAction: 'source',
+    expectedCenterAction: 'paste',
     expectedPasteFlowHref: rootPasteActionHref,
     expectedRoutes: rootTabHrefs,
     expectedVisibleTabs: rootTabNames,
@@ -59,7 +59,7 @@ export const rootBottomNavQaViewports = [
   {
     bottomInset: 34,
     deviceName: 'iPhone 15',
-    expectedCenterAction: 'source',
+    expectedCenterAction: 'paste',
     expectedPasteFlowHref: rootPasteActionHref,
     expectedRoutes: rootTabHrefs,
     expectedVisibleTabs: rootTabNames,
@@ -81,7 +81,7 @@ export const rootBottomNavQaViewports = [
   {
     bottomInset: 0,
     deviceName: 'Pixel 8 gesture navigation',
-    expectedCenterAction: 'source',
+    expectedCenterAction: 'paste',
     expectedPasteFlowHref: rootPasteActionHref,
     expectedRoutes: rootTabHrefs,
     expectedVisibleTabs: rootTabNames,
@@ -103,7 +103,7 @@ export const rootBottomNavQaViewports = [
   {
     bottomInset: 24,
     deviceName: 'Galaxy compact navigation bar',
-    expectedCenterAction: 'source',
+    expectedCenterAction: 'paste',
     expectedPasteFlowHref: rootPasteActionHref,
     expectedRoutes: rootTabHrefs,
     expectedVisibleTabs: rootTabNames,

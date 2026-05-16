@@ -51,16 +51,6 @@ export default function RootLayout() {
                   presentation: "transparentModal",
                 }}
               />
-              <Stack.Screen
-                name="source-actions"
-                options={{
-                  animation: "slide_from_bottom",
-                  contentStyle: {
-                    backgroundColor: "transparent",
-                  },
-                  presentation: "transparentModal",
-                }}
-              />
             </Stack>
           </MockWorkspaceProvider>
         </AppLanguageProvider>

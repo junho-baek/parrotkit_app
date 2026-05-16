@@ -84,7 +84,7 @@ function RootTabsContent() {
                 return null;
               }
 
-              if (visibleTabName === 'source') {
+              if (visibleTabName === 'paste') {
                 const pasteActionActive = focused || pasteDrawerState.open;
 
                 return (
@@ -148,12 +148,12 @@ function RootTabsContent() {
               );
             },
             tabBarItemStyle:
-              visibleTabName === 'source' ? styles.pasteTabItem : styles.regularTabItem,
+              visibleTabName === 'paste' ? styles.pasteTabItem : styles.regularTabItem,
             tabBarIconStyle:
-              visibleTabName === 'source' ? styles.pasteTabIconStyle : styles.regularTabIconStyle,
+              visibleTabName === 'paste' ? styles.pasteTabIconStyle : styles.regularTabIconStyle,
             tabBarButton: visibleTabName
               ? (props) =>
-                  visibleTabName === 'source' ? (
+                  visibleTabName === 'paste' ? (
                     <RootTabButton
                       {...props}
                       active={pasteDrawerState.open}
@@ -170,7 +170,7 @@ function RootTabsContent() {
                   )
               : undefined,
             tabBarLabel:
-              visibleTabName && visibleTabName !== 'source'
+              visibleTabName && visibleTabName !== 'paste'
                 ? ({ color, focused }) => (
                     <Text
                       style={[

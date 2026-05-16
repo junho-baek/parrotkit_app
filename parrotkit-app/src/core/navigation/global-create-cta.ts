@@ -10,8 +10,6 @@ const hiddenCreateCtaPaths = new Set([
   "/",
   "/explore",
   "/recipe-create",
-  "/source",
-  "/source-actions",
   "/recipes",
 ]);
 

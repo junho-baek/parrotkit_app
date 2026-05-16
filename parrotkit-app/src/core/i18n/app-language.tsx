@@ -18,8 +18,8 @@ type AppLanguageCopy = {
     explore: string;
     index: string;
     my: string;
+    paste: string;
     recipes: string;
-    source: string;
   };
   sourceCta: {
     accessibilityHint: string;
@@ -84,8 +84,8 @@ const APP_LANGUAGE_COPY: Record<AppLanguage, AppLanguageCopy> = {
       explore: 'Explore',
       index: 'Home',
       my: 'My',
+      paste: 'Paste',
       recipes: 'Recipes',
-      source: 'Paste',
     },
     sourceCta: {
       accessibilityHint: 'Open the new recipe drawer',
@@ -148,8 +148,8 @@ const APP_LANGUAGE_COPY: Record<AppLanguage, AppLanguageCopy> = {
       explore: '탐색',
       index: '홈',
       my: '마이',
+      paste: 'Paste',
       recipes: '레시피',
-      source: 'Paste',
     },
     sourceCta: {
       accessibilityHint: '새 레시피 드로어 열기',

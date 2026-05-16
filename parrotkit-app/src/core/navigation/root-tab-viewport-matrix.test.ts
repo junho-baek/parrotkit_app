@@ -49,8 +49,8 @@ for (const viewport of rootBottomNavQaViewports) {
     throw new Error(`${viewport.id} must verify exactly five bottom navigation slots.`);
   }
 
-  if (viewport.expectedCenterAction !== 'source') {
-    throw new Error(`${viewport.id} must treat Paste/source as the center primary action.`);
+  if (viewport.expectedCenterAction !== 'paste') {
+    throw new Error(`${viewport.id} must treat Paste as the center primary action.`);
   }
 
   if (viewport.expectedPasteFlowHref !== rootPasteActionHref) {

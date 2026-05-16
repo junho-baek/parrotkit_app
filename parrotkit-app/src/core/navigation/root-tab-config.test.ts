@@ -1,9 +1,12 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import {
   hiddenRootTabNames,
+  rootDestinationTabHrefs,
+  rootDestinationTabNames,
   rootPasteActionHref,
+  rootPasteActionName,
   rootTabAccessibilityRoles,
   rootTabHrefs,
   rootTabMinimumTouchTarget,
@@ -12,7 +15,8 @@ import {
 import { rootTabIconNames } from './root-tab-icons';
 import materialCommunityIconGlyphMap from '../../../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/MaterialCommunityIcons.json';
 
-const expectedVisibleRootTabs = ['index', 'explore', 'source', 'recipes', 'my'] as const;
+const expectedVisibleRootTabs = ['index', 'explore', 'paste', 'recipes', 'my'] as const;
+const expectedDestinationRootTabs = ['index', 'explore', 'recipes', 'my'] as const;
 const expectedHiddenRootTabs = [] as const;
 const visibleRootTabs = rootTabNames;
 const visibleRootTabNames: readonly string[] = visibleRootTabs;
@@ -36,13 +40,23 @@ expectedVisibleRootTabs.forEach((expectedTab, index) => {
   }
 });
 
+if (rootDestinationTabNames.join(',') !== expectedDestinationRootTabs.join(',')) {
+  throw new Error(
+    `Root destination tabs must be Home, Explore, Recipes, My only. Found: ${rootDestinationTabNames.join(',')}`
+  );
+}
+
+if (rootPasteActionName !== 'paste') {
+  throw new Error(`Paste center action must be named paste, not ${rootPasteActionName}.`);
+}
+
 const visibleTabLabels = visibleRootTabs.map((tabName) => {
   switch (tabName) {
     case 'index':
       return 'Home';
     case 'explore':
       return 'Explore';
-    case 'source':
+    case 'paste':
       return 'Paste';
     case 'recipes':
       return 'Recipes';
@@ -76,7 +90,7 @@ hiddenRootTabs.forEach((hiddenTab) => {
 const expectedRootTabHrefs = {
   index: '/',
   explore: '/explore',
-  source: rootPasteActionHref,
+  paste: null,
   recipes: '/recipes',
   my: '/my',
 } as const;
@@ -111,8 +125,16 @@ if (rootPasteActionHref !== '/recipe-create?mode=reference') {
   throw new Error('The centered Paste tab must open the reference-link recipe creation drawer.');
 }
 
+if (rootTabHrefs.paste !== null) {
+  throw new Error('Paste must not have a route href; it opens the in-place recipe drawer.');
+}
+
+if (Object.prototype.hasOwnProperty.call(rootDestinationTabHrefs, 'paste')) {
+  throw new Error('Paste must not be counted as a destination tab.');
+}
+
 const recipesHref: string = rootTabHrefs.recipes;
-const pasteHref: string = rootTabHrefs.source;
+const pasteHref = rootTabHrefs.paste;
 const pasteActionHref: string = rootPasteActionHref;
 
 if (recipesHref === pasteHref || recipesHref === pasteActionHref) {
@@ -124,7 +146,7 @@ if (recipesHref !== '/recipes') {
 }
 
 const myHref: string = rootTabHrefs.my;
-const otherRootTabHrefs: readonly string[] = [
+const otherRootTabHrefs: ReadonlyArray<string | null> = [
   rootTabHrefs.index,
   rootTabHrefs.explore,
   pasteHref,
@@ -142,7 +164,6 @@ if (otherRootTabHrefs.includes(myHref)) {
 const routeFiles = [
   '../../app/(tabs)/index.tsx',
   '../../app/(tabs)/explore.tsx',
-  '../../app/(tabs)/source.tsx',
   '../../app/(tabs)/recipes.tsx',
   '../../app/(tabs)/my.tsx',
 ];
@@ -153,6 +174,12 @@ for (const routeFile of routeFiles) {
   if (!source.includes('export {') || !source.includes(' as default }')) {
     throw new Error(`${routeFile} must stay a thin Expo Router export wrapper.`);
   }
+}
+
+const pasteRouteSource = readFileSync(resolve(__dirname, '../../app/(tabs)/paste.tsx'), 'utf8').trim();
+
+if (!pasteRouteSource.includes('Redirect') || !pasteRouteSource.includes('href="/"')) {
+  throw new Error('The hidden /paste compatibility route must redirect to Home.');
 }
 
 const rootHomeRouteSource = readFileSync(resolve(__dirname, '../../app/(tabs)/index.tsx'), 'utf8').trim();
@@ -200,6 +227,18 @@ if (!rootNativeTabsSource.includes('minHeight: rootTabMinimumTouchTarget')) {
 const homeDeepLinkRouteSource = readFileSync(resolve(__dirname, '../../app/home.tsx'), 'utf8').trim();
 const rootLayoutSource = readFileSync(resolve(__dirname, '../../app/_layout.tsx'), 'utf8');
 
+if (rootLayoutSource.includes('name="source-actions"')) {
+  throw new Error('source-actions must not be registered as a product route.');
+}
+
+if (existsSync(resolve(__dirname, '../../app/(tabs)/source.tsx'))) {
+  throw new Error('/source tab route module must be removed.');
+}
+
+if (existsSync(resolve(__dirname, '../../app/source-actions.tsx'))) {
+  throw new Error('/source-actions route module must be removed.');
+}
+
 if (!homeDeepLinkRouteSource.includes('href="/"')) {
   throw new Error('The /home deep link route must redirect to the canonical root Home route (/).');
 }
@@ -236,7 +275,7 @@ visibleRootTabs.forEach((tabName) => {
     );
   }
 
-  if (tabName === 'source') {
+  if (tabName === 'paste') {
     if (accessibilityRole !== 'button') {
       throw new Error('Paste opens the recipe creation drawer and must expose button semantics.');
     }
