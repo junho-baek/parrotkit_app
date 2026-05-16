@@ -124,6 +124,9 @@ export function ShootBoardSceneCard({
             </Text>
           ) : (
             <View className="mt-2 gap-1.5">
+              <Text className="text-[15px] font-black leading-5 text-ink">
+                {headerParts.executionTitle}
+              </Text>
               {previewRows.map((row) => (
                 <View className="min-w-0 flex-row gap-2" key={row.id}>
                   <Text
