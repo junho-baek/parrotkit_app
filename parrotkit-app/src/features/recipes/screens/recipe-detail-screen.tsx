@@ -18,6 +18,7 @@ import type { MockRecipe } from "@/core/mocks/parrotkit-data";
 import { useMockWorkspace } from "@/core/providers/mock-workspace-provider";
 import { brandActionGradient } from "@/core/theme/colors";
 import { ReferenceViewerModal } from "@/features/recipes/components/reference-viewer-modal";
+import { ShootBoardBodyHeader } from "@/features/recipes/components/shoot-board-body-header";
 import { ShootBoardDraggableList } from "@/features/recipes/components/shoot-board-draggable-list";
 import { ShootBoardNoteCta } from "@/features/recipes/components/shoot-board-note-cta";
 import { ShootBoardSessionHeader } from "@/features/recipes/components/shoot-board-session-header";
@@ -217,6 +218,7 @@ export function RecipeDetailScreen() {
   const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null);
   const [boardState, setBoardState] = useState<ShootBoardRecipe | null>(null);
   const [reorderMode, setReorderMode] = useState(false);
+  const [noteEntryOpen, setNoteEntryOpen] = useState(false);
   const [boardDragActive, setBoardDragActive] = useState(false);
   const [expandedCutIds, setExpandedCutIds] = useState<string[]>([]);
   const [referenceViewerCutId, setReferenceViewerCutId] = useState<
@@ -285,6 +287,7 @@ export function RecipeDetailScreen() {
     if (!existingBoard || nextBoard !== existingBoard) {
       setRecipeEditorBoard(nextBoard);
     }
+    setNoteEntryOpen(false);
     setReorderMode(false);
     setBoardDragActive(false);
     setExpandedCutIds([]);
@@ -793,11 +796,18 @@ export function RecipeDetailScreen() {
         language={language}
         ListHeaderComponent={
           <>
+            <ShootBoardBodyHeader
+              board={renderedShootBoard}
+              language={language}
+              onOpenNote={() => setNoteEntryOpen(true)}
+            />
             <ShootBoardNoteCta
               checked={renderedShootBoard.boardNoteChecked ?? false}
+              expanded={noteEntryOpen}
               language={language}
               value={renderedShootBoard.boardNote ?? ""}
               onChangeText={(boardNote) => updateBoardNote({ boardNote })}
+              onClose={() => setNoteEntryOpen(false)}
               onToggleChecked={() =>
                 updateBoardNote({
                   boardNoteChecked: !(
