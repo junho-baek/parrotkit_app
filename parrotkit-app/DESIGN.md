@@ -229,6 +229,39 @@ ParrotKit should feel tactile and mobile-native:
 
 ## Components
 
+### Shooting board
+
+The shooting board is a short-form filming session surface. It should feel like a creator execution tool, not a generic video player, workflow console, or checklist dashboard.
+
+Session shell:
+
+- A dark top session bar may be used when the board is in active shooting/planning mode.
+- The dark bar owns session status: elapsed or estimated duration, cut progress, saved take count, and the `Done` / `완료` action.
+- Keep the recipe/guide title in the white body header below the session bar. Do not duplicate the title as both a large dark-bar title and a large body title.
+- The body header may show one lightweight note entry such as `오늘의 메모를 입력해보세요.` / `Add a shooting note.`
+
+Note/checklist model:
+
+- The note row is an entry point, not the checklist itself.
+- Tapping the note row should open an inline expanded area, bottom sheet, or modal for today's note, prep checklist, brand reminders, and completion action.
+- Do not show a full checklist directly under the board header by default.
+- Checklist content belongs in the note/checklist surface or inside an expanded cut.
+
+Short-form media:
+
+- Reference and My Take media default to 9:16 vertical frames because ParrotKit is for short-form creation.
+- Avoid 16:9 full-width players for cut references unless a source is truly landscape and the UI explicitly frames it as source review rather than shooting guidance.
+- Collapsed cut rows should use compact 9:16 thumbnails or mini frames. Expanded cuts may use larger 9:16 Reference/My Take frames.
+
+Cut naming and row hierarchy:
+
+- Collapsed cut rows should read as execution items.
+- Prefer user-readable execution names over internal structure labels. Good: `Open on the finished look`, `Show the proof close-up`, `Film the repeatable steps`, `End with the save line`.
+- Avoid making `Hook`, `Proof`, `Demonstration`, or `CTA` the primary visible name. Those can remain internal structure or secondary metadata when needed.
+- Keep `Cut #`, duration, and progress compact. Do not let them compete with the execution name.
+- My Take owns take state. Count badges, final checks, and retake status should live inside or near the My Take frame, not as separate explanatory pills.
+- Reorder handles should appear only in reorder mode.
+
 ### Recipe creation drawer
 
 Recipe creation must use the bottom drawer / modal sheet pattern. This is a carefully designed interaction and should not be flattened into a generic settings form.
