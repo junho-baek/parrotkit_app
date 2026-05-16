@@ -206,6 +206,7 @@ evaluation_principles:
 
 non_goals:
   - Build raw video analysis in this seed.
+  - Build Supadata/Gemini ingestion before the UI projection boundary is stable.
   - Build idea/hook/channel vault screens now.
   - Add authentication, cloud sync, paid services, or deployment work.
   - Force every recipe to expose the full analysis taxonomy in the UI.
@@ -214,5 +215,5 @@ non_goals:
 exit_conditions:
   - The seed can guide future schema, prompt, and UI work without re-litigating the product taxonomy.
   - The shooting board can derive concise filming guidance from the full analysis contract.
+  - Supadata/Gemini can later populate the Recipe Analysis Contract without changing the Board / Breakdown UI boundary.
   - Future multi-video intelligence can be layered on without changing the core recipe contract.
-
