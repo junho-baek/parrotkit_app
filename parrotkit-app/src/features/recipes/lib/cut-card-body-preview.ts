@@ -1,7 +1,7 @@
 import type { AppLanguage } from "@/core/i18n/app-language";
 import type { ShootBoardCut } from "@/features/recipes/lib/shoot-board-model";
 
-export type CutCardBodyPreviewRowId = "hook" | "lineToSay" | "shotAction";
+export type CutCardBodyPreviewRowId = "lineToSay" | "shotAction";
 
 export type CutCardBodyPreviewRow = {
   id: CutCardBodyPreviewRowId;
@@ -12,14 +12,12 @@ export type CutCardBodyPreviewRow = {
 
 const previewCopy = {
   en: {
-    hook: "Hook",
     lineToSay: "Line to Say",
-    shotAction: "Shot/Action",
+    shotAction: "Shot guide",
   },
   ko: {
-    hook: "훅",
     lineToSay: "말할 문장",
-    shotAction: "촬영 동작",
+    shotAction: "촬영 가이드",
   },
 } satisfies Record<AppLanguage, Record<CutCardBodyPreviewRowId, string>>;
 
@@ -28,12 +26,6 @@ export function getCutCardBodyPreviewRows(
   language: AppLanguage,
 ): CutCardBodyPreviewRow[] {
   return [
-    {
-      id: "hook",
-      label: previewCopy[language].hook,
-      numberOfLines: 1,
-      value: getPreviewValue(cut.hook, cut.instruction),
-    },
     {
       id: "lineToSay",
       label: previewCopy[language].lineToSay,

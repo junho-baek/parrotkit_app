@@ -38,7 +38,6 @@ import {
   resetShootBoardCut,
   selectShootBoardFinalTake,
   setShootBoardChecklistItem,
-  setShootBoardCutCompletion,
   type ShootBoardCut,
   type ShootBoardCutTextPatch,
   type ShootBoardRecipe,
@@ -536,12 +535,6 @@ export function RecipeDetailScreen() {
     updateBoard((board) => selectShootBoardFinalTake(board, cut.id, takeId));
   };
 
-  const toggleSceneCompletion = (cutId: string, complete: boolean) => {
-    updateBoard((board) => {
-      return setShootBoardCutCompletion(board, cutId, complete);
-    });
-  };
-
   const toggleChecklistItem = (
     cutId: string,
     itemId: string,
@@ -803,7 +796,6 @@ export function RecipeDetailScreen() {
         onTake={openTakeViewer}
         onToggleChecklistItem={toggleChecklistItem}
         onToggleExpanded={toggleExpandedCut}
-        onToggleSceneComplete={toggleSceneCompletion}
         onUpdateCutText={updateCutText}
         reorderMode={reorderMode || boardDragActive}
       />
@@ -871,49 +863,94 @@ function CutBoardHeader({
   onMore: () => void;
   topInset: number;
 }) {
+  const referencePreview = getBoardReferencePreview(board);
+
   return (
     <View style={[styles.cutBoardHeaderShell, { paddingTop: topInset + 12 }]}>
-      <Pressable
-        accessibilityLabel={copy.back}
-        accessibilityRole="button"
-        onPress={onBack}
-        style={styles.cutBoardBackButton}
-      >
-        <MaterialCommunityIcons color="#111827" name="arrow-left" size={24} />
-      </Pressable>
+      {referencePreview ? (
+        <ImageBackground
+          imageStyle={styles.cutBoardReferenceImage}
+          resizeMode="cover"
+          source={{ uri: referencePreview.thumbnailUrl }}
+          style={styles.cutBoardReference}
+        >
+          <LinearGradient
+            colors={["rgba(15,23,42,0.05)", "rgba(15,23,42,0.68)"]}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.cutBoardReferencePlay}>
+            <MaterialCommunityIcons
+              color="#111827"
+              name="play"
+              size={22}
+            />
+          </View>
+          <View style={styles.cutBoardReferenceMeta}>
+            <Text style={styles.cutBoardReferenceMetaText}>
+              {language === "ko" ? "레퍼런스" : "Reference"} ·{" "}
+              {referencePreview.durationLabel}
+            </Text>
+          </View>
+        </ImageBackground>
+      ) : null}
 
-      <View className="min-w-0 flex-1 px-2">
-        <View className="flex-row items-center gap-1">
-          <Text
-            className="min-w-0 flex-shrink text-[17px] font-black leading-6 text-ink"
-            numberOfLines={1}
-          >
-            {board.title}
-          </Text>
+      <View style={styles.cutBoardHeaderRow}>
+        <Pressable
+          accessibilityLabel={copy.back}
+          accessibilityRole="button"
+          onPress={onBack}
+          style={styles.cutBoardBackButton}
+        >
+          <MaterialCommunityIcons color="#111827" name="arrow-left" size={24} />
+        </Pressable>
+
+        <View className="min-w-0 flex-1 px-2">
+          <View className="flex-row items-center gap-1">
+            <Text
+              className="min-w-0 flex-shrink text-[17px] font-black leading-6 text-ink"
+              numberOfLines={1}
+            >
+              {board.title}
+            </Text>
+            <MaterialCommunityIcons
+              color="#111827"
+              name="chevron-down"
+              size={17}
+            />
+          </View>
+        </View>
+
+        <Pressable
+          accessibilityLabel={copy.more}
+          accessibilityRole="button"
+          onPress={onMore}
+          style={styles.cutBoardMoreButton}
+        >
           <MaterialCommunityIcons
             color="#111827"
-            name="chevron-down"
-            size={17}
+            name="dots-horizontal"
+            size={24}
           />
-        </View>
+        </Pressable>
       </View>
-
-      <Pressable
-        accessibilityLabel={copy.more}
-        accessibilityRole="button"
-        onPress={onMore}
-        style={styles.cutBoardMoreButton}
-      >
-        <MaterialCommunityIcons
-          color="#111827"
-          name="dots-horizontal"
-          size={24}
-        />
-      </Pressable>
     </View>
   );
 }
 
+function getBoardReferencePreview(board: ShootBoardRecipe) {
+  const cut = [...board.cuts]
+    .sort((first, second) => first.order - second.order)
+    .find((candidate) => candidate.thumbnailUrl);
+
+  if (!cut) {
+    return null;
+  }
+
+  return {
+    durationLabel: `${cut.durationSeconds}s`,
+    thumbnailUrl: cut.thumbnailUrl,
+  };
+}
 
 function RecipePrepSnapshot({
   copy,
@@ -1739,14 +1776,18 @@ const styles = StyleSheet.create({
     width: 42,
   },
   cutBoardHeaderShell: {
-    alignItems: "center",
     backgroundColor: "#ffffff",
     borderBottomColor: "#e2e8f0",
     borderBottomWidth: 1,
-    flexDirection: "row",
     gap: 10,
     paddingBottom: 12,
     paddingHorizontal: 16,
+  },
+  cutBoardHeaderRow: {
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    flexDirection: "row",
+    gap: 10,
   },
   cutBoardMoreButton: {
     alignItems: "center",
@@ -1757,6 +1798,39 @@ const styles = StyleSheet.create({
     height: 42,
     justifyContent: "center",
     width: 42,
+  },
+  cutBoardReference: {
+    borderRadius: 22,
+    height: 104,
+    justifyContent: "center",
+    overflow: "hidden",
+    width: "100%",
+  },
+  cutBoardReferenceImage: {
+    borderRadius: 22,
+  },
+  cutBoardReferenceMeta: {
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: 999,
+    bottom: 10,
+    left: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    position: "absolute",
+  },
+  cutBoardReferenceMetaText: {
+    color: "#111827",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  cutBoardReferencePlay: {
+    alignItems: "center",
+    alignSelf: "center",
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderRadius: 999,
+    height: 46,
+    justifyContent: "center",
+    width: 46,
   },
   v2FloatingAddButton: {
     alignItems: "center",

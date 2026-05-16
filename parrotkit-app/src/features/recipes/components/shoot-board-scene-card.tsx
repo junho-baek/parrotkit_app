@@ -44,7 +44,6 @@ export function ShootBoardSceneCard({
   onShoot,
   onToggleChecklistItem,
   onToggleExpanded,
-  onToggleSceneComplete,
   onUpdateText,
   reorderMode,
   takeViewerLoading = false,
@@ -61,7 +60,6 @@ export function ShootBoardSceneCard({
   onShoot: (take?: ShootBoardTake) => void;
   onToggleChecklistItem: (itemId: string, checked: boolean) => void;
   onToggleExpanded: () => void;
-  onToggleSceneComplete: (complete: boolean) => void;
   onUpdateText: (patch: ShootBoardCutTextPatch) => void;
   reorderMode: boolean;
   takeViewerLoading?: boolean;
@@ -90,33 +88,6 @@ export function ShootBoardSceneCard({
       ]}
     >
       <View className="flex-row items-start gap-2">
-        <TouchableOpacity
-          activeOpacity={0.72}
-          accessibilityLabel={language === "ko" ? "드래그 핸들" : "Drag handle"}
-          accessibilityRole="button"
-          delayLongPress={180}
-          onLongPress={onDragStart}
-          style={styles.dragHandle}
-        >
-          <MaterialCommunityIcons
-            color={reorderMode ? accent.main : "#94a3b8"}
-            name="drag-vertical"
-            size={22}
-          />
-        </TouchableOpacity>
-
-        <Pressable
-          accessibilityRole="button"
-          className="mt-0.5 h-8 w-8 items-center justify-center rounded-full"
-          onPress={onToggleExpanded}
-        >
-          <MaterialCommunityIcons
-            color="#111827"
-            name={expanded ? "chevron-down" : "chevron-right"}
-            size={22}
-          />
-        </Pressable>
-
         <Pressable
           accessibilityRole="button"
           className="min-w-0 flex-1"
@@ -129,12 +100,14 @@ export function ShootBoardSceneCard({
             >
               {headerParts.numberLabel}
             </Text>
-            <Text className="min-w-0 flex-shrink text-[15px] font-black text-ink">
-              {headerParts.roleLabel}
-            </Text>
             <Text className="text-[13px] font-black text-muted">
               {formatCutDuration(language, cut.durationSeconds)}
             </Text>
+            <MaterialCommunityIcons
+              color="#64748b"
+              name={expanded ? "chevron-up" : "chevron-down"}
+              size={18}
+            />
           </View>
           {expanded ? (
             <Text
@@ -167,10 +140,33 @@ export function ShootBoardSceneCard({
           )}
         </Pressable>
 
+        {reorderMode ? (
+          <TouchableOpacity
+            activeOpacity={0.72}
+            accessibilityLabel={language === "ko" ? "순서 변경" : "Reorder"}
+            accessibilityRole="button"
+            delayLongPress={180}
+            onLongPress={onDragStart}
+            style={styles.dragHandle}
+          >
+            <MaterialCommunityIcons color={accent.main} name="drag-vertical" size={21} />
+          </TouchableOpacity>
+        ) : null}
+
         <Pressable
-          accessibilityRole="checkbox"
+          accessibilityLabel={
+            language === "ko" ? "My Take 상태" : "My Take status"
+          }
+          accessibilityRole="button"
           accessibilityState={{ checked: completionState === "complete" }}
-          onPress={() => onToggleSceneComplete(completionState !== "complete")}
+          onPress={() => {
+            if (cut.takes.length > 0 || cut.takeStatus !== "none") {
+              onTake();
+              return;
+            }
+
+            onShoot();
+          }}
           style={[
             styles.completionCircle,
             completionState === "complete" && {
@@ -876,6 +872,10 @@ function getBoardFieldTitle(
     return language === "ko" ? "촬영 가이드" : "Shot guide";
   }
 
+  if (fieldId === "hook") {
+    return language === "ko" ? "내 경우 적용" : "Apply to your case";
+  }
+
   return fallbackLabel;
 }
 
@@ -1056,7 +1056,6 @@ const styles = StyleSheet.create({
   collapsedActionArea: {
     flexDirection: "row",
     gap: 8,
-    marginLeft: 41,
     marginTop: 10,
   },
   collapsedMediaSlots: {
@@ -1126,10 +1125,14 @@ const styles = StyleSheet.create({
   },
   dragHandle: {
     alignItems: "center",
+    backgroundColor: "#f8fafc",
+    borderColor: "#e2e8f0",
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 28,
     justifyContent: "center",
-    marginLeft: -5,
-    marginTop: 3,
-    width: 17,
+    marginTop: 2,
+    width: 28,
   },
   expandedBody: {
     gap: 14,

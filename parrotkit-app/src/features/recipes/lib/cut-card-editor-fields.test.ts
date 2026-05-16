@@ -1,8 +1,8 @@
 import {
   getCutCardEditorFieldDefinitions,
   getCutCardEditorFieldValue,
-} from "@/features/recipes/lib/cut-card-editor-fields";
-import type { ShootBoardCut } from "@/features/recipes/lib/shoot-board-model";
+} from "./cut-card-editor-fields";
+import type { ShootBoardCut } from "./shoot-board-model";
 
 const fields = getCutCardEditorFieldDefinitions("en");
 const fieldIds = fields.map((field) => field.id);
@@ -11,9 +11,9 @@ const koreanLabels = koreanFields.map((field) => field.label);
 const emptyTexts = fields.map((field) => field.emptyText);
 const koreanEmptyTexts = koreanFields.map((field) => field.emptyText);
 
-if (fieldIds.join(",") !== "hook,lineToSay,shotAction,note") {
+if (fieldIds.join(",") !== "lineToSay,shotAction,hook,note") {
   throw new Error(
-    "Cut-card editor should expose Hook, Line to Say, Shot/Action, and Note in order.",
+    "Cut-card editor should expose Line to Say, Shot guide, Apply to your case, and Note in order.",
   );
 }
 
@@ -21,15 +21,15 @@ if (fields.some((field) => field.multiline !== true)) {
   throw new Error("Every cut-card editor field should support multiline input.");
 }
 
-if (koreanLabels.join(",") !== "훅,말할 문장,촬영 동작,메모") {
+if (koreanLabels.join(",") !== "말할 문장,촬영 가이드,내 경우 적용,메모") {
   throw new Error(
-    "Korean cut-card editor labels should render as 훅, 말할 문장, 촬영 동작, 메모.",
+    "Korean cut-card editor labels should render as 말할 문장, 촬영 가이드, 내 경우 적용, 메모.",
   );
 }
 
 if (
   emptyTexts.join("|") !==
-  "No hook detail yet.|No line to say yet.|No shot/action detail yet.|No note yet."
+  "No line to say yet.|No shot/action detail yet.|No application note yet.|No note yet."
 ) {
   throw new Error(
     "Cut-card detail fields should expose read-only empty states for every v1 field.",
@@ -38,7 +38,7 @@ if (
 
 if (
   koreanEmptyTexts.join("|") !==
-  "아직 훅이 없습니다.|아직 말할 문장이 없습니다.|아직 촬영 동작이 없습니다.|아직 메모가 없습니다."
+  "아직 말할 문장이 없습니다.|아직 촬영 가이드가 없습니다.|아직 적용 메모가 없습니다.|아직 메모가 없습니다."
 ) {
   throw new Error(
     "Korean cut-card detail fields should expose localized read-only empty states.",

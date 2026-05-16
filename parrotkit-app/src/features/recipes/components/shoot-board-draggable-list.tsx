@@ -29,7 +29,6 @@ export function ShootBoardDraggableList({
   onTake,
   onToggleChecklistItem,
   onToggleExpanded,
-  onToggleSceneComplete,
   onUpdateCutText,
   reorderMode,
 }: {
@@ -52,7 +51,6 @@ export function ShootBoardDraggableList({
     checked: boolean,
   ) => void;
   onToggleExpanded: (cutId: string) => void;
-  onToggleSceneComplete: (cutId: string, complete: boolean) => void;
   onUpdateCutText: (cutId: string, patch: ShootBoardCutTextPatch) => void;
   reorderMode: boolean;
 }) {
@@ -83,9 +81,6 @@ export function ShootBoardDraggableList({
             onToggleChecklistItem(cut.id, itemId, checked)
           }
           onToggleExpanded={() => onToggleExpanded(cut.id)}
-          onToggleSceneComplete={(complete) =>
-            onToggleSceneComplete(cut.id, complete)
-          }
           onUpdateText={(patch) => onUpdateCutText(cut.id, patch)}
           reorderMode={reorderMode || isActive}
         />

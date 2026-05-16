@@ -1,5 +1,5 @@
-import { recipesSeed } from "@/core/mocks/parrotkit-data";
-import { normalizeNativeRecipe } from "@/features/recipes/lib/recipe-domain-normalizer";
+import { recipesSeed } from "../../../core/mocks/parrotkit-data";
+import { normalizeNativeRecipe } from "./recipe-domain-normalizer";
 import {
   createAddedShootBoardCut,
   createShootBoardRecipe,
@@ -20,7 +20,7 @@ import {
   setShootBoardCutCompletion,
   toggleShootBoardCutStatus,
   updateShootBoardCutText,
-} from "@/features/recipes/lib/shoot-board-model";
+} from "./shoot-board-model";
 
 const sourceRecipe = normalizeNativeRecipe(
   recipesSeed.find((recipe) => recipe.id === "recipe-korean-diet-hook") ??
@@ -241,9 +241,9 @@ const completeFirst = partialFirst.cuts[0].requiredChecklist.reduce(
     setShootBoardChecklistItem(nextBoard, board.cuts[0].id, item.id, true),
   partialFirst,
 );
-if (getShootBoardCutCompletionState(completeFirst.cuts[0]) !== "complete") {
+if (getShootBoardCutCompletionState(completeFirst.cuts[0]) !== "partial") {
   throw new Error(
-    "Checking every checklist item should create a complete state.",
+    "Checking every checklist item without a My Take should stay partial.",
   );
 }
 
@@ -260,6 +260,10 @@ if (
   throw new Error(
     "Selecting a saved proof take should mark it final on the scene.",
   );
+}
+
+if (getShootBoardCutCompletionState(finalProof.cuts[1]) !== "complete") {
+  throw new Error("Selecting a final My Take should complete the cut.");
 }
 
 const fourthCutId = board.cuts[3].id;

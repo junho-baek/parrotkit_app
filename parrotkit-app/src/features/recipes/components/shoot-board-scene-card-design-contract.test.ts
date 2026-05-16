@@ -21,8 +21,10 @@ for (const removedStyleName of [
 for (const requiredConcept of [
   "Line to say",
   "Shot guide",
+  "Apply to your case",
   "Saved takes",
   "Checklist",
+  "My Take status",
   "requiredChecklist",
   "getChecklistProgressLabel",
   "onToggleChecklistItem",
@@ -35,6 +37,17 @@ for (const requiredConcept of [
   if (!source.includes(requiredConcept)) {
     throw new Error(
       `Expanded shooting board source should retain ${requiredConcept}.`,
+    );
+  }
+}
+
+for (const removedControl of [
+  "onToggleSceneComplete",
+  "headerParts.roleLabel",
+]) {
+  if (source.includes(removedControl)) {
+    throw new Error(
+      `Shooting board cut rows should not expose fixed role/manual completion control: ${removedControl}.`,
     );
   }
 }

@@ -1,7 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
-import { ComponentProps, useMemo } from 'react';
 import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,66 +14,49 @@ import { getExploreTemplateDetailCopyAffordance } from '@/features/explore/lib/e
 import { getExploreTemplateDetailStartShootingHref } from '@/features/explore/lib/explore-template-recipe-copy';
 import { isVerifiedCreatorRecipe } from '@/features/recipes/lib/recipe-ownership';
 
-type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
-
 const previewCopy = {
   en: {
     back: 'Back',
     partnerCreator: 'Partner Guide',
     communityRecipe: 'Community Guide',
     verified: 'Verified',
-    keyHook: 'Key Hook',
-    included: 'Included',
-    structurePreview: 'Structure Preview',
-    creatorNotes: 'Creator notes',
+    referencePattern: 'Reference feature',
+    structurePreview: 'Reference structure',
+    applyToYou: 'Apply it to your case',
     proLocked: 'Pro option',
     comingSoon: 'Coming soon',
-    startShooting: 'Start filming',
+    startShooting: 'Open shoot board',
     saves: 'saves',
     views: 'views',
     scenes: 'scenes',
     notFound: 'Guide not found',
     notFoundBody: 'This guide may have moved from Explore.',
-    includedItems: [
-      { icon: 'play-box-outline' as IconName, label: 'Reference breakdown' },
-      { icon: 'format-list-checks' as IconName, label: 'Shot list' },
-      { icon: 'script-text-outline' as IconName, label: 'Script prompts' },
-      { icon: 'camera-iris' as IconName, label: 'Prompter mode' },
-    ],
   },
   ko: {
     back: '뒤로',
     partnerCreator: '파트너 가이드',
     communityRecipe: '커뮤니티 가이드',
     verified: '인증됨',
-    keyHook: '핵심 훅',
-    included: '포함됨',
-    structurePreview: '구성 미리보기',
-    creatorNotes: '크리에이터 노트',
+    referencePattern: '레퍼런스 특징',
+    structurePreview: '레퍼런스 구조',
+    applyToYou: '내 경우 적용',
     proLocked: 'Pro 옵션',
     comingSoon: '준비 중',
-    startShooting: '촬영 시작',
+    startShooting: '촬영 보드 열기',
     saves: '저장',
     views: '조회',
     scenes: '씬',
     notFound: '가이드를 찾을 수 없어요',
     notFoundBody: '탐색 가이드가 이동했을 수 있어요.',
-    includedItems: [
-      { icon: 'play-box-outline' as IconName, label: '레퍼런스 분석' },
-      { icon: 'format-list-checks' as IconName, label: '촬영 리스트' },
-      { icon: 'script-text-outline' as IconName, label: '대본 프롬프트' },
-      { icon: 'camera-iris' as IconName, label: '프롬프터 모드' },
-    ],
   },
 } satisfies Record<AppLanguage, {
   back: string;
   partnerCreator: string;
   communityRecipe: string;
   verified: string;
-  keyHook: string;
-  included: string;
+  referencePattern: string;
   structurePreview: string;
-  creatorNotes: string;
+  applyToYou: string;
   proLocked: string;
   comingSoon: string;
   startShooting: string;
@@ -83,7 +65,6 @@ const previewCopy = {
   scenes: string;
   notFound: string;
   notFoundBody: string;
-  includedItems: Array<{ icon: IconName; label: string }>;
 }>;
 
 export function ExploreRecipeDetailScreen() {
@@ -114,7 +95,6 @@ export function ExploreRecipeDetailScreen() {
     copied: saved,
     language,
   });
-  const tags = useMemo(() => (recipe ? getPreviewTags(language, recipe) : []), [language, recipe]);
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -222,49 +202,21 @@ export function ExploreRecipeDetailScreen() {
                 <Text style={styles.heroSummary} numberOfLines={3}>
                   {staticDetail.summary}
                 </Text>
-                <View className="flex-row flex-wrap gap-2">
-                  <Text style={styles.heroMetaStrong}>{staticDetail.creatorHandle}</Text>
-                  <Text style={styles.heroMeta}>
-                    ♡ {formatCompactMetric(staticDetail.saveCount)} {copy.saves}
-                  </Text>
-                  <Text style={styles.heroMeta}>
-                    ◦ {formatCompactMetric(staticDetail.viewCount)} {copy.views}
-                  </Text>
-                </View>
-                <View className="flex-row flex-wrap gap-1.5">
-                  {staticDetail.tags.map((tag) => (
-                    <View key={tag} style={styles.heroTag}>
-                      <Text style={styles.heroTagText}>{tag}</Text>
-                    </View>
-                  ))}
-                </View>
               </View>
             </View>
           </ImageBackground>
 
           <View className="gap-5 px-5 py-5">
             <View className="gap-2">
-              <Text className="text-[16px] font-black text-ink">{copy.keyHook}</Text>
+              <Text className="text-[16px] font-black text-ink">{copy.referencePattern}</Text>
               <Text className="text-[17px] font-black leading-7 text-slate-800">
-                "{staticDetail.keyHook}"
+                {staticDetail.keyHook}
               </Text>
             </View>
 
             <View className="gap-3">
-              <Text className="text-[16px] font-black text-ink">{copy.included}</Text>
-              <View className="flex-row flex-wrap gap-2">
-                {staticDetail.includedItems.map((item) => (
-                  <View key={item.label} style={styles.includeChip}>
-                    <MaterialCommunityIcons color="#8c67ff" name={item.icon} size={17} />
-                    <Text className="text-[12px] font-black text-ink">{item.label}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.notesBox}>
-              <Text className="text-[13px] font-black text-ink">{copy.creatorNotes}</Text>
-              <Text className="mt-1 text-[13px] font-semibold leading-6 text-slate-700">
+              <Text className="text-[16px] font-black text-ink">{copy.structurePreview}</Text>
+              <Text className="text-[13px] font-semibold leading-6 text-slate-700">
                 {staticDetail.notes}
               </Text>
             </View>
@@ -355,44 +307,16 @@ export function ExploreRecipeDetailScreen() {
               <Text style={styles.heroSummary} numberOfLines={3}>
                 {getPreviewSummary(language, detailRecipe)}
               </Text>
-              <View className="flex-row flex-wrap gap-2">
-                <Text style={styles.heroMetaStrong}>{detailRecipe.ownerHandle}</Text>
-                <Text style={styles.heroMeta}>
-                  ♡ {formatCompactMetric(detailRecipe.downloadCount)} {copy.saves}
-                </Text>
-                <Text style={styles.heroMeta}>
-                  ◦ {formatCompactMetric(detailRecipe.downloadCount * 6)} {copy.views}
-                </Text>
-              </View>
-              <View className="flex-row flex-wrap gap-1.5">
-                {tags.map((tag) => (
-                  <View key={tag} style={styles.heroTag}>
-                    <Text style={styles.heroTagText}>{tag}</Text>
-                  </View>
-                ))}
-              </View>
             </View>
           </View>
         </ImageBackground>
 
         <View className="gap-5 px-5 py-5">
           <View className="gap-2">
-            <Text className="text-[16px] font-black text-ink">{copy.keyHook}</Text>
+            <Text className="text-[16px] font-black text-ink">{copy.referencePattern}</Text>
             <Text className="text-[17px] font-black leading-7 text-slate-800">
-              "{keyHook}"
+              {keyHook}
             </Text>
-          </View>
-
-          <View className="gap-3">
-            <Text className="text-[16px] font-black text-ink">{copy.included}</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {copy.includedItems.map((item) => (
-                <View key={item.label} style={styles.includeChip}>
-                  <MaterialCommunityIcons color="#8c67ff" name={item.icon} size={17} />
-                  <Text className="text-[12px] font-black text-ink">{item.label}</Text>
-                </View>
-              ))}
-            </View>
           </View>
 
           <View className="gap-3">
@@ -411,16 +335,15 @@ export function ExploreRecipeDetailScreen() {
                     language={language}
                     scene={scene}
                     sceneIndex={index}
-                    totalScenes={detailRecipe.scenes.length}
                   />
                 ))}
               </View>
             </ScrollView>
           </View>
 
-          <View style={styles.notesBox}>
-            <Text className="text-[13px] font-black text-ink">{copy.creatorNotes}</Text>
-            <Text className="mt-1 text-[13px] font-semibold leading-6 text-slate-700">
+          <View className="gap-2">
+            <Text className="text-[16px] font-black text-ink">{copy.applyToYou}</Text>
+            <Text className="text-[13px] font-semibold leading-6 text-slate-700">
               {getCreatorNotes(language, detailRecipe)}
             </Text>
           </View>
@@ -457,19 +380,17 @@ function StructurePreviewCard({
   language,
   scene,
   sceneIndex,
-  totalScenes,
 }: {
   language: AppLanguage;
   scene: MockRecipeScene;
   sceneIndex: number;
-  totalScenes: number;
 }) {
   return (
     <View style={styles.structureCard}>
       <View className="flex-row items-center gap-2">
         <View style={[styles.roleDot, { backgroundColor: getStructureColor(sceneIndex) }]} />
-        <Text className="text-[10px] font-black uppercase text-violet">
-          {getSceneRoleLabel(language, sceneIndex, totalScenes)}
+        <Text className="text-[10px] font-black uppercase text-muted">
+          {language === 'ko' ? `컷 #${sceneIndex + 1}` : `Cut #${sceneIndex + 1}`}
         </Text>
       </View>
       <Text className="text-[15px] font-black leading-[19px] text-ink" numberOfLines={2}>
@@ -480,19 +401,11 @@ function StructurePreviewCard({
       </Text>
       <View className="mt-auto rounded-full bg-slate-100 px-3 py-2">
         <Text className="text-center text-[11px] font-black text-slate-700">
-          #{scene.sceneNumber ?? sceneIndex + 1} · {getSceneDuration(scene)}
+          {getSceneDuration(scene)}
         </Text>
       </View>
     </View>
   );
-}
-
-function formatCompactMetric(value: number) {
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}K`;
-  }
-
-  return String(value);
 }
 
 function getPreviewTitle(language: AppLanguage, recipe: MockRecipe) {
@@ -525,20 +438,6 @@ function getPreviewSummary(language: AppLanguage, recipe: MockRecipe) {
   }
 
   return recipe.summary;
-}
-
-function getPreviewTags(language: AppLanguage, recipe: MockRecipe) {
-  if (language === 'ko') {
-    if (recipe.id.includes('beauty-proof-routine')) return ['뷰티', '구매 전환', '훅 전환', '30초'];
-    if (recipe.id.includes('core-control-proof')) return ['푸드', '제품 홍보', '질감 증거', '30초'];
-    if (recipe.id.includes('founder-problem-hook')) return ['앱 데모', '문제 훅', '해결 제시', '30초'];
-  }
-
-  if (recipe.id.includes('beauty-proof-routine')) return ['Beauty', 'Conversion', 'Hook Shift', '30s'];
-  if (recipe.id.includes('core-control-proof')) return ['Food', 'Product Promo', 'Texture Proof', '30s'];
-  if (recipe.id.includes('founder-problem-hook')) return ['App Demo', 'Problem Hook', 'Solution', '30s'];
-
-  return [recipe.niche, recipe.goal.split(' ').slice(0, 2).join(' '), '30s'];
 }
 
 function getCreatorNotes(language: AppLanguage, recipe: MockRecipe) {
@@ -580,41 +479,21 @@ function getStaticExploreDetail(language: AppLanguage, detailId: string) {
   if (language === 'ko') {
     return {
       badge: '기업 요청',
-      creatorHandle: '@glowbrand',
       image: ugcMedia.beautyResult.image,
-      includedItems: [
-        { icon: 'lock-outline' as IconName, label: '브랜드 컨텍스트' },
-        { icon: 'script-text-outline' as IconName, label: '전환형 대본' },
-        { icon: 'camera-iris' as IconName, label: '프롬프터 준비' },
-        { icon: 'sparkles' as IconName, label: 'Pro 잠금' },
-      ],
       keyHook: '제품 설명보다 먼저 결과와 사용감을 보여주는 3컷 구성으로 시작하세요.',
       notes: '브랜드 컨텍스트와 레퍼런스 링크 기반 생성은 v1에서 Pro 잠금 옵션으로만 노출됩니다. 무료 흐름은 Home에서 빈 레시피를 만들고 직접 컷카드를 편집하는 방식으로 계속 사용할 수 있습니다.',
-      saveCount: 980,
       summary: '판매 메시지 전에 제품 가치를 먼저 증명하는 브랜드용 촬영 가이드입니다.',
-      tags: ['뷰티', '브랜드 협업', '제품 홍보', 'Pro'],
       title: '화장품 구매율 높이는 전환 가이드',
-      viewCount: 7200,
     };
   }
 
   return {
     badge: 'Brand request',
-    creatorHandle: '@glowbrand',
     image: ugcMedia.beautyResult.image,
-    includedItems: [
-      { icon: 'lock-outline' as IconName, label: 'Brand context' },
-      { icon: 'script-text-outline' as IconName, label: 'Conversion script' },
-      { icon: 'camera-iris' as IconName, label: 'Prompter ready' },
-      { icon: 'sparkles' as IconName, label: 'Pro locked' },
-    ],
     keyHook: 'Open with a three-cut result and texture proof before naming the product.',
     notes: 'Brand context and reference-link assisted creation remain visible as Pro-locked v1 options. Free creation still starts from Home with a blank recipe and editable cut cards.',
-    saveCount: 980,
     summary: 'A brand-ready shooting guide for proving product value before the sales message.',
-    tags: ['Beauty', 'Brand Collab', 'Product Demo', 'Pro'],
     title: 'Beauty Product Conversion Guide',
-    viewCount: 7200,
   };
 }
 
@@ -624,12 +503,6 @@ function getSceneDuration(scene: MockRecipeScene) {
   }
 
   return '10s';
-}
-
-function getSceneRoleLabel(language: AppLanguage, sceneIndex: number, totalScenes: number) {
-  if (sceneIndex === 0) return language === 'ko' ? 'Hook' : 'Hook';
-  if (sceneIndex === totalScenes - 1) return language === 'ko' ? 'CTA' : 'CTA';
-  return language === 'ko' ? 'Proof' : 'Proof';
 }
 
 function getStructureColor(sceneIndex: number) {
@@ -657,52 +530,11 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },
-  heroMeta: {
-    color: 'rgba(255,255,255,0.74)',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  heroMetaStrong: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '900',
-  },
   heroSummary: {
     color: 'rgba(255,255,255,0.80)',
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 22,
-  },
-  heroTag: {
-    backgroundColor: 'rgba(255,255,255,0.13)',
-    borderRadius: 999,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-  },
-  heroTagText: {
-    color: 'rgba(255,255,255,0.92)',
-    fontSize: 10,
-    fontWeight: '900',
-  },
-  includeChip: {
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderColor: '#e2e8f0',
-    borderRadius: 16,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 8,
-    minHeight: 46,
-    paddingHorizontal: 12,
-    width: '48%',
-  },
-  notesBox: {
-    backgroundColor: '#fff7ed',
-    borderColor: '#fed7aa',
-    borderRadius: 22,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
   },
   proBadge: {
     alignItems: 'center',

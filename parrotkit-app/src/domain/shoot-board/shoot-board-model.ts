@@ -483,8 +483,21 @@ export function createShootBoardRecipe(
 export function getShootBoardCutCompletionState(
   cut: ShootBoardCut,
 ): ShootBoardCutCompletionState {
+  if (cut.takeStatus === "needs_reshoot") {
+    return "partial";
+  }
+
+  if (
+    cut.takeStatus === "saved" ||
+    cut.takeStatus === "final" ||
+    cut.takes.length > 0 ||
+    Boolean(cut.finalTakeId)
+  ) {
+    return "complete";
+  }
+
   if (cut.requiredChecklist.length === 0) {
-    return cut.isShot ? "complete" : "none";
+    return "none";
   }
 
   const checkedCount = cut.requiredChecklist.filter(
@@ -492,7 +505,7 @@ export function getShootBoardCutCompletionState(
   ).length;
 
   if (checkedCount === 0) return "none";
-  if (checkedCount === cut.requiredChecklist.length) return "complete";
+  if (checkedCount === cut.requiredChecklist.length) return "partial";
   return "partial";
 }
 

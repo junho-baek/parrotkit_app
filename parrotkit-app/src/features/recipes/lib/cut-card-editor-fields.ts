@@ -20,18 +20,18 @@ export type CutCardEditorFieldDefinition = {
 };
 
 const cutCardEditorFieldIds: CutCardEditorFieldId[] = [
-  "hook",
   "lineToSay",
   "shotAction",
+  "hook",
   "note",
 ];
 
 const fieldCopy = {
   en: {
     hook: {
-      emptyText: "No hook detail yet.",
-      label: "Hook",
-      placeholder: "Write the opening hook for this cut",
+      emptyText: "No application note yet.",
+      label: "Apply to your case",
+      placeholder: "Write how this reference structure should work for your case",
     },
     lineToSay: {
       emptyText: "No line to say yet.",
@@ -45,15 +45,15 @@ const fieldCopy = {
     },
     shotAction: {
       emptyText: "No shot/action detail yet.",
-      label: "Shot/Action",
+      label: "Shot guide",
       placeholder: "Describe what should be shown or done on camera",
     },
   },
   ko: {
     hook: {
-      emptyText: "아직 훅이 없습니다.",
-      label: "훅",
-      placeholder: "이 컷의 시작 훅을 입력하세요",
+      emptyText: "아직 적용 메모가 없습니다.",
+      label: "내 경우 적용",
+      placeholder: "이 레퍼런스 구조를 내 경우에 어떻게 쓸지 입력하세요",
     },
     lineToSay: {
       emptyText: "아직 말할 문장이 없습니다.",
@@ -66,8 +66,8 @@ const fieldCopy = {
       placeholder: "타이밍, 톤, 제품 디테일 메모를 입력하세요",
     },
     shotAction: {
-      emptyText: "아직 촬영 동작이 없습니다.",
-      label: "촬영 동작",
+      emptyText: "아직 촬영 가이드가 없습니다.",
+      label: "촬영 가이드",
       placeholder: "카메라에 보여줄 행동이나 화면을 입력하세요",
     },
   },
