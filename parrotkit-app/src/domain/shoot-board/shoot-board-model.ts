@@ -287,7 +287,6 @@ const koreanDietCutDefinitions: CutDefinition[] = [
         labelKo: "첫 문장이 추가 설명 없이 결과를 말함",
       },
     ],
-    referenceThumbnailSource: fallbackUgcImages.foodPromo,
     role: "hook",
     sceneIndex: 0,
     shootingGuideline:
@@ -328,7 +327,6 @@ const koreanDietCutDefinitions: CutDefinition[] = [
         labelKo: "증거가 나오기 전 긴 공백이 없음",
       },
     ],
-    referenceThumbnailSource: fallbackUgcImages.foodPromo,
     role: "proof",
     sceneIndex: 1,
     shootingGuideline:
@@ -386,7 +384,6 @@ const koreanDietCutDefinitions: CutDefinition[] = [
         labelKo: "각 컷에 핵심 행동이 하나만 있음",
       },
     ],
-    referenceThumbnailSource: fallbackUgcImages.foodPromo,
     role: "scene",
     sceneIndex: 1,
     shootingGuideline:
@@ -429,7 +426,6 @@ const koreanDietCutDefinitions: CutDefinition[] = [
         labelKo: "자막이나 버튼이 들어갈 여백이 있음",
       },
     ],
-    referenceThumbnailSource: fallbackUgcImages.foodPromo,
     role: "cta",
     sceneIndex: 2,
     shootingGuideline:

@@ -32,6 +32,15 @@ const board = createShootBoardRecipe(sourceRecipe, {
   shotCutIds: [],
 });
 
+if (
+  board.id === "recipe-korean-diet-hook" &&
+  board.cuts.some((cut) => cut.thumbnailSource !== sourceRecipe.thumbnailSource)
+) {
+  throw new Error(
+    "Food promo board reference previews should use the influencer reference media, not a generic food fallback.",
+  );
+}
+
 const emptyBoard = createShootBoardRecipe({
   ...sourceRecipe,
   id: "recipe-empty-manual-draft",
@@ -171,9 +180,9 @@ if (
   );
 }
 
-if (board.cuts[0]?.title !== "Scene #1: Hook") {
+if (board.cuts[0]?.title !== "Cut #1: Hook") {
   throw new Error(
-    "Scene titles should use the required Scene #N: Role format.",
+    "Scene titles should use the required Cut #N: Role format.",
   );
 }
 
@@ -275,7 +284,7 @@ if (reorderedBoard.cuts[0]?.id !== fourthCutId) {
   );
 }
 
-if (reorderedBoard.cuts[0]?.title !== "Scene #1: CTA") {
+if (reorderedBoard.cuts[0]?.title !== "Cut #1: CTA") {
   throw new Error("Reordering should recalculate scene titles.");
 }
 
@@ -288,7 +297,7 @@ if (reorderedBoard.cuts[0]?.takes !== fourthCutTakes) {
 const movedDownBoard = moveShootBoardCut(board, board.cuts[0].id, 1);
 if (
   movedDownBoard.cuts[1]?.id !== board.cuts[0].id ||
-  movedDownBoard.cuts[1]?.title !== "Scene #2: Hook"
+  movedDownBoard.cuts[1]?.title !== "Cut #2: Hook"
 ) {
   throw new Error(
     "Moving a scene down should change its position and recalculate the scene number.",
@@ -302,7 +311,7 @@ const movedBackUpBoard = moveShootBoardCut(
 );
 if (
   movedBackUpBoard.cuts[0]?.id !== board.cuts[0].id ||
-  movedBackUpBoard.cuts[0]?.title !== "Scene #1: Hook"
+  movedBackUpBoard.cuts[0]?.title !== "Cut #1: Hook"
 ) {
   throw new Error(
     "Moving a scene up should change its position and recalculate the scene number.",
@@ -317,7 +326,7 @@ const dragOrderedBoard = replaceShootBoardCutOrder(board, [
 ]);
 if (
   dragOrderedBoard.cuts[0]?.id !== board.cuts[2].id ||
-  dragOrderedBoard.cuts[0]?.title !== "Scene #1: Demonstration" ||
+  dragOrderedBoard.cuts[0]?.title !== "Cut #1: Demonstration" ||
   dragOrderedBoard.cuts[0]?.requiredChecklist !==
     board.cuts[2].requiredChecklist
 ) {
@@ -384,7 +393,7 @@ if (
   addedCut.note !== "" ||
   addedCut.roleLabel !== "" ||
   addedCut.shotAction !== "" ||
-  addedCut.title !== "Scene #5" ||
+  addedCut.title !== "Cut #5" ||
   addedCut.speakingLine !== "" ||
   addedCut.speakingLineKo !== "" ||
   addedCut.shootingGuideline !== "" ||
@@ -428,7 +437,7 @@ const editedBoard = updateShootBoardCutText(board, board.cuts[0].id, {
 if (
   editedBoard.cuts[0]?.instruction !== "Edited instruction" ||
   editedBoard.cuts[0]?.hook !== "Edited instruction" ||
-  editedBoard.cuts[0]?.title !== "Scene #1: Edited Hook" ||
+  editedBoard.cuts[0]?.title !== "Cut #1: Edited Hook" ||
   editedBoard.cuts[0]?.speakingLine !== "Edited line to say" ||
   editedBoard.cuts[0]?.lineToSay !== "Edited line to say" ||
   editedBoard.cuts[0]?.shootingGuideline !== "Edited shooting guideline" ||
@@ -475,7 +484,7 @@ if (
     recipeId: board.id,
     take: board.cuts[1].takes[0],
   }) !==
-  "/recipe/recipe-korean-diet-hook/prompter?sceneId=scene-2&cutId=scene-2-proof&retakeTakeId=take-proof-1"
+  "/recipe/recipe-korean-diet-hook/prompter?sceneId=scene-2&cutId=scene-2-cut-2&retakeTakeId=proof-take-1"
 ) {
   throw new Error(
     "Retake actions should route to the relevant cut and saved take, not only the scene-level prompter.",
