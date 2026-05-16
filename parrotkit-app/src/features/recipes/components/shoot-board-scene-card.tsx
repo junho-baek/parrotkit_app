@@ -72,8 +72,6 @@ export function ShootBoardSceneCard({
     cut,
     referenceViewer,
   );
-  const referenceAnchorLabel =
-    language === "ko" ? "레퍼런스" : "Reference";
   const takeViewer = getCutCardTakeViewerSection(cut, language, {
     loading: takeViewerLoading,
   });
@@ -83,7 +81,6 @@ export function ShootBoardSceneCard({
     <View
       style={[
         styles.card,
-        { borderColor: getTakeStatusBorderColor(cut.takeStatus) },
         cut.takeStatus === "final" && styles.finalCard,
         highlighted && styles.highlightedCard,
       ]}
@@ -114,20 +111,22 @@ export function ShootBoardSceneCard({
                 <MaterialCommunityIcons color="#111827" name="play" size={15} />
               </View>
             </Pressable>
-            <View pointerEvents="none" style={styles.referenceAnchorTime}>
-              <Text numberOfLines={1} style={styles.referenceAnchorTimeText}>
-                {cut.timeRangeLabel}
-              </Text>
-            </View>
-            <View pointerEvents="none" style={styles.referenceAnchorLabel}>
-              <Text numberOfLines={1} style={styles.referenceAnchorLabelText}>
-                {referenceAnchorLabel}
-              </Text>
-            </View>
           </View>
 
           <View style={styles.compactCopy}>
             <Pressable accessibilityRole="button" onPress={onToggleExpanded}>
+              <View style={styles.compactMetaRow}>
+                {highlighted ? (
+                  <View style={styles.nextCutPill}>
+                    <Text style={styles.nextCutText}>
+                      {language === "ko" ? "다음 컷" : "Next cut"}
+                    </Text>
+                  </View>
+                ) : null}
+                <Text numberOfLines={1} style={styles.compactTimeText}>
+                  {cut.timeRangeLabel}
+                </Text>
+              </View>
               <View style={styles.compactTitleRow}>
                 <Text numberOfLines={2} style={styles.compactTitle}>
                   {headerParts.executionTitle}
@@ -896,13 +895,6 @@ function formatCutDuration(language: AppLanguage, durationSeconds: number) {
   return language === "ko" ? `${durationSeconds}초` : `${durationSeconds}s`;
 }
 
-function getTakeStatusBorderColor(status: ShootBoardCut["takeStatus"]) {
-  if (status === "final") return "#8b5cf6";
-  if (status === "saved") return "#c4b5fd";
-  if (status === "needs_reshoot") return "#fb7185";
-  return "#e2e8f0";
-}
-
 function getRoleAccent(role: ShootBoardCut["role"]) {
   if (role === "proof") return { main: "#f97316" };
   if (role === "cta") return { main: "#8b5cf6" };
@@ -967,14 +959,17 @@ function getTakeViewerPillStyle(
 const styles = StyleSheet.create({
   card: {
     backgroundColor: "#ffffff",
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    borderBottomColor: "#e2e8f0",
+    borderBottomWidth: 1,
+    borderLeftColor: "transparent",
+    borderLeftWidth: 3,
+    borderRadius: 0,
+    paddingHorizontal: 4,
+    paddingVertical: 14,
     shadowColor: "#0f172a",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.035,
-    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
   },
   compactActionRow: {
     flexDirection: "row",
@@ -1010,6 +1005,13 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0,
   },
+  compactMetaRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 7,
+    marginBottom: 4,
+    minHeight: 22,
+  },
   compactRow: {
     alignItems: "flex-start",
     flexDirection: "row",
@@ -1035,6 +1037,12 @@ const styles = StyleSheet.create({
   },
   compactTakeTextSaved: {
     color: "#7c3aed",
+  },
+  compactTimeText: {
+    color: "#94a3b8",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0,
   },
   compactTitle: {
     color: "#111827",
@@ -1125,39 +1133,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
-  },
-  referenceAnchorLabel: {
-    backgroundColor: "rgba(15,23,42,0.72)",
-    borderRadius: 999,
-    bottom: 7,
-    left: 7,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    position: "absolute",
-    right: 7,
-  },
-  referenceAnchorLabelText: {
-    color: "#ffffff",
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 0,
-    textAlign: "center",
-  },
-  referenceAnchorTime: {
-    backgroundColor: "rgba(255,255,255,0.92)",
-    borderRadius: 999,
-    left: 7,
-    maxWidth: 72,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    position: "absolute",
-    top: 7,
-  },
-  referenceAnchorTimeText: {
-    color: "#111827",
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 0,
   },
   checklistCount: {
     color: "#64748b",
@@ -1251,15 +1226,24 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   finalCard: {
-    shadowOpacity: 0.08,
+    backgroundColor: "#ffffff",
   },
   highlightedCard: {
-    backgroundColor: "#faf5ff",
-    borderColor: "#8b5cf6",
-    borderWidth: 2,
-    shadowColor: "#7c3aed",
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
+    backgroundColor: "#fffaf7",
+    borderBottomColor: "#ffd7c7",
+    borderLeftColor: "#ff9568",
+  },
+  nextCutPill: {
+    backgroundColor: "#fff1ea",
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  nextCutText: {
+    color: "#c05621",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0,
   },
   referencePreviewIcon: {
     alignItems: "center",

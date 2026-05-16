@@ -13,6 +13,8 @@ const mediaSlotSource = readFileSync(
 const cutReferencePreviewStyle = getStyleBlock("cutReferencePreview");
 const cutReferenceSlotStyle = getStyleBlock("cutReferenceSlot");
 const referenceAnchorStyle = getStyleBlock("referenceAnchor");
+const cardStyle = getStyleBlock("card");
+const highlightedCardStyle = getStyleBlock("highlightedCard");
 const takeViewerPreviewStyle = getStyleBlock("takeViewerPreview");
 const mediaSlotRootStyle = getStyleBlockFromSource(mediaSlotSource, "root");
 const mediaSlotPreviewStyle = getStyleBlockFromSource(
@@ -45,6 +47,22 @@ if (referenceAnchorStyle.includes("width: 72")) {
 
 if (!/width:\s*(8[8-9]|9\d|1\d{2})/.test(referenceAnchorStyle)) {
   throw new Error("Collapsed reference anchor must stay wide enough to read as video.");
+}
+
+if (!cardStyle.includes("borderBottomWidth: 1")) {
+  throw new Error("Collapsed cut rows should use a list divider instead of a full boxed card border.");
+}
+
+if (cardStyle.includes("borderWidth: 1") || cardStyle.includes("borderRadius: 14")) {
+  throw new Error("Collapsed cut rows must not reintroduce full rounded card boxes.");
+}
+
+if (
+  highlightedCardStyle.includes("borderWidth: 2") ||
+  highlightedCardStyle.includes("#8b5cf6") ||
+  highlightedCardStyle.includes("shadowOpacity")
+) {
+  throw new Error("Next-cut emphasis should use a light label/accent, not a purple boxed highlight.");
 }
 
 if (!mediaSlotPreviewStyle.includes("aspectRatio: 9 / 16")) {
@@ -148,8 +166,9 @@ if (!collapsedRowSource.includes("headerParts.executionTitle")) {
 for (const compactMarker of [
   "styles.compactRow",
   "styles.referenceAnchor",
-  "styles.referenceAnchorLabel",
-  "styles.referenceAnchorTime",
+  "styles.compactMetaRow",
+  "styles.nextCutPill",
+  "styles.compactTimeText",
   "styles.compactCopy",
   "styles.compactToolRows",
   "styles.compactFilmButton",
@@ -157,6 +176,21 @@ for (const compactMarker of [
 ]) {
   if (!collapsedRowSource.includes(compactMarker)) {
     throw new Error(`Collapsed cut rows must include compact marker: ${compactMarker}.`);
+  }
+}
+
+for (const redundantReferenceLabel of [
+  "referenceAnchorLabel",
+  "referenceAnchorLabelText",
+  "referenceAnchorTime",
+  "referenceAnchorTimeText",
+  "레퍼런스",
+  "Reference",
+]) {
+  if (collapsedRowSource.includes(redundantReferenceLabel)) {
+    throw new Error(
+      `Collapsed reference thumbnail must not carry redundant overlay labels: ${redundantReferenceLabel}.`,
+    );
   }
 }
 
@@ -173,7 +207,8 @@ for (const removedCollapsedBox of [
 assertSourceOrder(collapsedRowSource, [
   "styles.referenceAnchor",
   "referenceThumbnailSource",
-  "referenceAnchorLabel",
+  "styles.compactMetaRow",
+  "cut.timeRangeLabel",
   "headerParts.executionTitle",
   "previewRows.map",
   "row.label",
