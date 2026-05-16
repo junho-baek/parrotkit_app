@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1020" height="2344" viewBox="0 0 1020 2344">
+<rect width="100%" height="100%" fill="#f8fafc"/>
+<style>text{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}.title{font-size:24px;font-weight:800;fill:#111827}.subtitle{font-size:12px;font-weight:700;fill:#64748b}.label{font-size:14px;font-weight:800;fill:#111827}</style>
+<text x="20" y="34" class="title">Issue #10 Native QA Contact Sheet</text>
+<text x="20" y="62" class="subtitle">Android is fresh from current 8094 dev build. iPhone images are same-day existing evidence because Simulator fresh recapture was blocked.</text>
+<text x="20" y="96" class="title">Android fresh current app</text>
+<rect x="20" y="116" width="230" height="520" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="32" y="140" class="label">Home</text>
+<image href="android-01-home.png" x="32" y="154" width="206" height="466" preserveAspectRatio="xMidYMin meet"/>
+<rect x="270" y="116" width="230" height="520" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="282" y="140" class="label">Explore</text>
+<image href="android-02-explore.png" x="282" y="154" width="206" height="466" preserveAspectRatio="xMidYMin meet"/>
+<rect x="520" y="116" width="230" height="520" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="532" y="140" class="label">Explore detail</text>
+<image href="android-03-explore-detail.png" x="532" y="154" width="206" height="466" preserveAspectRatio="xMidYMin meet"/>
+<rect x="770" y="116" width="230" height="520" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="782" y="140" class="label">Create drawer + goal grid</text>
+<image href="android-04-create-drawer.png" x="782" y="154" width="206" height="466" preserveAspectRatio="xMidYMin meet"/>
+<rect x="20" y="656" width="230" height="520" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="32" y="680" class="label">Goal grid</text>
+<image href="android-05-goal-grid.png" x="32" y="694" width="206" height="466" preserveAspectRatio="xMidYMin meet"/>
+<rect x="270" y="656" width="230" height="520" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="282" y="680" class="label">Board overview</text>
+<image href="android-06-board-overview.png" x="282" y="694" width="206" height="466" preserveAspectRatio="xMidYMin meet"/>
+<rect x="520" y="656" width="230" height="520" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="532" y="680" class="label">Board expanded</text>
+<image href="android-07-board-expanded.png" x="532" y="694" width="206" height="466" preserveAspectRatio="xMidYMin meet"/>
+<text x="20" y="1220" class="title">iPhone same-day existing evidence (fresh recapture blocked)</text>
+<rect x="20" y="1240" width="230" height="520" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="32" y="1264" class="label">Home</text>
+<image href="ios-01-home-existing.png" x="32" y="1278" width="206" height="466" preserveAspectRatio="xMidYMin meet"/>
+<rect x="270" y="1240" width="230" height="520" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="282" y="1264" class="label">Explore</text>
+<image href="ios-02-explore-existing.png" x="282" y="1278" width="206" height="466" preserveAspectRatio="xMidYMin meet"/>
+<rect x="520" y="1240" width="230" height="520" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="532" y="1264" class="label">Explore detail</text>
+<image href="ios-03-explore-detail-existing.png" x="532" y="1278" width="206" height="466" preserveAspectRatio="xMidYMin meet"/>
+<rect x="770" y="1240" width="230" height="520" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="782" y="1264" class="label">Create drawer</text>
+<image href="ios-04-create-drawer-existing.png" x="782" y="1278" width="206" height="466" preserveAspectRatio="xMidYMin meet"/>
+<rect x="20" y="1780" width="230" height="520" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="32" y="1804" class="label">Goal grid</text>
+<image href="ios-05-goal-grid-existing.png" x="32" y="1818" width="206" height="466" preserveAspectRatio="xMidYMin meet"/>
+<rect x="270" y="1780" width="230" height="520" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="282" y="1804" class="label">Board overview</text>
+<image href="ios-06-board-overview-existing.png" x="282" y="1818" width="206" height="466" preserveAspectRatio="xMidYMin meet"/>
+<rect x="520" y="1780" width="230" height="520" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="532" y="1804" class="label">Board expanded</text>
+<image href="ios-07-board-expanded-existing.png" x="532" y="1818" width="206" height="466" preserveAspectRatio="xMidYMin meet"/>
+</svg>

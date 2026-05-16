@@ -43,10 +43,12 @@ const originalResolveFilename = (
 const {
   getBoardOverviewUiState,
   getExplicitSceneExpansionCutId,
+  hydrateShootBoardReferenceMedia,
   hydrateShootBoardWithWorkspaceTakes,
 } = require("./recipe-detail-board-state") as {
   getBoardOverviewUiState: typeof import("./recipe-detail-board-state").getBoardOverviewUiState;
   getExplicitSceneExpansionCutId: typeof import("./recipe-detail-board-state").getExplicitSceneExpansionCutId;
+  hydrateShootBoardReferenceMedia: typeof import("./recipe-detail-board-state").hydrateShootBoardReferenceMedia;
   hydrateShootBoardWithWorkspaceTakes: typeof import("./recipe-detail-board-state").hydrateShootBoardWithWorkspaceTakes;
 };
 
@@ -260,6 +262,65 @@ if (rehydratedExplicitCut?.isShot !== false) {
   throw new Error(
     "Workspace take hydration must preserve explicit incomplete checklist state.",
   );
+}
+
+const sourceBoardWithReferenceMedia = {
+  id: "recipe-1",
+  cuts: [
+    {
+      ...createCut("cut-1", "scene-1", 1),
+      referenceVideoUrl: "mock://reference-video",
+      takeThumbnailSource: { uri: "mock://take-source" },
+      takeThumbnailUrl: "mock://take-thumbnail",
+      thumbnailSource: { uri: "mock://reference-source" },
+      thumbnailUrl: "mock://reference-thumbnail",
+    },
+  ],
+};
+const staleBoardWithoutReferenceMedia = {
+  id: "recipe-1",
+  cuts: [
+    {
+      ...createCut("cut-1", "scene-1", 1),
+      lineToSay: "Edited line should stay",
+      referenceVideoUrl: undefined,
+      takeThumbnailSource: undefined,
+      takeThumbnailUrl: "",
+      thumbnailSource: undefined,
+      thumbnailUrl: "",
+    },
+  ],
+};
+const referenceMediaHydratedBoard = hydrateShootBoardReferenceMedia({
+  board: staleBoardWithoutReferenceMedia as unknown as Parameters<
+    typeof hydrateShootBoardReferenceMedia
+  >[0]["board"],
+  sourceBoard: sourceBoardWithReferenceMedia as unknown as Parameters<
+    typeof hydrateShootBoardReferenceMedia
+  >[0]["sourceBoard"],
+});
+const referenceMediaHydratedCut = referenceMediaHydratedBoard.cuts[0];
+
+if (referenceMediaHydratedBoard === staleBoardWithoutReferenceMedia) {
+  throw new Error(
+    "Reference media hydration should return a new board when stale cuts are missing media.",
+  );
+}
+
+if (referenceMediaHydratedCut?.thumbnailUrl !== "mock://reference-thumbnail") {
+  throw new Error("Reference media hydration must restore missing thumbnailUrl.");
+}
+
+if (
+  referenceMediaHydratedCut?.referenceVideoUrl !== "mock://reference-video"
+) {
+  throw new Error(
+    "Reference media hydration must restore missing referenceVideoUrl.",
+  );
+}
+
+if (referenceMediaHydratedCut?.lineToSay !== "Edited line should stay") {
+  throw new Error("Reference media hydration must preserve edited cut copy.");
 }
 
 const screenSource = readFileSync(

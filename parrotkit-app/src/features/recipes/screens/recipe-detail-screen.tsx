@@ -47,6 +47,7 @@ import {
 import {
   getExplicitSceneExpansionCutId,
   getBoardOverviewUiState,
+  hydrateShootBoardReferenceMedia,
   hydrateShootBoardWithWorkspaceTakes,
 } from "@/features/recipes/screens/recipe-detail/recipe-detail-board-state";
 import {
@@ -270,14 +271,19 @@ export function RecipeDetailScreen() {
       shotCutIds: [],
     });
     const existingBoard = getRecipeEditorBoard(nativeRecipe.id);
-    const nextBoard = existingBoard ?? originalBoard;
+    const nextBoard = existingBoard
+      ? hydrateShootBoardReferenceMedia({
+          board: existingBoard,
+          sourceBoard: originalBoard,
+        })
+      : originalBoard;
 
     originalCutSnapshotsRef.current = Object.fromEntries(
       originalBoard.cuts.map((cut) => [cut.id, cut]),
     );
     boardStateRef.current = nextBoard;
     setBoardState(nextBoard);
-    if (!existingBoard) {
+    if (!existingBoard || nextBoard !== existingBoard) {
       setRecipeEditorBoard(nextBoard);
     }
     setReorderMode(false);
@@ -765,6 +771,7 @@ export function RecipeDetailScreen() {
         board={renderedShootBoard}
         copy={boardCopy}
         language={language}
+        recipe={nativeRecipe}
         onBack={handleBack}
         onMore={() => setReorderMode((current) => !current)}
         topInset={insets.top}
@@ -852,6 +859,7 @@ function CutBoardHeader({
   board,
   copy,
   language,
+  recipe,
   onBack,
   onMore,
   topInset,
@@ -859,40 +867,48 @@ function CutBoardHeader({
   board: ShootBoardRecipe;
   copy: ShootBoardCopy;
   language: AppLanguage;
+  recipe: NativeRecipe;
   onBack: () => void;
   onMore: () => void;
   topInset: number;
 }) {
-  const referencePreview = getBoardReferencePreview(board);
+  const referencePreview = getBoardReferencePreview(board, recipe);
+  const referencePreviewContent = referencePreview ? (
+    <>
+      <LinearGradient
+        colors={["rgba(15,23,42,0.05)", "rgba(15,23,42,0.68)"]}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.cutBoardReferencePlay}>
+        <MaterialCommunityIcons color="#111827" name="play" size={22} />
+      </View>
+      <View style={styles.cutBoardReferenceMeta}>
+        <Text style={styles.cutBoardReferenceMetaText}>
+          {language === "ko" ? "레퍼런스" : "Reference"} ·{" "}
+          {referencePreview.durationLabel}
+        </Text>
+      </View>
+    </>
+  ) : null;
 
   return (
     <View style={[styles.cutBoardHeaderShell, { paddingTop: topInset + 12 }]}>
-      {referencePreview ? (
+      {referencePreview?.thumbnailUrl ? (
         <ImageBackground
           imageStyle={styles.cutBoardReferenceImage}
           resizeMode="cover"
           source={{ uri: referencePreview.thumbnailUrl }}
           style={styles.cutBoardReference}
         >
-          <LinearGradient
-            colors={["rgba(15,23,42,0.05)", "rgba(15,23,42,0.68)"]}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={styles.cutBoardReferencePlay}>
-            <MaterialCommunityIcons
-              color="#111827"
-              name="play"
-              size={22}
-            />
-          </View>
-          <View style={styles.cutBoardReferenceMeta}>
-            <Text style={styles.cutBoardReferenceMetaText}>
-              {language === "ko" ? "레퍼런스" : "Reference"} ·{" "}
-              {referencePreview.durationLabel}
-            </Text>
-          </View>
+          {referencePreviewContent}
         </ImageBackground>
-      ) : null}
+      ) : (
+        <View
+          style={[styles.cutBoardReference, styles.cutBoardReferenceFallback]}
+        >
+          {referencePreviewContent}
+        </View>
+      )}
 
       <View style={styles.cutBoardHeaderRow}>
         <Pressable
@@ -937,18 +953,15 @@ function CutBoardHeader({
   );
 }
 
-function getBoardReferencePreview(board: ShootBoardRecipe) {
+function getBoardReferencePreview(board: ShootBoardRecipe, recipe: NativeRecipe) {
   const cut = [...board.cuts]
     .sort((first, second) => first.order - second.order)
     .find((candidate) => candidate.thumbnailUrl);
-
-  if (!cut) {
-    return null;
-  }
+  const thumbnailUrl = cut?.thumbnailUrl || recipe.thumbnail;
 
   return {
-    durationLabel: `${cut.durationSeconds}s`,
-    thumbnailUrl: cut.thumbnailUrl,
+    durationLabel: `${cut?.durationSeconds ?? board.totalDurationSeconds}s`,
+    thumbnailUrl,
   };
 }
 
@@ -1808,6 +1821,9 @@ const styles = StyleSheet.create({
   },
   cutBoardReferenceImage: {
     borderRadius: 22,
+  },
+  cutBoardReferenceFallback: {
+    backgroundColor: "#f1ebff",
   },
   cutBoardReferenceMeta: {
     backgroundColor: "rgba(255,255,255,0.9)",

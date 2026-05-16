@@ -145,6 +145,65 @@ export function hydrateShootBoardWithWorkspaceTakes(
   };
 }
 
+export function hydrateShootBoardReferenceMedia({
+  board,
+  sourceBoard,
+}: {
+  board: ShootBoardRecipe;
+  sourceBoard: ShootBoardRecipe;
+}): ShootBoardRecipe {
+  let foundMissingMedia = false;
+  const sourceCutsById = new Map(
+    sourceBoard.cuts.map((cut) => [cut.id, cut]),
+  );
+  const sourceCutsByOrder = new Map(
+    sourceBoard.cuts.map((cut) => [cut.order, cut]),
+  );
+
+  const cuts = board.cuts.map((cut) => {
+    const sourceCut =
+      sourceCutsById.get(cut.id) ?? sourceCutsByOrder.get(cut.order);
+
+    if (!sourceCut) {
+      return cut;
+    }
+
+    const nextCut = {
+      ...cut,
+      referenceVideoUrl: cut.referenceVideoUrl ?? sourceCut.referenceVideoUrl,
+      sceneId: cut.sceneId ?? sourceCut.sceneId,
+      takeThumbnailSource:
+        cut.takeThumbnailSource ?? sourceCut.takeThumbnailSource,
+      takeThumbnailUrl: cut.takeThumbnailUrl || sourceCut.takeThumbnailUrl,
+      thumbnailSource: cut.thumbnailSource ?? sourceCut.thumbnailSource,
+      thumbnailUrl: cut.thumbnailUrl || sourceCut.thumbnailUrl,
+    };
+
+    if (
+      nextCut.referenceVideoUrl !== cut.referenceVideoUrl ||
+      nextCut.sceneId !== cut.sceneId ||
+      nextCut.takeThumbnailSource !== cut.takeThumbnailSource ||
+      nextCut.takeThumbnailUrl !== cut.takeThumbnailUrl ||
+      nextCut.thumbnailSource !== cut.thumbnailSource ||
+      nextCut.thumbnailUrl !== cut.thumbnailUrl
+    ) {
+      foundMissingMedia = true;
+      return nextCut;
+    }
+
+    return cut;
+  });
+
+  if (!foundMissingMedia) {
+    return board;
+  }
+
+  return {
+    ...board,
+    cuts,
+  };
+}
+
 function mapWorkspaceTakeToBoardTake(
   take: SavedRecipeTakeRecord,
   cut: ShootBoardCut,
