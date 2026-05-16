@@ -3,7 +3,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Href, useRouter } from 'expo-router';
 import {
   Image,
-  ImageBackground,
   Pressable,
   StyleSheet,
   Text,
@@ -13,8 +12,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
-  formatSceneCount,
-  formatShotProgress,
   localizeActivityLabel,
   type AppLanguage,
   useAppLanguage,
@@ -142,13 +139,10 @@ export function HomeWorkspaceSurface() {
               <View style={styles.recipeCardGrid}>
                 {recipeCards.map((entry) => (
                   <HomeRecipeCard
-                    copy={homeCopy}
                     entry={entry}
                     key={entry.recipeId}
                     language={language}
                     onPress={() => openSavedRecipeDestination(entry.destination)}
-                    onManage={() => openSavedRecipeDestination(entry.managementDestination)}
-                    onStartFilming={() => openSavedRecipeDestination(entry.startFilmingDestination)}
                   />
                 ))}
               </View>
@@ -339,99 +333,34 @@ function EmptyContinuePanel({
 }
 
 function HomeRecipeCard({
-  copy,
   entry,
   language,
-  onManage,
   onPress,
-  onStartFilming,
 }: {
-  copy: HomeCopy;
   entry: HomeOwnedRecipeCardEntry<MockRecipe>;
   language: AppLanguage;
-  onManage: () => void;
   onPress: () => void;
-  onStartFilming: () => void;
 }) {
   const { recipe } = entry;
-  const statusLabel = getRecipeStatusLabel(copy, recipe);
-  const activityLabel = localizeActivityLabel(language, recipe.lastShotAt ?? recipe.savedAt);
-  const progressRatio = recipe.totalSceneCount > 0 ? recipe.shotSceneCount / recipe.totalSceneCount : 0;
-  const progressPercent = Math.max(8, Math.min(100, Math.round(progressRatio * 100)));
-  const progressWidth: DimensionValue = `${progressPercent}%`;
 
   return (
-    <View style={styles.recipeCard}>
-      <Pressable accessibilityRole="button" onPress={onPress}>
-        <ImageBackground
-          imageStyle={styles.recipeCardImage}
-          resizeMode="cover"
-          source={toImageSource(recipe.thumbnail)}
-          style={styles.recipeCardMedia}
-        >
-          <LinearGradient
-            colors={['rgba(15,23,42,0.02)', 'rgba(15,23,42,0.72)']}
-            end={{ x: 0.5, y: 1 }}
-            start={{ x: 0.5, y: 0 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <View className="flex-row">
-            <View style={styles.recipeCardBadge}>
-              <MaterialCommunityIcons color="#fff" name="check-decagram" size={11} />
-              <Text className="text-[9px] font-black text-white">{statusLabel}</Text>
-            </View>
-          </View>
-        </ImageBackground>
-      </Pressable>
-      <View className="min-w-0 gap-2.5 p-3">
-        <Pressable accessibilityRole="button" onPress={onPress}>
-          <Text className="text-[15px] font-black leading-[19px] text-ink" numberOfLines={2}>
-            {recipe.title}
-          </Text>
-        </Pressable>
-        <View className="gap-1.5">
-          <Text className="text-[12px] font-bold text-muted" numberOfLines={1}>
-            {formatShotProgress(language, recipe.shotSceneCount, recipe.totalSceneCount)}
-          </Text>
-          <View style={styles.recipeCardProgressTrack}>
-            <LinearGradient
-              colors={brandActionGradient}
-              end={{ x: 1, y: 0 }}
-              start={{ x: 0, y: 0 }}
-              style={[styles.recipeCardProgressFill, { width: progressWidth }]}
-            />
-          </View>
-        </View>
-        {activityLabel ? (
-          <Text className="text-[12px] font-semibold text-slate-400" numberOfLines={1}>
-            {activityLabel}
-          </Text>
-        ) : null}
-        <View className="gap-2 pt-1">
-          <Text className="text-[12px] font-bold leading-4 text-muted" numberOfLines={1}>
-            {formatSceneCount(language, recipe.totalSceneCount)}
-          </Text>
-          <View className="flex-row items-center justify-end gap-2">
-            <Pressable
-              accessibilityLabel={language === 'ko' ? `${entry.recipeTitle} 관리` : `Manage ${entry.recipeTitle}`}
-              accessibilityRole="button"
-              onPress={onManage}
-              style={styles.recipeCardManageButton}
-            >
-              <MaterialCommunityIcons color="#475569" name="cog-outline" size={14} />
-            </Pressable>
-            <Pressable
-              accessibilityLabel={language === 'ko' ? `${entry.recipeTitle} 촬영 시작` : `Start filming ${entry.recipeTitle}`}
-              accessibilityRole="button"
-              onPress={onStartFilming}
-              style={styles.recipeCardStartButton}
-            >
-              <MaterialCommunityIcons color="#fff" name="camera-outline" size={14} />
-            </Pressable>
-          </View>
-        </View>
+    <Pressable
+      accessibilityLabel={language === 'ko' ? `${entry.recipeTitle} 열기` : `Open ${entry.recipeTitle}`}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={styles.recipeCard}
+    >
+      <Image
+        resizeMode="cover"
+        source={toImageSource(recipe.thumbnail)}
+        style={styles.recipeCardMedia}
+      />
+      <View style={styles.recipeCardTitleArea}>
+        <Text className="text-[15px] font-black leading-[19px] text-ink" numberOfLines={2}>
+          {recipe.title}
+        </Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -474,18 +403,6 @@ function SavedTakeRow({
       <MaterialCommunityIcons color="#94a3b8" name="chevron-right" size={20} />
     </Pressable>
   );
-}
-
-function getRecipeStatusLabel(copy: HomeCopy, recipe: MockRecipe) {
-  if (recipe.shootStatus === 'continue') {
-    return copy.statusInProgress;
-  }
-
-  if (recipe.ownership === 'downloaded') {
-    return copy.statusDownloaded;
-  }
-
-  return recipe.shootStatus === 'ready' ? copy.readyStatus : copy.statusOwned;
 }
 
 const styles = StyleSheet.create({
@@ -556,59 +473,19 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     width: '48.5%',
   },
-  recipeCardBadge: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(15, 23, 42, 0.68)',
-    borderColor: 'rgba(255,255,255,0.22)',
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-  },
   recipeCardGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
   },
-  recipeCardImage: {
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-  },
-  recipeCardManageButton: {
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderColor: '#e2e8f0',
-    borderRadius: 999,
-    borderWidth: 1,
-    height: 38,
-    justifyContent: 'center',
-    width: 38,
-  },
   recipeCardMedia: {
     height: 118,
     overflow: 'hidden',
-    padding: 10,
+    width: '100%',
   },
-  recipeCardStartButton: {
-    alignItems: 'center',
-    backgroundColor: '#111827',
-    borderRadius: 999,
-    justifyContent: 'center',
-    height: 38,
-    width: 38,
-  },
-  recipeCardProgressFill: {
-    borderRadius: 999,
-    height: 4,
-  },
-  recipeCardProgressTrack: {
-    backgroundColor: '#e2e8f0',
-    borderRadius: 999,
-    height: 4,
-    overflow: 'hidden',
+  recipeCardTitleArea: {
+    minHeight: 62,
+    padding: 12,
   },
   savedTakeEmpty: {
     alignItems: 'center',

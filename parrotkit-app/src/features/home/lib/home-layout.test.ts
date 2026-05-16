@@ -2,9 +2,7 @@ import {
   getHomeContinueCardTextLayout,
   getHomeCreateEntryBottomClearance,
   getHomeCreateEntryTextLayout,
-  getHomeRecipeCardActionLayout,
   getHomeRecipeCardContentWidth,
-  getHomeRecipeCardMetadataLayout,
   getHomeScrollBottomPadding,
   getHomeSectionHeaderTextLayout,
   getHomeSavedTakeRowTextLayout,
@@ -53,22 +51,9 @@ const compactRecipeCardContentWidth = getHomeRecipeCardContentWidth({
   contentHorizontalPadding: 20,
   screenWidth: 375,
 });
-const compactActionLayout = getHomeRecipeCardActionLayout();
 
 if (compactRecipeCardContentWidth < 136) {
-  throw new Error('Compact iPhone recipe card content width should model the two-column Home card layout.');
-}
-
-if (compactActionLayout.requiredWidth > compactRecipeCardContentWidth) {
-  throw new Error('Home recipe card header/actions must fit inside compact iPhone card width without clipping.');
-}
-
-const compactRecipeCardMetadataLayout = getHomeRecipeCardMetadataLayout({
-  contentWidth: compactRecipeCardContentWidth,
-});
-
-if (compactRecipeCardMetadataLayout.availableMetadataWidth < 58) {
-  throw new Error('Home recipe card metadata needs enough compact width for scene-count copy without clipping.');
+  throw new Error('Compact iPhone recipe card title width should model the two-column Home card layout.');
 }
 
 const compactSavedTakeRowTextLayout = getHomeSavedTakeRowTextLayout({
@@ -139,11 +124,7 @@ for (const viewport of representativeHomeViewports) {
   });
 
   if (recipeCardContentWidth < viewport.minRecipeCardContentWidth) {
-    throw new Error(`${viewport.name} should keep two-column recipe card text above the compact clipping threshold.`);
-  }
-
-  if (compactActionLayout.requiredWidth > recipeCardContentWidth) {
-    throw new Error(`${viewport.name} should fit recipe card icon buttons without clipping.`);
+    throw new Error(`${viewport.name} should keep two-column recipe card title text above the compact clipping threshold.`);
   }
 
   const savedTakeLayout = getHomeSavedTakeRowTextLayout({

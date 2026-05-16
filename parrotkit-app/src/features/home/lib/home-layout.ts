@@ -4,8 +4,6 @@ const HOME_CREATE_ENTRY_MIN_TAB_GAP = 24;
 const HOME_SCREEN_HORIZONTAL_PADDING = 20;
 const HOME_RECIPE_CARD_WIDTH_RATIO = 0.485;
 const HOME_RECIPE_CARD_HORIZONTAL_PADDING = 24;
-const HOME_RECIPE_CARD_ACTION_GAP = 8;
-const HOME_RECIPE_CARD_ICON_BUTTON_WIDTH = 38;
 const HOME_SAVED_TAKE_LIST_HORIZONTAL_PADDING = 24;
 const HOME_SAVED_TAKE_ICON_WIDTH = 42;
 const HOME_SAVED_TAKE_ROW_GAP = 10;
@@ -59,28 +57,6 @@ export function getHomeRecipeCardContentWidth({
   const cardOuterWidth = contentWidth * HOME_RECIPE_CARD_WIDTH_RATIO;
 
   return cardOuterWidth - HOME_RECIPE_CARD_HORIZONTAL_PADDING;
-}
-
-export function getHomeRecipeCardActionLayout(): {
-  requiredWidth: number;
-} {
-  return {
-    requiredWidth:
-      HOME_RECIPE_CARD_ACTION_GAP +
-      HOME_RECIPE_CARD_ICON_BUTTON_WIDTH * 2,
-  };
-}
-
-export function getHomeRecipeCardMetadataLayout({
-  contentWidth,
-}: {
-  contentWidth: number;
-}): {
-  availableMetadataWidth: number;
-} {
-  return {
-    availableMetadataWidth: contentWidth,
-  };
 }
 
 export function getHomeSavedTakeRowTextLayout({

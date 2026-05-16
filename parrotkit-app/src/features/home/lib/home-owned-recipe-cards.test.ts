@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import {
   getHomeOwnedRecipeCardEntries,
   getHomeOwnedRecipeCardsDestination,
@@ -32,14 +34,23 @@ if (entries[0]?.destination !== '/recipe/recipe-owned') {
   throw new Error('Home owned recipe cards must reopen the owned recipe board.');
 }
 
-if (entries[0]?.managementDestination !== '/recipe/recipe-owned') {
-  throw new Error('Home owned recipe cards must expose a clear management destination for each owned recipe.');
-}
-
-if (entries[0]?.startFilmingDestination !== '/recipe/recipe-owned/prompter?sceneId=scene-owned-hook') {
-  throw new Error('Home owned recipe cards must keep the direct start-filming path.');
-}
-
 if (getHomeOwnedRecipeCardsDestination() !== '/recipes?filter=owned') {
   throw new Error('Home owned recipe cards view-all path must open the owned recipe card filter.');
+}
+
+const homeSurfaceSource = readFileSync(
+  'src/features/home/components/home-workspace-surface.tsx',
+  'utf8',
+);
+
+if (
+  /recipeCardProgressTrack|recipeCardProgressFill|formatShotProgress|formatSceneCount/.test(
+    homeSurfaceSource,
+  )
+) {
+  throw new Error('Home My recipes cards must not render progress or scene-count metadata.');
+}
+
+if (/recipeCardManageButton|recipeCardStartButton|onManage|onStartFilming/.test(homeSurfaceSource)) {
+  throw new Error('Home My recipes cards must not render duplicate manage or camera CTA buttons.');
 }

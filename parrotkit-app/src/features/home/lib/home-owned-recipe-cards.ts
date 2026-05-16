@@ -13,17 +13,12 @@ type HomeOwnedRecipeInput = {
 };
 
 export type HomeOwnedRecipeCardEntry<TRecipe extends HomeOwnedRecipeInput = HomeOwnedRecipeInput> =
-  SavedRecipeAccessEntry<TRecipe> & {
-    managementDestination: string;
-  };
+  SavedRecipeAccessEntry<TRecipe>;
 
 export function getHomeOwnedRecipeCardEntries<TRecipe extends HomeOwnedRecipeInput>(
   recipes: TRecipe[]
 ): Array<HomeOwnedRecipeCardEntry<TRecipe>> {
-  return getSavedRecipeAccessEntries(recipes.filter((recipe) => recipe.ownership === 'owned')).map((entry) => ({
-    ...entry,
-    managementDestination: entry.destination,
-  }));
+  return getSavedRecipeAccessEntries(recipes.filter((recipe) => recipe.ownership === 'owned'));
 }
 
 export function getHomeOwnedRecipeCardsDestination() {
