@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="760" viewBox="0 0 920 760">
+  <style>
+    .bg { fill: #f8fafc; }
+    .title { fill: #111827; font: 800 24px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .label { fill: #334155; font: 800 15px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .note { fill: #64748b; font: 600 12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .frame { fill: #ffffff; stroke: #e2e8f0; stroke-width: 1; rx: 18; }
+  </style>
+  <rect class="bg" width="920" height="760"/>
+  <text x="28" y="42" class="title">Issue #10 Shooting Board Hierarchy QA</text>
+  <text x="28" y="68" class="note">Reference media sits above each cut label; My Take owns state; redundant take labels removed.</text>
+  <rect x="28" y="96" width="410" height="630" class="frame"/>
+  <text x="48" y="124" class="label">Android</text>
+  <image href="android-board-overview.png" x="88" y="148" width="300" height="560" preserveAspectRatio="xMidYMin meet"/>
+  <rect x="482" y="96" width="410" height="630" class="frame"/>
+  <text x="502" y="124" class="label">iPhone</text>
+  <image href="ios-board-overview.png" x="532" y="148" width="310" height="560" preserveAspectRatio="xMidYMin meet"/>
+</svg>

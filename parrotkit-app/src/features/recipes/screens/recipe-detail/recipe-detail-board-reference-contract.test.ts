@@ -2,17 +2,30 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const source = readFileSync(join(__dirname, "../recipe-detail-screen.tsx"), "utf8");
+const sceneCardSource = readFileSync(
+  join(__dirname, "../../components/shoot-board-scene-card.tsx"),
+  "utf8",
+);
 
-for (const requiredConcept of [
+for (const removedHeaderConcept of [
   "getBoardReferencePreview",
   "cutBoardReference",
-  "cutBoardHeaderRow",
-  "레퍼런스",
-  "Reference",
 ]) {
-  if (!source.includes(requiredConcept)) {
+  if (source.includes(removedHeaderConcept)) {
     throw new Error(
-      `Recipe detail board header should keep the reference preview above the title: ${requiredConcept}`,
+      `Recipe detail board should not keep a board-level reference preview: ${removedHeaderConcept}`,
+    );
+  }
+}
+
+for (const requiredCutConcept of [
+  "CutReferencePreview",
+  "cutReferencePreview",
+  "timeRangeLabel",
+]) {
+  if (!sceneCardSource.includes(requiredCutConcept)) {
+    throw new Error(
+      `Each cut card should place reference media above the cut label: ${requiredCutConcept}`,
     );
   }
 }
@@ -24,4 +37,3 @@ if (source.includes("onToggleSceneComplete")) {
 if (source.includes("setShootBoardCutCompletion")) {
   throw new Error("Board completion UI should be driven by My Take state, not manual cut completion.");
 }
-

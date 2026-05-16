@@ -84,6 +84,8 @@ export type ShootBoardCut = {
 };
 
 export type ShootBoardRecipe = {
+  boardNote: string;
+  boardNoteChecked: boolean;
   id: string;
   title: string;
   summary: ShootBoardRecipeSummary;
@@ -469,6 +471,8 @@ export function createShootBoardRecipe(
   const totalDurationSeconds = getShootBoardTotalDuration(recipe, cuts);
 
   return {
+    boardNote: "",
+    boardNoteChecked: false,
     cuts,
     id: recipe.id,
     isSaved: options.isSaved ?? true,

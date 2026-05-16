@@ -558,6 +558,15 @@ export function RecipeDetailScreen() {
     updateBoard((board) => updateShootBoardCutText(board, cutId, patch));
   };
 
+  const updateBoardNote = (
+    patch: Partial<Pick<ShootBoardRecipe, "boardNote" | "boardNoteChecked">>,
+  ) => {
+    updateBoard((board) => ({
+      ...board,
+      ...patch,
+    }));
+  };
+
   const resetCutText = (cutId: string) => {
     updateBoard((board) => {
       const originalCut = originalCutSnapshotsRef.current[cutId];
@@ -770,8 +779,6 @@ export function RecipeDetailScreen() {
       <CutBoardHeader
         board={renderedShootBoard}
         copy={boardCopy}
-        language={language}
-        recipe={nativeRecipe}
         onBack={handleBack}
         onMore={() => setReorderMode((current) => !current)}
         topInset={insets.top}
@@ -785,7 +792,19 @@ export function RecipeDetailScreen() {
         language={language}
         ListHeaderComponent={
           <>
-            <ShootBoardNoteCta language={language} />
+            <ShootBoardNoteCta
+              checked={renderedShootBoard.boardNoteChecked ?? false}
+              language={language}
+              value={renderedShootBoard.boardNote ?? ""}
+              onChangeText={(boardNote) => updateBoardNote({ boardNote })}
+              onToggleChecked={() =>
+                updateBoardNote({
+                  boardNoteChecked: !(
+                    renderedShootBoard.boardNoteChecked ?? false
+                  ),
+                })
+              }
+            />
             <ShootBoardStickyHeader
               language={language}
               onToggleReorder={() => setReorderMode((current) => !current)}
@@ -858,58 +877,18 @@ export function RecipeDetailScreen() {
 function CutBoardHeader({
   board,
   copy,
-  language,
-  recipe,
   onBack,
   onMore,
   topInset,
 }: {
   board: ShootBoardRecipe;
   copy: ShootBoardCopy;
-  language: AppLanguage;
-  recipe: NativeRecipe;
   onBack: () => void;
   onMore: () => void;
   topInset: number;
 }) {
-  const referencePreview = getBoardReferencePreview(board, recipe);
-  const referencePreviewContent = referencePreview ? (
-    <>
-      <LinearGradient
-        colors={["rgba(15,23,42,0.05)", "rgba(15,23,42,0.68)"]}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={styles.cutBoardReferencePlay}>
-        <MaterialCommunityIcons color="#111827" name="play" size={22} />
-      </View>
-      <View style={styles.cutBoardReferenceMeta}>
-        <Text style={styles.cutBoardReferenceMetaText}>
-          {language === "ko" ? "레퍼런스" : "Reference"} ·{" "}
-          {referencePreview.durationLabel}
-        </Text>
-      </View>
-    </>
-  ) : null;
-
   return (
     <View style={[styles.cutBoardHeaderShell, { paddingTop: topInset + 12 }]}>
-      {referencePreview?.thumbnailUrl ? (
-        <ImageBackground
-          imageStyle={styles.cutBoardReferenceImage}
-          resizeMode="cover"
-          source={{ uri: referencePreview.thumbnailUrl }}
-          style={styles.cutBoardReference}
-        >
-          {referencePreviewContent}
-        </ImageBackground>
-      ) : (
-        <View
-          style={[styles.cutBoardReference, styles.cutBoardReferenceFallback]}
-        >
-          {referencePreviewContent}
-        </View>
-      )}
-
       <View style={styles.cutBoardHeaderRow}>
         <Pressable
           accessibilityLabel={copy.back}
@@ -951,18 +930,6 @@ function CutBoardHeader({
       </View>
     </View>
   );
-}
-
-function getBoardReferencePreview(board: ShootBoardRecipe, recipe: NativeRecipe) {
-  const cut = [...board.cuts]
-    .sort((first, second) => first.order - second.order)
-    .find((candidate) => candidate.thumbnailUrl);
-  const thumbnailUrl = cut?.thumbnailUrl || recipe.thumbnail;
-
-  return {
-    durationLabel: `${cut?.durationSeconds ?? board.totalDurationSeconds}s`,
-    thumbnailUrl,
-  };
 }
 
 function RecipePrepSnapshot({
@@ -1811,42 +1778,6 @@ const styles = StyleSheet.create({
     height: 42,
     justifyContent: "center",
     width: 42,
-  },
-  cutBoardReference: {
-    borderRadius: 22,
-    height: 104,
-    justifyContent: "center",
-    overflow: "hidden",
-    width: "100%",
-  },
-  cutBoardReferenceImage: {
-    borderRadius: 22,
-  },
-  cutBoardReferenceFallback: {
-    backgroundColor: "#f1ebff",
-  },
-  cutBoardReferenceMeta: {
-    backgroundColor: "rgba(255,255,255,0.9)",
-    borderRadius: 999,
-    bottom: 10,
-    left: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    position: "absolute",
-  },
-  cutBoardReferenceMetaText: {
-    color: "#111827",
-    fontSize: 11,
-    fontWeight: "900",
-  },
-  cutBoardReferencePlay: {
-    alignItems: "center",
-    alignSelf: "center",
-    backgroundColor: "rgba(255,255,255,0.92)",
-    borderRadius: 999,
-    height: 46,
-    justifyContent: "center",
-    width: 46,
   },
   v2FloatingAddButton: {
     alignItems: "center",

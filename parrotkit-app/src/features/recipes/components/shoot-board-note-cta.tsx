@@ -1,35 +1,53 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, TextInput, View } from 'react-native';
 
 import type { AppLanguage } from '@/core/i18n/app-language';
 
 export function ShootBoardNoteCta({
+  checked,
   language,
-  onPress,
+  onChangeText,
+  onToggleChecked,
+  value,
 }: {
+  checked: boolean;
   language: AppLanguage;
-  onPress?: () => void;
+  onChangeText: (value: string) => void;
+  onToggleChecked: () => void;
+  value: string;
 }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      className="mx-4 mt-4 rounded-[18px] border border-dashed border-slate-300 bg-white px-4 py-4"
-      onPress={onPress}
-    >
-      <View className="flex-row items-center gap-3">
-        <View className="h-10 w-10 items-center justify-center rounded-full bg-violet/10">
-          <MaterialCommunityIcons color="#8b5cf6" name="note-edit-outline" size={20} />
-        </View>
-        <View className="min-w-0 flex-1">
-          <Text className="text-[14px] font-black text-ink">
-            {language === 'ko' ? '오늘의 메모를 입력해보세요.' : "Add today's shooting note."}
-          </Text>
-          <Text className="mt-1 text-[12px] font-semibold text-muted" numberOfLines={1}>
-            {language === 'ko' ? '촬영 전 기억할 포인트를 한 줄로 남기기' : 'Keep one reminder before recording.'}
-          </Text>
-        </View>
-        <MaterialCommunityIcons color="#94a3b8" name="chevron-right" size={22} />
+    <View className="mx-4 mt-3 border-b border-stroke bg-canvas py-3">
+      <View className="flex-row items-start gap-3">
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked }}
+          className={`mt-1 h-6 w-6 items-center justify-center rounded-full border ${
+            checked ? 'border-violet bg-violet' : 'border-slate-300 bg-white'
+          }`}
+          onPress={onToggleChecked}
+        >
+          {checked ? (
+            <MaterialCommunityIcons color="#ffffff" name="check" size={14} />
+          ) : null}
+        </Pressable>
+        <TextInput
+          accessibilityLabel={language === 'ko' ? '촬영 메모' : 'Shooting note'}
+          className={`min-h-[34px] flex-1 px-0 py-0 text-[14px] font-bold leading-5 ${
+            checked ? 'text-muted' : 'text-ink'
+          }`}
+          maxLength={120}
+          multiline
+          onChangeText={onChangeText}
+          placeholder={
+            language === 'ko'
+              ? '촬영 전 체크할 한 가지'
+              : 'One reminder before recording'
+          }
+          placeholderTextColor="#94a3b8"
+          value={value}
+        />
       </View>
-    </Pressable>
+    </View>
   );
 }

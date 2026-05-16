@@ -17,34 +17,27 @@ const board = createShootBoardRecipe(sourceRecipe, {
 
 const emptyTakeSlots = getCutCardMediaSlots(board.cuts[0]);
 if (
-  emptyTakeSlots[0]?.id !== "reference" ||
-  emptyTakeSlots[0]?.label !== "Reference" ||
-  emptyTakeSlots[0]?.status !== "saved" ||
-  emptyTakeSlots[0]?.thumbnailUrl !== board.cuts[0].thumbnailUrl
+  emptyTakeSlots.length !== 1 ||
+  emptyTakeSlots[0]?.id !== "myTake" ||
+  emptyTakeSlots[0]?.label !== "My Take" ||
+  emptyTakeSlots[0]?.status !== "empty" ||
+  emptyTakeSlots[0]?.thumbnailUrl !== undefined ||
+  emptyTakeSlots[0]?.badgeLabel !== undefined
 ) {
   throw new Error(
-    "Collapsed cut cards should expose a saved Reference slot with the reference thumbnail.",
-  );
-}
-
-if (
-  emptyTakeSlots[1]?.id !== "myTake" ||
-  emptyTakeSlots[1]?.label !== "My Take" ||
-  emptyTakeSlots[1]?.status !== "empty" ||
-  emptyTakeSlots[1]?.thumbnailUrl !== undefined
-) {
-  throw new Error(
-    "Collapsed cut cards should expose an empty My Take slot when no take is saved.",
+    "Collapsed cut cards should expose only an empty My Take slot when no take is saved.",
   );
 }
 
 const savedTakeSlots = getCutCardMediaSlots(board.cuts[1]);
 if (
-  savedTakeSlots[1]?.status !== "saved" ||
-  savedTakeSlots[1]?.thumbnailUrl !== board.cuts[1].takeThumbnailUrl
+  savedTakeSlots.length !== 1 ||
+  savedTakeSlots[0]?.status !== "saved" ||
+  savedTakeSlots[0]?.thumbnailUrl !== board.cuts[1].takeThumbnailUrl ||
+  savedTakeSlots[0]?.badgeLabel !== "2"
 ) {
   throw new Error(
-    "Collapsed My Take slot should show the take thumbnail when a take is saved.",
+    "Collapsed My Take slot should show the take thumbnail and count badge when takes are saved.",
   );
 }
 
@@ -52,12 +45,12 @@ const finalCut: ShootBoardCut = {
   ...board.cuts[1],
   takeStatus: "final",
 };
-if (getCutCardMediaSlots(finalCut)[1]?.status !== "final") {
+if (getCutCardMediaSlots(finalCut)[0]?.status !== "final") {
   throw new Error("Collapsed My Take slot should preserve final take status.");
 }
 
 const retakeSlots = getCutCardMediaSlots(board.cuts[3]);
-if (retakeSlots[1]?.status !== "needs_reshoot") {
+if (retakeSlots[0]?.status !== "needs_reshoot" || retakeSlots[0]?.badgeLabel !== "1") {
   throw new Error(
     "Collapsed My Take slot should preserve needs-retake status.",
   );

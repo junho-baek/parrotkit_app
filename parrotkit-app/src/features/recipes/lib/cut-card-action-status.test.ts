@@ -18,24 +18,24 @@ const board = createShootBoardRecipe(sourceRecipe, {
 const emptyStatus = getCutCardActionStatus(board.cuts[0], "en");
 if (
   emptyStatus.ctaLabel !== "Film" ||
-  emptyStatus.statusLabel !== "No take yet" ||
   emptyStatus.statusTone !== "empty" ||
-  emptyStatus.takeCountLabel !== "0 takes"
+  "statusLabel" in emptyStatus ||
+  "takeCountLabel" in emptyStatus
 ) {
   throw new Error(
-    "Collapsed cut cards should expose a Film CTA and empty take status before recording.",
+    "Collapsed cut cards should expose a Film CTA without redundant empty take labels before recording.",
   );
 }
 
 const savedStatus = getCutCardActionStatus(board.cuts[1], "en");
 if (
   savedStatus.ctaLabel !== "Reshoot" ||
-  savedStatus.statusLabel !== "Take saved" ||
   savedStatus.statusTone !== "saved" ||
-  savedStatus.takeCountLabel !== "2 takes"
+  "statusLabel" in savedStatus ||
+  "takeCountLabel" in savedStatus
 ) {
   throw new Error(
-    "Collapsed cut cards should expose a reshoot CTA and saved take status after recording.",
+    "Collapsed cut cards should expose a reshoot CTA without redundant saved take labels after recording.",
   );
 }
 
@@ -46,19 +46,18 @@ const finalCut: ShootBoardCut = {
 const finalStatus = getCutCardActionStatus(finalCut, "ko");
 if (
   finalStatus.ctaLabel !== "다시 촬영" ||
-  finalStatus.statusLabel !== "최종 테이크" ||
   finalStatus.statusTone !== "final" ||
-  finalStatus.takeCountLabel !== "2개 테이크"
+  "statusLabel" in finalStatus ||
+  "takeCountLabel" in finalStatus
 ) {
   throw new Error(
-    "Collapsed cut cards should localize the final take status in Korean.",
+    "Collapsed cut cards should localize the final take CTA without extra status labels.",
   );
 }
 
 const retakeStatus = getCutCardActionStatus(board.cuts[3], "ko");
 if (
   retakeStatus.ctaLabel !== "재촬영" ||
-  retakeStatus.statusLabel !== "재촬영 필요" ||
   retakeStatus.statusTone !== "needs_reshoot"
 ) {
   throw new Error(

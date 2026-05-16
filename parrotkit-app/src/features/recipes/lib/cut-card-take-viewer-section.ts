@@ -49,13 +49,10 @@ const copy: Record<
   AppLanguage,
   {
     emptyBody: string;
-    emptyStatus: string;
     finalBody: string;
-    finalStatus: string;
     loadingBody: string;
     loadingStatus: string;
     populatedBody: string;
-    populatedStatus: string;
     primaryEmpty: string;
     primaryLoading: string;
     primaryPopulated: string;
@@ -71,13 +68,10 @@ const copy: Record<
 > = {
   en: {
     emptyBody: "Film this cut to save a take here for quick review later.",
-    emptyStatus: "No saved take",
     finalBody: "The selected final take is ready to review from this cut card.",
-    finalStatus: "Final take selected",
     loadingBody: "Checking local saved takes for this cut.",
     loadingStatus: "Loading take",
     populatedBody: "Open the saved take set or record another version.",
-    populatedStatus: "Take saved",
     primaryEmpty: "Film",
     primaryFinal: "View takes",
     primaryLoading: "Loading...",
@@ -92,13 +86,10 @@ const copy: Record<
   },
   ko: {
     emptyBody: "이 컷을 촬영하면 저장된 테이크를 여기서 바로 확인할 수 있어요.",
-    emptyStatus: "저장된 테이크 없음",
     finalBody: "선택된 최종 테이크를 이 컷 카드에서 다시 확인할 수 있어요.",
-    finalStatus: "최종 테이크 선택됨",
     loadingBody: "이 컷에 저장된 로컬 테이크를 확인하는 중입니다.",
     loadingStatus: "테이크 불러오는 중",
     populatedBody: "저장된 테이크를 열어 확인하거나 새 버전을 촬영하세요.",
-    populatedStatus: "테이크 저장됨",
     primaryEmpty: "촬영하기",
     primaryFinal: "테이크 보기",
     primaryLoading: "불러오는 중...",
@@ -131,7 +122,8 @@ export function getCutCardTakeViewerSection(
       primaryActionLabel: localizedCopy.primaryLoading,
       state: "loading",
       statusLabel: localizedCopy.loadingStatus,
-      takeCountLabel: formatTakeCount(cut.takes.length, language),
+      takeCountLabel:
+        cut.takes.length > 0 ? formatTakeCount(cut.takes.length, language) : "",
       takeItems: [],
       title: localizedCopy.title,
     };
@@ -149,8 +141,8 @@ export function getCutCardTakeViewerSection(
       body: localizedCopy.emptyBody,
       primaryActionLabel: localizedCopy.primaryEmpty,
       state: "empty",
-      statusLabel: localizedCopy.emptyStatus,
-      takeCountLabel: formatTakeCount(0, language),
+      statusLabel: "",
+      takeCountLabel: "",
       takeItems: [],
       title: localizedCopy.title,
     };
@@ -170,9 +162,7 @@ export function getCutCardTakeViewerSection(
       ? localizedCopy.primaryFinal
       : localizedCopy.primaryPopulated,
     state: "populated",
-    statusLabel: final
-      ? localizedCopy.finalStatus
-      : localizedCopy.populatedStatus,
+    statusLabel: "",
     takeCountLabel: formatTakeCount(cut.takes.length, language),
     takeItems: getTakeItems(cut, activeTake, language),
     thumbnailUrl: cut.takeThumbnailUrl || cut.thumbnailUrl || undefined,

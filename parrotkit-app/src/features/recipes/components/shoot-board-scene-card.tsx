@@ -25,7 +25,6 @@ import {
   getCutCardEditorFieldValue,
 } from "@/features/recipes/lib/cut-card-editor-fields";
 import {
-  getShootBoardCutCompletionState,
   type ShootBoardCut,
   type ShootBoardCutTextPatch,
   type ShootBoardTake,
@@ -65,7 +64,6 @@ export function ShootBoardSceneCard({
   takeViewerLoading?: boolean;
 }) {
   const [editing, setEditing] = useState(() => isBlankEditableCut(cut));
-  const completionState = getShootBoardCutCompletionState(cut);
   const accent = getRoleAccent(cut.role);
   const editorFields = getCutCardEditorFieldDefinitions(language);
   const headerParts = getCutCardHeaderParts(cut, language);
@@ -76,7 +74,6 @@ export function ShootBoardSceneCard({
     loading: takeViewerLoading,
   });
   const actionStatus = getCutCardActionStatus(cut, language);
-  const actionStatusStyle = getActionStatusStyle(actionStatus.statusTone);
 
   return (
     <View
@@ -87,6 +84,13 @@ export function ShootBoardSceneCard({
         highlighted && styles.highlightedCard,
       ]}
     >
+      <CutReferencePreview
+        language={language}
+        referenceViewer={referenceViewer}
+        timeRangeLabel={cut.timeRangeLabel}
+        onPreview={onPreview}
+      />
+
       <View className="flex-row items-start gap-2">
         <Pressable
           accessibilityRole="button"
@@ -153,38 +157,6 @@ export function ShootBoardSceneCard({
           </TouchableOpacity>
         ) : null}
 
-        <Pressable
-          accessibilityLabel={
-            language === "ko" ? "My Take 상태" : "My Take status"
-          }
-          accessibilityRole="button"
-          accessibilityState={{ checked: completionState === "complete" }}
-          onPress={() => {
-            if (cut.takes.length > 0 || cut.takeStatus !== "none") {
-              onTake();
-              return;
-            }
-
-            onShoot();
-          }}
-          style={[
-            styles.completionCircle,
-            completionState === "complete" && {
-              backgroundColor: accent.main,
-              borderColor: accent.main,
-            },
-            completionState === "partial" && { borderColor: accent.main },
-          ]}
-        >
-          {completionState === "complete" ? (
-            <MaterialCommunityIcons color="#fff" name="check" size={16} />
-          ) : null}
-          {completionState === "partial" ? (
-            <View
-              style={[styles.partialDash, { backgroundColor: accent.main }]}
-            />
-          ) : null}
-        </Pressable>
       </View>
 
       {!expanded ? (
@@ -192,10 +164,11 @@ export function ShootBoardSceneCard({
           <View style={styles.collapsedMediaSlots}>
             {mediaSlots.map((slot) => (
               <ShootBoardMediaSlot
+                badgeLabel={slot.badgeLabel}
                 caption={undefined}
                 key={slot.id}
                 label={slot.label}
-                onPress={slot.id === "reference" ? onPreview : () => onTake()}
+                onPress={() => onTake()}
                 status={slot.status}
                 thumbnailUrl={slot.thumbnailUrl}
                 timeRangeLabel={undefined}
@@ -203,37 +176,10 @@ export function ShootBoardSceneCard({
             ))}
           </View>
 
-          <View style={styles.collapsedStatusColumn}>
-            <View
-              style={[
-                styles.takeStatusPill,
-                {
-                  backgroundColor: actionStatusStyle.backgroundColor,
-                  borderColor: actionStatusStyle.borderColor,
-                },
-              ]}
-            >
-              <MaterialCommunityIcons
-                color={actionStatusStyle.iconColor}
-                name={actionStatusStyle.iconName}
-                size={14}
-              />
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.takeStatusText,
-                  { color: actionStatusStyle.textColor },
-                ]}
-              >
-                {actionStatus.statusLabel}
-              </Text>
-            </View>
-            <Text className="text-[11px] font-black text-muted">
-              {actionStatus.takeCountLabel}
-            </Text>
+          <View style={styles.collapsedActionColumn}>
             <Pressable
               accessibilityRole="button"
-              className="mt-auto overflow-hidden rounded-[12px]"
+              className="overflow-hidden rounded-[12px]"
               onPress={() => onShoot()}
             >
               <LinearGradient
@@ -308,125 +254,6 @@ export function ShootBoardSceneCard({
                 />
               ))}
             </View>
-
-            <View style={styles.boardReferenceColumn}>
-              <View style={styles.referenceViewerHeader}>
-                <View className="min-w-0 flex-1">
-                  <Text style={styles.referenceViewerTitle}>
-                    {language === "ko" ? "레퍼런스" : "Reference"}
-                  </Text>
-                  <Text numberOfLines={1} style={styles.referenceViewerStatus}>
-                    {referenceViewer.statusLabel}
-                  </Text>
-                </View>
-                <View style={styles.referenceSourcePill}>
-                  <MaterialCommunityIcons
-                    color="#4338ca"
-                    name={getReferenceSourceIcon(referenceViewer.sourceKind)}
-                    size={13}
-                  />
-                  <Text style={styles.referenceSourceText}>
-                    {getReferenceSourceLabel(
-                      referenceViewer.sourceKind,
-                      language,
-                    )}
-                  </Text>
-                </View>
-              </View>
-
-              <Pressable
-                accessibilityHint={
-                  language === "ko"
-                    ? referenceViewer.sourceKind === "empty"
-                      ? "사용 가능한 레퍼런스가 없습니다."
-                      : "레퍼런스 미리보기를 엽니다."
-                    : referenceViewer.sourceKind === "empty"
-                      ? "No reference is available."
-                      : "Opens the reference preview."
-                }
-                accessibilityLabel={
-                  language === "ko"
-                    ? `레퍼런스, ${referenceViewer.statusLabel}`
-                    : `Reference, ${referenceViewer.statusLabel}`
-                }
-                accessibilityRole="button"
-                accessibilityState={{
-                  disabled: referenceViewer.sourceKind === "empty",
-                }}
-                disabled={referenceViewer.sourceKind === "empty"}
-                onPress={onPreview}
-                style={({ pressed }) => [
-                  styles.referencePreview,
-                  referenceViewer.sourceKind === "empty" &&
-                    styles.referencePreviewEmpty,
-                  pressed && styles.referencePreviewPressed,
-                ]}
-              >
-                {referenceViewer.thumbnailUrl ? (
-                  <>
-                    <Image
-                      accessibilityIgnoresInvertColors
-                      resizeMode="cover"
-                      source={{ uri: referenceViewer.thumbnailUrl }}
-                      style={styles.referencePreviewImage}
-                    />
-                    <View style={styles.referencePreviewShade} />
-                  </>
-                ) : null}
-                <View style={styles.referencePreviewIcon}>
-                  <MaterialCommunityIcons
-                    color={
-                      referenceViewer.sourceKind === "empty"
-                        ? "#94a3b8"
-                        : "#ffffff"
-                    }
-                    name={
-                      referenceViewer.sourceKind === "empty"
-                        ? "image-plus"
-                        : "play"
-                    }
-                    size={22}
-                  />
-                </View>
-                {referenceViewer.mediaUrl ? (
-                  <View style={styles.referenceLinkedPill}>
-                    <Text style={styles.referenceLinkedText}>
-                      {language === "ko" ? "연결됨" : "Linked"}
-                    </Text>
-                  </View>
-                ) : null}
-              </Pressable>
-
-              <Pressable
-                accessibilityRole="button"
-                disabled={referenceViewer.sourceKind === "empty"}
-                onPress={onPreview}
-                style={[
-                  styles.referenceViewerButton,
-                  referenceViewer.sourceKind === "empty" &&
-                    styles.referenceViewerButtonDisabled,
-                ]}
-              >
-                <MaterialCommunityIcons
-                  color={
-                    referenceViewer.sourceKind === "empty"
-                      ? "#94a3b8"
-                      : "#4338ca"
-                  }
-                  name="open-in-new"
-                  size={14}
-                />
-                <Text
-                  style={[
-                    styles.referenceViewerButtonText,
-                    referenceViewer.sourceKind === "empty" &&
-                      styles.referenceViewerButtonTextDisabled,
-                  ]}
-                >
-                  {referenceViewer.primaryActionLabel}
-                </Text>
-              </Pressable>
-            </View>
           </View>
 
           <View style={styles.checklistRail}>
@@ -478,38 +305,42 @@ export function ShootBoardSceneCard({
                 <Text style={styles.takeViewerTitle}>
                   {language === "ko" ? "저장된 테이크" : "Saved takes"}
                 </Text>
-                <Text numberOfLines={1} style={styles.takeViewerStatus}>
-                  {takeViewer.statusLabel}
-                </Text>
+                {takeViewer.statusLabel ? (
+                  <Text numberOfLines={1} style={styles.takeViewerStatus}>
+                    {takeViewer.statusLabel}
+                  </Text>
+                ) : null}
               </View>
-              <View
-                style={[
-                  styles.takeViewerStatePill,
-                  getTakeViewerPillStyle(takeViewer.state, cut.takeStatus),
-                ]}
-              >
-                <MaterialCommunityIcons
-                  color={getTakeViewerIconColor(
-                    takeViewer.state,
-                    cut.takeStatus,
-                  )}
-                  name={getTakeViewerIcon(takeViewer.state, cut.takeStatus)}
-                  size={13}
-                />
-                <Text
+              {takeViewer.takeCountLabel ? (
+                <View
                   style={[
-                    styles.takeViewerStateText,
-                    {
-                      color: getTakeViewerIconColor(
-                        takeViewer.state,
-                        cut.takeStatus,
-                      ),
-                    },
+                    styles.takeViewerStatePill,
+                    getTakeViewerPillStyle(takeViewer.state, cut.takeStatus),
                   ]}
                 >
-                  {takeViewer.takeCountLabel}
-                </Text>
-              </View>
+                  <MaterialCommunityIcons
+                    color={getTakeViewerIconColor(
+                      takeViewer.state,
+                      cut.takeStatus,
+                    )}
+                    name={getTakeViewerIcon(takeViewer.state, cut.takeStatus)}
+                    size={13}
+                  />
+                  <Text
+                    style={[
+                      styles.takeViewerStateText,
+                      {
+                        color: getTakeViewerIconColor(
+                          takeViewer.state,
+                          cut.takeStatus,
+                        ),
+                      },
+                    ]}
+                  >
+                    {takeViewer.takeCountLabel}
+                  </Text>
+                </View>
+              ) : null}
             </View>
 
             <Pressable
@@ -524,8 +355,8 @@ export function ShootBoardSceneCard({
               }
               accessibilityLabel={
                 language === "ko"
-                  ? `저장된 테이크, ${takeViewer.statusLabel}`
-                  : `Saved takes, ${takeViewer.statusLabel}`
+                  ? "저장된 테이크"
+                  : "Saved takes"
               }
               accessibilityRole="button"
               accessibilityState={{
@@ -859,6 +690,67 @@ function DetailInput({
   );
 }
 
+function CutReferencePreview({
+  language,
+  referenceViewer,
+  timeRangeLabel,
+  onPreview,
+}: {
+  language: AppLanguage;
+  referenceViewer: ReturnType<typeof getCutCardReferenceViewerSection>;
+  timeRangeLabel: string;
+  onPreview: () => void;
+}) {
+  const disabled = referenceViewer.sourceKind === "empty";
+
+  return (
+    <View style={styles.cutReferenceSlot}>
+      <Pressable
+        accessibilityHint={
+          language === "ko"
+            ? disabled
+              ? "사용 가능한 레퍼런스가 없습니다."
+              : "레퍼런스 미리보기를 엽니다."
+            : disabled
+              ? "No reference is available."
+              : "Opens the reference preview."
+        }
+        accessibilityLabel={language === "ko" ? "컷 레퍼런스" : "Cut reference"}
+        accessibilityRole="button"
+        accessibilityState={{ disabled }}
+        disabled={disabled}
+        onPress={onPreview}
+        style={[
+          styles.cutReferencePreview,
+          disabled && styles.cutReferencePreviewEmpty,
+        ]}
+      >
+        {referenceViewer.thumbnailUrl ? (
+          <>
+            <Image
+              accessibilityIgnoresInvertColors
+              resizeMode="cover"
+              source={{ uri: referenceViewer.thumbnailUrl }}
+              style={styles.referencePreviewImage}
+            />
+            <View style={styles.referencePreviewShade} />
+          </>
+        ) : null}
+        <View style={styles.referencePreviewIcon}>
+          <MaterialCommunityIcons
+            color={disabled ? "#94a3b8" : "#ffffff"}
+            name={disabled ? "image-plus" : "play"}
+            size={22}
+          />
+        </View>
+        <View style={styles.cutReferenceTimePill}>
+          <Text style={styles.cutReferenceTimeText}>{timeRangeLabel}</Text>
+        </View>
+      </Pressable>
+    </View>
+  );
+}
+
 function getBoardFieldTitle(
   fieldId: string,
   fallbackLabel: string,
@@ -918,63 +810,6 @@ function getRoleAccent(role: ShootBoardCut["role"]) {
   if (role === "scene") return { main: "#6366f1" };
   if (role === "custom") return { main: "#64748b" };
   return { main: "#ff4f73" };
-}
-
-function getReferenceSourceIcon(
-  sourceKind: ReturnType<typeof getCutCardReferenceViewerSection>["sourceKind"],
-) {
-  if (sourceKind === "linked") return "link-variant" as const;
-  if (sourceKind === "attached") return "paperclip" as const;
-  return "image-off-outline" as const;
-}
-
-function getReferenceSourceLabel(
-  sourceKind: ReturnType<typeof getCutCardReferenceViewerSection>["sourceKind"],
-  language: AppLanguage,
-) {
-  if (sourceKind === "linked") return language === "ko" ? "연결" : "Linked";
-  if (sourceKind === "attached") return language === "ko" ? "첨부" : "Attached";
-  return language === "ko" ? "없음" : "Empty";
-}
-
-function getActionStatusStyle(status: ShootBoardCut["takeStatus"] | "empty") {
-  if (status === "final") {
-    return {
-      backgroundColor: "#f5f3ff",
-      borderColor: "#c4b5fd",
-      iconColor: "#8b5cf6",
-      iconName: "star" as const,
-      textColor: "#6d28d9",
-    };
-  }
-
-  if (status === "needs_reshoot") {
-    return {
-      backgroundColor: "#fff1f2",
-      borderColor: "#fecdd3",
-      iconColor: "#e11d48",
-      iconName: "alert-circle-outline" as const,
-      textColor: "#be123c",
-    };
-  }
-
-  if (status === "saved") {
-    return {
-      backgroundColor: "#eef2ff",
-      borderColor: "#c7d2fe",
-      iconColor: "#6366f1",
-      iconName: "check-circle-outline" as const,
-      textColor: "#4338ca",
-    };
-  }
-
-  return {
-    backgroundColor: "#f8fafc",
-    borderColor: "#e2e8f0",
-    iconColor: "#64748b",
-    iconName: "circle-outline" as const,
-    textColor: "#475569",
-  };
 }
 
 function getTakeViewerIcon(
@@ -1042,17 +877,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.035,
     shadowRadius: 14,
   },
-  completionCircle: {
-    alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderColor: "#94a3b8",
-    borderRadius: 999,
-    borderWidth: 1.5,
-    height: 26,
-    justifyContent: "center",
-    marginTop: 4,
-    width: 26,
-  },
   collapsedActionArea: {
     flexDirection: "row",
     gap: 8,
@@ -1071,11 +895,48 @@ const styles = StyleSheet.create({
     minHeight: 40,
     paddingHorizontal: 12,
   },
-  collapsedStatusColumn: {
+  collapsedActionColumn: {
     flex: 1,
-    gap: 6,
+    justifyContent: "center",
     minHeight: 96,
     minWidth: 0,
+  },
+  cutReferencePreview: {
+    alignItems: "center",
+    backgroundColor: "#111827",
+    borderRadius: 12,
+    flex: 1,
+    height: 120,
+    justifyContent: "center",
+    overflow: "hidden",
+    position: "relative",
+    width: "100%",
+  },
+  cutReferencePreviewEmpty: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#e2e8f0",
+    borderWidth: 1,
+  },
+  cutReferenceTimePill: {
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderRadius: 999,
+    bottom: 8,
+    left: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    position: "absolute",
+  },
+  cutReferenceTimeText: {
+    color: "#111827",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
+  cutReferenceSlot: {
+    alignSelf: "stretch",
+    height: 120,
+    marginBottom: 10,
+    width: "100%",
   },
   checklistCount: {
     color: "#64748b",
@@ -1168,12 +1029,6 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 14,
   },
-  boardReferenceColumn: {
-    flex: 0.82,
-    flexBasis: 150,
-    gap: 9,
-    minWidth: 138,
-  },
   finalCard: {
     shadowOpacity: 0.08,
   },
@@ -1184,40 +1039,6 @@ const styles = StyleSheet.create({
     shadowColor: "#7c3aed",
     shadowOpacity: 0.12,
     shadowRadius: 18,
-  },
-  partialDash: {
-    borderRadius: 999,
-    height: 3,
-    width: 12,
-  },
-  referenceLinkedPill: {
-    backgroundColor: "rgba(255,255,255,0.9)",
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    position: "absolute",
-    right: 8,
-    top: 8,
-  },
-  referenceLinkedText: {
-    color: "#4338ca",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0,
-  },
-  referencePreview: {
-    alignItems: "center",
-    backgroundColor: "#111827",
-    borderRadius: 12,
-    height: 116,
-    justifyContent: "center",
-    overflow: "hidden",
-    position: "relative",
-  },
-  referencePreviewEmpty: {
-    backgroundColor: "#f8fafc",
-    borderColor: "#e2e8f0",
-    borderWidth: 1,
   },
   referencePreviewIcon: {
     alignItems: "center",
@@ -1238,61 +1059,6 @@ const styles = StyleSheet.create({
   referencePreviewShade: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(15,23,42,0.18)",
-  },
-  referenceSourcePill: {
-    alignItems: "center",
-    backgroundColor: "#eef2ff",
-    borderRadius: 999,
-    flexDirection: "row",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-  },
-  referenceSourceText: {
-    color: "#4338ca",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0,
-  },
-  referenceViewerButton: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    backgroundColor: "#eef2ff",
-    borderRadius: 10,
-    flexDirection: "row",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  referenceViewerButtonDisabled: {
-    backgroundColor: "#f1f5f9",
-  },
-  referenceViewerButtonText: {
-    color: "#4338ca",
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 0,
-  },
-  referenceViewerButtonTextDisabled: {
-    color: "#94a3b8",
-  },
-  referenceViewerHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 10,
-  },
-  referenceViewerStatus: {
-    color: "#64748b",
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0,
-    marginTop: 2,
-  },
-  referenceViewerTitle: {
-    color: "#111827",
-    fontSize: 13,
-    fontWeight: "900",
-    letterSpacing: 0,
   },
   shootButton: {
     alignItems: "center",
@@ -1332,23 +1098,6 @@ const styles = StyleSheet.create({
   },
   savedTakesArea: {
     gap: 10,
-  },
-  takeStatusPill: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 5,
-    maxWidth: "100%",
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-  },
-  takeStatusText: {
-    flexShrink: 1,
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 0,
   },
   takeViewerActivePill: {
     backgroundColor: "rgba(255,255,255,0.92)",

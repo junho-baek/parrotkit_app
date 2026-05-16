@@ -24,11 +24,12 @@ for (const requiredConcept of [
   "Apply to your case",
   "Saved takes",
   "Checklist",
-  "My Take status",
   "requiredChecklist",
   "getChecklistProgressLabel",
   "onToggleChecklistItem",
-  "referencePreview",
+  "CutReferencePreview",
+  "cutReferencePreview",
+  "badgeLabel",
   "Film",
   "actionControls.retake",
   "actionControls.setFinal",
@@ -44,6 +45,14 @@ for (const requiredConcept of [
 for (const removedControl of [
   "onToggleSceneComplete",
   "headerParts.roleLabel",
+  "No take yet",
+  "0 takes",
+  "Take saved",
+  "takeStatusPill",
+  "takeStatusText",
+  "boardReferenceColumn",
+  "completionCircle",
+  "My Take status",
 ]) {
   if (source.includes(removedControl)) {
     throw new Error(
@@ -55,7 +64,7 @@ for (const removedControl of [
 for (const unboxedBoardArea of [
   "boardPrimaryArea",
   "boardCopyColumn",
-  "boardReferenceColumn",
+  "cutReferencePreview",
   "savedTakesArea",
   "checklistRail",
 ]) {

@@ -9,6 +9,7 @@ export type ShootBoardMediaSlotStatus =
   | "needs_reshoot";
 
 export type ShootBoardMediaSlotProps = {
+  badgeLabel?: string;
   caption?: string;
   label: string;
   onPress: () => void;
@@ -20,6 +21,7 @@ export type ShootBoardMediaSlotProps = {
 type IconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
 
 export function ShootBoardMediaSlot({
+  badgeLabel,
   caption,
   label,
   onPress,
@@ -27,7 +29,7 @@ export function ShootBoardMediaSlot({
   thumbnailUrl,
   timeRangeLabel,
 }: ShootBoardMediaSlotProps) {
-  const empty = status === "empty" || !thumbnailUrl;
+  const empty = status === "empty";
   const statusStyle = getStatusStyle(status);
 
   return (
@@ -43,13 +45,18 @@ export function ShootBoardMediaSlot({
         onPress={onPress}
         style={({ pressed }) => [styles.pressable, pressed && styles.pressed]}
       >
-        <View style={styles.preview}>
-          {!empty ? (
+        <View
+          style={[
+            styles.preview,
+            !empty && !thumbnailUrl && styles.previewWithoutThumbnail,
+          ]}
+        >
+          {!empty && thumbnailUrl ? (
             <>
               <Image
                 accessibilityIgnoresInvertColors
                 resizeMode="cover"
-                source={{ uri: thumbnailUrl ?? "" }}
+                source={{ uri: thumbnailUrl }}
                 style={styles.previewImage}
               />
               <View style={styles.previewShade} />
@@ -68,6 +75,14 @@ export function ShootBoardMediaSlot({
             <View style={styles.timePill}>
               <Text numberOfLines={1} style={styles.timeText}>
                 {timeRangeLabel}
+              </Text>
+            </View>
+          ) : null}
+
+          {badgeLabel ? (
+            <View style={styles.badge}>
+              <Text numberOfLines={1} style={styles.badgeText}>
+                {badgeLabel}
               </Text>
             </View>
           ) : null}
@@ -134,6 +149,25 @@ function getStatusStyle(status: ShootBoardMediaSlotStatus): {
 }
 
 const styles = StyleSheet.create({
+  badge: {
+    alignItems: "center",
+    backgroundColor: "#111827",
+    borderColor: "rgba(255,255,255,0.84)",
+    borderRadius: 999,
+    borderWidth: 1,
+    minWidth: 20,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    position: "absolute",
+    right: 5,
+    top: 5,
+  },
+  badgeText: {
+    color: "#ffffff",
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0,
+  },
   root: {
     backgroundColor: "#ffffff",
     borderRadius: 10,
@@ -141,7 +175,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     height: 96,
     overflow: "hidden",
-    width: 54,
+    width: 72,
   },
   finalRoot: {
     shadowColor: "#4c1d95",
@@ -188,6 +222,9 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     height: "100%",
     width: "100%",
+  },
+  previewWithoutThumbnail: {
+    backgroundColor: "#111827",
   },
   previewShade: {
     ...StyleSheet.absoluteFillObject,

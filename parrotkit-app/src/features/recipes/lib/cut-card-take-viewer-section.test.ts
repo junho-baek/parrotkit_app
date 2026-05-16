@@ -19,13 +19,13 @@ const emptyTake = getCutCardTakeViewerSection(board.cuts[0], "ko");
 if (
   emptyTake.state !== "empty" ||
   emptyTake.title !== "Take viewer" ||
-  emptyTake.statusLabel !== "저장된 테이크 없음" ||
+  emptyTake.statusLabel !== "" ||
   emptyTake.primaryActionLabel !== "촬영하기" ||
-  emptyTake.takeCountLabel !== "0개 테이크" ||
+  emptyTake.takeCountLabel !== "" ||
   emptyTake.thumbnailUrl !== undefined
 ) {
   throw new Error(
-    "Expanded Take viewer should expose an empty state before a cut has saved takes.",
+    "Expanded Take viewer should not expose redundant empty take labels before a cut has saved takes.",
   );
 }
 
@@ -46,7 +46,7 @@ if (
 const populatedTake = getCutCardTakeViewerSection(board.cuts[1], "en");
 if (
   populatedTake.state !== "populated" ||
-  populatedTake.statusLabel !== "Take saved" ||
+  populatedTake.statusLabel !== "" ||
   populatedTake.activeTake?.id !== board.cuts[1].takes[0]?.id ||
   populatedTake.takeCountLabel !== "2 takes" ||
   populatedTake.thumbnailUrl !== board.cuts[1].takeThumbnailUrl ||
@@ -79,7 +79,7 @@ const finalTake = getCutCardTakeViewerSection(
 );
 if (
   finalTake.state !== "populated" ||
-  finalTake.statusLabel !== "최종 테이크 선택됨" ||
+  finalTake.statusLabel !== "" ||
   finalTake.activeTake?.id !== board.cuts[1].takes[1]?.id ||
   finalTake.primaryActionLabel !== "테이크 보기" ||
   finalTake.actionControls.retake.label !== "재촬영" ||
@@ -106,7 +106,7 @@ const selectedFinalViewer = getCutCardTakeViewerSection(
 );
 
 if (
-  selectedFinalViewer.statusLabel !== "최종 테이크 선택됨" ||
+  selectedFinalViewer.statusLabel !== "" ||
   selectedFinalViewer.activeTake?.id !== board.cuts[1].takes[1]?.id ||
   selectedFinalViewer.takeItems[1]?.final !== true ||
   selectedFinalViewer.takeItems[1]?.selected !== true ||
