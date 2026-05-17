@@ -9,6 +9,149 @@ const recipe: NativeRecipe = {
   thumbnail: "https://example.com/ref.jpg",
   savedAt: "2026-05-17T00:00:00.000Z",
   sourceUrl: "https://example.com/shorts/1",
+  referenceBreakdown: {
+    schema_version: "parrotkit.reference_breakdown.v1",
+    reference: {
+      source_url: "https://example.com/shorts/1",
+      platform: "youtube",
+      creator_handle: "@avabeauty",
+      title: "Beauty Conversion Hook Guide",
+      duration_seconds: 21,
+      language: "en",
+      thumbnail_description: "Creator holds serum beside finished skin.",
+    },
+    summary: {
+      one_liner:
+        "A beauty reference that sells the product by proving the skin result first.",
+      audience: "Beauty creators selling routine or product trust.",
+      promise: "Show the finished skin before explaining the serum.",
+      why_viewers_keep_watching:
+        "The result is visible before the product claim appears.",
+    },
+    transcript: {
+      clean: "This is the glow I wanted before touching concealer.",
+      notable_lines: [
+        {
+          time_range: "0:00-0:03",
+          line: "This is the glow I wanted before touching concealer.",
+          why_it_matters: "It frames the payoff before the product pitch.",
+        },
+      ],
+      raw: ["This is the glow I wanted before touching concealer."],
+    },
+    idea_analysis: {
+      topic: "Beauty conversion routine",
+      idea_seed: "Lead with the finished look before product explanation.",
+      unique_angle: "The product earns attention after visible proof.",
+      common_belief_to_challenge:
+        "Creators need to name the product before proving the result.",
+      contrarian_reality:
+        "The visible skin result can make the product explanation feel earned.",
+      supporting_evidence: [
+        "The first frame shows finished skin.",
+        "The product arrives after the promise is already clear.",
+      ],
+      user_application:
+        "Open with your best final frame, then name the product after the viewer understands the result.",
+    },
+    hook: {
+      category: "authority",
+      formula:
+        "There were so many requests to [compare/review X]. I can summarize it in [short time period].",
+      spoken_hook: "This is the glow I wanted before touching concealer.",
+      visual_hook: "Finished skin result in the first frame.",
+      why_it_works:
+        "The spoken and visual hook point at the same cosmetic payoff.",
+      adaptation_rule:
+        "Name the result first, then introduce the product as the reason it is repeatable.",
+    },
+    storytelling_format: {
+      category: "demo",
+      description: "Result, product proof, repeatable routine.",
+      beat_order: ["Finished look", "Product earns attention", "Repeatable close"],
+      why_it_works:
+        "Each beat gives the viewer a clearer reason to believe the routine.",
+      reuse_when: "Use when product trust depends on visible results.",
+    },
+    visual_layout: {
+      category: "talking_head",
+      sub_category: "Beauty close-up",
+      framing: "Face fills the frame with product near cheek.",
+      camera_motion: "Mostly static with product brought into frame.",
+      caption_strategy: "Short result-first caption near the lower third.",
+      subject_product_relationship:
+        "The creator stays primary; product is secondary until the proof lands.",
+      user_application:
+        "Keep your final look visible while the product enters after the claim.",
+    },
+    proof_structure: {
+      proof_points: ["Finished skin appears first."],
+      trust_signals: ["Creator face and product shown together."],
+      risk_or_gap: "Actual before/after timing is not fully visible.",
+    },
+    cuts: [],
+    shooting_projection: {
+      board_title: "Beauty Conversion Hook Guide",
+      video_level_breakdown: [
+        {
+          label: "Summary",
+          value:
+            "A beauty reference that sells by proving the skin result first.",
+        },
+        {
+          label: "Transcript",
+          value: "This is the glow I wanted before touching concealer.",
+        },
+        {
+          label: "Idea Analysis",
+          value: "Lead with the finished look before product explanation.",
+        },
+        {
+          label: "Hook",
+          value: "Result-first authority hook.",
+        },
+        {
+          label: "Storytelling",
+          value: "Result, product proof, repeatable routine.",
+        },
+        {
+          label: "Visual Layout",
+          value: "Beauty close-up talking head.",
+        },
+      ],
+      cut_rows: [],
+    },
+    vault_candidates: {
+      idea: {
+        title: "Result-first beauty routine",
+        tags: ["beauty", "conversion"],
+      },
+      hook: {
+        formula:
+          "There were so many requests to [compare/review X]. I can summarize it in [short time period].",
+        category: "authority",
+      },
+      story_format: {
+        name: "Result proof routine",
+        tags: ["demo"],
+      },
+      visual_layout: {
+        name: "Beauty close-up talking head",
+        tags: ["talking_head"],
+      },
+      channel: {
+        creator_handle: "@avabeauty",
+        why_follow: "Strong beauty result-first references.",
+      },
+    },
+    confidence: {
+      overall: 0.86,
+      transcript: 0.9,
+      visual: 0.8,
+      cut_segmentation: 0.72,
+      notes: [],
+    },
+  },
   summary:
     "Show the skin result before the product explanation so viewers understand the payoff.",
   niche: "Beauty",
@@ -44,32 +187,6 @@ const recipe: NativeRecipe = {
       },
       prompter: { blocks: [] },
     },
-    {
-      id: "scene-2",
-      sceneNumber: 2,
-      title: "Make the product earn trust",
-      startTime: "0:05",
-      endTime: "0:15",
-      thumbnail: "https://example.com/scene-2.jpg",
-      analysis: {
-        transcriptSnippet: "This serum made the base sit better.",
-        transcriptOriginal: [],
-        motionDescription: "Product appears after the result shot.",
-        whyItWorks: ["The product is supported by visible evidence."],
-        referenceSignals: [],
-      },
-      recipe: {
-        objective: "Connect result to product proof.",
-        appealPoint: "The product is supported by visible evidence.",
-        keyLine: "This is what changed the base.",
-        scriptLines: ["This is what changed the base."],
-        keyMood: "Helpful",
-        keyAction: "Bring the product into frame after the result.",
-        mustInclude: ["Product after result"],
-        mustAvoid: ["Unproven claim"],
-      },
-      prompter: { blocks: [] },
-    },
   ],
 };
 
@@ -79,19 +196,47 @@ if (summary.primaryTabLabel !== "Breakdown") {
   throw new Error(`Expected Breakdown label, got ${summary.primaryTabLabel}`);
 }
 
-if (summary.hook.title !== "Video hook") {
-  throw new Error("Hook must be video-level, not a per-cut label");
+const sectionTitles = summary.sections.map((section) => section.title);
+const expectedTitles = [
+  "Summary",
+  "Transcript",
+  "Idea Analysis",
+  "Hook",
+  "Storytelling",
+  "Visual Layout",
+];
+
+if (sectionTitles.join("|") !== expectedTitles.join("|")) {
+  throw new Error(`Unexpected breakdown sections: ${sectionTitles.join(", ")}`);
 }
 
-if (!summary.hook.body.includes("This is the glow")) {
-  throw new Error("Expected hook body to use opening transcript");
+const forbiddenTitles = [
+  "Video hook",
+  "Why this works",
+  "Idea angle",
+  "Story format",
+  "Proof points",
+  "Cut hook",
+];
+
+if (summary.sections.some((section) => forbiddenTitles.includes(section.title))) {
+  throw new Error("Breakdown must use Sandcastle section names only");
 }
 
-if (summary.sections.some((section) => section.title === "Cut hook")) {
-  throw new Error("Breakdown must not create repeated per-cut hook sections");
+const ideaAnalysis = summary.sections.find(
+  (section) => section.id === "idea_analysis",
+);
+
+if (!ideaAnalysis?.body.includes("Supporting evidence")) {
+  throw new Error("Idea Analysis must carry supporting evidence inline");
 }
 
-if (!summary.applyToYourShoot.body.includes("Show the skin result")) {
-  throw new Error("Expected recipe summary to become creator application");
+if (!ideaAnalysis.body.includes("The first frame shows finished skin.")) {
+  throw new Error("Idea Analysis must preserve extracted evidence");
 }
 
+const hook = summary.sections.find((section) => section.id === "hook");
+
+if (!hook?.body.includes("There were so many requests")) {
+  throw new Error("Hook section must preserve Sandcastle hook formula");
+}

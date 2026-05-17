@@ -8,6 +8,7 @@ This document defines the durable reference-analysis payload ParrotKit should ex
 - `my_take` is the user's filmed result.
 - `hook` is video-level unless the first cut is specifically the opening hook.
 - `cuts` describe observable beats in the reference, not generic template cards.
+- `analysis_metadata.reference_breakdown` is the DB storage slot for this full payload on the `recipes` row.
 - `shooting_projection` is the compact execution layer shown in the board.
 
 ## JSON Schema
@@ -95,27 +96,27 @@ This document defines the durable reference-analysis payload ParrotKit should ex
     "board_title": "string",
     "video_level_breakdown": [
       {
-        "label": "Video hook",
+        "label": "Summary",
         "value": "string"
       },
       {
-        "label": "Why this works",
+        "label": "Transcript",
         "value": "string"
       },
       {
-        "label": "Idea angle",
+        "label": "Idea Analysis",
         "value": "string"
       },
       {
-        "label": "Story format",
+        "label": "Hook",
         "value": "string"
       },
       {
-        "label": "Visual layout",
+        "label": "Storytelling",
         "value": "string"
       },
       {
-        "label": "Proof points",
+        "label": "Visual Layout",
         "value": "string"
       }
     ],
@@ -183,7 +184,9 @@ Rules:
 7. Keep shooting_projection compact. It should be suitable for a mobile filming board, not an analysis dashboard.
 8. Distinguish reference_media from my_take: reference_media is what the creator studies; my_take is the user's filmed result.
 9. Preserve Sandcastle-level insight in idea_analysis, hook, storytelling_format, visual_layout, proof_structure, and vault_candidates.
-10. Use concise English. Do not include markdown fences, commentary, or extra keys outside the schema.
+10. Use Sandcastle section labels for video_level_breakdown: Summary, Transcript, Idea Analysis, Hook, Storytelling, Visual Layout.
+11. Keep supporting proof inside idea_analysis.supporting_evidence or proof_structure. Do not expose "Proof points" as a mobile Breakdown tab section label.
+12. Use concise English. Do not include markdown fences, commentary, or extra keys outside the schema.
 
 Output requirements:
 - Return a single JSON object.
@@ -207,6 +210,13 @@ Only these fields should normally reach the mobile execution screen:
 - Compact tools: `cut.line_to_say`, `cut.shooting_guide`
 - Reference viewer: `cut.reference_observation`, time range, media frame
 - My Take state: saved take count/final take/retake action
-- Breakdown tab: `shooting_projection.video_level_breakdown`
+- Breakdown tab: `summary`, `transcript`, `idea_analysis`, `hook`, `storytelling_format`, `visual_layout`, projected with the section names Summary, Transcript, Idea Analysis, Hook, Storytelling, and Visual Layout.
 
 Everything else is stored for future generation, search, vaults, and recipe refinement.
+
+## Persistence Guidance
+
+- Store the full object at `recipes.analysis_metadata.reference_breakdown`.
+- Hydrate the app-level `recipe.referenceBreakdown` from that JSON path.
+- Do not add a dedicated table until the product needs querying across individual hooks, formats, channels, or cut-level observations.
+- If a future backend extracts this with Gemini/SuperData, the API should return this payload first and derive UI projections from it second.

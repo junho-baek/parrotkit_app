@@ -1,13 +1,14 @@
 import type { AppLanguage } from "@/core/i18n/app-language";
+import type { ReferenceBreakdown } from "@/domain/recipes/reference-breakdown";
 import type { NativeRecipe } from "@/features/recipes/types/recipe-domain";
 
 export type RecipeBreakdownSectionId =
   | "summary"
-  | "idea"
+  | "transcript"
+  | "idea_analysis"
   | "hook"
-  | "story"
-  | "visual"
-  | "evidence";
+  | "storytelling_format"
+  | "visual_layout";
 
 export type RecipeBreakdownSection = {
   body: string;
@@ -16,8 +17,6 @@ export type RecipeBreakdownSection = {
 };
 
 export type RecipeBreakdownSummary = {
-  applyToYourShoot: RecipeBreakdownSection;
-  hook: RecipeBreakdownSection;
   primaryTabLabel: "Breakdown" | "분석";
   sections: RecipeBreakdownSection[];
   title: string;
@@ -25,44 +24,176 @@ export type RecipeBreakdownSummary = {
 
 const labels = {
   en: {
-    apply: "Apply to your shoot",
     breakdown: "Breakdown",
-    evidence: "Proof points",
-    hook: "Video hook",
-    idea: "Idea angle",
-    story: "Story format",
-    summary: "Why this works",
-    visual: "Visual layout",
+    hook: "Hook",
+    ideaAnalysis: "Idea Analysis",
+    story: "Storytelling",
+    summary: "Summary",
+    transcript: "Transcript",
+    visual: "Visual Layout",
   },
   ko: {
-    apply: "내 촬영에 적용",
     breakdown: "분석",
-    evidence: "근거",
-    hook: "영상 훅",
-    idea: "아이디어 각도",
-    story: "전개 방식",
-    summary: "왜 먹히는지",
-    visual: "화면 구조",
+    hook: "Hook",
+    ideaAnalysis: "Idea Analysis",
+    story: "Storytelling",
+    summary: "Summary",
+    transcript: "Transcript",
+    visual: "Visual Layout",
   },
 } satisfies Record<
   AppLanguage,
   {
-    apply: string;
     breakdown: "Breakdown" | "분석";
-    evidence: string;
     hook: string;
-    idea: string;
+    ideaAnalysis: string;
     story: string;
     summary: string;
+    transcript: string;
     visual: string;
   }
 >;
 
-export function getRecipeBreakdownSummary(
+function compactText(value: unknown) {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function compactList(values: unknown[]) {
+  return values.map(compactText).filter(Boolean);
+}
+
+function formatList(values: unknown[]) {
+  return compactList(values).join("; ");
+}
+
+function displayCategory(value: string) {
+  return compactText(value).replace(/_/g, " ");
+}
+
+function formatFields(
+  fields: Array<readonly [label: string, value: string | number | null | undefined]>,
+) {
+  return fields
+    .map(([label, value]) => {
+      const text = compactText(value);
+      return text.length > 0 ? `${label}: ${text}` : "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function getReferenceBreakdownSections(
+  breakdown: ReferenceBreakdown,
+  copy: (typeof labels)[AppLanguage],
+): RecipeBreakdownSection[] {
+  const notableLines = breakdown.transcript.notable_lines
+    .map((item) => {
+      const timeRange = compactText(item.time_range);
+      const line = compactText(item.line);
+      const reason = compactText(item.why_it_matters);
+
+      if (!line) {
+        return "";
+      }
+
+      return [
+        timeRange ? `${timeRange}: ${line}` : line,
+        reason ? `(${reason})` : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+    })
+    .filter(Boolean)
+    .join("\n");
+
+  return [
+    {
+      body: formatFields([
+        ["One-liner", breakdown.summary.one_liner],
+        ["Audience", breakdown.summary.audience],
+        ["Promise", breakdown.summary.promise],
+        [
+          "Why viewers keep watching",
+          breakdown.summary.why_viewers_keep_watching,
+        ],
+      ]),
+      id: "summary",
+      title: copy.summary,
+    },
+    {
+      body: formatFields([
+        ["Clean", breakdown.transcript.clean],
+        ["Notable lines", notableLines || formatList(breakdown.transcript.raw)],
+      ]),
+      id: "transcript",
+      title: copy.transcript,
+    },
+    {
+      body: formatFields([
+        ["Topic", breakdown.idea_analysis.topic],
+        ["Idea seed", breakdown.idea_analysis.idea_seed],
+        ["Unique angle", breakdown.idea_analysis.unique_angle],
+        [
+          "Common belief to challenge",
+          breakdown.idea_analysis.common_belief_to_challenge,
+        ],
+        ["Contrarian reality", breakdown.idea_analysis.contrarian_reality],
+        [
+          "Supporting evidence",
+          formatList(breakdown.idea_analysis.supporting_evidence),
+        ],
+        ["User application", breakdown.idea_analysis.user_application],
+      ]),
+      id: "idea_analysis",
+      title: copy.ideaAnalysis,
+    },
+    {
+      body: formatFields([
+        ["Category", displayCategory(breakdown.hook.category)],
+        ["Formula", breakdown.hook.formula],
+        ["Spoken hook", breakdown.hook.spoken_hook],
+        ["Visual hook", breakdown.hook.visual_hook],
+        ["Analysis", breakdown.hook.why_it_works],
+        ["Adaptation rule", breakdown.hook.adaptation_rule],
+      ]),
+      id: "hook",
+      title: copy.hook,
+    },
+    {
+      body: formatFields([
+        ["Category", displayCategory(breakdown.storytelling_format.category)],
+        ["Description", breakdown.storytelling_format.description],
+        ["Beat order", formatList(breakdown.storytelling_format.beat_order)],
+        ["Analysis", breakdown.storytelling_format.why_it_works],
+        ["Reuse when", breakdown.storytelling_format.reuse_when],
+      ]),
+      id: "storytelling_format",
+      title: copy.story,
+    },
+    {
+      body: formatFields([
+        ["Category", displayCategory(breakdown.visual_layout.category)],
+        ["Sub-category", breakdown.visual_layout.sub_category],
+        ["Framing", breakdown.visual_layout.framing],
+        ["Camera motion", breakdown.visual_layout.camera_motion],
+        ["Caption strategy", breakdown.visual_layout.caption_strategy],
+        [
+          "Subject/product relationship",
+          breakdown.visual_layout.subject_product_relationship,
+        ],
+        ["User application", breakdown.visual_layout.user_application],
+      ]),
+      id: "visual_layout",
+      title: copy.visual,
+    },
+  ];
+}
+
+function getFallbackBreakdownSections(
   recipe: NativeRecipe,
   language: AppLanguage,
-): RecipeBreakdownSummary {
-  const copy = labels[language];
+  copy: (typeof labels)[AppLanguage],
+): RecipeBreakdownSection[] {
   const openingScene = recipe.scenes[0];
   const proofLines = recipe.scenes
     .flatMap((scene) => scene.analysis.whyItWorks)
@@ -88,63 +219,60 @@ export function getRecipeBreakdownSummary(
         ? "하나의 짧은 beat로 레퍼런스를 바로 찍을 수 있는 행동으로 바꿉니다."
         : "One compact beat that turns a reference into a shootable action.";
 
-  const sections: RecipeBreakdownSection[] = [
+  return [
     {
       body: recipe.summary || recipe.notes || recipe.title,
       id: "summary",
       title: copy.summary,
     },
     {
-      body:
-        openingScene?.recipe.appealPoint ||
-        openingScene?.recipe.objective ||
-        openingScene?.summary ||
-        (language === "ko"
-          ? "가장 분명한 결과를 먼저 보여주고, 설명은 그 뒤에 붙입니다."
-          : "Lead with the clearest viewer payoff before explaining the steps."),
-      id: "idea",
-      title: copy.idea,
+      body: openingTranscript,
+      id: "transcript",
+      title: copy.transcript,
+    },
+    {
+      body: formatFields([
+        ["Idea seed", openingScene?.recipe.appealPoint || openingScene?.summary],
+        ["Unique angle", openingScene?.recipe.objective],
+        ["Supporting evidence", proofLines[0]],
+      ]),
+      id: "idea_analysis",
+      title: copy.ideaAnalysis,
+    },
+    {
+      body: formatFields([
+        ["Spoken hook", openingTranscript],
+        ["Visual hook", openingScene?.analysis.motionDescription],
+      ]),
+      id: "hook",
+      title: copy.hook,
     },
     {
       body: storyFormat,
-      id: "story",
+      id: "storytelling_format",
       title: copy.story,
     },
     {
       body: visualLayout,
-      id: "visual",
+      id: "visual_layout",
       title: copy.visual,
     },
-    {
-      body:
-        proofLines[0] ||
-        (language === "ko"
-          ? "믿으라고 말하기 전에 보이는 근거를 먼저 둡니다."
-          : "Use visible proof before asking the viewer to believe the claim."),
-      id: "evidence",
-      title: copy.evidence,
-    },
   ];
+}
+
+export function getRecipeBreakdownSummary(
+  recipe: NativeRecipe,
+  language: AppLanguage,
+): RecipeBreakdownSummary {
+  const copy = labels[language];
+  const referenceBreakdown =
+    recipe.referenceBreakdown ?? recipe.analysisMetadata?.reference_breakdown;
 
   return {
-    applyToYourShoot: {
-      body:
-        recipe.summary ||
-        recipe.notes ||
-        (language === "ko"
-          ? "레퍼런스 아이디어를 복붙할 문장이 아니라 촬영 가이드로 사용합니다."
-          : "Use the reference idea as a filming guide, not as copy to paste."),
-      id: "summary",
-      title: copy.apply,
-    },
-    hook: {
-      body: openingTranscript,
-      id: "hook",
-      title: copy.hook,
-    },
     primaryTabLabel: copy.breakdown,
-    sections,
+    sections: referenceBreakdown
+      ? getReferenceBreakdownSections(referenceBreakdown, copy)
+      : getFallbackBreakdownSections(recipe, language, copy),
     title: recipe.title,
   };
 }
-

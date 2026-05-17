@@ -1,3 +1,7 @@
+import type {
+  RecipeAnalysisMetadata,
+  ReferenceBreakdown,
+} from '@/domain/recipes/reference-breakdown';
 import type { RecipeImageUriSource } from '@/domain/recipes/recipe';
 
 export type NativeRecipeImageSource =
@@ -100,6 +104,8 @@ export type NativeRecipe = {
   savedAt: string;
   sourceUrl: string;
   referenceVideoSource?: string | number;
+  referenceBreakdown?: ReferenceBreakdown;
+  analysisMetadata?: RecipeAnalysisMetadata;
   summary: string;
   niche: string;
   goal: string;

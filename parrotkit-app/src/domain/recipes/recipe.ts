@@ -1,3 +1,8 @@
+import type {
+  RecipeAnalysisMetadata,
+  ReferenceBreakdown,
+} from '@/domain/recipes/reference-breakdown';
+
 export type RecipePlatform = 'TikTok' | 'Instagram Reels' | 'YouTube Shorts';
 export type CreatorTrust = 'verified' | 'community';
 export type RecipeOwnership = 'owned' | 'downloaded' | 'remixed' | 'community';
@@ -101,6 +106,8 @@ export type Recipe = {
   savedAt: string;
   sourceUrl: string;
   referenceVideoSource?: string | number;
+  referenceBreakdown?: ReferenceBreakdown;
+  analysisMetadata?: RecipeAnalysisMetadata;
   summary: string;
   niche: string;
   goal: string;

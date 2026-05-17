@@ -10,6 +10,7 @@ import type {
   RecipeVerification,
   Reference,
 } from '@/domain/recipes/recipe';
+import type { ReferenceBreakdown } from '@/domain/recipes/reference-breakdown';
 import type { SavedTakePersistenceContract } from '@/domain/takes/saved-take-contract';
 
 export type MockPlatform = RecipePlatform;
@@ -225,6 +226,198 @@ export const recentReferencesSeed: MockReference[] = [
   },
 ];
 
+const foodPromoReferenceBreakdown: ReferenceBreakdown = {
+  schema_version: 'parrotkit.reference_breakdown.v1',
+  reference: {
+    source_url: 'mock://food-promo-shooting-guide',
+    platform: 'instagram',
+    creator_handle: '@fit.frames',
+    title: 'Food Promo Shooting Guide',
+    duration_seconds: 25,
+    language: 'en',
+    thumbnail_description: 'A creator opens on a finished food result before explaining the system.',
+  },
+  summary: {
+    one_liner: 'A result-first food promo that turns a meal into a repeatable creator system.',
+    audience: 'Food, wellness, and product creators who need a promo to feel useful before it feels like an ad.',
+    promise: 'Show the payoff first, prove the texture and ease, then end with a repeatable use.',
+    why_viewers_keep_watching: 'The finished plate appears before the explanation, so the viewer understands the reward immediately.',
+  },
+  transcript: {
+    raw: ['I stopped overthinking diet food and this is what finally stuck.'],
+    clean: 'I stopped overthinking diet food and this is what finally stuck.',
+    notable_lines: [
+      {
+        time_range: '0:00-0:05',
+        line: 'I stopped overthinking diet food and this is what finally stuck.',
+        why_it_matters: 'The line names the emotional relief before the process starts.',
+      },
+    ],
+  },
+  idea_analysis: {
+    topic: 'Food promotion through repeatable meal systems',
+    idea_seed: 'Use the final plate as the promise before showing any process.',
+    unique_angle: 'The promo is framed as a mental-load reduction system, not just a tasty dish.',
+    common_belief_to_challenge: 'Diet food promotion needs ingredient explanation before payoff.',
+    contrarian_reality: 'The payoff can do the persuasion first if the plate looks repeatable and low-friction.',
+    supporting_evidence: [
+      'The opening frame carries the food result before the creator explains anything.',
+      'The creator reaction arrives after the promise, making the response feel earned.',
+      'The close can turn the dish into a weekly system instead of a one-off recipe.',
+    ],
+    user_application: 'Start with your strongest final plate, then use each cut to show why it is repeatable in your context.',
+  },
+  hook: {
+    category: 'problem',
+    formula: 'I stopped [painful habit] and this is what finally [desired outcome].',
+    spoken_hook: 'I stopped overthinking diet food and this is what finally stuck.',
+    visual_hook: 'Finished meal appears before process or ingredient explanation.',
+    why_it_works: 'The viewer sees the reward and hears the pain relief in the same opening beat.',
+    adaptation_rule: 'Swap in the viewer pain and keep the first frame on the finished result, not the setup.',
+  },
+  storytelling_format: {
+    category: 'demo',
+    description: 'Promise-first food demo with proof cuts and a repeatable save beat.',
+    beat_order: ['Finished plate promise', 'Texture and prep proof', 'Repeatable weekly use'],
+    why_it_works: 'The video moves from desire to believability to reuse, which supports saves without extra CTA clutter.',
+    reuse_when: 'Use when the dish, product, or routine needs to feel practical as quickly as it feels appetizing.',
+  },
+  visual_layout: {
+    category: 'product_demo',
+    sub_category: 'Food result close-up with creator reaction',
+    framing: 'Start on the finished food/result, then bring the creator reaction into the rhythm.',
+    camera_motion: 'Fast close-up cut into a stable reaction frame, followed by centered hand action.',
+    caption_strategy: 'Use one short promise caption first, then practical proof captions only where they reduce uncertainty.',
+    subject_product_relationship: 'Food stays primary; creator reaction validates the promise after the plate is understood.',
+    user_application: 'Keep the dish dominant in the first beat and use your face only after the viewer knows the payoff.',
+  },
+  proof_structure: {
+    proof_points: [
+      'The finished plate shows the desired result immediately.',
+      'Texture and hand-action cuts make the claim observable.',
+      'The closer reframes the meal as repeatable instead of aspirational.',
+    ],
+    trust_signals: ['Creator reaction', 'Visible food texture', 'Specific repeatable use case'],
+    risk_or_gap: 'Nutrition or product claims still need real evidence if used in a paid promotion.',
+  },
+  cuts: [
+    {
+      id: 'scene-1',
+      time_range: '0:00-0:05',
+      execution_title: 'Immediate promise',
+      reference_observation: 'The reference opens on the strongest finished-food result before any explanation.',
+      line_to_say: 'I stopped overthinking diet food and this is what finally stuck.',
+      shooting_guide: 'Show plated result first, then cut to creator reaction in under one second.',
+      why_this_beat_exists: 'It gives the viewer a reason to care before the process starts.',
+      my_take_success_criteria: ['Finished result is visible immediately', 'The line names relief, not ingredients'],
+    },
+    {
+      id: 'scene-2',
+      time_range: '0:05-0:15',
+      execution_title: 'Proof in motion',
+      reference_observation: 'Three fast food cuts show texture, speed, and variety.',
+      line_to_say: '20 min, high protein, zero mental load.',
+      shooting_guide: 'Stack prep, drizzle, and final bite so the process feels easy.',
+      why_this_beat_exists: 'It makes the opening promise believable through visible food proof.',
+      my_take_success_criteria: ['Hands stay centered', 'Each proof cut answers one uncertainty'],
+    },
+    {
+      id: 'scene-3',
+      time_range: '0:15-0:25',
+      execution_title: 'Actionable finish',
+      reference_observation: 'The closing frame can turn the meal into a system the viewer saves.',
+      line_to_say: 'Build one plate you can repeat all week.',
+      shooting_guide: 'Hold the final plate steady long enough for the save idea to land.',
+      why_this_beat_exists: 'It turns a single food moment into a repeatable action.',
+      my_take_success_criteria: ['Closer names a repeatable use', 'Final frame is stable'],
+    },
+  ],
+  shooting_projection: {
+    board_title: 'Food Promo Shooting Guide',
+    video_level_breakdown: [
+      {
+        label: 'Summary',
+        value: 'A result-first food promo that turns a meal into a repeatable creator system.',
+      },
+      {
+        label: 'Transcript',
+        value: 'I stopped overthinking diet food and this is what finally stuck.',
+      },
+      {
+        label: 'Idea Analysis',
+        value: 'Use the final plate as the promise before showing any process.',
+      },
+      {
+        label: 'Hook',
+        value: 'I stopped [painful habit] and this is what finally [desired outcome].',
+      },
+      {
+        label: 'Storytelling',
+        value: 'Promise-first food demo with proof cuts and a repeatable save beat.',
+      },
+      {
+        label: 'Visual Layout',
+        value: 'Food result close-up with creator reaction.',
+      },
+    ],
+    cut_rows: [
+      {
+        cut_id: 'scene-1',
+        execution_title: 'Immediate promise',
+        line_to_say: 'I stopped overthinking diet food and this is what finally stuck.',
+        shot_guide: 'Show plated result first, then creator reaction.',
+        reference_usage: 'Borrow the result-first opening structure.',
+        my_take_relationship: 'Your take must prove the payoff in the first frame.',
+      },
+      {
+        cut_id: 'scene-2',
+        execution_title: 'Proof in motion',
+        line_to_say: '20 min, high protein, zero mental load.',
+        shot_guide: 'Stack prep, drizzle, and final bite.',
+        reference_usage: 'Borrow the quick proof rhythm.',
+        my_take_relationship: 'Your take must show why the meal is easy to repeat.',
+      },
+      {
+        cut_id: 'scene-3',
+        execution_title: 'Actionable finish',
+        line_to_say: 'Build one plate you can repeat all week.',
+        shot_guide: 'Hold the final plate for the save beat.',
+        reference_usage: 'Borrow the repeatable close.',
+        my_take_relationship: 'Your take must make the next action obvious.',
+      },
+    ],
+  },
+  vault_candidates: {
+    idea: {
+      title: 'Result-first repeatable meal system',
+      tags: ['food', 'promo', 'repeatable'],
+    },
+    hook: {
+      formula: 'I stopped [painful habit] and this is what finally [desired outcome].',
+      category: 'problem',
+    },
+    story_format: {
+      name: 'Promise proof repeat',
+      tags: ['demo', 'food'],
+    },
+    visual_layout: {
+      name: 'Food result close-up with creator reaction',
+      tags: ['product_demo', 'close_up'],
+    },
+    channel: {
+      creator_handle: '@fit.frames',
+      why_follow: 'Strong result-first food promo patterns.',
+    },
+  },
+  confidence: {
+    overall: 0.82,
+    transcript: 0.88,
+    visual: 0.78,
+    cut_segmentation: 0.74,
+    notes: ['Mock payload mirrors the durable Sandcastle-style contract for local QA.'],
+  },
+};
+
 export const recipesSeed: MockRecipe[] = [
   {
     id: 'recipe-korean-diet-hook',
@@ -235,6 +428,9 @@ export const recipesSeed: MockRecipe[] = [
     savedAt: 'Saved 2h ago',
     sourceUrl: 'mock://food-promo-shooting-guide',
     referenceVideoSource: ugcMedia.foodPromo.video,
+    analysisMetadata: {
+      reference_breakdown: foodPromoReferenceBreakdown,
+    },
     summary: 'A reusable guide for promoting food with a result-first hook, quick proof visual, and save-worthy CTA.',
     niche: 'Cooking',
     goal: 'Promote food with a clear hook',

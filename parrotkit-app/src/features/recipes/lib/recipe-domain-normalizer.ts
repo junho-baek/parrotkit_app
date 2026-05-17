@@ -189,6 +189,8 @@ export function normalizeNativeRecipeScene(scene: MockRecipeScene, index: number
 export function normalizeNativeRecipe(recipe: MockRecipe): NativeRecipe {
   return {
     ...recipe,
+    referenceBreakdown:
+      recipe.referenceBreakdown ?? recipe.analysisMetadata?.reference_breakdown,
     thumbnail: imageSourceToUri(recipe.thumbnail),
     thumbnailSource: toImageSource(recipe.thumbnail),
     scenes: recipe.scenes.map((scene, index) => normalizeNativeRecipeScene(scene, index, recipe.thumbnail)),
