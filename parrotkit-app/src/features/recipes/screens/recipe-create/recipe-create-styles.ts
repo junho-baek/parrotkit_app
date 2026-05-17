@@ -1,6 +1,10 @@
 import { StyleSheet } from 'react-native';
 
 export const recipeCreateStyles = StyleSheet.create({
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+  },
   ctaButton: {
     alignItems: 'center',
     borderRadius: 18,
@@ -194,7 +198,7 @@ export const recipeCreateStyles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   overlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    backgroundColor: 'transparent',
     flex: 1,
     justifyContent: 'flex-end',
   },
@@ -236,6 +240,9 @@ export const recipeCreateStyles = StyleSheet.create({
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     overflow: 'hidden',
+    width: '100%',
+  },
+  sheetMotion: {
     width: '100%',
   },
   title: {

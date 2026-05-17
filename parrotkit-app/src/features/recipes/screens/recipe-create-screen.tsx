@@ -1,8 +1,10 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
-import { ComponentProps, useEffect, useState } from 'react';
+import { ComponentProps, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
+  Easing,
   ImageBackground,
   KeyboardAvoidingView,
   Platform,
@@ -59,19 +61,36 @@ export function RecipeCreateScreen({
   const { language } = useAppLanguage();
   const { createRecipeDraft } = useMockWorkspace();
   const copy = recipeCreateCopy[language];
-  const initialMode = initialModeOverride ?? getInitialRecipeCreateMode(params.mode);
-  const [selectedMode, setSelectedMode] = useState<RecipeCreateMode>(initialMode);
-  const [selectedNicheId, setSelectedNicheId] = useState<RecipeCreateNicheId>('beauty');
-  const [selectedGoalId, setSelectedGoalId] = useState<RecipeCreateGoalId>('ad');
+  const initialMode =
+    initialModeOverride ?? getInitialRecipeCreateMode(params.mode);
+  const [selectedMode, setSelectedMode] =
+    useState<RecipeCreateMode>(initialMode);
+  const [selectedNicheId, setSelectedNicheId] =
+    useState<RecipeCreateNicheId>('beauty');
+  const [selectedGoalId, setSelectedGoalId] =
+    useState<RecipeCreateGoalId>('ad');
   const [referenceUrl, setReferenceUrl] = useState('');
   const [customNicheLabel, setCustomNicheLabel] = useState('');
-  const modeCopy = copy.mode as Record<RecipeCreateMode, { icon: IconName; tab: string }>;
+  const closingRef = useRef(false);
+  const drawerProgress = useRef(new Animated.Value(0)).current;
+  const modeCopy = copy.mode as Record<
+    RecipeCreateMode,
+    { icon: IconName; tab: string }
+  >;
   const submitState = getRecipeCreateSubmitState({
     mode: selectedMode,
     referenceUrl,
   });
+  const backdropOpacity = drawerProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+  const sheetTranslateY = drawerProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [56, 0],
+  });
 
-  const dismissDrawer = () => {
+  const completeDismiss = () => {
     if (onClose) {
       onClose();
       return;
@@ -83,6 +102,21 @@ export function RecipeCreateScreen({
     }
 
     router.replace('/' as Href);
+  };
+
+  const dismissDrawer = () => {
+    if (closingRef.current) {
+      return;
+    }
+
+    closingRef.current = true;
+
+    Animated.timing(drawerProgress, {
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
+      toValue: 0,
+      useNativeDriver: true,
+    }).start(completeDismiss);
   };
 
   const handlePrimaryAction = () => {
@@ -133,11 +167,32 @@ export function RecipeCreateScreen({
   };
 
   useEffect(() => {
-    setSelectedMode(initialModeOverride ?? getInitialRecipeCreateMode(params.mode));
+    setSelectedMode(
+      initialModeOverride ?? getInitialRecipeCreateMode(params.mode)
+    );
   }, [initialModeOverride, params.mode]);
+
+  useEffect(() => {
+    Animated.timing(drawerProgress, {
+      duration: 280,
+      easing: Easing.out(Easing.cubic),
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  }, [drawerProgress]);
 
   return (
     <View style={styles.overlay}>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.backdrop,
+          {
+            opacity: backdropOpacity,
+          },
+        ]}
+      />
+
       <Pressable
         accessibilityLabel={copy.close as string}
         onPress={dismissDrawer}
@@ -145,125 +200,153 @@ export function RecipeCreateScreen({
         testID="recipe-create-dismiss-backdrop"
       />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <Animated.View
         style={[
-          styles.sheet,
+          styles.sheetMotion,
           {
-            maxHeight: '94%',
-            paddingBottom: Math.max(insets.bottom, 12),
+            transform: [{ translateY: sheetTranslateY }],
           },
         ]}
       >
-        <View style={styles.handle} />
-
-        <View style={styles.header}>
-          <Pressable
-            accessibilityLabel={copy.close as string}
-            accessibilityRole="button"
-            hitSlop={12}
-            onPress={dismissDrawer}
-            testID="recipe-create-close-button"
-          >
-            <MaterialCommunityIcons color="#05070d" name="close" size={29} />
-          </Pressable>
-        </View>
-
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={[
+            styles.sheet,
+            {
+              maxHeight: '94%',
+            },
+          ]}
         >
-          <Text style={styles.title}>{copy.title as string}</Text>
+          <View style={styles.handle} />
 
-          <View style={styles.modeTabs}>
-            {recipeCreateModes.map((mode) => (
-              <CreateModeTab
-                item={modeCopy[mode]}
-                key={mode}
-                mode={mode}
-                onPress={() => setSelectedMode(mode)}
-                proLabel={copy.pro as string}
-                selected={mode === selectedMode}
-              />
-            ))}
-          </View>
-
-          <ModeInput
-            brandPlaceholder={copy.brandPlaceholder as string}
-            linkPlaceholder={copy.linkPlaceholder as string}
-            mode={selectedMode}
-            onChangeReferenceUrl={setReferenceUrl}
-            referenceUrl={referenceUrl}
-            referenceLinkError={
-              submitState.referenceLinkError ? (copy.invalidLink as string) : null
-            }
-          />
-
-          <QuestionTitle title={copy.nicheQuestion as string} />
-          <View style={styles.nicheGrid}>
-            {recipeCreateNiches.map((niche) => (
-              <NicheOption
-                key={niche.id}
-                label={language === 'ko' ? niche.labelKo : niche.label}
-                niche={niche}
-                onPress={() => setSelectedNicheId(niche.id)}
-                selected={niche.id === selectedNicheId}
-              />
-            ))}
-          </View>
-
-          {selectedNicheId === 'other' ? (
-            <View style={styles.otherInputRow}>
-              <MaterialCommunityIcons color="#ff9568" name="dots-horizontal-circle-outline" size={24} />
-              <TextInput
-                accessibilityLabel={copy.otherPlaceholder as string}
-                autoCapitalize="words"
-                maxLength={40}
-                onChangeText={setCustomNicheLabel}
-                placeholder={copy.otherPlaceholder as string}
-                placeholderTextColor="#9aa5b8"
-                style={styles.otherInput}
-                value={customNicheLabel}
-              />
-            </View>
-          ) : null}
-
-          <QuestionTitle title={copy.goalQuestion as string} />
-          <View style={styles.goalGrid}>
-            {recipeCreateGoals.map((goal) => (
-              <GoalCard
-                goal={goal}
-                key={goal.id}
-                label={language === 'ko' ? goal.labelKo : goal.label}
-                onPress={() => setSelectedGoalId(goal.id)}
-                selected={goal.id === selectedGoalId}
-              />
-            ))}
-          </View>
-        </ScrollView>
-
-        <View style={styles.footer}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !submitState.enabled }}
-            disabled={!submitState.enabled}
-            onPress={handlePrimaryAction}
-            style={styles.primaryButtonPressable}
-            testID="recipe-create-primary-action"
-          >
-            <LinearGradient
-              colors={brandActionGradient}
-              end={{ x: 1, y: 1 }}
-              start={{ x: 0, y: 0 }}
-              style={[styles.ctaButton, !submitState.enabled ? styles.ctaButtonDisabled : null]}
+          <View style={styles.header}>
+            <Pressable
+              accessibilityLabel={copy.close as string}
+              accessibilityRole="button"
+              hitSlop={12}
+              onPress={dismissDrawer}
+              testID="recipe-create-close-button"
             >
-              <Text style={styles.ctaText}>{copy.cta as string}</Text>
-              <MaterialCommunityIcons color="#fff" name="arrow-right" size={25} />
-            </LinearGradient>
-          </Pressable>
-        </View>
-      </KeyboardAvoidingView>
+              <MaterialCommunityIcons color="#05070d" name="close" size={29} />
+            </Pressable>
+          </View>
+
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.title}>{copy.title as string}</Text>
+
+            <View style={styles.modeTabs}>
+              {recipeCreateModes.map((mode) => (
+                <CreateModeTab
+                  item={modeCopy[mode]}
+                  key={mode}
+                  mode={mode}
+                  onPress={() => setSelectedMode(mode)}
+                  proLabel={copy.pro as string}
+                  selected={mode === selectedMode}
+                />
+              ))}
+            </View>
+
+            <ModeInput
+              brandPlaceholder={copy.brandPlaceholder as string}
+              linkPlaceholder={copy.linkPlaceholder as string}
+              mode={selectedMode}
+              onChangeReferenceUrl={setReferenceUrl}
+              referenceUrl={referenceUrl}
+              referenceLinkError={
+                submitState.referenceLinkError
+                  ? (copy.invalidLink as string)
+                  : null
+              }
+            />
+
+            <QuestionTitle title={copy.nicheQuestion as string} />
+            <View style={styles.nicheGrid}>
+              {recipeCreateNiches.map((niche) => (
+                <NicheOption
+                  key={niche.id}
+                  label={language === 'ko' ? niche.labelKo : niche.label}
+                  niche={niche}
+                  onPress={() => setSelectedNicheId(niche.id)}
+                  selected={niche.id === selectedNicheId}
+                />
+              ))}
+            </View>
+
+            {selectedNicheId === 'other' ? (
+              <View style={styles.otherInputRow}>
+                <MaterialCommunityIcons
+                  color="#ff9568"
+                  name="dots-horizontal-circle-outline"
+                  size={24}
+                />
+                <TextInput
+                  accessibilityLabel={copy.otherPlaceholder as string}
+                  autoCapitalize="words"
+                  maxLength={40}
+                  onChangeText={setCustomNicheLabel}
+                  placeholder={copy.otherPlaceholder as string}
+                  placeholderTextColor="#9aa5b8"
+                  style={styles.otherInput}
+                  value={customNicheLabel}
+                />
+              </View>
+            ) : null}
+
+            <QuestionTitle title={copy.goalQuestion as string} />
+            <View style={styles.goalGrid}>
+              {recipeCreateGoals.map((goal) => (
+                <GoalCard
+                  goal={goal}
+                  key={goal.id}
+                  label={language === 'ko' ? goal.labelKo : goal.label}
+                  onPress={() => setSelectedGoalId(goal.id)}
+                  selected={goal.id === selectedGoalId}
+                />
+              ))}
+            </View>
+          </ScrollView>
+
+          <View
+            style={[
+              styles.footer,
+              {
+                paddingBottom: Math.max(insets.bottom + 18, 28),
+              },
+            ]}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !submitState.enabled }}
+              disabled={!submitState.enabled}
+              onPress={handlePrimaryAction}
+              style={styles.primaryButtonPressable}
+              testID="recipe-create-primary-action"
+            >
+              <LinearGradient
+                colors={brandActionGradient}
+                end={{ x: 1, y: 1 }}
+                start={{ x: 0, y: 0 }}
+                style={[
+                  styles.ctaButton,
+                  !submitState.enabled ? styles.ctaButtonDisabled : null,
+                ]}
+              >
+                <Text style={styles.ctaText}>{copy.cta as string}</Text>
+                <MaterialCommunityIcons
+                  color="#fff"
+                  name="arrow-right"
+                  size={25}
+                />
+              </LinearGradient>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Animated.View>
     </View>
   );
 }
@@ -287,8 +370,16 @@ function CreateModeTab({
       onPress={onPress}
       style={[styles.modeTab, selected ? styles.modeTabActive : null]}
     >
-      <MaterialCommunityIcons color={selected ? '#ff9568' : '#64748b'} name={item.icon} size={23} />
-      <Text style={[styles.modeTabText, selected ? styles.modeTabTextActive : null]}>{item.tab}</Text>
+      <MaterialCommunityIcons
+        color={selected ? '#ff9568' : '#64748b'}
+        name={item.icon}
+        size={23}
+      />
+      <Text
+        style={[styles.modeTabText, selected ? styles.modeTabTextActive : null]}
+      >
+        {item.tab}
+      </Text>
       {isRecipeCreateModePro(mode) ? <ProBadge label={proLabel} /> : null}
     </Pressable>
   );
@@ -313,7 +404,8 @@ function ModeInput({
     return <View style={styles.modeInputSpacer} />;
   }
 
-  const iconName: IconName = mode === 'brand' ? 'briefcase-outline' : 'link-variant';
+  const iconName: IconName =
+    mode === 'brand' ? 'briefcase-outline' : 'link-variant';
   const inputConfig = getRecipeCreateModeInputConfig({
     brandPlaceholder,
     linkPlaceholder,
@@ -350,7 +442,11 @@ function ModeInput({
           placeholder={inputConfig.placeholder}
           placeholderTextColor="#9aa5b8"
           style={styles.underlineInput}
-          testID={mode === 'reference' ? 'recipe-create-reference-link-input' : undefined}
+          testID={
+            mode === 'reference'
+              ? 'recipe-create-reference-link-input'
+              : undefined
+          }
           value={inputConfig.value}
         />
       </View>
@@ -388,12 +484,24 @@ function NicheOption({
       onPress={onPress}
       style={[styles.nicheOption, selected ? styles.nicheOptionActive : null]}
     >
-      <MaterialCommunityIcons color={selected ? '#ff9568' : '#94a3b8'} name={getNicheIcon(niche.id)} size={25} />
-      <Text numberOfLines={1} style={[styles.nicheLabel, selected ? styles.nicheLabelActive : null]}>
+      <MaterialCommunityIcons
+        color={selected ? '#ff9568' : '#94a3b8'}
+        name={getNicheIcon(niche.id)}
+        size={25}
+      />
+      <Text
+        numberOfLines={1}
+        style={[styles.nicheLabel, selected ? styles.nicheLabelActive : null]}
+      >
         {label}
       </Text>
       {selected ? (
-        <MaterialCommunityIcons color="#ff9568" name="check-circle" size={20} style={styles.nicheCheck} />
+        <MaterialCommunityIcons
+          color="#ff9568"
+          name="check-circle"
+          size={20}
+          style={styles.nicheCheck}
+        />
       ) : null}
     </Pressable>
   );
@@ -411,21 +519,32 @@ function GoalCard({
   selected: boolean;
 }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.goalCardPressable}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={styles.goalCardPressable}
+    >
       <ImageBackground
         imageStyle={styles.goalImage}
         resizeMode="cover"
         source={toImageSource(goal.imageSource)}
         style={[styles.goalCard, selected ? styles.goalCardActive : null]}
       >
-        <LinearGradient colors={['rgba(15,23,42,0.04)', 'rgba(15,23,42,0.62)']} style={StyleSheet.absoluteFill} />
+        <LinearGradient
+          colors={['rgba(15,23,42,0.04)', 'rgba(15,23,42,0.62)']}
+          style={StyleSheet.absoluteFill}
+        />
         {selected ? (
           <View style={styles.goalCheck}>
             <MaterialCommunityIcons color="#ffffff" name="check" size={25} />
           </View>
         ) : null}
         <View style={styles.goalCopy}>
-          <MaterialCommunityIcons color="#ffffff" name={getGoalIcon(goal.id)} size={29} />
+          <MaterialCommunityIcons
+            color="#ffffff"
+            name={getGoalIcon(goal.id)}
+            size={29}
+          />
           <Text numberOfLines={2} style={styles.goalLabel}>
             {label}
           </Text>
