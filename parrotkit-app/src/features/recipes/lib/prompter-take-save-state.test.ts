@@ -5,8 +5,8 @@ import {
 
 const idleCopy = getPrompterTakeReviewCopy('idle');
 
-if (idleCopy.primaryActionLabel !== 'Save take') {
-  throw new Error('Recorded prompter takes should offer an explicit save action.');
+if (idleCopy.primaryActionLabel !== 'Keep take') {
+  throw new Error('Recorded prompter takes should make local keep the primary action.');
 }
 
 const savedCopy = getPrompterTakeReviewCopy('kept');

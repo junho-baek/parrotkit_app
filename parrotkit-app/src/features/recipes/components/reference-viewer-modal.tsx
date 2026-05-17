@@ -15,6 +15,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { AppLanguage } from "@/core/i18n/app-language";
 import { brandActionGradient } from "@/core/theme/colors";
 import { toImageSource } from "@/core/ui/image-source";
+import {
+  getReferenceViewerHeader,
+  getReferenceViewerRailItems,
+  type ReferenceViewerRailItem,
+} from "@/features/recipes/lib/reference-viewer-ui";
 import type { ShootBoardCut } from "@/features/recipes/lib/shoot-board-model";
 
 export type ReferenceViewerModalProps = {
@@ -40,6 +45,12 @@ export function ReferenceViewerModal({
 }: ReferenceViewerModalProps) {
   const copy = referenceCopy[language];
   const insets = useSafeAreaInsets();
+  const headerModel = getReferenceViewerHeader({ cut, language });
+  const railItems = getReferenceViewerRailItems({
+    activeCutId: cut.id,
+    cuts,
+    language,
+  });
   const speakingLine = getSpeakingLine(language, cut);
 
   return (
@@ -72,16 +83,11 @@ export function ReferenceViewerModal({
 
           <View style={styles.headerTitleWrap}>
             <Text numberOfLines={1} style={styles.headerTitle}>
-              {formatSceneTitle(language, cut)}
+              {headerModel.title}
             </Text>
-            <View style={styles.headerMeta}>
-              <View style={styles.referencePill}>
-                <Text style={styles.referencePillText}>{copy.reference}</Text>
-              </View>
-              <Text numberOfLines={1} style={styles.headerTime}>
-                {cut.timeRangeLabel}
-              </Text>
-            </View>
+            <Text numberOfLines={1} style={styles.headerTime}>
+              {headerModel.meta}
+            </Text>
           </View>
 
           <Pressable
@@ -116,21 +122,34 @@ export function ReferenceViewerModal({
           </View>
         </View>
 
-        <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <View
+          style={[
+            styles.bottom,
+            { paddingBottom: Math.max(insets.bottom, 12) },
+          ]}
+        >
           <ScrollView
             horizontal
             contentContainerStyle={styles.carousel}
             showsHorizontalScrollIndicator={false}
           >
-            {cuts.map((item) => (
-              <CutThumb
-                active={item.id === cut.id}
-                cut={item}
-                key={item.id}
-                language={language}
-                onPress={() => onSelectCut?.(item)}
-              />
-            ))}
+            {railItems.map((item) => {
+              const targetCut = cuts.find(
+                (candidate) => candidate.id === item.cutId,
+              );
+
+              if (!targetCut) return null;
+
+              return (
+                <CutThumb
+                  active={item.active}
+                  cut={targetCut}
+                  item={item}
+                  key={item.cutId}
+                  onPress={() => onSelectCut?.(targetCut)}
+                />
+              );
+            })}
           </ScrollView>
 
           <View style={styles.actions}>
@@ -195,7 +214,12 @@ function ReferenceMedia({ cut }: { cut: ShootBoardCut }) {
   }
 
   if (cut.thumbnailSource || cut.thumbnailUrl) {
-    return <Image source={cut.thumbnailSource ?? toImageSource(cut.thumbnailUrl)} style={styles.previewImage} />;
+    return (
+      <Image
+        source={cut.thumbnailSource ?? toImageSource(cut.thumbnailUrl)}
+        style={styles.previewImage}
+      />
+    );
   }
 
   return (
@@ -243,16 +267,17 @@ function ReferenceVideoPlayer({ source }: { source: string | number }) {
 function CutThumb({
   active,
   cut,
-  language,
+  item,
   onPress,
 }: {
   active: boolean;
   cut: ShootBoardCut;
-  language: AppLanguage;
+  item: ReferenceViewerRailItem;
   onPress: () => void;
 }) {
   return (
     <Pressable
+      accessibilityLabel={item.accessibilityLabel}
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
@@ -269,22 +294,10 @@ function CutThumb({
       ) : null}
       <View style={styles.cutThumbShade} />
       <Text numberOfLines={1} style={styles.cutThumbOrder}>
-        #{cut.order}
-      </Text>
-      <Text numberOfLines={2} style={styles.cutThumbTitle}>
-        {language === "ko"
-          ? cut.roleLabel || cut.titleKo
-          : cut.roleLabel || cut.title}
+        {item.visibleLabel}
       </Text>
     </Pressable>
   );
-}
-
-function formatSceneTitle(language: AppLanguage, cut: ShootBoardCut) {
-  const role = cut.roleLabel || (language === "ko" ? cut.titleKo : cut.title);
-  return language === "ko"
-    ? `컷 #${cut.order}: ${role}`
-    : `Cut #${cut.order}: ${role}`;
 }
 
 function getSpeakingLine(language: AppLanguage, cut: ShootBoardCut) {
@@ -298,7 +311,6 @@ const referenceCopy: Record<
   {
     bookmark: string;
     close: string;
-    reference: string;
     shootThisScene: string;
     useAsGuide: string;
   }
@@ -306,14 +318,12 @@ const referenceCopy: Record<
   en: {
     bookmark: "Bookmark reference",
     close: "Close reference",
-    reference: "Reference",
     shootThisScene: "Film this cut",
     useAsGuide: "Use as guide",
   },
   ko: {
     bookmark: "레퍼런스 저장",
     close: "레퍼런스 닫기",
-    reference: "Reference",
     shootThisScene: "이 컷 촬영",
     useAsGuide: "가이드로 사용",
   },
@@ -351,32 +361,12 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0,
   },
-  headerMeta: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 5,
-  },
-  referencePill: {
-    backgroundColor: "rgba(255, 255, 255, 0.14)",
-    borderColor: "rgba(255, 255, 255, 0.18)",
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-  },
-  referencePillText: {
-    color: "#ffffff",
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 0,
-  },
   headerTime: {
     color: "rgba(255, 255, 255, 0.58)",
-    flex: 1,
     fontSize: 12,
     fontWeight: "800",
     letterSpacing: 0,
+    marginTop: 5,
   },
   main: {
     alignItems: "center",
@@ -478,17 +468,9 @@ const styles = StyleSheet.create({
   },
   cutThumbOrder: {
     color: "#ffffff",
-    fontSize: 10,
+    fontSize: 15,
     fontWeight: "900",
     letterSpacing: 0,
-  },
-  cutThumbTitle: {
-    color: "#ffffff",
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 0,
-    lineHeight: 12,
-    marginTop: 2,
   },
   actions: {
     flexDirection: "row",

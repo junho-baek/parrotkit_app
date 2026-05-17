@@ -33,31 +33,31 @@ export function getPrompterTakeReviewCopy(
     case 'saved':
       return {
         caption: message ?? 'Saved to your native Gallery.',
-        primaryActionLabel: 'Save take',
+        primaryActionLabel: 'Keep take',
         title: 'Saved',
       };
     case 'shared':
       return {
         caption: message ?? 'Opened in another app.',
-        primaryActionLabel: 'Save take',
+        primaryActionLabel: 'Keep take',
         title: 'Opened',
       };
     case 'denied':
       return {
         caption: message ?? 'Allow Photos access, then save again.',
-        primaryActionLabel: 'Save take',
+        primaryActionLabel: 'Keep take',
         title: 'Access Needed',
       };
     case 'failed':
       return {
         caption: message ?? 'Try Gallery or Open in... again.',
-        primaryActionLabel: 'Save take',
+        primaryActionLabel: 'Keep take',
         title: 'Export Failed',
       };
     default:
       return {
-        caption: message ?? 'Save it to this recipe, or export only when you choose.',
-        primaryActionLabel: 'Save take',
+        caption: message ?? 'Keep it in this recipe, or export when you choose.',
+        primaryActionLabel: 'Keep take',
         title: 'Take Recorded',
       };
   }

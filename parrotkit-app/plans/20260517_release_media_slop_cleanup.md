@@ -91,6 +91,15 @@ Revert the final commit. The helper files are additive, so rollback returns the 
 - iOS simulator has recently timed out through `simctl`; QA may require CoreSimulator reset before runtime evidence is possible.
 - External reference URLs remain a separate release risk because current viewer only plays asset/file/mp4/mov/m3u8 sources.
 
+## 결과
+
+- Implemented the reference viewer and camera prompter slop cleanup.
+- Added focused helper tests and a camera screen contract test.
+- Captured Android board, Android reference viewer, Android prompter idle, iOS board, and iOS prompter direct-route evidence.
+- Wrote the QA report to `output/reports/20260517_release_media_slop_cleanup.md`.
+- Wrote completion context to `context/context_20260517_release_media_slop_cleanup.md`.
+- Remaining QA risk: Android emulator crashed during the latest record-button attempt, and iOS dev-client was not installed, so record/save needs one more dev-client or physical-device pass before submission.
+
 ---
 
 ## Task 1: DESIGN.md Contract For Reference Viewer And Prompter

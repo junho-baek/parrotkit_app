@@ -1,19 +1,19 @@
 export type PrompterDisplayMode = "card" | "full-script";
 
 export type PrompterDisplayModel = {
-  label: "CARD PROMPT" | "FULL SCRIPT";
+  label: "Line" | "Script";
   lines: string[];
   mode: PrompterDisplayMode;
 };
 
 export type PrompterDisplayModeOption = {
   disabled: boolean;
-  label: "Current cut" | "Full script";
+  label: "Line" | "Script";
   mode: PrompterDisplayMode;
 };
 
 export type PrompterControlsLayoutModel = {
-  controlGroups: Array<"display-mode" | "manual-scroll" | "text-size">;
+  controlGroups: Array<"display-mode" | "manual-scroll" | "opacity" | "text-size">;
   controlsRegion: "persistent-dock";
   mode: PrompterDisplayMode;
   scrollRegion: "script-body-only";
@@ -145,14 +145,14 @@ export function getPrompterDisplayModel({
 
   if (mode === "full-script" && compactFullScript) {
     return {
-      label: "FULL SCRIPT",
+      label: "Script",
       lines: getScriptParagraphs(compactFullScript),
       mode: "full-script",
     };
   }
 
   return {
-    label: "CARD PROMPT",
+    label: "Line",
     lines: compactFallbackLines,
     mode: "card",
   };
@@ -168,12 +168,12 @@ export function getPrompterDisplayModeOptions({
   return [
     {
       disabled: false,
-      label: "Current cut",
+      label: "Line",
       mode: "card",
     },
     {
       disabled: !hasFullScript,
-      label: "Full script",
+      label: "Script",
       mode: "full-script",
     },
   ];
@@ -217,7 +217,7 @@ export function getPrompterControlsLayoutModel({
   mode: PrompterDisplayMode;
 }): PrompterControlsLayoutModel {
   return {
-    controlGroups: ["display-mode", "text-size", "manual-scroll"],
+    controlGroups: ["display-mode", "text-size", "opacity", "manual-scroll"],
     controlsRegion: "persistent-dock",
     mode,
     scrollRegion: "script-body-only",

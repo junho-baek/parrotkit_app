@@ -20,6 +20,8 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { MockProjectTake } from '@/core/mocks/parrotkit-data';
@@ -32,12 +34,19 @@ import {
 import { NativeTakeTray } from '@/features/recipes/components/native-take-tray';
 import { createPrompterDraftBlock } from '@/features/recipes/lib/prompter-layout';
 import { getPrompterSavedTakeReturnHref } from '@/features/recipes/lib/prompter-take-save-state';
+import { getPrompterCutNavigation } from '@/features/recipes/lib/prompter-cut-navigation';
 import { getNextPrompterScrollOffset } from '@/features/recipes/lib/prompter-scroll';
 import {
   getPrompterModeState,
   resolvePrompterModeSwitchState,
   type PrompterModeMaxOffsets,
 } from '@/features/recipes/lib/prompter-mode-state';
+import {
+  getNextPrompterOpacityLevel,
+  getPrompterOpacityValue,
+  getPrompterTextSizeLevelFromPinch,
+  type PrompterOpacityLevel,
+} from '@/features/recipes/lib/prompter-overlay-controls';
 import {
   canAdjustPrompterTextSize,
   getNextPrompterTextSizeLevel,
@@ -52,9 +61,9 @@ import {
   getPrompterUiTextRenderModel,
   type PrompterDisplayMode,
 } from '@/features/recipes/lib/prompter-display';
-import { ShootingSceneSwitcher } from '@/features/recipes/components/shooting-scene-switcher';
 import { normalizeNativeRecipe } from '@/features/recipes/lib/recipe-domain-normalizer';
 import { openTakeInShareSheet, saveTakeToGallery } from '@/features/recipes/lib/take-export';
+import type { ShootBoardCut } from '@/features/recipes/lib/shoot-board-model';
 import type { NativeRecipeScene, PrompterBlock } from '@/features/recipes/types/recipe-domain';
 
 export function RecipePrompterCameraScreen() {
@@ -126,6 +135,10 @@ export function RecipePrompterCameraScreen() {
     useState<PrompterModeMaxOffsets>({});
   const [prompterScrollViewportHeight, setPrompterScrollViewportHeight] = useState(0);
   const [prompterDisplayMode, setPrompterDisplayMode] = useState<PrompterDisplayMode>('card');
+  const [activeCutId, setActiveCutId] = useState<string | null>(
+    typeof params.cutId === 'string' ? params.cutId : null,
+  );
+  const [prompterOpacityLevel, setPrompterOpacityLevel] = useState<PrompterOpacityLevel>('medium');
 
   useEffect(() => {
     if (!activeSceneId && recipe?.scenes[0]) {
@@ -139,16 +152,26 @@ export function RecipePrompterCameraScreen() {
     }
   }, [params.sceneId]);
 
+  useEffect(() => {
+    setActiveCutId(typeof params.cutId === 'string' ? params.cutId : null);
+  }, [params.cutId]);
+
   const activeScene = useMemo(
     () => recipe?.scenes.find((scene) => scene.id === activeSceneId) ?? recipe?.scenes[0] ?? null,
     [activeSceneId, recipe]
   );
-  const activeSceneIndex = useMemo(
-    () => recipe && activeScene ? Math.max(0, recipe.scenes.findIndex((scene) => scene.id === activeScene.id)) : 0,
-    [activeScene, recipe]
+  const activeCutNavigation = useMemo(
+    () => getPrompterCutNavigation({
+      fallbackSceneId: activeSceneId,
+      selectedCutId: activeCutId,
+      shootBoard,
+    }),
+    [activeCutId, activeSceneId, shootBoard],
   );
-  const previousScene = recipe && activeSceneIndex > 0 ? recipe.scenes[activeSceneIndex - 1] : null;
-  const nextScene = recipe && activeSceneIndex < recipe.scenes.length - 1 ? recipe.scenes[activeSceneIndex + 1] : null;
+  const orderedPrompterCuts = useMemo(
+    () => [...(shootBoard?.cuts ?? [])].sort((first, second) => first.order - second.order),
+    [shootBoard],
+  );
   const sceneTakeCollection = recipe && activeScene ? getSceneTakeCollection(recipe.id, activeScene.id) : null;
   const bestTake = recipe && activeScene ? getSceneBestTake(recipe.id, activeScene.id) : null;
   const activeBlocks = activeScene ? sceneBlocksById[activeScene.id] ?? activeScene.prompter.blocks : [];
@@ -164,6 +187,14 @@ export function RecipePrompterCameraScreen() {
     () => visibleBlocks.find((block) => block.id === focusedBlockId) ?? null,
     [focusedBlockId, visibleBlocks]
   );
+
+  useEffect(() => {
+    const cutSceneId = activeCutNavigation.activeCut?.sceneId;
+
+    if (cutSceneId && cutSceneId !== activeSceneId) {
+      setActiveSceneId(cutSceneId);
+    }
+  }, [activeCutNavigation.activeCut?.sceneId, activeSceneId]);
 
   useEffect(() => {
     if (!recipe) return;
@@ -430,6 +461,22 @@ export function RecipePrompterCameraScreen() {
     setPrompterModeSettings(prompterDisplayMode, { textSizeLevel: nextLevel });
   }, [prompterDisplayMode, prompterTextSizeLevel, setPrompterModeSettings, setPrompterTextSizeLevel]);
 
+  const handlePrompterPinch = useCallback((scale: number) => {
+    const nextLevel = getPrompterTextSizeLevelFromPinch({
+      level: prompterTextSizeLevel,
+      scale,
+    });
+
+    if (nextLevel === prompterTextSizeLevel) return;
+
+    setPrompterTextSizeLevel(nextLevel);
+    setPrompterModeSettings(prompterDisplayMode, { textSizeLevel: nextLevel });
+  }, [prompterDisplayMode, prompterTextSizeLevel, setPrompterModeSettings, setPrompterTextSizeLevel]);
+
+  const handleAdjustPrompterOpacity = useCallback((direction: 'decrease' | 'increase') => {
+    setPrompterOpacityLevel((current) => getNextPrompterOpacityLevel(current, direction));
+  }, []);
+
   const handleRecordPress = useCallback(async () => {
     if (recording) {
       cameraRef.current?.stopRecording();
@@ -508,10 +555,10 @@ export function RecipePrompterCameraScreen() {
 
     try {
       const savedTake = addSceneProjectTake(recipe.id, activeScene.id, reviewUri, {
-        activeCutId: typeof params.cutId === 'string' ? params.cutId : null,
+        activeCutId,
       });
       const returnHref = getPrompterSavedTakeReturnHref({
-        cutId: typeof params.cutId === 'string' ? params.cutId : null,
+        cutId: activeCutId,
         recipeId: recipe.id,
         sceneId: activeScene.id,
         takeId: savedTake?.id,
@@ -519,8 +566,8 @@ export function RecipePrompterCameraScreen() {
 
       setSavedReviewReturnHref(returnHref);
       setReviewStatus('kept');
-      setReviewStatusMessage(`Saved locally in ${activeScene.title}.`);
-      setSaveMessage(`Saved locally in ${activeScene.title}.`);
+      setReviewStatusMessage('Kept in this cut.');
+      setSaveMessage('Kept in this cut.');
     } catch {
       setReviewStatus('failed');
       setReviewStatusMessage('Could not save this take locally. Try again.');
@@ -529,9 +576,9 @@ export function RecipePrompterCameraScreen() {
     }
   }, [
     activeScene,
+    activeCutId,
     addSceneProjectTake,
     handleBack,
-    params.cutId,
     recipe,
     reviewStatus,
     reviewUri,
@@ -620,7 +667,7 @@ export function RecipePrompterCameraScreen() {
       fallbackActionLine: getCameraActionLine(activeScene),
       fallbackLineToSay: getCameraPrimaryLine(activeScene),
       sceneId: activeScene.id,
-      selectedCutId: typeof params.cutId === 'string' ? params.cutId : null,
+      selectedCutId: activeCutId,
       shootBoard,
     })
     : null;
@@ -679,7 +726,7 @@ export function RecipePrompterCameraScreen() {
 
             <View className="max-w-[230px] rounded-full border border-white/15 bg-black/35 px-3 py-1.5">
               <Text className="text-[12px] font-semibold text-white/85" numberOfLines={1}>
-                #{activeScene.sceneNumber} · {getCameraSceneRole(activeSceneIndex, recipe.scenes.length)} · {activeScene.endTime}
+                {activeCutNavigation.currentIndex || activeScene.sceneNumber}/{activeCutNavigation.totalCuts || recipe.scenes.length} · {activeScene.endTime}
               </Text>
             </View>
 
@@ -693,12 +740,14 @@ export function RecipePrompterCameraScreen() {
 
         <View pointerEvents="box-none" className="flex-1" onLayout={handleOverlayLayout}>
           <CameraCoachOverlay
+            currentCutIndex={activeCutNavigation.currentIndex || activeScene.sceneNumber}
             fullScript={fullScript}
             lineToSay={activeCutText?.lineToSay}
-            recording={recording}
             scene={activeScene}
-            sceneIndex={activeSceneIndex}
             shootingGuideline={activeCutText?.shootingGuideline}
+            onPrompterOpacityDecrease={() => handleAdjustPrompterOpacity('decrease')}
+            onPrompterOpacityIncrease={() => handleAdjustPrompterOpacity('increase')}
+            onPrompterPinch={handlePrompterPinch}
             onPrompterContentSizeChange={handlePrompterContentSizeChange}
             onPrompterDisplayModeChange={handlePrompterDisplayModeChange}
             onPrompterScroll={handlePrompterScroll}
@@ -711,9 +760,10 @@ export function RecipePrompterCameraScreen() {
             prompterCanScrollDown={prompterScrollOffset < prompterScrollMaxOffset}
             prompterCanScrollUp={prompterScrollOffset > 0}
             prompterDisplayMode={prompterDisplayMode}
+            prompterOpacity={getPrompterOpacityValue(prompterOpacityLevel)}
             prompterScrollRef={prompterScrollRef}
             prompterTextSizeLevel={prompterTextSizeLevel}
-            totalScenes={recipe.scenes.length}
+            totalCuts={activeCutNavigation.totalCuts || recipe.scenes.length}
           />
         </View>
 
@@ -736,22 +786,35 @@ export function RecipePrompterCameraScreen() {
               onSaveToGallery={handleSaveTakeToGallery}
               onSetBestTake={handleSetBestTake}
               takes={sceneTakeCollection.takes}
-              title="Scene takes"
+              title="Takes"
             />
           ) : null}
 
-          <ShootingSceneSwitcher
-            activeSceneId={activeScene.id}
-            onSelectScene={setActiveSceneId}
-            scenes={recipe.scenes}
-          />
+          {orderedPrompterCuts.length > 0 ? (
+            <PrompterCutRail
+              activeCutId={activeCutNavigation.activeCut?.id ?? null}
+              cuts={orderedPrompterCuts}
+              onSelectCut={(targetCut) => {
+                setActiveCutId(targetCut.id);
+                if (targetCut.sceneId) {
+                  setActiveSceneId(targetCut.sceneId);
+                }
+              }}
+            />
+          ) : null}
 
           <View style={styles.cameraControlRow}>
             <PrompterStepButton
-              disabled={!previousScene}
-              label="Prev cut"
+              disabled={!activeCutNavigation.previousCut}
+              label="Prev"
               onPress={() => {
-                if (previousScene) setActiveSceneId(previousScene.id);
+                const previousCut = activeCutNavigation.previousCut;
+                if (!previousCut) return;
+
+                setActiveCutId(previousCut.id);
+                if (previousCut.sceneId) {
+                  setActiveSceneId(previousCut.sceneId);
+                }
               }}
             />
             <CenterRecordButton
@@ -760,10 +823,16 @@ export function RecipePrompterCameraScreen() {
               recording={recording}
             />
             <PrompterStepButton
-              disabled={!nextScene}
-              label="Next cut"
+              disabled={!activeCutNavigation.nextCut}
+              label="Next"
               onPress={() => {
-                if (nextScene) setActiveSceneId(nextScene.id);
+                const nextCut = activeCutNavigation.nextCut;
+                if (!nextCut) return;
+
+                setActiveCutId(nextCut.id);
+                if (nextCut.sceneId) {
+                  setActiveSceneId(nextCut.sceneId);
+                }
               }}
             />
           </View>
@@ -791,12 +860,14 @@ export function RecipePrompterCameraScreen() {
 }
 
 function CameraCoachOverlay({
+  currentCutIndex,
   fullScript,
   lineToSay,
-  recording,
   scene,
-  sceneIndex,
   shootingGuideline,
+  onPrompterOpacityDecrease,
+  onPrompterOpacityIncrease,
+  onPrompterPinch,
   onPrompterContentSizeChange,
   onPrompterDisplayModeChange,
   onPrompterScroll,
@@ -809,16 +880,19 @@ function CameraCoachOverlay({
   prompterCanScrollDown,
   prompterCanScrollUp,
   prompterDisplayMode,
+  prompterOpacity,
   prompterScrollRef,
   prompterTextSizeLevel,
-  totalScenes,
+  totalCuts,
 }: {
+  currentCutIndex: number;
   fullScript?: string;
   lineToSay?: string;
-  recording: boolean;
   scene: NativeRecipeScene;
-  sceneIndex: number;
   shootingGuideline?: string;
+  onPrompterOpacityDecrease: () => void;
+  onPrompterOpacityIncrease: () => void;
+  onPrompterPinch: (scale: number) => void;
   onPrompterContentSizeChange: (width: number, height: number) => void;
   onPrompterDisplayModeChange: (mode: PrompterDisplayMode) => void;
   onPrompterScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
@@ -831,9 +905,10 @@ function CameraCoachOverlay({
   prompterCanScrollDown: boolean;
   prompterCanScrollUp: boolean;
   prompterDisplayMode: PrompterDisplayMode;
+  prompterOpacity: number;
   prompterScrollRef: React.RefObject<ScrollView | null>;
   prompterTextSizeLevel: PrompterTextSizeLevel;
-  totalScenes: number;
+  totalCuts: number;
 }) {
   const primaryLine = lineToSay?.trim() || getCameraPrimaryLine(scene);
   const actionLine = shootingGuideline?.trim() || getCameraActionLine(scene);
@@ -861,25 +936,19 @@ function CameraCoachOverlay({
     direction: 'increase',
     level: prompterTextSizeLevel,
   });
-  const progress = `${Math.max(12, ((sceneIndex + 1) / totalScenes) * 100)}%` as DimensionValue;
+  const progress = `${Math.max(12, (currentCutIndex / Math.max(1, totalCuts)) * 100)}%` as DimensionValue;
   const isFullScriptMode = prompterDisplay.mode === 'full-script';
   const prompterControlsLayout = getPrompterControlsLayoutModel({ mode: prompterDisplay.mode });
+  const pinchGesture = useMemo(
+    () => Gesture.Pinch().onEnd((event) => {
+      runOnJS(onPrompterPinch)(event.scale);
+    }),
+    [onPrompterPinch],
+  );
 
   return (
     <View pointerEvents="box-none" style={styles.coachOverlay}>
       <View pointerEvents="none">
-        <View style={styles.coachTopRow}>
-          <View style={styles.scenePill}>
-            <Text style={styles.scenePillText}>
-              Scene {sceneIndex + 1}/{totalScenes} · {getCameraSceneRole(sceneIndex, totalScenes)}
-            </Text>
-          </View>
-          <View style={[styles.recPill, recording ? styles.recPillActive : null]}>
-            <View style={styles.recDot} />
-            <Text style={styles.recText}>{recording ? 'REC' : 'READY'}</Text>
-          </View>
-        </View>
-
         <View style={styles.progressRail}>
           <View style={[styles.progressFill, { width: progress }]} />
         </View>
@@ -887,134 +956,146 @@ function CameraCoachOverlay({
 
       <View pointerEvents="box-none" style={styles.coachPromptStack}>
         <View pointerEvents="none" style={styles.actionCue}>
-          <Text style={styles.coachLabel}>SHOOTING GUIDELINE</Text>
           <Text style={styles.actionText}>{actionLine}</Text>
         </View>
 
-        <View style={styles.sayNowBlock}>
-          <View style={styles.sayNowHeaderRow}>
-            <Text style={styles.sayNowLabel}>{prompterDisplay.label}</Text>
-          </View>
-
-          <View
-            accessibilityLabel="Persistent prompter controls"
-            nativeID={`prompter-${prompterControlsLayout.controlsRegion}`}
-            style={styles.prompterPersistentControlDock}
-          >
+        <GestureDetector gesture={pinchGesture}>
+          <View style={[styles.sayNowBlock, { backgroundColor: `rgba(2, 6, 23, ${prompterOpacity})` }]}>
             <View
-              accessibilityLabel="Prompter view mode"
-              style={styles.prompterModeSwitch}
+              accessibilityLabel="Persistent prompter controls"
+              nativeID={`prompter-${prompterControlsLayout.controlsRegion}`}
+              style={styles.prompterPersistentControlDock}
             >
-              {prompterDisplayModeOptions.map((option) => {
-                const selected = prompterDisplay.mode === option.mode;
+              <View
+                accessibilityLabel="Prompter view mode"
+                style={styles.prompterModeSwitch}
+              >
+                {prompterDisplayModeOptions.map((option) => {
+                  const selected = prompterDisplay.mode === option.mode;
 
-                return (
-                  <Pressable
-                    key={option.mode}
-                    accessibilityLabel={`Show ${option.label.toLowerCase()} view`}
-                    accessibilityRole="tab"
-                    accessibilityState={{ disabled: option.disabled, selected }}
-                    disabled={option.disabled}
-                    onPress={() => onPrompterDisplayModeChange(option.mode)}
-                    style={[
-                      styles.prompterModeButton,
-                      selected ? styles.prompterModeButtonSelected : null,
-                      option.disabled ? styles.prompterModeButtonDisabled : null,
-                    ]}
-                  >
-                    <Text
+                  return (
+                    <Pressable
+                      key={option.mode}
+                      accessibilityLabel={`Show ${option.label.toLowerCase()} view`}
+                      accessibilityRole="tab"
+                      accessibilityState={{ disabled: option.disabled, selected }}
+                      disabled={option.disabled}
+                      onPress={() => onPrompterDisplayModeChange(option.mode)}
                       style={[
-                        styles.prompterModeButtonText,
-                        selected ? styles.prompterModeButtonTextSelected : null,
-                        option.disabled ? styles.prompterModeButtonTextDisabled : null,
+                        styles.prompterModeButton,
+                        selected ? styles.prompterModeButtonSelected : null,
+                        option.disabled ? styles.prompterModeButtonDisabled : null,
                       ]}
                     >
-                      {option.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+                      <Text
+                        style={[
+                          styles.prompterModeButtonText,
+                          selected ? styles.prompterModeButtonTextSelected : null,
+                          option.disabled ? styles.prompterModeButtonTextDisabled : null,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <View style={styles.prompterPersistentButtonRow}>
+                <View style={styles.prompterTextSizeControls}>
+                  <PrompterControlButton
+                    accessibilityLabel="Make prompter text smaller"
+                    disabled={!canDecreaseTextSize}
+                    iconName="format-font-size-decrease"
+                    onPress={onPrompterTextSizeDecrease}
+                  />
+                  <Text style={styles.prompterTextSizeLabel}>{textSizeMetrics.label}</Text>
+                  <PrompterControlButton
+                    accessibilityLabel="Make prompter text larger"
+                    disabled={!canIncreaseTextSize}
+                    iconName="format-font-size-increase"
+                    onPress={onPrompterTextSizeIncrease}
+                  />
+                </View>
+                <View style={styles.prompterOpacityControls}>
+                  <PrompterControlButton
+                    accessibilityLabel="Make prompter background softer"
+                    disabled={false}
+                    iconName="minus"
+                    onPress={onPrompterOpacityDecrease}
+                  />
+                  <MaterialCommunityIcons color="rgba(255,255,255,0.72)" name="opacity" size={17} />
+                  <PrompterControlButton
+                    accessibilityLabel="Make prompter background stronger"
+                    disabled={false}
+                    iconName="plus"
+                    onPress={onPrompterOpacityIncrease}
+                  />
+                </View>
+                <View style={styles.prompterScrollControls}>
+                  <PrompterControlButton
+                    accessibilityLabel="Scroll prompter up"
+                    disabled={!prompterCanScrollUp}
+                    iconName="chevron-up"
+                    onPress={onPrompterScrollUp}
+                  />
+                  <PrompterControlButton
+                    accessibilityLabel="Reset prompter scroll"
+                    disabled={!prompterCanScrollUp}
+                    iconName="format-vertical-align-top"
+                    onPress={onPrompterScrollReset}
+                  />
+                  <PrompterControlButton
+                    accessibilityLabel="Scroll prompter down"
+                    disabled={!prompterCanScrollDown}
+                    iconName="chevron-down"
+                    onPress={onPrompterScrollDown}
+                  />
+                </View>
+              </View>
             </View>
 
-            <View style={styles.prompterPersistentButtonRow}>
-              <View style={styles.prompterTextSizeControls}>
-                <PrompterControlButton
-                  accessibilityLabel="Make prompter text smaller"
-                  disabled={!canDecreaseTextSize}
-                  iconName="format-font-size-decrease"
-                  onPress={onPrompterTextSizeDecrease}
-                />
-                <Text style={styles.prompterTextSizeLabel}>{textSizeMetrics.label}</Text>
-                <PrompterControlButton
-                  accessibilityLabel="Make prompter text larger"
-                  disabled={!canIncreaseTextSize}
-                  iconName="format-font-size-increase"
-                  onPress={onPrompterTextSizeIncrease}
-                />
-              </View>
-              <View style={styles.prompterScrollControls}>
-                <PrompterControlButton
-                  accessibilityLabel="Scroll prompter up"
-                  disabled={!prompterCanScrollUp}
-                  iconName="chevron-up"
-                  onPress={onPrompterScrollUp}
-                />
-                <PrompterControlButton
-                  accessibilityLabel="Reset prompter scroll"
-                  disabled={!prompterCanScrollUp}
-                  iconName="format-vertical-align-top"
-                  onPress={onPrompterScrollReset}
-                />
-                <PrompterControlButton
-                  accessibilityLabel="Scroll prompter down"
-                  disabled={!prompterCanScrollDown}
-                  iconName="chevron-down"
-                  onPress={onPrompterScrollDown}
-                />
-              </View>
-            </View>
+            <ScrollView
+              ref={prompterScrollRef}
+              accessibilityLabel={isFullScriptMode ? 'Scrollable full script prompter copy' : 'Manual scrolling prompter copy'}
+              bounces={false}
+              contentContainerStyle={[
+                styles.sayNowScrollContent,
+                isFullScriptMode ? styles.sayNowFullScriptScrollContent : null,
+              ]}
+              nestedScrollEnabled
+              onContentSizeChange={onPrompterContentSizeChange}
+              onLayout={onPrompterViewportLayout}
+              onScroll={onPrompterScroll}
+              scrollEventThrottle={16}
+              showsVerticalScrollIndicator={prompterCanScrollDown || prompterCanScrollUp}
+              style={[
+                styles.sayNowScroll,
+                isFullScriptMode ? styles.sayNowFullScriptScroll : null,
+              ]}
+            >
+              {prompterDisplay.lines.map((line, index) => (
+                <Text
+                  key={`${line}-${index}`}
+                  style={[
+                    styles.sayNowText,
+                    primaryScriptTextStyle,
+                    index > 0
+                      ? isFullScriptMode
+                        ? styles.sayNowFullScriptParagraph
+                        : [
+                          styles.sayNowTextSecondary,
+                          secondaryScriptTextStyle,
+                        ]
+                      : null,
+                  ]}
+                >
+                  {line}
+                </Text>
+              ))}
+            </ScrollView>
           </View>
-
-          <ScrollView
-            ref={prompterScrollRef}
-            accessibilityLabel={isFullScriptMode ? 'Scrollable full script prompter copy' : 'Manual scrolling prompter copy'}
-            bounces={false}
-            contentContainerStyle={[
-              styles.sayNowScrollContent,
-              isFullScriptMode ? styles.sayNowFullScriptScrollContent : null,
-            ]}
-            nestedScrollEnabled
-            onContentSizeChange={onPrompterContentSizeChange}
-            onLayout={onPrompterViewportLayout}
-            onScroll={onPrompterScroll}
-            scrollEventThrottle={16}
-            showsVerticalScrollIndicator={prompterCanScrollDown || prompterCanScrollUp}
-            style={[
-              styles.sayNowScroll,
-              isFullScriptMode ? styles.sayNowFullScriptScroll : null,
-            ]}
-          >
-            {prompterDisplay.lines.map((line, index) => (
-              <Text
-                key={`${line}-${index}`}
-                style={[
-                  styles.sayNowText,
-                  primaryScriptTextStyle,
-                  index > 0
-                    ? isFullScriptMode
-                      ? styles.sayNowFullScriptParagraph
-                      : [
-                        styles.sayNowTextSecondary,
-                        secondaryScriptTextStyle,
-                      ]
-                    : null,
-                ]}
-              >
-                {line}
-              </Text>
-            ))}
-          </ScrollView>
-        </View>
+        </GestureDetector>
       </View>
     </View>
   );
@@ -1101,6 +1182,49 @@ function PrompterStepButton({
   );
 }
 
+function PrompterCutRail({
+  activeCutId,
+  cuts,
+  onSelectCut,
+}: {
+  activeCutId: string | null;
+  cuts: ShootBoardCut[];
+  onSelectCut: (cut: ShootBoardCut) => void;
+}) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.prompterCutRail}>
+      <View style={styles.prompterCutRailContent}>
+        {cuts.map((cut) => {
+          const active = cut.id === activeCutId;
+
+          return (
+            <Pressable
+              accessibilityLabel={`Open cut ${cut.order}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              key={cut.id}
+              onPress={() => onSelectCut(cut)}
+              style={[
+                styles.prompterCutRailButton,
+                active ? styles.prompterCutRailButtonActive : null,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.prompterCutRailText,
+                  active ? styles.prompterCutRailTextActive : null,
+                ]}
+              >
+                {cut.order}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </ScrollView>
+  );
+}
+
 function CameraPermissionGate({
   onRequest,
   onBack,
@@ -1128,12 +1252,6 @@ function CameraPermissionGate({
       </View>
     </View>
   );
-}
-
-function getCameraSceneRole(sceneIndex: number, totalScenes: number) {
-  if (sceneIndex === 0) return 'Hook';
-  if (sceneIndex === totalScenes - 1) return 'CTA';
-  return 'Proof';
 }
 
 function getCameraPrimaryLine(scene: NativeRecipeScene) {
@@ -1227,8 +1345,8 @@ const styles = StyleSheet.create({
     maxWidth: 330,
   },
   actionCue: {
-    backgroundColor: 'rgba(249, 115, 22, 0.24)',
-    borderColor: 'rgba(251, 146, 60, 0.58)',
+    backgroundColor: 'rgba(15, 23, 42, 0.46)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     borderRadius: 22,
     borderWidth: 1,
     paddingHorizontal: 18,
@@ -1239,7 +1357,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '900',
     lineHeight: 24,
-    marginTop: 6,
   },
   cameraControlRow: {
     alignItems: 'flex-end',
@@ -1402,7 +1519,11 @@ const styles = StyleSheet.create({
   },
   prompterPersistentControlDock: {
     gap: 8,
-    marginTop: 12,
+  },
+  prompterOpacityControls: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
   prompterScrollControls: {
     flexDirection: 'row',
@@ -1438,6 +1559,37 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 10,
     fontWeight: '900',
+  },
+  prompterCutRail: {
+    marginBottom: 4,
+  },
+  prompterCutRailContent: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingRight: 2,
+  },
+  prompterCutRailButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 36,
+    justifyContent: 'center',
+    minWidth: 36,
+    paddingHorizontal: 12,
+  },
+  prompterCutRailButtonActive: {
+    backgroundColor: '#ffffff',
+    borderColor: '#ffffff',
+  },
+  prompterCutRailText: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  prompterCutRailTextActive: {
+    color: '#020617',
   },
   reviewOverlay: {
     ...StyleSheet.absoluteFillObject,

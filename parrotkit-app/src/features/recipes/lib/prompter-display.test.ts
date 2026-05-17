@@ -12,8 +12,8 @@ const fullScriptModel = getPrompterDisplayModel({
   fullScript: "  Hook line\n\nProof line\n\nCTA line  ",
 });
 
-if (fullScriptModel.label !== "FULL SCRIPT") {
-  throw new Error("Prompter should label derived continuous text as full script.");
+if (fullScriptModel.label !== "Script") {
+  throw new Error("Prompter full mode should use compact visible copy.");
 }
 
 if (
@@ -31,8 +31,8 @@ const cardFocusedModel = getPrompterDisplayModel({
   mode: "card",
 });
 
-if (cardFocusedModel.mode !== "card" || cardFocusedModel.label !== "CARD PROMPT") {
-  throw new Error("Prompter should expose a card-focused display mode for the active cut.");
+if (cardFocusedModel.mode !== "card" || cardFocusedModel.label !== "Line") {
+  throw new Error("Prompter current-cut mode should use compact visible copy.");
 }
 
 if (
@@ -49,8 +49,8 @@ const fullScriptFocusedModel = getPrompterDisplayModel({
   mode: "full-script",
 });
 
-if (fullScriptFocusedModel.mode !== "full-script" || fullScriptFocusedModel.label !== "FULL SCRIPT") {
-  throw new Error("Prompter should expose a full-script display mode for continuous reading.");
+if (fullScriptFocusedModel.mode !== "full-script" || fullScriptFocusedModel.label !== "Script") {
+  throw new Error("Prompter should expose compact script mode copy.");
 }
 
 if (
@@ -67,8 +67,8 @@ const fallbackModel = getPrompterDisplayModel({
   mode: "full-script",
 });
 
-if (fallbackModel.mode !== "card" || fallbackModel.label !== "CARD PROMPT") {
-  throw new Error("Prompter should keep the existing cut-line label when full script is empty.");
+if (fallbackModel.mode !== "card" || fallbackModel.label !== "Line") {
+  throw new Error("Prompter should fall back to compact current-cut copy when full script is empty.");
 }
 
 if (
@@ -281,10 +281,18 @@ if (
   displayModeOptions.length !== 2 ||
   displayModeOptions[0].mode !== "card" ||
   displayModeOptions[1].mode !== "full-script" ||
-  displayModeOptions[0].label !== "Current cut" ||
-  displayModeOptions[1].label !== "Full script"
+  displayModeOptions[0].label !== "Line" ||
+  displayModeOptions[1].label !== "Script"
 ) {
-  throw new Error("Prompter should expose current cut and full script switch options in a stable order.");
+  throw new Error("Prompter should expose compact switch options in a stable order.");
+}
+
+const compactOptions = getPrompterDisplayModeOptions({
+  fullScript: "One\n\nTwo",
+});
+
+if (compactOptions[0]?.label !== "Line" || compactOptions[1]?.label !== "Script") {
+  throw new Error("Prompter mode switch should avoid dashboard copy.");
 }
 
 if (displayModeOptions[0].disabled || displayModeOptions[1].disabled) {
@@ -317,4 +325,8 @@ if (!fullScriptControlLayout.controlGroups.includes("display-mode")) {
 
 if (!fullScriptControlLayout.controlGroups.includes("manual-scroll")) {
   throw new Error("Persistent prompter controls should include manual scroll buttons.");
+}
+
+if (!fullScriptControlLayout.controlGroups.includes("opacity")) {
+  throw new Error("Persistent prompter controls should include opacity controls.");
 }

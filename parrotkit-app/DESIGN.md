@@ -262,6 +262,14 @@ Cut naming and row hierarchy:
 - My Take owns take state. Count badges, final checks, and retake status should live inside or near the My Take frame, not as separate explanatory pills.
 - Reorder handles should appear only in reorder mode.
 
+Reference viewer and camera prompter:
+
+- Reference viewer titles should use execution names, not structure labels. Avoid visible `Hook`, `Proof`, `CTA`, `Reference`, or `Cut #1: Hook` style headers when the current cut title already explains the action.
+- Reference viewer cut navigation should be a compact rail. Use cut number/time for movement, not a second row of card titles.
+- Camera prompter is an active filming surface. Avoid visible labels such as `READY`, `Scene 1`, `CARD PROMPT`, `FULL SCRIPT`, and `SHOOTING GUIDELINE` unless they reduce immediate recording uncertainty.
+- Camera cut count must follow the shoot-board cut list. Added cuts count as real filming cuts.
+- Prompter text size and opacity controls should feel like filming controls, not configuration labels. Prefer icons, compact sliders, and short mode names.
+
 ### Recipe creation drawer
 
 Recipe creation must use the bottom drawer / modal sheet pattern. This is a carefully designed interaction and should not be flattened into a generic settings form.
