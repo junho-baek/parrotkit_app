@@ -1670,7 +1670,8 @@ function getRecipeWithAnalysisQaState(
               createdAt: timestamp,
               error: {
                 code: "provider_timeout",
-                messageUser: "The analysis provider timed out.",
+                messageUser:
+                  "Could not refresh Breakdown. Use the current guide for now.",
               },
               jobId: `qa-failed-${recipe.id}`,
               missingArtifacts: [],

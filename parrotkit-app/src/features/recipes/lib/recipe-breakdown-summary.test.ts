@@ -263,19 +263,12 @@ const partialSummary = getRecipeBreakdownSummary(
   "en",
 );
 
-if (partialSummary.analysisState?.kind !== "partial") {
-  throw new Error("Partial reference analysis jobs must surface a Breakdown state");
+if (partialSummary.analysisState) {
+  throw new Error("Partial reference analysis jobs must not render alert-like Breakdown state");
 }
 
-if (!partialSummary.analysisState.body.includes("Breakdown is ready")) {
-  throw new Error("Partial state must explain that Breakdown can still be used");
-}
-
-if (
-  partialSummary.analysisState.body.includes("partial_ready") ||
-  partialSummary.analysisState.body.includes("shooting_board_projection")
-) {
-  throw new Error("Partial state must not expose internal analysis status labels");
+if (partialSummary.sections.length !== expectedTitles.length) {
+  throw new Error("Partial jobs must keep the normal readable Breakdown sections");
 }
 
 const failedSummary = getRecipeBreakdownSummary(
@@ -288,7 +281,7 @@ const failedSummary = getRecipeBreakdownSummary(
         createdAt: "2026-05-17T00:00:00.000Z",
         error: {
           code: "provider_timeout",
-          messageUser: "The analysis provider timed out.",
+          messageUser: "Could not refresh Breakdown. Use the current guide for now.",
         },
         jobId: "job-failed",
         missingArtifacts: [],
@@ -307,10 +300,6 @@ if (failedSummary.analysisState?.kind !== "failed") {
   throw new Error("Failed reference analysis jobs must surface a Breakdown state");
 }
 
-if (failedSummary.analysisState.actionLabel !== "Retry analysis") {
-  throw new Error("Retryable failed state must expose a retry label");
-}
-
-if (!failedSummary.analysisState.body.includes("The analysis provider timed out.")) {
+if (!failedSummary.analysisState.body.includes("Could not refresh Breakdown.")) {
   throw new Error("Failed state must preserve the client-safe error message");
 }

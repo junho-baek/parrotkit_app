@@ -18,10 +18,8 @@ export type RecipeBreakdownSection = {
 };
 
 export type RecipeBreakdownAnalysisState = {
-  actionLabel?: string;
   body: string;
-  kind: "partial" | "failed";
-  title: string;
+  kind: "failed";
 };
 
 export type RecipeBreakdownSummary = {
@@ -34,15 +32,9 @@ export type RecipeBreakdownSummary = {
 const labels = {
   en: {
     breakdown: "Breakdown",
-    failedAction: "Retry analysis",
-    failedBodyFallback:
-      "Reference analysis did not finish. You can still use the current recipe, but the full Breakdown may be incomplete.",
-    failedTitle: "Analysis failed",
+    failedBodyFallback: "Could not refresh Breakdown. Use the current guide for now.",
     hook: "Hook",
     ideaAnalysis: "Idea Analysis",
-    partialBody:
-      "Breakdown is ready, but some generated recipe support is still missing. Use the analysis here while the rest catches up.",
-    partialTitle: "Analysis partially ready",
     story: "Storytelling",
     summary: "Summary",
     transcript: "Transcript",
@@ -50,15 +42,9 @@ const labels = {
   },
   ko: {
     breakdown: "분석",
-    failedAction: "분석 다시 시도",
-    failedBodyFallback:
-      "레퍼런스 분석이 끝나지 않았습니다. 현재 레시피는 계속 사용할 수 있지만 전체 분석은 일부 비어 있을 수 있습니다.",
-    failedTitle: "분석 실패",
+    failedBodyFallback: "분석을 새로고침하지 못했습니다. 지금은 현재 가이드를 사용하세요.",
     hook: "Hook",
     ideaAnalysis: "Idea Analysis",
-    partialBody:
-      "Breakdown은 준비됐지만 일부 생성 레시피 지원은 아직 비어 있습니다. 나머지가 준비되는 동안 이 분석을 사용할 수 있습니다.",
-    partialTitle: "분석 일부 준비됨",
     story: "Storytelling",
     summary: "Summary",
     transcript: "Transcript",
@@ -68,13 +54,9 @@ const labels = {
   AppLanguage,
   {
     breakdown: "Breakdown" | "분석";
-    failedAction: string;
     failedBodyFallback: string;
-    failedTitle: string;
     hook: string;
     ideaAnalysis: string;
-    partialBody: string;
-    partialTitle: string;
     story: string;
     summary: string;
     transcript: string;
@@ -323,20 +305,10 @@ export function getRecipeBreakdownAnalysisState(
     return undefined;
   }
 
-  if (job.clientStatus === "partial") {
-    return {
-      body: copy.partialBody,
-      kind: "partial",
-      title: copy.partialTitle,
-    };
-  }
-
   if (job.clientStatus === "failed") {
     return {
-      actionLabel: job.retryable ? copy.failedAction : undefined,
       body: compactText(job.error?.messageUser) || copy.failedBodyFallback,
       kind: "failed",
-      title: copy.failedTitle,
     };
   }
 

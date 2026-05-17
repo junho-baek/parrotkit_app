@@ -42,6 +42,10 @@ const breakdownSource = fs.readFileSync(
   path.resolve(__dirname, "../../lib/recipe-breakdown-summary.ts"),
   "utf8",
 );
+const breakdownPanelSource = fs.readFileSync(
+  path.resolve(__dirname, "../../components/recipe-breakdown-panel.tsx"),
+  "utf8",
+);
 
 for (const label of [
   "Summary",
@@ -62,8 +66,24 @@ for (const label of [
   "Idea angle",
   "Story format",
   "Proof points",
+  "Analysis partially ready",
+  "Analysis failed",
 ]) {
   if (breakdownSource.includes(label)) {
     throw new Error(`Breakdown tab must not use old ad hoc label: ${label}`);
+  }
+}
+
+for (const token of [
+  "AnalysisStateCard",
+  "#FFFBEB",
+  "#FEF2F2",
+  "#FDE68A",
+  "#FECACA",
+  "#DC2626",
+  "#D97706",
+]) {
+  if (breakdownPanelSource.includes(token)) {
+    throw new Error(`Breakdown panel must not render alert-like state chrome: ${token}`);
   }
 }
