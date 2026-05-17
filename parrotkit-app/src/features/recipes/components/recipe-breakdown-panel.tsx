@@ -9,6 +9,14 @@ export function RecipeBreakdownPanel({
 }) {
   return (
     <View style={{ gap: 22, paddingHorizontal: 20, paddingTop: 18 }}>
+      {breakdown.analysisState ? (
+        <AnalysisStateCard
+          actionLabel={breakdown.analysisState.actionLabel}
+          body={breakdown.analysisState.body}
+          kind={breakdown.analysisState.kind}
+          title={breakdown.analysisState.title}
+        />
+      ) : null}
       {breakdown.sections.map((section) => (
         <BreakdownSection
           body={section.body}
@@ -16,6 +24,72 @@ export function RecipeBreakdownPanel({
           title={section.title}
         />
       ))}
+    </View>
+  );
+}
+
+function AnalysisStateCard({
+  actionLabel,
+  body,
+  kind,
+  title,
+}: {
+  actionLabel?: string;
+  body: string;
+  kind: "partial" | "failed";
+  title: string;
+}) {
+  const accentColor = kind === "failed" ? "#DC2626" : "#D97706";
+  const backgroundColor = kind === "failed" ? "#FEF2F2" : "#FFFBEB";
+  const borderColor = kind === "failed" ? "#FECACA" : "#FDE68A";
+
+  return (
+    <View
+      style={{
+        backgroundColor,
+        borderColor,
+        borderRadius: 8,
+        borderWidth: 1,
+        gap: 6,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+      }}
+    >
+      <Text
+        style={{
+          color: accentColor,
+          fontSize: 13,
+          fontWeight: "900",
+          letterSpacing: 0,
+          lineHeight: 18,
+        }}
+      >
+        {title}
+      </Text>
+      <Text
+        style={{
+          color: "#334155",
+          fontSize: 13,
+          fontWeight: "600",
+          letterSpacing: 0,
+          lineHeight: 19,
+        }}
+      >
+        {body}
+      </Text>
+      {actionLabel ? (
+        <Text
+          style={{
+            color: accentColor,
+            fontSize: 13,
+            fontWeight: "900",
+            letterSpacing: 0,
+            lineHeight: 18,
+          }}
+        >
+          {actionLabel}
+        </Text>
+      ) : null}
     </View>
   );
 }

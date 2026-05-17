@@ -189,6 +189,8 @@ export function RecipeDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
+    analysisQaState?: "partial" | "failed";
+    boardTab?: "board" | "breakdown";
     highlightCutId?: string;
     recipeId?: string;
     referenceCutId?: string;
@@ -209,13 +211,17 @@ export function RecipeDetailScreen() {
     setRecipeEditorBoard,
   } = useMockWorkspace();
   const recipe = params.recipeId ? getRecipeById(params.recipeId) : null;
+  const displayRecipe = useMemo(
+    () => getRecipeWithAnalysisQaState(recipe, params.analysisQaState),
+    [params.analysisQaState, recipe],
+  );
   const routeHighlightedCutId =
     typeof params.highlightCutId === "string"
       ? params.highlightCutId
       : null;
   const nativeRecipe = useMemo(
-    () => (recipe ? normalizeNativeRecipe(recipe) : null),
-    [recipe],
+    () => (displayRecipe ? normalizeNativeRecipe(displayRecipe) : null),
+    [displayRecipe],
   );
 
   const [activeTab, setActiveTab] = useState<DetailTab>("recipe");
@@ -267,6 +273,14 @@ export function RecipeDetailScreen() {
   }, [params.tab]);
 
   useEffect(() => {
+    if (params.boardTab !== "board" && params.boardTab !== "breakdown") {
+      return;
+    }
+
+    setActiveBoardTab(params.boardTab);
+  }, [params.boardTab]);
+
+  useEffect(() => {
     if (!nativeRecipe) {
       boardStateRef.current = null;
       setBoardState(null);
@@ -296,12 +310,12 @@ export function RecipeDetailScreen() {
     setNoteEntryOpen(false);
     setReorderMode(false);
     setBoardDragActive(false);
-    setActiveBoardTab("board");
+    setActiveBoardTab(params.boardTab === "breakdown" ? "breakdown" : "board");
     setExpandedCutIds([]);
     setReferenceViewerCutId(null);
     setTakeViewerCutId(null);
     setSelectedTakeId(undefined);
-  }, [nativeRecipe, recipeSaved, setRecipeEditorBoard]);
+  }, [nativeRecipe, params.boardTab, recipeSaved, setRecipeEditorBoard]);
 
   const shootBoard = boardState;
   const renderedShootBoard = useMemo(() => {
@@ -1619,6 +1633,55 @@ function getTabLabel(language: AppLanguage, tab: DetailTab) {
 
 function isDetailTab(value: string): value is DetailTab {
   return value === "analysis" || value === "recipe" || value === "shoot";
+}
+
+function getRecipeWithAnalysisQaState(
+  recipe: MockRecipe | null,
+  state?: "partial" | "failed",
+): MockRecipe | null {
+  if (!recipe || (state !== "partial" && state !== "failed")) {
+    return recipe;
+  }
+
+  const timestamp = "2026-05-17T00:00:00.000Z";
+
+  return {
+    ...recipe,
+    analysisMetadata: {
+      ...recipe.analysisMetadata,
+      reference_analysis_job:
+        state === "partial"
+          ? {
+              artifacts: {
+                breakdownId: `breakdown-${recipe.id}`,
+              },
+              clientStatus: "partial",
+              createdAt: timestamp,
+              jobId: `qa-partial-${recipe.id}`,
+              missingArtifacts: ["projection"],
+              progressStage: "partial_ready",
+              retryable: false,
+              stageChecklist: [],
+              traceId: `trace-partial-${recipe.id}`,
+              updatedAt: timestamp,
+            }
+          : {
+              clientStatus: "failed",
+              createdAt: timestamp,
+              error: {
+                code: "provider_timeout",
+                messageUser: "The analysis provider timed out.",
+              },
+              jobId: `qa-failed-${recipe.id}`,
+              missingArtifacts: [],
+              progressStage: "failed",
+              retryable: true,
+              stageChecklist: [],
+              traceId: `trace-failed-${recipe.id}`,
+              updatedAt: timestamp,
+            },
+    },
+  };
 }
 
 function getSceneRoleLabel(
