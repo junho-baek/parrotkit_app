@@ -10,6 +10,22 @@ if (!source.includes('useState<"board" | "breakdown">("board")')) {
   throw new Error("Recipe detail must default to the Board tab");
 }
 
+if (!source.includes('boardTab?: "board" | "breakdown"')) {
+  throw new Error("Recipe detail must support deep-linking to the Board/Breakdown sub-tab for QA.");
+}
+
+if (!source.includes('analysisQaState?: "partial" | "failed"')) {
+  throw new Error("Recipe detail must support partial/failed analysis QA states.");
+}
+
+if (!source.includes('setActiveBoardTab(params.boardTab === "breakdown" ? "breakdown" : "board")')) {
+  throw new Error("Board initialization must preserve the Breakdown deep link.");
+}
+
+if (!source.includes("nativeRecipe, params.boardTab, recipeSaved")) {
+  throw new Error("Board initialization must rerun when the Board/Breakdown deep link changes.");
+}
+
 if (!source.includes("Board") || !source.includes("Breakdown")) {
   throw new Error("Recipe detail must expose Board / Breakdown labels");
 }

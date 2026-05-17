@@ -240,3 +240,77 @@ const hook = summary.sections.find((section) => section.id === "hook");
 if (!hook?.body.includes("There were so many requests")) {
   throw new Error("Hook section must preserve Sandcastle hook formula");
 }
+
+const partialSummary = getRecipeBreakdownSummary(
+  {
+    ...recipe,
+    analysisMetadata: {
+      ...recipe.analysisMetadata,
+      reference_analysis_job: {
+        artifacts: { breakdownId: "breakdown-1" },
+        clientStatus: "partial",
+        createdAt: "2026-05-17T00:00:00.000Z",
+        jobId: "job-partial",
+        missingArtifacts: ["shooting_board_projection"],
+        progressStage: "partial_ready",
+        retryable: false,
+        stageChecklist: [],
+        traceId: "trace-partial",
+        updatedAt: "2026-05-17T00:01:00.000Z",
+      },
+    },
+  },
+  "en",
+);
+
+if (partialSummary.analysisState?.kind !== "partial") {
+  throw new Error("Partial reference analysis jobs must surface a Breakdown state");
+}
+
+if (!partialSummary.analysisState.body.includes("Breakdown is ready")) {
+  throw new Error("Partial state must explain that Breakdown can still be used");
+}
+
+if (
+  partialSummary.analysisState.body.includes("partial_ready") ||
+  partialSummary.analysisState.body.includes("shooting_board_projection")
+) {
+  throw new Error("Partial state must not expose internal analysis status labels");
+}
+
+const failedSummary = getRecipeBreakdownSummary(
+  {
+    ...recipe,
+    referenceBreakdown: undefined,
+    analysisMetadata: {
+      reference_analysis_job: {
+        clientStatus: "failed",
+        createdAt: "2026-05-17T00:00:00.000Z",
+        error: {
+          code: "provider_timeout",
+          messageUser: "The analysis provider timed out.",
+        },
+        jobId: "job-failed",
+        missingArtifacts: [],
+        progressStage: "failed",
+        retryable: true,
+        stageChecklist: [],
+        traceId: "trace-failed",
+        updatedAt: "2026-05-17T00:01:00.000Z",
+      },
+    },
+  },
+  "en",
+);
+
+if (failedSummary.analysisState?.kind !== "failed") {
+  throw new Error("Failed reference analysis jobs must surface a Breakdown state");
+}
+
+if (failedSummary.analysisState.actionLabel !== "Retry analysis") {
+  throw new Error("Retryable failed state must expose a retry label");
+}
+
+if (!failedSummary.analysisState.body.includes("The analysis provider timed out.")) {
+  throw new Error("Failed state must preserve the client-safe error message");
+}
