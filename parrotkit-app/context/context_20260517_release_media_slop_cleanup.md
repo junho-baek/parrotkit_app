@@ -48,3 +48,21 @@ Runtime evidence:
 - Android emulator crashed during the latest record-button QA attempt, so record/save should be re-run on a stable emulator or physical Android device.
 - iOS dev-client was not installed in the simulator; iOS evidence used Expo Go and direct route screenshots. Record/save should be repeated in dev-client or on device before store submission.
 - External reference URL playback remains out of scope for this task.
+
+## Follow-up: Reference Viewer Bottom UI
+
+The first implementation still left a thumbnail-strip control under the reference video. That was not aligned with the compact rail rule and still looked like a second preview/card layer.
+
+Follow-up changes:
+
+- Replaced the bottom thumbnail strip with compact numeric rail buttons.
+- Removed bottom-rail thumbnail image rendering from `ReferenceViewerModal`.
+- Shortened the bottom actions to `Guide` and `Film`.
+- Added `src/features/recipes/components/reference-viewer-modal-contract.test.ts` to block the thumbnail-strip rail from returning.
+
+Verification:
+
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/components/reference-viewer-modal-contract.test.ts`
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/lib/reference-viewer-ui.test.ts`
+- `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json`
+- `git diff --check`

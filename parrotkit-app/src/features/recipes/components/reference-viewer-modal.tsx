@@ -132,6 +132,7 @@ export function ReferenceViewerModal({
             horizontal
             contentContainerStyle={styles.carousel}
             showsHorizontalScrollIndicator={false}
+            style={styles.bottomRail}
           >
             {railItems.map((item) => {
               const targetCut = cuts.find(
@@ -141,9 +142,8 @@ export function ReferenceViewerModal({
               if (!targetCut) return null;
 
               return (
-                <CutThumb
+                <CutRailButton
                   active={item.active}
-                  cut={targetCut}
                   item={item}
                   key={item.cutId}
                   onPress={() => onSelectCut?.(targetCut)}
@@ -164,7 +164,7 @@ export function ReferenceViewerModal({
               ]}
             >
               <MaterialCommunityIcons
-                color="#ffffff"
+                color="#f8fafc"
                 name="bookmark-check-outline"
                 size={18}
               />
@@ -264,14 +264,12 @@ function ReferenceVideoPlayer({ source }: { source: string | number }) {
   );
 }
 
-function CutThumb({
+function CutRailButton({
   active,
-  cut,
   item,
   onPress,
 }: {
   active: boolean;
-  cut: ShootBoardCut;
   item: ReferenceViewerRailItem;
   onPress: () => void;
 }) {
@@ -281,19 +279,15 @@ function CutThumb({
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
-        styles.cutThumb,
-        active && styles.activeCutThumb,
+        styles.cutRailButton,
+        active && styles.activeCutRailButton,
         pressed && styles.pressed,
       ]}
     >
-      {cut.thumbnailSource || cut.thumbnailUrl ? (
-        <Image
-          source={cut.thumbnailSource ?? toImageSource(cut.thumbnailUrl)}
-          style={styles.cutThumbImage}
-        />
-      ) : null}
-      <View style={styles.cutThumbShade} />
-      <Text numberOfLines={1} style={styles.cutThumbOrder}>
+      <Text
+        numberOfLines={1}
+        style={[styles.cutRailText, active && styles.activeCutRailText]}
+      >
         {item.visibleLabel}
       </Text>
     </Pressable>
@@ -318,14 +312,14 @@ const referenceCopy: Record<
   en: {
     bookmark: "Bookmark reference",
     close: "Close reference",
-    shootThisScene: "Film this cut",
-    useAsGuide: "Use as guide",
+    shootThisScene: "Film",
+    useAsGuide: "Guide",
   },
   ko: {
     bookmark: "레퍼런스 저장",
     close: "레퍼런스 닫기",
-    shootThisScene: "이 컷 촬영",
-    useAsGuide: "가이드로 사용",
+    shootThisScene: "촬영",
+    useAsGuide: "가이드",
   },
 };
 
@@ -437,79 +431,85 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   bottom: {
+    alignItems: "center",
+    gap: 12,
     paddingBottom: 12,
+    paddingHorizontal: 18,
   },
   carousel: {
-    gap: 10,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    alignItems: "center",
+    flexGrow: 1,
+    gap: 8,
+    justifyContent: "center",
+    paddingHorizontal: 4,
   },
-  cutThumb: {
-    aspectRatio: 9 / 16,
-    backgroundColor: "#0f172a",
+  cutRailButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.10)",
     borderColor: "rgba(255, 255, 255, 0.14)",
-    borderRadius: 14,
+    borderRadius: 999,
     borderWidth: 1,
-    justifyContent: "flex-end",
-    overflow: "hidden",
-    padding: 8,
-    width: 70,
+    height: 34,
+    justifyContent: "center",
+    width: 34,
   },
-  activeCutThumb: {
-    borderColor: "#c4b5fd",
-    borderWidth: 2,
+  activeCutRailButton: {
+    backgroundColor: "#ffffff",
+    borderColor: "#ffffff",
   },
-  cutThumbImage: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  cutThumbShade: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(2, 6, 23, 0.28)",
-  },
-  cutThumbOrder: {
-    color: "#ffffff",
-    fontSize: 15,
+  cutRailText: {
+    color: "rgba(255, 255, 255, 0.76)",
+    fontSize: 13,
     fontWeight: "900",
     letterSpacing: 0,
   },
+  activeCutRailText: {
+    color: "#020617",
+  },
+  bottomRail: {
+    maxWidth: 420,
+    width: "100%",
+  },
   actions: {
+    alignItems: "center",
     flexDirection: "row",
-    gap: 10,
-    paddingHorizontal: 18,
-    paddingTop: 4,
+    gap: 8,
+    justifyContent: "center",
+    maxWidth: 420,
+    width: "100%",
   },
   secondaryButton: {
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
+    backgroundColor: "rgba(255, 255, 255, 0.10)",
     borderColor: "rgba(255, 255, 255, 0.16)",
-    borderRadius: 14,
+    borderRadius: 999,
     borderWidth: 1,
-    flex: 1,
     flexDirection: "row",
-    gap: 7,
+    gap: 6,
+    height: 46,
     justifyContent: "center",
-    minHeight: 48,
-    paddingHorizontal: 10,
+    minWidth: 108,
+    paddingHorizontal: 14,
   },
   secondaryButtonLabel: {
-    color: "#ffffff",
+    color: "#f8fafc",
     flexShrink: 1,
     fontSize: 13,
     fontWeight: "900",
     letterSpacing: 0,
   },
   primaryButtonWrap: {
-    borderRadius: 14,
-    flex: 1,
+    borderRadius: 999,
+    minWidth: 148,
     overflow: "hidden",
   },
   primaryButton: {
     alignItems: "center",
     flexDirection: "row",
     gap: 7,
+    height: 46,
     justifyContent: "center",
-    minHeight: 50,
-    paddingHorizontal: 10,
+    paddingHorizontal: 18,
   },
   primaryButtonLabel: {
     color: "#ffffff",
