@@ -1,0 +1,318 @@
+goal: Define ParrotKit v1 reference video analysis pipeline contracts for uploaded
+  or provider-normalized short-form recipe videos, producing immutable Breakdown artifacts
+  and deterministic compact Shooting Board projections
+task_type: spec
+brownfield_context:
+  project_type: brownfield
+  context_references:
+  - DESIGN.md
+  - plans/20260517_sandcastle_breakdown_contract.md
+  - plans/20260517_recipe_analysis_contract_seed.md
+  - context/context_20260517_sandcastle_breakdown_contract.md
+  - context/context_20260517_recipe_analysis_contract_seed.md
+  existing_patterns:
+  - Existing ReferenceBreakdown domain type in src/domain/recipes/reference-breakdown.ts
+  - Existing Recipe.analysisMetadata/referenceBreakdown hydration path
+  - Shooting Board and Breakdown UI boundary documented in DESIGN.md
+  existing_dependencies:
+  - Expo / React Native app
+  - Supabase-backed data model planned by project rules
+  - Future provider adapters such as SuperData or Gemini are out of v1 core
+constraints:
+- V1 core starts from uploaded or provider-normalized video assets only
+- Instagram TikTok YouTube scraping and provider ingestion are future adapters
+- Normalized media must include media_asset_id workspace/user ownership stable accessible
+  storage URL or local URI mime/container duration dimensions/aspect_ratio byte size
+  checksum/version source metadata and playable or extraction_failed state
+- Missing transcript audio thumbnail fps language hint creator metadata captions or
+  scene candidates may still allow partial visual-only analysis
+- Missing duration dimensions undecodable media or zero cut segments must block usable
+  analysis
+- Breakdown artifacts are immutable per media_asset_version analysis_profile_version
+  schema_version
+- Shooting Board projection is a deterministic read model derived from Breakdown,
+  not the source analysis
+- User edits are stored as separate recipe/board overrides and never mutate generated
+  Breakdown or projection
+- Shooting Board UI must stay compact execution-first with no AI-slop labels no Proof
+  Point label no Sandcastle section labels no confidence/prompt/debug details and
+  no box-in-box clutter
+- Deeper Summary Transcript Idea Analysis Hook Storytelling Format Visual Layout and
+  evidence belong in Breakdown
+- API must enforce workspace ownership and no cross-workspace sharing in v1
+- Job creation must be idempotent by workspace_id media_asset_id media_asset_version
+  analysis_profile_version idempotency_key
+- Client-facing statuses must be preparing analyzing ready partial failed while internal
+  pipeline statuses remain private
+- Stable error codes and human-safe messages are required while provider traces prompts
+  queue IDs stack traces and diagnostics remain internal
+- Progress percentage is optional and approximate; stage checklist/client status is
+  authoritative
+- Build implementation should support retry cancel polling immutable artifact retrieval
+  projection regeneration and partial success
+acceptance_criteria:
+- POST /reference-analysis-jobs creates or reuses an idempotent job for the same workspace
+  media version profile and idempotency key
+- GET /reference-analysis-jobs/:job_id reliably returns client_status progress_stage
+  stage_checklist retryable missing_artifacts confidence_summary and artifact IDs
+  when available
+- Terminal states include ready partial_ready failed canceled and expired
+- Transient provider/model/storage/worker failures retry with exponential backoff
+  up to 3 attempts by default
+- Unsupported media permission denied moderation restricted media_decode_failed and
+  media_duration_unknown do not retry unless media changes
+- Transcript failure produces partial_ready rather than failed when visual analysis
+  cuts and projection are usable
+- Ready or partial_ready Breakdown includes stable top-level sections for summary
+  transcript idea_analysis hook storytelling_format visual_layout cut_segments and
+  shooting_board_projection_ref
+- Partial_ready requires summary ready or partial at least one usable cut_segment
+  with valid time range and at least one board projection card
+- Cut Segments include cut_id order_index start_ms end_ms duration_ms source_modalities
+  transcript_refs visual_refs execution_title reference_observation inferred_purpose
+  line_to_say shooting_guide reference_usage my_take_relationship success_criteria
+  confidence and missing_artifacts
+- Transcript includes sentence/utterance-level timestamps when available, with word-level
+  timestamps and speaker labels optional
+- Evidence refs can point to timestamp ranges transcript segment IDs visual frame
+  refs thumbnails or source cut IDs
+- Shooting Board projection includes at least 1 projected cut with valid timing title
+  reference media/time range and either line_to_say or shot_guide
+- Normal short-form projections target 3-6 cuts and hard max 8 generated cuts in v1
+- 'Projection text limits are enforced: execution_title 56 chars reference_observation
+  160 line_to_say 180 shot_guide 220 reference_usage 160 my_take_relationship 160
+  success_criteria max 4 items of 80 chars each'
+- Projection cards preserve source_cut_ids and source_time_range_ms even when merging
+  or splitting cut segments
+- Regenerating a projection creates a new projection version and preserves applicable
+  user overrides by stable projection_cut_id/source_cut_ids
+- Breakdown can be ready while projection is partial or failed, with UI showing retry/regenerate
+  instead of raw analysis fallback
+- Client read model can open compact board without exposing internal pipeline labels
+  or debug details
+- Failed jobs keep stable error_code error_message_user trace_id and internal diagnostics
+  for ops
+- Raw media retention follows workspace policy; transcripts/thumbnails persist with
+  analysis unless media is deleted; scratch outputs expire after 7-30 days; failed
+  jobs retain diagnostics for 30 days
+ontology_schema:
+  name: ReferenceVideoAnalysisContract
+  description: Domain model for ParrotKit v1 reference video analysis from normalized
+    media input through async analysis jobs, immutable Breakdown artifacts, cut segmentation,
+    and compact Shooting Board projections
+  fields:
+  - name: media_asset_id
+    type: string
+    description: Stable identifier for the uploaded or provider-normalized source
+      video
+    required: true
+  - name: workspace_id
+    type: string
+    description: Workspace that owns the media analysis job Breakdown and projection
+    required: true
+  - name: requester_user_id
+    type: string
+    description: User who requested analysis and must be authorized through workspace
+      membership
+    required: true
+  - name: media_asset_version
+    type: string
+    description: Checksum or version used for idempotency artifact lineage and deterministic
+      regeneration
+    required: true
+  - name: normalized_media_input
+    type: object
+    description: Playable media contract including URI mime duration dimensions byte
+      size checksum source metadata and optional artifacts
+    required: true
+  - name: analysis_profile_version
+    type: string
+    description: Version of the analysis profile prompt/schema behavior used for job
+      idempotency and artifact immutability
+    required: true
+  - name: reference_analysis_job
+    type: object
+    description: Async lifecycle record with job ID statuses progress attempts timestamps
+      errors trace ID and artifact references
+    required: true
+  - name: job_status
+    type: string
+    description: Internal lifecycle state such as queued preparing_media extracting_metadata
+      extracting_audio transcribing analyzing_video segmenting_cuts generating_breakdown
+      generating_projection ready partial_ready failed canceled expired
+    required: true
+  - name: client_status
+    type: string
+    description: Simplified UI state preparing analyzing ready partial or failed
+    required: true
+  - name: stage_checklist
+    type: array
+    description: Authoritative coarse progress stages for polling UI
+    required: true
+  - name: breakdown
+    type: object
+    description: Immutable versioned source analysis artifact containing Summary Transcript
+      Idea Analysis Hook Storytelling Format Visual Layout Cut Segments and projection
+      reference
+    required: true
+  - name: breakdown_id
+    type: string
+    description: Stable identifier for an immutable Breakdown artifact
+    required: true
+  - name: schema_version
+    type: string
+    description: Version of persisted Breakdown or projection schema
+    required: true
+  - name: summary
+    type: object
+    description: Section with one_liner audience promise why_viewers_keep_watching
+      evidence_refs confidence and section status
+    required: true
+  - name: transcript
+    type: object
+    description: Section with status detected_language clean_text sentence/utterance
+      timestamp segments notable_lines raw_text optional and missing reason when unavailable
+    required: true
+  - name: idea_analysis
+    type: object
+    description: Section with topic idea_seed unique_angle common_belief_to_challenge
+      contrarian_reality supporting_evidence user_application evidence_refs and confidence
+    required: true
+  - name: hook
+    type: object
+    description: Video-level section with category formula spoken_hook visual_hook
+      why_it_works adaptation_rule evidence_refs and confidence
+    required: true
+  - name: storytelling_format
+    type: object
+    description: Section with category description beat_order reuse_when why_it_works
+      evidence_refs and confidence
+    required: true
+  - name: visual_layout
+    type: object
+    description: Section with category sub_category framing camera_motion caption_strategy
+      subject_product_relationship user_application evidence_refs and confidence
+    required: true
+  - name: cut_segments
+    type: array
+    description: Ordered durable segmentation records with time ranges modalities
+      transcript refs visual refs execution guidance confidence and missing artifacts
+    required: true
+  - name: evidence_refs
+    type: array
+    description: Anchors to timestamps transcript spans visual frame refs thumbnails
+      or source cut IDs that support Breakdown claims
+    required: true
+  - name: shooting_board_projection
+    type: object
+    description: Immutable deterministic compact read model derived from Breakdown
+      for filming execution
+    required: true
+  - name: projection_id
+    type: string
+    description: Stable identifier for a generated projection version
+    required: true
+  - name: projection_items
+    type: array
+    description: Projected execution cuts with projection_cut_id source_cut_ids order_index
+      time range title reference media line_to_say shot_guide usage relationship criteria
+      and missing artifact summary
+    required: true
+  - name: user_overrides
+    type: object
+    description: Separate recipe/board-owned edits for title order line_to_say shot_guide
+      criteria added/removed cuts notes and take associations
+    required: true
+  - name: missing_artifacts
+    type: array
+    description: Unavailable optional inputs or outputs such as transcript audio thumbnail
+      language hint visual layout details or creator metadata
+    required: true
+  - name: confidence
+    type: number
+    description: Section artifact or projection confidence score used for Breakdown
+      and QA but hidden from compact board UI
+    required: true
+  - name: error_code
+    type: string
+    description: Stable machine-readable failure code such as media_decode_failed
+      transcript_unavailable model_invalid_output or quota_exceeded
+    required: true
+  - name: error_message_user
+    type: string
+    description: Short actionable human-safe failure copy for UI
+    required: true
+  - name: error_diagnostics_internal
+    type: object
+    description: Private provider payloads prompt/model versions stack traces queue
+      IDs and trace diagnostics
+    required: true
+evaluation_principles:
+- name: ContractCompleteness
+  description: Covers normalized input jobs Breakdown cut_segments projection API
+    errors ownership retries retention and partial semantics
+  weight: 0.22
+- name: ArtifactImmutability
+  description: Keeps generated Breakdown and projection versioned immutable with user
+    edits separated into overrides
+  weight: 0.16
+- name: PartialUsability
+  description: Allows transcript or optional artifact failures while preserving coherent
+    ready or partial_ready outputs for filming
+  weight: 0.16
+- name: UICompactness
+  description: Keeps Shooting Board execution-first and avoids analysis labels debug
+    details confidence clutter and box-in-box UI
+  weight: 0.14
+- name: IdempotencyAndLineage
+  description: Defines deterministic reuse retries regeneration and artifact lineage
+    by workspace media version profile schema prompt and model versions
+  weight: 0.14
+- name: APIStability
+  description: Provides stable DTOs polling statuses error codes and ownership behavior
+    for mobile and backend clients
+  weight: 0.12
+- name: OperationalRecoverability
+  description: Supports retryable failures traceable diagnostics retention cleanup
+    and human-safe user messages
+  weight: 0.06
+exit_conditions:
+- name: ContractCaptured
+  description: Seed output includes goal constraints acceptance criteria ontology
+    evaluation principles exit conditions and project type
+  criteria: All required structured fields are present and specific to ParrotKit reference
+    analysis v1
+- name: V1ScopePinned
+  description: Future provider ingestion is excluded from core v1 and normalized media
+    input boundary is clear
+  criteria: Uploaded/provider-normalized media to Breakdown to compact projection
+    is the only core pipeline
+- name: DurableArtifactsDefined
+  description: Breakdown cut_segments and shooting_board_projection contracts are
+    immutable versioned and partial-aware
+  criteria: Required sections fields evidence model versioning and mutation boundaries
+    are specified
+- name: LifecycleDefined
+  description: Job/API lifecycle is implementable and client-safe
+  criteria: Statuses transitions retry idempotency cancellation polling errors and
+    retention are specified
+- name: UsabilityThresholdDefined
+  description: Minimum ready and partial_ready quality is measurable
+  criteria: At least one valid cut segment and board card plus summary/projection
+    requirements are stated
+- name: UIBoundaryDefined
+  description: Shooting Board vs Breakdown responsibilities are unambiguous
+  criteria: Compact board fields and Breakdown-only fields are explicitly separated
+metadata:
+  seed_id: seed_aa2c8d1aa680
+  name: parrotkit_reference_analysis_pipeline_contract
+  product: ParrotKit
+  version: 1.0.0
+  created_at: '2026-05-17T10:37:11.271670Z'
+  ambiguity_score: 0.093
+  interview_id: interview_20260517_102321
+  parent_seed_id: null
+  source:
+  - Ouroboros CLI interview interview_20260517_102321
+  - Ouroboros generated seed /Users/junho/.ouroboros/seeds/seed_aa2c8d1aa680.yaml
+  - User direction to define rough analysis pipeline and contracts before implementation
