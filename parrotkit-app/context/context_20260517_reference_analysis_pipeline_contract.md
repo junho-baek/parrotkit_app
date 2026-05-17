@@ -93,3 +93,22 @@
 - `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json` PASS.
 - `npm run check:architecture` PASS.
 - `git diff --check` PASS.
+
+## 2026-05-17 Merge / Issue Closure
+
+- PR #22 merged into `main`: merge commit `0762d0a`.
+- PR #23 merged into `main`: merge commit `930caa3`.
+- #17 and #18 closed automatically through merged PRs.
+- Worktrees/branches for #17 and #18 were cleaned up after merge.
+- #10/#11/#5 remain open because their issue comments explicitly say final iOS/full QA or lifecycle pass is still pending.
+
+## 2026-05-17 Issue #20 Planning
+
+- Next recommended implementation slice: `#20 Integrate Breakdown to compact Shooting Board projection`.
+- Added plan: `plans/20260517_issue_20_board_projection_integration.md`.
+- Plan sequence:
+  1. Add pure projection-to-board mapper.
+  2. Make `createShootBoardRecipe` prefer `referenceBreakdown.shooting_board_projection` with existing scene/template fallback.
+  3. Preserve user overrides across projection regeneration.
+  4. Guard Board UI from Hook/Proof/Storytelling/Visual Layout/confidence/debug labels.
+  5. Leave Android/iOS screenshots for #21 after behavior lands.
