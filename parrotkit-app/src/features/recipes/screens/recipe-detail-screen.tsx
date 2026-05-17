@@ -191,6 +191,7 @@ export function RecipeDetailScreen() {
   const params = useLocalSearchParams<{
     highlightCutId?: string;
     recipeId?: string;
+    referenceCutId?: string;
     sceneId?: string;
     tab?: DetailTab;
     takeId?: string;
@@ -233,6 +234,7 @@ export function RecipeDetailScreen() {
   const boardStateRef = useRef<ShootBoardRecipe | null>(null);
   const originalCutSnapshotsRef = useRef<Record<string, ShootBoardCut>>({});
   const handledExplicitSceneExpansionKeyRef = useRef<string | null>(null);
+  const handledReferenceViewerRouteKeyRef = useRef<string | null>(null);
   const recipeSaved = recipe
     ? isRecipeSaved(recipe, isRecipeDownloaded(recipe.id))
     : false;
@@ -407,6 +409,37 @@ export function RecipeDetailScreen() {
     renderedShootBoard?.cuts.length,
     selectedSavedTakeRecord,
   ]);
+
+  useEffect(() => {
+    if (!params.referenceCutId || !renderedShootBoard?.cuts.length) {
+      if (!params.referenceCutId) {
+        handledReferenceViewerRouteKeyRef.current = null;
+      }
+      return;
+    }
+
+    const referenceViewerRouteKey = `${renderedShootBoard.id}:${params.referenceCutId}`;
+
+    if (handledReferenceViewerRouteKeyRef.current === referenceViewerRouteKey) {
+      return;
+    }
+
+    const targetCut = renderedShootBoard.cuts.find(
+      (cut) =>
+        cut.id === params.referenceCutId ||
+        String(cut.order) === params.referenceCutId,
+    );
+
+    if (!targetCut) {
+      return;
+    }
+
+    setSelectedSceneId(null);
+    setTakeViewerCutId(null);
+    setSelectedTakeId(undefined);
+    setReferenceViewerCutId(targetCut.id);
+    handledReferenceViewerRouteKeyRef.current = referenceViewerRouteKey;
+  }, [params.referenceCutId, renderedShootBoard?.id, renderedShootBoard?.cuts]);
 
   if (!nativeRecipe) {
     return (

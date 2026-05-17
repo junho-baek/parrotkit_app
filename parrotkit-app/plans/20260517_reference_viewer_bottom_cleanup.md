@@ -20,11 +20,14 @@ The last release-media cleanup removed visible taxonomy labels from the referenc
 
 - Modify: `src/features/recipes/components/reference-viewer-modal.tsx`
 - Create: `src/features/recipes/components/reference-viewer-modal-contract.test.ts`
+- Modify: `src/features/recipes/screens/recipe-detail-screen.tsx`
+- Create: `src/features/recipes/screens/recipe-detail-reference-route-contract.test.ts`
 - Update: `context/context_20260517_release_media_slop_cleanup.md`
 
 ## 테스트
 
 - `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/components/reference-viewer-modal-contract.test.ts`
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/screens/recipe-detail-reference-route-contract.test.ts`
 - `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/lib/reference-viewer-ui.test.ts`
 - `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json`
 - `git diff --check`
@@ -41,7 +44,11 @@ Revert the final commit. This is isolated to the modal rendering and does not to
 ## 결과
 
 - Replaced the reference viewer bottom thumbnail strip with compact numeric rail buttons.
+- Replaced the bottom rail `ScrollView` with a fixed row after iOS Simulator verification showed the active cut could disappear.
 - Removed the rail-level thumbnail image/shade styles.
 - Shortened actions from `Use as guide` / `Film this cut` to `Guide` / `Film`.
 - Added `src/features/recipes/components/reference-viewer-modal-contract.test.ts`.
+- Added `referenceCutId` route handling so simulator QA can open a specific cut's reference viewer without relying on unavailable simulator tap automation.
+- Added `src/features/recipes/screens/recipe-detail-reference-route-contract.test.ts`.
+- Captured iOS Simulator evidence at `output/playwright/reference-viewer-bottom-qa-20260517/ios-simulator-reference-viewer-bottom-clean-v4.png`.
 - Updated `context/context_20260517_release_media_slop_cleanup.md`.

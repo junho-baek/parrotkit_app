@@ -56,13 +56,18 @@ The first implementation still left a thumbnail-strip control under the referenc
 Follow-up changes:
 
 - Replaced the bottom thumbnail strip with compact numeric rail buttons.
+- Replaced the native bottom rail `ScrollView` with a fixed row after iOS Simulator showed the active `1` control could disappear.
 - Removed bottom-rail thumbnail image rendering from `ReferenceViewerModal`.
 - Shortened the bottom actions to `Guide` and `Film`.
 - Added `src/features/recipes/components/reference-viewer-modal-contract.test.ts` to block the thumbnail-strip rail from returning.
+- Added `referenceCutId` route handling in `RecipeDetailScreen` so a simulator can deep-link directly to a cut reference viewer when tap automation is unavailable.
+- Added `src/features/recipes/screens/recipe-detail-reference-route-contract.test.ts`.
+- iOS Simulator evidence: `output/playwright/reference-viewer-bottom-qa-20260517/ios-simulator-reference-viewer-bottom-clean-v4.png`
 
 Verification:
 
 - `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/components/reference-viewer-modal-contract.test.ts`
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/screens/recipe-detail-reference-route-contract.test.ts`
 - `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/lib/reference-viewer-ui.test.ts`
 - `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json`
 - `git diff --check`

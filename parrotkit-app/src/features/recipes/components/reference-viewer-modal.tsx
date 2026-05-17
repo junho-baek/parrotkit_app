@@ -5,7 +5,6 @@ import {
   Image,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -128,39 +127,35 @@ export function ReferenceViewerModal({
             { paddingBottom: Math.max(insets.bottom, 12) },
           ]}
         >
-          <ScrollView
-            horizontal
-            contentContainerStyle={styles.carousel}
-            showsHorizontalScrollIndicator={false}
-            style={styles.bottomRail}
-          >
-            {railItems.map((item) => {
-              const targetCut = cuts.find(
-                (candidate) => candidate.id === item.cutId,
-              );
+          <View style={styles.bottomRail}>
+            <View style={styles.carousel}>
+              {railItems.map((item) => {
+                const targetCut = cuts.find(
+                  (candidate) => candidate.id === item.cutId,
+                );
 
-              if (!targetCut) return null;
+                if (!targetCut) return null;
 
-              return (
-                <CutRailButton
-                  active={item.active}
-                  item={item}
-                  key={item.cutId}
-                  onPress={() => onSelectCut?.(targetCut)}
-                />
-              );
-            })}
-          </ScrollView>
+                return (
+                  <CutRailButton
+                    active={item.active}
+                    item={item}
+                    key={item.cutId}
+                    onPress={() => onSelectCut?.(targetCut)}
+                  />
+                );
+              })}
+            </View>
+          </View>
 
           <View style={styles.actions}>
             <Pressable
               accessibilityRole="button"
               disabled={!onUseAsGuide}
               onPress={() => onUseAsGuide?.(cut)}
-              style={({ pressed }) => [
+              style={[
                 styles.secondaryButton,
                 !onUseAsGuide && styles.disabledButton,
-                pressed && styles.pressed,
               ]}
             >
               <MaterialCommunityIcons
@@ -175,10 +170,7 @@ export function ReferenceViewerModal({
             <Pressable
               accessibilityRole="button"
               onPress={() => onShoot(cut)}
-              style={({ pressed }) => [
-                styles.primaryButtonWrap,
-                pressed && styles.pressed,
-              ]}
+              style={styles.primaryButtonWrap}
             >
               <LinearGradient
                 colors={brandActionGradient}
@@ -278,10 +270,9 @@ function CutRailButton({
       accessibilityLabel={item.accessibilityLabel}
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [
+      style={[
         styles.cutRailButton,
         active && styles.activeCutRailButton,
-        pressed && styles.pressed,
       ]}
     >
       <Text
@@ -438,10 +429,9 @@ const styles = StyleSheet.create({
   },
   carousel: {
     alignItems: "center",
-    flexGrow: 1,
+    flexDirection: "row",
     gap: 8,
     justifyContent: "center",
-    paddingHorizontal: 4,
   },
   cutRailButton: {
     alignItems: "center",
@@ -449,9 +439,9 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.14)",
     borderRadius: 999,
     borderWidth: 1,
-    height: 34,
+    height: 38,
     justifyContent: "center",
-    width: 34,
+    width: 38,
   },
   activeCutRailButton: {
     backgroundColor: "#ffffff",
@@ -467,6 +457,7 @@ const styles = StyleSheet.create({
     color: "#020617",
   },
   bottomRail: {
+    alignItems: "center",
     maxWidth: 420,
     width: "100%",
   },
@@ -488,7 +479,7 @@ const styles = StyleSheet.create({
     gap: 6,
     height: 46,
     justifyContent: "center",
-    minWidth: 108,
+    width: 132,
     paddingHorizontal: 14,
   },
   secondaryButtonLabel: {
@@ -500,11 +491,12 @@ const styles = StyleSheet.create({
   },
   primaryButtonWrap: {
     borderRadius: 999,
-    minWidth: 148,
     overflow: "hidden",
+    width: 176,
   },
   primaryButton: {
     alignItems: "center",
+    borderRadius: 999,
     flexDirection: "row",
     gap: 7,
     height: 46,

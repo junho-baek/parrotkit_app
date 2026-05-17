@@ -25,3 +25,11 @@ for (const forbidden of [
 if (!source.includes("styles.bottomRail")) {
   throw new Error("Reference viewer should keep a dedicated compact bottom rail.");
 }
+
+if (source.includes("<ScrollView") && source.includes("bottomRail")) {
+  throw new Error("Reference viewer rail should not use a horizontal thumbnail-style ScrollView.");
+}
+
+if (source.includes("styles.cutRailButton,\\n        active && styles.activeCutRailButton,\\n        pressed")) {
+  throw new Error("Reference viewer rail should use stable static styles on native.");
+}
