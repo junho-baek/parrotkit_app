@@ -1,3 +1,10 @@
+import type {
+  ReferenceBreakdownArtifactMetadata,
+  ReferenceCutSegment,
+  ShootingBoardProjection,
+  UserRecipeBoardOverrides,
+} from './reference-analysis-contract';
+
 export type ReferenceBreakdownSchemaVersion = 'parrotkit.reference_breakdown.v1';
 
 export type ReferenceBreakdownPlatform =
@@ -47,6 +54,7 @@ export type ReferenceBreakdownVideoSectionLabel =
 
 export type ReferenceBreakdown = {
   schema_version: ReferenceBreakdownSchemaVersion;
+  artifact?: ReferenceBreakdownArtifactMetadata;
   reference: {
     source_url: string;
     platform: ReferenceBreakdownPlatform;
@@ -119,6 +127,7 @@ export type ReferenceBreakdown = {
     why_this_beat_exists: string;
     my_take_success_criteria: string[];
   }>;
+  cut_segments?: ReferenceCutSegment[];
   shooting_projection: {
     board_title: string;
     video_level_breakdown: Array<{
@@ -134,6 +143,8 @@ export type ReferenceBreakdown = {
       my_take_relationship: string;
     }>;
   };
+  shooting_board_projection?: ShootingBoardProjection;
+  user_overrides?: UserRecipeBoardOverrides;
   vault_candidates: {
     idea: {
       title: string;
