@@ -12,7 +12,6 @@ const mediaSlotSource = readFileSync(
 );
 const referenceAnchorStyle = getStyleBlock("referenceAnchor");
 const cardStyle = getStyleBlock("card");
-const highlightedCardStyle = getStyleBlock("highlightedCard");
 const detailReadRowStyle = getStyleBlock("detailReadRow");
 const takeViewerPreviewStyle = getStyleBlock("takeViewerPreview");
 const mediaSlotRootStyle = getStyleBlockFromSource(mediaSlotSource, "root");
@@ -70,16 +69,6 @@ if (
   );
 }
 
-if (
-  highlightedCardStyle.includes("borderWidth: 2") ||
-  highlightedCardStyle.includes("#8b5cf6") ||
-  highlightedCardStyle.includes("shadowOpacity")
-) {
-  throw new Error(
-    "Current-cut emphasis should use a subtle accent, not a purple boxed highlight.",
-  );
-}
-
 if (!mediaSlotPreviewStyle.includes("aspectRatio: 9 / 16")) {
   throw new Error("My Take media slot must use 9:16 short-form framing.");
 }
@@ -108,6 +97,12 @@ for (const removedStyleName of [
   "editorSection",
   "referenceViewerSection",
   "takeViewerSection",
+  "highlightedCard",
+  "borderLeftWidth",
+  "borderLeftColor",
+  "#fffaf7",
+  "#ffd7c7",
+  "#ff9568",
   "CutReferencePreview",
   "cutReferencePreview",
   "cutReferenceSlot",

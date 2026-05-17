@@ -32,7 +32,6 @@ import {
 export function ShootBoardSceneCard({
   cut,
   expanded,
-  highlighted,
   language,
   onDragStart,
   onPreview,
@@ -78,13 +77,7 @@ export function ShootBoardSceneCard({
   const actionStatus = getCutCardActionStatus(cut, language);
 
   return (
-    <View
-      style={[
-        styles.card,
-        cut.takeStatus === "final" && styles.finalCard,
-        highlighted && styles.highlightedCard,
-      ]}
-    >
+    <View style={[styles.card, cut.takeStatus === "final" && styles.finalCard]}>
       {!expanded ? (
         <View style={styles.compactRow}>
           <View style={styles.referenceAnchor}>
@@ -905,10 +898,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderBottomColor: "#e2e8f0",
     borderBottomWidth: 1,
-    borderLeftColor: "transparent",
-    borderLeftWidth: 3,
     borderRadius: 0,
-    paddingHorizontal: 4,
+    paddingHorizontal: 0,
     paddingVertical: 14,
     shadowColor: "#0f172a",
     shadowOffset: { width: 0, height: 0 },
@@ -1180,11 +1171,6 @@ const styles = StyleSheet.create({
   },
   finalCard: {
     backgroundColor: "#ffffff",
-  },
-  highlightedCard: {
-    backgroundColor: "#fffaf7",
-    borderBottomColor: "#ffd7c7",
-    borderLeftColor: "#ff9568",
   },
   referencePreviewImage: {
     ...StyleSheet.absoluteFillObject,
