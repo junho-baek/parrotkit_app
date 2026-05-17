@@ -204,6 +204,18 @@ if (!rootNativeTabsSource.includes('style={styles.pasteDrawerLayer}')) {
   throw new Error('Paste drawer must render in an app-shell overlay layer.');
 }
 
+if (!rootNativeTabsSource.includes('styles.pasteActionHitTarget')) {
+  throw new Error('Paste must have an app-shell-owned hit target above the native tab item.');
+}
+
+if (!rootNativeTabsSource.includes("accessibilityRole={rootTabAccessibilityRoles.paste}")) {
+  throw new Error('The app-shell Paste hit target must expose button accessibility semantics.');
+}
+
+if (!rootNativeTabsSource.includes('tabBarLayout.height + Math.abs(rootTabBarCenterActionTopOffset)')) {
+  throw new Error('The Paste hit target must track bottom tab geometry instead of using a fixed viewport value.');
+}
+
 if (
   !rootNativeTabsSource.includes('function getRootTabScreenHref') ||
   !rootNativeTabsSource.includes("if (tabName === 'paste')") ||

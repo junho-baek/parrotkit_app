@@ -213,6 +213,21 @@ function RootTabsContent() {
         </>
       )}
 
+      {homeQuickShootChromeHidden || pasteDrawerState.open ? null : (
+        <Pressable
+          accessibilityLabel={getRootTabLabel(copy.nav, 'paste')}
+          accessibilityRole={rootTabAccessibilityRoles.paste}
+          hitSlop={{ bottom: 10, left: 10, right: 10, top: 10 }}
+          onPress={openPasteDrawer}
+          style={[
+            styles.pasteActionHitTarget,
+            {
+              height: tabBarLayout.height + Math.abs(rootTabBarCenterActionTopOffset) + 12,
+            },
+          ]}
+        />
+      )}
+
       {pasteDrawerState.open ? (
         <View style={styles.pasteDrawerLayer}>
           <RecipeCreateScreen
@@ -456,6 +471,15 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     elevation: 50,
     zIndex: 60,
+  },
+  pasteActionHitTarget: {
+    bottom: 0,
+    left: '50%',
+    marginLeft: -(rootTabBarCenterActionFrameHeight + 28) / 2,
+    position: 'absolute',
+    width: rootTabBarCenterActionFrameHeight + 28,
+    zIndex: 55,
+    elevation: 55,
   },
   tabBar: {
     backgroundColor: '#ffffff',
