@@ -55,7 +55,7 @@ Issue #19는 레퍼런스 링크/영상 분석을 특정 공급자에 묶지 않
 - [x] provider adapter boundary와 stable error mapper를 추가한다.
 - [x] complete / transcript-missing partial / invalid model output fixture test를 추가한다.
 - [x] context에 결과와 다음 backend 연결 단계를 남긴다.
-- [ ] 검증 후 커밋/푸시한다.
+- [x] 검증 후 커밋/푸시한다.
 
 ## 결과
 

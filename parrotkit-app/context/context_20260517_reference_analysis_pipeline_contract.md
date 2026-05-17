@@ -185,3 +185,9 @@
 - Backend/worker slice에서 Supadata `/extract` + `/transcript` adapter를 실제 network call로 추가한다.
 - Adapter output은 이번 `createReferenceAnalysisProviderResult()`로 검증한 뒤 `recipes.analysis_metadata.reference_breakdown`과 projection artifact로 persist한다.
 - 모바일 paste flow는 secret key를 직접 들지 않고 ParrotKit backend job endpoint만 호출한다.
+
+## 2026-05-17 Issue #19 Merge
+
+- PR #26 merged into `main`: merge commit `0da7be7`.
+- #19 closed automatically through merged PR.
+- Feature branch/worktree were cleaned up after merge.
