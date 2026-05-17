@@ -42,3 +42,28 @@
 - Seed generation completed.
 - `ruby -e "require 'yaml'; YAML.load_file('seeds/parrotkit_reference_analysis_pipeline_contract_20260517.yaml'); puts 'yaml ok'"` PASS.
 - `git diff --check` PASS.
+
+## 2026-05-17 Issue #17 실행
+
+- Superpowers worktree: `/Users/junho/.config/superpowers/worktrees/parrotkit-app/codex-issue-17-reference-contracts`
+- GitHub issue: `#17 Define reference analysis data contracts`
+- 추가: `src/domain/recipes/reference-analysis-contract.ts`
+  - normalized media input contract
+  - immutable Breakdown artifact metadata/sections
+  - evidence refs
+  - cut segments
+  - Shooting Board projection
+  - user board overrides
+  - compact projection text limits
+- 수정: `src/domain/recipes/reference-breakdown.ts`
+  - 기존 Sandcastle-style `ReferenceBreakdown`는 유지했다.
+  - 새 pipeline fields는 optional로 bridge했다: `artifact`, `cut_segments`, `shooting_board_projection`, `user_overrides`.
+- 추가 테스트: `src/domain/recipes/reference-analysis-contract.test.ts`
+
+## 2026-05-17 Issue #17 검증
+
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/domain/recipes/reference-analysis-contract.test.ts` PASS.
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/lib/recipe-breakdown-summary.test.ts` PASS.
+- `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json` PASS.
+- `npm run check:architecture` PASS.
+- `git diff --check` PASS.
