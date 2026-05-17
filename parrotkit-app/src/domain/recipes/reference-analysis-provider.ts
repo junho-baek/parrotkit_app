@@ -48,6 +48,7 @@ export type ReferenceAnalysisProviderRuntimeConfig = {
   geminiApiKeyEnv: 'GEMINI_API_KEY';
   openaiApiKeyEnv: 'OPENAI_API_KEY';
   replicateApiTokenEnv: 'REPLICATE_API_TOKEN';
+  superdataApiKeyEnv: 'SUPERDATA_API_KEY';
   supadataApiKeyEnv: 'SUPADATA_API_KEY';
 };
 
@@ -58,6 +59,7 @@ export const referenceAnalysisProviderRuntimeConfig: ReferenceAnalysisProviderRu
     geminiApiKeyEnv: 'GEMINI_API_KEY',
     openaiApiKeyEnv: 'OPENAI_API_KEY',
     replicateApiTokenEnv: 'REPLICATE_API_TOKEN',
+    superdataApiKeyEnv: 'SUPERDATA_API_KEY',
     supadataApiKeyEnv: 'SUPADATA_API_KEY',
   };
 

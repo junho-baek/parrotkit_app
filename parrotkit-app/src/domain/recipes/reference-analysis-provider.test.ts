@@ -308,8 +308,12 @@ if ('internalTrace' in clientSafeFailure) {
   throw new Error('Provider traces must be stripped from failures too.');
 }
 
+if (referenceAnalysisProviderRuntimeConfig.superdataApiKeyEnv !== 'SUPERDATA_API_KEY') {
+  throw new Error('SuperData API key env name should be documented in code.');
+}
+
 if (referenceAnalysisProviderRuntimeConfig.supadataApiKeyEnv !== 'SUPADATA_API_KEY') {
-  throw new Error('Supadata API key env name should be documented in code.');
+  throw new Error('Legacy Supadata API key env name should remain supported.');
 }
 
 if (referenceAnalysisProviderRuntimeConfig.replicateApiTokenEnv !== 'REPLICATE_API_TOKEN') {

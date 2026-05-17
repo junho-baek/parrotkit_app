@@ -60,13 +60,18 @@ export interface FetchTranscriptResult {
 }
 
 function getSupadataApiKey() {
-  return process.env.SUPADATA_API_KEY?.trim() || process.env.SUPADATA_API_TOKEN?.trim() || '';
+  return (
+    process.env.SUPERDATA_API_KEY?.trim()
+    || process.env.SUPADATA_API_KEY?.trim()
+    || process.env.SUPADATA_API_TOKEN?.trim()
+    || ''
+  );
 }
 
 function getHeaders() {
   const apiKey = getSupadataApiKey();
   if (!apiKey) {
-    throw new Error('SUPADATA_API_KEY is not set');
+    throw new Error('SUPERDATA_API_KEY or SUPADATA_API_KEY is not set');
   }
 
   return {

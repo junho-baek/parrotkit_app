@@ -102,9 +102,12 @@ npm install
 
 3. **Set up environment variables**
 
-Create a `.env.local` file in the root directory:
+Create a `.env.local` file in the root directory. This is the Next.js/Vercel server env, not the Expo client env:
 
 ```env
+# App URL
+NEXT_PUBLIC_APP_URL="https://parrotkit-deploy.vercel.app"
+
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL="https://your-project-ref.supabase.co"
 # Use Supabase's modern publishable key for browsers and normal auth flows.
@@ -114,15 +117,17 @@ SUPABASE_SECRET_KEY="your-secret-key"
 # Use the pooled connection string for Next.js/serverless traffic.
 DATABASE_URL="postgresql://postgres.<project-ref>:<db-password>@aws-0-<region>.pooler.supabase.com:6543/postgres?sslmode=require"
 
-# Google AI
-GOOGLE_AI_API_KEY="your-gemini-api-key"
+# Reference analysis
+# Gemini/OpenAI/Anthropic direct keys are not needed when models run through Replicate.
+SUPERDATA_API_KEY="your-super-data-api-key"
+SUPADATA_API_KEY=""
+REPLICATE_API_TOKEN="r8_your-replicate-api-token"
 
 # GTM entrypoint
 # GA4 Measurement ID and Meta Pixel ID should stay in GTM, not in app env.
 NEXT_PUBLIC_GTM_ID="GTM-XXXXXXX"
 
-# Lemon Squeezy (Optional)
-NEXT_PUBLIC_APP_URL="https://parrotkit-deploy.vercel.app"
+# Lemon Squeezy web checkout (Optional)
 LEMONSQUEEZY_API_KEY="your-lemonsqueezy-api-key"
 LEMONSQUEEZY_STORE_ID="your-store-id"
 LEMONSQUEEZY_WEBHOOK_SECRET="your-webhook-secret"
@@ -134,6 +139,16 @@ NOTION_REPORTS_PARENT_PAGE_ID="your-notion-parent-page-id"
 NOTION_REPORTS_DATABASE_ID="your-notion-database-id"
 NOTION_REPORTS_DATA_SOURCE_ID="your-notion-data-source-id"
 ```
+
+For the mobile app in `parrotkit-app/`, create a separate `parrotkit-app/.env.local` with only public Expo values:
+
+```env
+EXPO_PUBLIC_PARROTKIT_API_URL="https://parrotkit-deploy.vercel.app"
+EXPO_PUBLIC_SUPABASE_URL="https://your-project-ref.supabase.co"
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY="your-publishable-key"
+```
+
+Do not put `SUPERDATA_API_KEY`, `SUPADATA_API_KEY`, `REPLICATE_API_TOKEN`, `SUPABASE_SECRET_KEY`, or `DATABASE_URL` in the Expo env.
 
 Important analytics rule:
 - The app pushes events into `window.dataLayer`.

@@ -116,11 +116,13 @@ type ReferenceAnalysisModelAdapter = {
 
 ## Env Names
 
-- `SUPADATA_API_KEY`
-- `REPLICATE_API_TOKEN`
-- `GEMINI_API_KEY`
-- `OPENAI_API_KEY`
-- `ANTHROPIC_API_KEY`
+- Required for the current live v1 path:
+  - `SUPERDATA_API_KEY` for reference URL metadata/transcript/extract. `SUPADATA_API_KEY` remains a supported legacy alias because the vendor docs use Supadata naming.
+  - `REPLICATE_API_TOKEN` for Replicate-hosted Gemini/Claude/OpenAI models.
+- Not required for the current Replicate-based v1:
+  - `GEMINI_API_KEY`
+  - `OPENAI_API_KEY`
+  - `ANTHROPIC_API_KEY`
 
 These must live server-side only. The Expo client should call a ParrotKit backend endpoint that creates/polls jobs.
 
