@@ -112,3 +112,37 @@
   3. Preserve user overrides across projection regeneration.
   4. Guard Board UI from Hook/Proof/Storytelling/Visual Layout/confidence/debug labels.
   5. Leave Android/iOS screenshots for #21 after behavior lands.
+
+## 2026-05-17 Issue #20 실행
+
+- Superpowers worktree: `/Users/junho/.config/superpowers/worktrees/parrotkit-app/codex-issue-20-board-projection`
+- GitHub issue: `#20 Integrate Breakdown to compact Shooting Board projection`
+- 추가: `src/domain/shoot-board/shoot-board-projection.ts`
+  - `shooting_board_projection.items`를 `ShootBoardCut[]`으로 변환하는 순수 mapper 추가.
+  - reference time range를 `0:00-0:05` 형식으로 변환.
+  - `projectionCutId`, `sourceCutIds`, `referenceUsage`, `myTakeRelationship`, `projectionTitle` lineage를 보드 cut에 보존.
+  - 사용자 override를 generated projection에 mutate 없이 적용하는 helper 추가.
+- 수정: `src/domain/shoot-board/shoot-board-model.ts`
+  - `createShootBoardRecipe()`가 `referenceBreakdown.shooting_board_projection`이 있으면 projection board를 우선 사용.
+  - 기존 Korean diet template / scene fallback은 유지.
+  - projection board의 title/duration/summary는 projection 계약을 기준으로 계산.
+  - reorder 시 projection execution title을 유지.
+- 테스트:
+  - projection mapper/override 테스트 추가.
+  - shoot board integration 테스트에 projection 우선순위, 필드 매핑, duration, label guard, reorder title 보존 검증 추가.
+  - board reference contract 테스트를 현재 컴포넌트 구조 기준으로 갱신하고 visible board label guard 추가.
+
+## 2026-05-17 Issue #20 검증
+
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/domain/shoot-board/shoot-board-projection.test.ts` PASS.
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/lib/shoot-board-model.test.ts` PASS.
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/screens/recipe-detail/recipe-detail-breakdown-tab-contract.test.ts` PASS.
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/screens/recipe-detail/recipe-detail-board-reference-contract.test.ts` PASS.
+- `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json` PASS.
+- `npm run check:architecture` PASS.
+- `git diff --check` PASS.
+
+## 2026-05-17 Issue #20 남은 QA
+
+- 이번 작업은 domain/read-model 통합과 label guard까지다.
+- Android/iOS 실행 화면 캡처와 실제 reference preview / My Take interaction QA는 #21에서 진행한다.

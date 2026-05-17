@@ -1,3 +1,5 @@
+import type { ShootingBoardProjection } from "@/domain/recipes/reference-analysis-contract";
+import { hasForbiddenBoardProjectionLabel } from "@/domain/shoot-board/shoot-board-projection";
 import { recipesSeed } from "../../../core/mocks/parrotkit-data";
 import { normalizeNativeRecipe } from "./recipe-domain-normalizer";
 import {
@@ -27,9 +29,84 @@ const sourceRecipe = normalizeNativeRecipe(
     recipesSeed[0],
 );
 
+if (!sourceRecipe.referenceBreakdown) {
+  throw new Error("Projection integration test requires a reference breakdown fixture.");
+}
+
 const board = createShootBoardRecipe(sourceRecipe, {
   isSaved: true,
   shotCutIds: [],
+});
+
+const projectionForBoardTest = {
+  analysisProfileVersion: "reference-analysis-v1",
+  boardTitle: "Food Promo Shooting Guide",
+  breakdownId: "breakdown_food_promo_v1",
+  confidence: { overall: 0.84, notes: [] },
+  createdAt: "2026-05-17T10:00:00.000Z",
+  estimatedDurationSeconds: 25,
+  items: [
+    {
+      durationSeconds: 5,
+      editableFields: ["executionTitle", "lineToSay", "shotGuide", "successCriteria"],
+      executionTitle: "Immediate promise",
+      lineToSay: "I stopped overthinking diet food and this finally stuck.",
+      missingArtifacts: [],
+      myTakeRelationship: "Your take should prove the payoff before setup.",
+      orderIndex: 0,
+      projectionCutId: "projection_cut_001",
+      referenceMediaRef: {
+        endMs: 5000,
+        mediaAssetId: "media_food_promo",
+        startMs: 0,
+      },
+      referenceObservation: "Finished plate appears before process.",
+      referenceUsage: "Match the finished-result first frame.",
+      shotGuide: "Start on the final plate, then cut to reaction.",
+      sourceCutIds: ["cut_001"],
+      sourceTimeRangeMs: { endMs: 5000, startMs: 0 },
+      successCriteria: ["Finished result visible immediately"],
+    },
+    {
+      durationSeconds: 8,
+      editableFields: ["lineToSay", "shotGuide"],
+      executionTitle: "Movement proof",
+      lineToSay: "Here is the prep proof.",
+      missingArtifacts: [],
+      myTakeRelationship: "Your take should answer one uncertainty.",
+      orderIndex: 1,
+      projectionCutId: "projection_cut_002",
+      referenceMediaRef: {
+        endMs: 13000,
+        mediaAssetId: "media_food_promo",
+        startMs: 5000,
+      },
+      referenceObservation: "Fast prep cuts show texture and speed.",
+      referenceUsage: "Borrow the proof rhythm, not the exact food.",
+      shotGuide: "Stack prep, drizzle, and final bite.",
+      sourceCutIds: ["cut_002"],
+      sourceTimeRangeMs: { endMs: 13000, startMs: 5000 },
+      successCriteria: ["One visual proof per cut"],
+    },
+  ],
+  mediaAssetId: "media_food_promo",
+  mediaAssetVersion: "sha256:food-promo-v1",
+  missingArtifacts: [],
+  projectionId: "projection_food_promo_v1",
+  projectionSchemaVersion: "parrotkit.shooting_board_projection.v1",
+  sourceCutCount: 2,
+  status: "ready",
+  updatedAt: "2026-05-17T10:00:00.000Z",
+  workspaceId: "workspace_1",
+} satisfies ShootingBoardProjection;
+
+const projectionBoard = createShootBoardRecipe({
+  ...sourceRecipe,
+  id: "recipe-with-shooting-board-projection",
+  referenceBreakdown: {
+    ...sourceRecipe.referenceBreakdown,
+    shooting_board_projection: projectionForBoardTest,
+  },
 });
 
 if (
@@ -141,6 +218,65 @@ if (
   emptyBoard.summary.totalScenes !== 0
 ) {
   throw new Error("Blank manual recipe drafts should open an empty shoot board.");
+}
+
+if (
+  projectionBoard.cuts.length !== projectionForBoardTest.items.length ||
+  projectionBoard.totalCuts !== projectionForBoardTest.items.length
+) {
+  throw new Error("Shoot Board should prefer projection items when a projection is present.");
+}
+
+if (
+  projectionBoard.title !== projectionForBoardTest.boardTitle ||
+  projectionBoard.cuts[0]?.title !== "Immediate promise"
+) {
+  throw new Error("Projection boards should use execution titles, not generated role labels.");
+}
+
+if (
+  projectionBoard.cuts[0]?.lineToSay !== projectionForBoardTest.items[0].lineToSay ||
+  projectionBoard.cuts[0]?.shotAction !== projectionForBoardTest.items[0].shotGuide ||
+  projectionBoard.cuts[0]?.referenceUsage !==
+    projectionForBoardTest.items[0].referenceUsage ||
+  projectionBoard.cuts[0]?.myTakeRelationship !==
+    projectionForBoardTest.items[0].myTakeRelationship
+) {
+  throw new Error("Projection boards should map editable execution fields onto cut cards.");
+}
+
+if (
+  projectionBoard.totalDurationSeconds !==
+    projectionForBoardTest.estimatedDurationSeconds ||
+  projectionBoard.summary.estimatedLengthSeconds !==
+    projectionForBoardTest.estimatedDurationSeconds
+) {
+  throw new Error("Projection board duration should follow the projection estimate.");
+}
+
+for (const cut of projectionBoard.cuts) {
+  for (const value of [
+    cut.title,
+    cut.roleLabel,
+    cut.hook,
+    cut.note,
+    cut.lineToSay,
+    cut.shotAction,
+  ]) {
+    if (hasForbiddenBoardProjectionLabel(value)) {
+      throw new Error(`Projection board leaked an analysis label: ${value}`);
+    }
+  }
+}
+
+const reorderedProjectionBoard = reorderShootBoardCuts(
+  projectionBoard,
+  "projection_cut_002",
+  1,
+);
+
+if (reorderedProjectionBoard.cuts[0]?.title !== "Movement proof") {
+  throw new Error("Reordering projection cuts should preserve execution titles.");
 }
 
 if (board.summary.recipeType !== "Payoff-first proof recipe") {
