@@ -3,6 +3,8 @@ import type {
   NativeRecipeImageSource,
   NativeRecipeScene,
 } from "@/domain/recipes/native-recipe";
+import type { ShootingBoardProjection } from "@/domain/recipes/reference-analysis-contract";
+import { mapShootingBoardProjectionToCuts } from "@/domain/shoot-board/shoot-board-projection";
 
 export type ShootBoardCutRole = "hook" | "proof" | "scene" | "cta" | "custom";
 
@@ -77,6 +79,11 @@ export type ShootBoardCut = {
   takeThumbnailUrl?: string;
   takeThumbnailSource?: NativeRecipeImageSource;
   referenceVideoUrl?: string | number;
+  projectionCutId?: string;
+  projectionTitle?: string;
+  referenceUsage?: string;
+  myTakeRelationship?: string;
+  sourceCutIds?: string[];
   isShot: boolean;
   shotCount?: number;
   notes?: string;
@@ -458,6 +465,36 @@ export function createShootBoardRecipe(
   options: CreateShootBoardRecipeOptions = {},
 ): ShootBoardRecipe {
   const shotCutIds = new Set(options.shotCutIds ?? []);
+
+  const projection = recipe.referenceBreakdown?.shooting_board_projection;
+  if (projection?.items.length) {
+    const cuts = mapShootingBoardProjectionToCuts({
+      projection,
+      recipe,
+      shotCutIds,
+    });
+    const totalDurationSeconds =
+      projection.estimatedDurationSeconds || getShootBoardTotalDuration(recipe, cuts);
+
+    return {
+      boardNote: "",
+      boardNoteChecked: false,
+      cuts,
+      id: recipe.id,
+      isSaved: options.isSaved ?? true,
+      shotCount: getShotCount(cuts),
+      summary: getProjectionShootBoardSummary(
+        recipe,
+        projection,
+        cuts,
+        totalDurationSeconds,
+      ),
+      title: projection.boardTitle || getShootBoardTitle(recipe),
+      totalCuts: cuts.length,
+      totalDurationSeconds,
+    };
+  }
+
   const cuts =
     recipe.id === "recipe-korean-diet-hook"
       ? createKoreanDietViralCuts(recipe, shotCutIds)
@@ -1122,6 +1159,30 @@ function getShootBoardSummary(
   };
 }
 
+function getProjectionShootBoardSummary(
+  recipe: NativeRecipe,
+  projection: ShootingBoardProjection,
+  cuts: ShootBoardCut[],
+  totalDurationSeconds: number,
+): ShootBoardRecipeSummary {
+  return {
+    ...defaultRecipeSummary,
+    bestUseCases: [],
+    bestUseCasesKo: [],
+    estimatedLengthSeconds:
+      projection.estimatedDurationSeconds || totalDurationSeconds,
+    hookType: "",
+    hookTypeKo: "",
+    recipeType: "Reference projection",
+    recipeTypeKo: "레퍼런스 실행 보드",
+    totalScenes: cuts.length,
+    visualStyle: "",
+    visualStyleKo: "",
+    whenToUse: recipe.summary || defaultRecipeSummary.whenToUse,
+    whenToUseKo: recipe.summary || defaultRecipeSummary.whenToUseKo,
+  };
+}
+
 function getShootBoardTitle(recipe: NativeRecipe) {
   if (recipe.id === "recipe-korean-diet-hook") {
     return recipe.title;
@@ -1180,8 +1241,8 @@ function renumberShootBoardCut(
   return {
     ...cut,
     order,
-    title: createSceneTitle(order, cut.roleLabel),
-    titleKo: createSceneTitleKo(order, cut.roleLabel),
+    title: cut.projectionTitle ?? createSceneTitle(order, cut.roleLabel),
+    titleKo: cut.projectionTitle ?? createSceneTitleKo(order, cut.roleLabel),
   };
 }
 

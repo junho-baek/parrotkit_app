@@ -18,7 +18,7 @@
 - Read: `src/domain/recipes/reference-analysis-contract.ts`
 - Read: `src/domain/shoot-board/shoot-board-model.ts`
 
-- [ ] **Step 1: Write the failing mapper test**
+- [x] **Step 1: Write the failing mapper test**
 
 Create `src/domain/shoot-board/shoot-board-projection.test.ts`.
 
@@ -88,7 +88,7 @@ Assert that `mapShootingBoardProjectionToCuts({ projection, recipe })`:
 - maps reference media/time into `referenceVideoUrl` and `timeRangeLabel`;
 - uses `projectionCutId` as the cut id and preserves `sourceCutIds` in `sceneId` or a new `sourceCutIds`-style field if added.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/domain/shoot-board/shoot-board-projection.test.ts
@@ -96,7 +96,7 @@ NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.b
 
 Expected: FAIL because the mapper does not exist.
 
-- [ ] **Step 3: Implement minimal mapper**
+- [x] **Step 3: Implement minimal mapper**
 
 Create `src/domain/shoot-board/shoot-board-projection.ts` with:
 
@@ -114,7 +114,7 @@ referenceUsage?: string;
 myTakeRelationship?: string;
 ```
 
-- [ ] **Step 4: Run mapper test**
+- [x] **Step 4: Run mapper test**
 
 ```bash
 NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/domain/shoot-board/shoot-board-projection.test.ts
@@ -129,7 +129,7 @@ Expected: PASS.
 - Test: `src/features/recipes/lib/shoot-board-model.test.ts`
 - Test: `src/domain/shoot-board/shoot-board-projection.test.ts`
 
-- [ ] **Step 1: Add a failing integration assertion**
+- [x] **Step 1: Add a failing integration assertion**
 
 Extend `src/features/recipes/lib/shoot-board-model.test.ts` with a recipe fixture whose `referenceBreakdown.shooting_board_projection` is present.
 
@@ -142,7 +142,7 @@ Assert:
 - board summary duration equals projection `estimatedDurationSeconds`;
 - forbidden board labels do not appear in `title`, `roleLabel`, `hook`, `note`, `lineToSay`, `shotAction`.
 
-- [ ] **Step 2: Update `createShootBoardRecipe`**
+- [x] **Step 2: Update `createShootBoardRecipe`**
 
 Inside `createShootBoardRecipe`, before scene/template cut creation:
 
@@ -156,7 +156,7 @@ if (projection?.items.length) {
 
 Keep existing scene/template path as fallback.
 
-- [ ] **Step 3: Run focused tests**
+- [x] **Step 3: Run focused tests**
 
 ```bash
 NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/domain/shoot-board/shoot-board-projection.test.ts
@@ -172,7 +172,7 @@ Expected: PASS.
 - Test: `src/domain/shoot-board/shoot-board-projection.test.ts`
 - Read: `src/domain/recipes/reference-analysis-contract.ts`
 
-- [ ] **Step 1: Add failing override preservation test**
+- [x] **Step 1: Add failing override preservation test**
 
 Add test coverage for:
 
@@ -197,13 +197,13 @@ applyUserBoardOverridesToProjection({
 
 Assert matching `projectionCutId` overrides win, generated projection object remains unchanged, and unmatched overrides are ignored.
 
-- [ ] **Step 2: Implement override helper**
+- [x] **Step 2: Implement override helper**
 
 Implement `applyUserBoardOverridesToProjection` as a pure helper that returns a new `ShootingBoardProjection`.
 
 Do not mutate `projection.items`.
 
-- [ ] **Step 3: Run projection test**
+- [x] **Step 3: Run projection test**
 
 ```bash
 NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/domain/shoot-board/shoot-board-projection.test.ts
@@ -218,7 +218,7 @@ Expected: PASS.
 - Test: `src/features/recipes/screens/recipe-detail/recipe-detail-board-reference-contract.test.ts`
 - Possibly modify: `src/features/recipes/components/shoot-board-scene-card.tsx`
 
-- [ ] **Step 1: Add/extend label guard tests**
+- [x] **Step 1: Add/extend label guard tests**
 
 Add assertions that board-facing source files do not introduce:
 
@@ -236,11 +236,11 @@ Add assertions that board-facing source files do not introduce:
 
 as visible board row labels.
 
-- [ ] **Step 2: Keep Breakdown labels in Breakdown only**
+- [x] **Step 2: Keep Breakdown labels in Breakdown only**
 
 If any board component renders the forbidden labels, remove them or move the content behind existing Breakdown rendering.
 
-- [ ] **Step 3: Run contract tests**
+- [x] **Step 3: Run contract tests**
 
 ```bash
 NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/screens/recipe-detail/recipe-detail-breakdown-tab-contract.test.ts
@@ -255,7 +255,7 @@ Expected: PASS.
 - Modify: `context/context_20260517_reference_analysis_pipeline_contract.md`
 - Modify: `plans/20260517_issue_20_board_projection_integration.md`
 
-- [ ] **Step 1: Run full checks**
+- [x] **Step 1: Run full checks**
 
 ```bash
 NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/domain/shoot-board/shoot-board-projection.test.ts
@@ -267,11 +267,11 @@ npm run check:architecture
 git diff --check
 ```
 
-- [ ] **Step 2: Update context and issue**
+- [x] **Step 2: Update context and issue**
 
 Append #20 result to `context/context_20260517_reference_analysis_pipeline_contract.md`, then comment on GitHub issue #20 with the commit, tests, and any UI QA remaining.
 
-- [ ] **Step 3: Commit and push**
+- [x] **Step 3: Commit and push**
 
 ```bash
 git add src/domain/shoot-board/shoot-board-projection.ts src/domain/shoot-board/shoot-board-projection.test.ts src/domain/shoot-board/shoot-board-model.ts src/features/recipes/lib/shoot-board-model.test.ts src/features/recipes/screens/recipe-detail/recipe-detail-breakdown-tab-contract.test.ts src/features/recipes/screens/recipe-detail/recipe-detail-board-reference-contract.test.ts context/context_20260517_reference_analysis_pipeline_contract.md plans/20260517_issue_20_board_projection_integration.md
@@ -284,3 +284,20 @@ git push origin main
 - #20 should run before #19 provider work. Provider output must target the stable Board projection boundary instead of forcing UI changes later.
 - This plan intentionally avoids native screenshots. #21 owns Android/iOS QA after projection behavior lands.
 - Do not close #20 until projection-to-board mapping, override preservation, label guards, TypeScript, and architecture checks pass.
+
+## Result
+
+- Implemented `src/domain/shoot-board/shoot-board-projection.ts`.
+- Added projection mapper, time range formatter, forbidden board label guard, and pure user override preservation.
+- Updated `createShootBoardRecipe()` to prefer `referenceBreakdown.shooting_board_projection` when present and keep legacy scene/template generation as fallback.
+- Added board integration coverage for projection titles, editable fields, duration, lineage fields, reorder preservation, and forbidden labels.
+- Updated board reference contract tests to guard visible board labels while keeping Sandcastle analysis labels in Breakdown.
+- Context file: `context/context_20260517_reference_analysis_pipeline_contract.md`.
+- Verification:
+  - `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/domain/shoot-board/shoot-board-projection.test.ts` PASS.
+  - `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/lib/shoot-board-model.test.ts` PASS.
+  - `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/screens/recipe-detail/recipe-detail-breakdown-tab-contract.test.ts` PASS.
+  - `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/features/recipes/screens/recipe-detail/recipe-detail-board-reference-contract.test.ts` PASS.
+  - `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json` PASS.
+  - `npm run check:architecture` PASS.
+  - `git diff --check` PASS.

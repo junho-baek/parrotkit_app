@@ -6,6 +6,18 @@ const sceneCardSource = readFileSync(
   join(__dirname, "../../components/shoot-board-scene-card.tsx"),
   "utf8",
 );
+const boardFacingSource = [
+  source,
+  sceneCardSource,
+  readFileSync(join(__dirname, "../../lib/cut-card-body-preview.ts"), "utf8"),
+  readFileSync(join(__dirname, "../../lib/cut-card-editor-fields.ts"), "utf8"),
+  readFileSync(join(__dirname, "../../lib/cut-card-header.ts"), "utf8"),
+  readFileSync(
+    join(__dirname, "../../lib/cut-card-reference-viewer-section.ts"),
+    "utf8",
+  ),
+  readFileSync(join(__dirname, "../../lib/cut-card-take-viewer-section.ts"), "utf8"),
+].join("\n");
 
 for (const removedHeaderConcept of [
   "getBoardReferencePreview",
@@ -19,8 +31,9 @@ for (const removedHeaderConcept of [
 }
 
 for (const requiredCutConcept of [
-  "CutReferencePreview",
-  "cutReferencePreview",
+  "referenceAnchor",
+  "referenceThumbnailSource",
+  "formatCutTimelineLabel",
   "timeRangeLabel",
 ]) {
   if (!sceneCardSource.includes(requiredCutConcept)) {
@@ -36,4 +49,29 @@ if (source.includes("onToggleSceneComplete")) {
 
 if (source.includes("setShootBoardCutCompletion")) {
   throw new Error("Board completion UI should be driven by My Take state, not manual cut completion.");
+}
+
+for (const forbiddenVisibleLabel of [
+  "Storytelling Format",
+  "Visual Layout",
+  "Proof point",
+  "Proof Point",
+  "confidence",
+  "model",
+  "prompt",
+  "Card prompt",
+  "Next Cut",
+  "Recording Ready",
+]) {
+  for (const quotedLabel of [
+    `"${forbiddenVisibleLabel}"`,
+    `'${forbiddenVisibleLabel}'`,
+    `>${forbiddenVisibleLabel}<`,
+  ]) {
+    if (boardFacingSource.includes(quotedLabel)) {
+      throw new Error(
+        `Board-facing UI should not expose analysis or AI-slop label: ${forbiddenVisibleLabel}`,
+      );
+    }
+  }
 }
