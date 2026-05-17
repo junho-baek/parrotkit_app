@@ -1,10 +1,15 @@
 import {
   buildLocalFallbackResult,
+  generateRecipeFromYouTubeReference,
   getYouTubeThumbnailUrl,
   getYouTubeVideoId,
+  isReferenceAnalysisDevFallbackEnabled,
+  isUsableReferenceAnalysisResponse,
   isYouTubeReferenceUrl,
+  mapReferenceAnalysisResponseToRecipeGenerationResult,
   mapGeneratedRecipeToMockScenes,
   referenceBreakdownSteps,
+  type ReferenceAnalysisAPIResponse,
   type ReferenceRecipeGenerationResult,
 } from '@/features/recipes/lib/reference-recipe-generation';
 
@@ -19,7 +24,7 @@ if (!isYouTubeReferenceUrl(shortsUrl)) {
 }
 
 if (isYouTubeReferenceUrl('https://www.tiktok.com/@demo/video/123')) {
-  throw new Error('The MVP reference generator should reject non-YouTube links.');
+  throw new Error('YouTube-specific helpers should not classify TikTok links as YouTube.');
 }
 
 if (getYouTubeThumbnailUrl(shortsUrl) !== 'https://img.youtube.com/vi/dtnIqkMmbs0/maxresdefault.jpg') {
@@ -130,3 +135,263 @@ if (thirdSceneChecklist.length !== 3) {
 if (scenes.some((scene) => scene.thumbnail !== generated.reference.thumbnailUrl)) {
   throw new Error('Generated scenes should reuse the YouTube thumbnail as their board thumbnail.');
 }
+
+const readyAnalysisResponse: ReferenceAnalysisAPIResponse = {
+  schemaVersion: 'parrotkit.reference_analysis_response.v1',
+  status: 'ready',
+  requestId: 'req_ready',
+  generatedAt: '2026-05-18T00:00:00.000Z',
+  referenceUrl: shortsUrl,
+  referenceMedia: {
+    platform: 'youtube',
+    sourceUrl: shortsUrl,
+    thumbnailUrl: 'https://cdn.example.com/thumb.jpg',
+    title: 'Creator glow review',
+  },
+  breakdown: {
+    schema_version: 'parrotkit.reference_breakdown.v1',
+    cuts: [{ id: 'cut-1' }],
+  },
+  recipe: {
+    title: 'Glow Review Recipe',
+    oneLineDescription: 'Open with the finished look, then show proof and use.',
+    totalDurationSec: 20,
+    scenes: [
+      {
+        durationSec: 6,
+        index: 1,
+        lineToSay: 'This is the glow before concealer.',
+        projectionCutId: 'cut-1',
+        requiredChecklist: ['Finished skin visible'],
+        shootingGuideline: 'Open on the finished skin result.',
+        title: 'Show finished glow',
+      },
+      {
+        durationSec: 14,
+        index: 2,
+        lineToSay: 'Here is how it sits on skin.',
+        projectionCutId: 'cut-2',
+        requiredChecklist: ['Product and texture visible'],
+        shootingGuideline: 'Show a close texture pass.',
+        title: 'Show texture proof',
+      },
+    ],
+  },
+  cutBoard: {
+    boardTitle: 'Glow Review Recipe',
+    estimatedDurationSeconds: 20,
+    items: [
+      {
+        durationSeconds: 6,
+        executionTitle: 'Show finished glow',
+        lineToSay: 'This is the glow before concealer.',
+        myTakeRelationship: 'Use this as the opening take.',
+        orderIndex: 0,
+        projectionCutId: 'cut-1',
+        referenceMediaRef: {
+          endMs: 6000,
+          mediaAssetId: 'media-1',
+          startMs: 0,
+          thumbnailUri: 'https://cdn.example.com/cut-1.jpg',
+        },
+        referenceObservation: 'The creator starts on the result.',
+        referenceUsage: 'Lead with your finished result before explaining.',
+        shotGuide: 'Frame the finished result in 9:16.',
+        sourceCutIds: ['source-1'],
+        successCriteria: ['Result is visible immediately'],
+      },
+      {
+        durationSeconds: 14,
+        executionTitle: 'Show texture proof',
+        lineToSay: 'Here is how it sits on skin.',
+        myTakeRelationship: 'Use this as the proof take.',
+        orderIndex: 1,
+        projectionCutId: 'cut-2',
+        referenceMediaRef: {
+          endMs: 20000,
+          mediaAssetId: 'media-1',
+          startMs: 6000,
+        },
+        referenceObservation: 'The creator moves into proof.',
+        referenceUsage: 'Show the product texture close enough to inspect.',
+        shotGuide: 'Move from product to skin texture.',
+        sourceCutIds: ['source-2'],
+        successCriteria: ['Texture is visible'],
+      },
+    ],
+  },
+  generation: {
+    fallbackUsed: false,
+    missingArtifacts: [],
+    model: 'google/gemini-2.5-flash',
+    providerPipeline: ['superdata.metadata', 'superdata.transcript', 'superdata.extract', 'replicate.model'],
+  },
+};
+
+if (!isUsableReferenceAnalysisResponse(readyAnalysisResponse)) {
+  throw new Error('Ready reference analysis responses should be considered usable.');
+}
+
+const mappedReadyResult = mapReferenceAnalysisResponseToRecipeGenerationResult(readyAnalysisResponse, {
+  goalId: 'ad',
+  nicheId: 'beauty',
+  referenceUrl: shortsUrl,
+});
+
+if (mappedReadyResult.generation.fallbackUsed) {
+  throw new Error('Ready API responses must not be marked as fallback generations.');
+}
+
+if (mappedReadyResult.reference.thumbnailUrl !== 'https://cdn.example.com/thumb.jpg') {
+  throw new Error('Ready API responses should prefer canonical reference media thumbnails.');
+}
+
+if (mapGeneratedRecipeToMockScenes(mappedReadyResult).length !== 2) {
+  throw new Error('Generated API recipe scenes should preserve the live cut count.');
+}
+
+const failedAnalysisResponse: ReferenceAnalysisAPIResponse = {
+  schemaVersion: 'parrotkit.reference_analysis_response.v1',
+  status: 'failed',
+  requestId: 'req_failed',
+  generatedAt: '2026-05-18T00:00:00.000Z',
+  referenceUrl: shortsUrl,
+  error: {
+    code: 'analysis_failed',
+    recoveryAction: 'retry',
+    retryable: true,
+    userMessage: 'Try another link.',
+  },
+  generation: {
+    fallbackUsed: false,
+    missingArtifacts: [],
+    model: null,
+    providerPipeline: [],
+  },
+};
+
+if (isUsableReferenceAnalysisResponse(failedAnalysisResponse)) {
+  throw new Error('Failed reference analysis responses must not create a board.');
+}
+
+const noThumbnailAnalysisResponse: ReferenceAnalysisAPIResponse = {
+  ...readyAnalysisResponse,
+  referenceMedia: {
+    ...readyAnalysisResponse.referenceMedia,
+    thumbnailUrl: null,
+  },
+  referenceUrl: 'https://www.tiktok.com/@demo/video/123',
+  cutBoard: {
+    ...readyAnalysisResponse.cutBoard,
+    items: readyAnalysisResponse.cutBoard?.items?.map((item) => ({
+      ...item,
+      referenceMediaRef: {
+        ...item.referenceMediaRef,
+        thumbnailUri: null,
+      },
+    })),
+  },
+};
+
+if (isUsableReferenceAnalysisResponse(noThumbnailAnalysisResponse)) {
+  throw new Error('Production reference analysis must not substitute fake thumbnails for non-YouTube references.');
+}
+
+async function runAsyncGenerationAssertions() {
+  const globalWithFetch = globalThis as typeof globalThis & { fetch: typeof fetch };
+  const originalFetch = globalWithFetch.fetch;
+  const originalApiUrl = process.env.EXPO_PUBLIC_PARROTKIT_API_URL;
+  const originalDevFallback = process.env.EXPO_PUBLIC_REFERENCE_ANALYSIS_DEV_FALLBACK;
+
+  try {
+    const captured: {
+      body: Record<string, unknown> | null;
+      url: string;
+    } = {
+      body: null,
+      url: '',
+    };
+
+    process.env.EXPO_PUBLIC_PARROTKIT_API_URL = 'https://analysis.example.com/';
+    process.env.EXPO_PUBLIC_REFERENCE_ANALYSIS_DEV_FALLBACK = '';
+    globalWithFetch.fetch = (async (input, init) => {
+      captured.url = String(input);
+      captured.body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+
+      return {
+        json: async () => readyAnalysisResponse,
+        ok: true,
+      } as unknown as Response;
+    }) as typeof fetch;
+
+    const apiGenerated = await generateRecipeFromYouTubeReference({
+      goalId: 'ad',
+      languageHint: 'ko',
+      nicheId: 'beauty',
+      referenceUrl: shortsUrl,
+    });
+
+    if (captured.url !== 'https://analysis.example.com/v1/reference-analysis') {
+      throw new Error('Reference generation should call the Go /v1/reference-analysis endpoint.');
+    }
+
+    if (captured.body?.referenceUrl !== shortsUrl || captured.body.languageHint !== 'ko') {
+      throw new Error('Reference generation should forward the trimmed URL and language hint.');
+    }
+
+    if (apiGenerated.recipe.title !== 'Glow Review Recipe') {
+      throw new Error('Reference generation should map usable API recipes into the current board model.');
+    }
+
+    globalWithFetch.fetch = (async () => ({
+      json: async () => failedAnalysisResponse,
+      ok: true,
+    }) as unknown as Response) as typeof fetch;
+
+    let rejectedFailedAnalysis = false;
+    try {
+      await generateRecipeFromYouTubeReference({
+        goalId: 'ad',
+        nicheId: 'beauty',
+        referenceUrl: shortsUrl,
+      });
+    } catch {
+      rejectedFailedAnalysis = true;
+    }
+
+    if (!rejectedFailedAnalysis) {
+      throw new Error('Production reference generation must not silently fallback on failed analysis.');
+    }
+
+    process.env.EXPO_PUBLIC_REFERENCE_ANALYSIS_DEV_FALLBACK = 'true';
+
+    if (!isReferenceAnalysisDevFallbackEnabled()) {
+      throw new Error('Dev fallback gate should be explicit and opt-in.');
+    }
+
+    globalWithFetch.fetch = (async () => ({
+      json: async () => failedAnalysisResponse,
+      ok: false,
+    }) as unknown as Response) as typeof fetch;
+
+    const devFallback = await generateRecipeFromYouTubeReference({
+      goalId: 'ad',
+      nicheId: 'beauty',
+      referenceUrl: shortsUrl,
+    });
+
+    if (!devFallback.generation.fallbackUsed) {
+      throw new Error('Dev fallback should only run when explicitly enabled.');
+    }
+  } finally {
+    globalWithFetch.fetch = originalFetch;
+    process.env.EXPO_PUBLIC_PARROTKIT_API_URL = originalApiUrl;
+    process.env.EXPO_PUBLIC_REFERENCE_ANALYSIS_DEV_FALLBACK = originalDevFallback;
+  }
+}
+
+void runAsyncGenerationAssertions().catch((error) => {
+  setTimeout(() => {
+    throw error;
+  }, 0);
+});

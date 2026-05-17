@@ -25,7 +25,7 @@ export type GeneratedReferenceRecipe = {
 export type ReferenceRecipeGenerationResult = {
   recipe: GeneratedReferenceRecipe;
   reference: {
-    platform: 'youtube-shorts';
+    platform: 'instagram-reels' | 'short-form' | 'tiktok' | 'unknown' | 'youtube-shorts';
     thumbnailUrl: string;
     title: string;
     transcriptLanguage?: string | null;
@@ -43,6 +43,83 @@ export type ReferenceRecipeGenerationResult = {
   };
 };
 
+export type ReferenceAnalysisAPIStatus = 'failed' | 'fallback' | 'partial_ready' | 'ready';
+
+export type ReferenceAnalysisAPIMedia = {
+  creatorHandle?: string | null;
+  durationSeconds?: number | null;
+  language?: string | null;
+  mediaAssetId?: string;
+  platform?: string;
+  sourceUrl?: string;
+  thumbnailUrl?: string | null;
+  title?: string | null;
+};
+
+export type ReferenceAnalysisAPIRecipeScene = {
+  durationSec?: number;
+  index?: number;
+  lineToSay?: string;
+  projectionCutId?: string;
+  requiredChecklist?: string[];
+  shootingGuideline?: string;
+  title?: string;
+};
+
+export type ReferenceAnalysisAPICutBoardItem = {
+  durationSeconds?: number;
+  executionTitle?: string;
+  lineToSay?: string | null;
+  myTakeRelationship?: string;
+  orderIndex?: number;
+  projectionCutId?: string;
+  referenceMediaRef?: {
+    endMs?: number;
+    mediaAssetId?: string;
+    startMs?: number;
+    thumbnailUri?: string | null;
+  };
+  referenceObservation?: string;
+  referenceUsage?: string;
+  shotGuide?: string | null;
+  sourceCutIds?: string[];
+  successCriteria?: string[];
+};
+
+export type ReferenceAnalysisAPIResponse = {
+  breakdown?: unknown | null;
+  cutBoard?: {
+    boardTitle?: string;
+    estimatedDurationSeconds?: number;
+    items?: ReferenceAnalysisAPICutBoardItem[];
+  } | null;
+  error?: {
+    code?: string;
+    recoveryAction?: string;
+    retryable?: boolean;
+    userMessage?: string;
+  } | null;
+  generatedAt?: string;
+  generation?: {
+    fallbackReason?: string | null;
+    fallbackUsed?: boolean;
+    missingArtifacts?: string[];
+    model?: string | null;
+    providerPipeline?: string[];
+  };
+  recipe?: {
+    oneLineDescription?: string;
+    scenes?: ReferenceAnalysisAPIRecipeScene[];
+    title?: string;
+    totalDurationSec?: number;
+  } | null;
+  referenceMedia?: ReferenceAnalysisAPIMedia | null;
+  referenceUrl?: string;
+  requestId?: string;
+  schemaVersion?: string;
+  status?: ReferenceAnalysisAPIStatus;
+};
+
 const generationSteps = [
   'Detecting hook',
   'Extracting shot rhythm',
@@ -54,7 +131,6 @@ const generationSteps = [
 
 export const referenceBreakdownSteps = generationSteps;
 
-const sceneTypes: GeneratedReferenceSceneType[] = ['hook', 'proof', 'demonstration', 'cta'];
 const defaultDurations: Record<GeneratedReferenceSceneType, number> = {
   hook: 5,
   proof: 8,
@@ -91,7 +167,20 @@ export function getYouTubeThumbnailUrl(url: string) {
 
 function getApiBaseUrl() {
   const configured = process.env.EXPO_PUBLIC_PARROTKIT_API_URL?.trim();
-  return configured || 'https://parrotkit-deploy.vercel.app';
+  return (configured || 'https://parrotkit-deploy.vercel.app').replace(/\/+$/, '');
+}
+
+export function isReferenceAnalysisDevFallbackEnabled() {
+  return process.env.EXPO_PUBLIC_REFERENCE_ANALYSIS_DEV_FALLBACK?.trim().toLowerCase() === 'true';
+}
+
+function isHttpReferenceUrl(url: string) {
+  try {
+    const parsed = new URL(url.trim());
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 function normalizeGoalForApi(goalId: RecipeCreateGoalId) {
@@ -173,6 +262,169 @@ function buildLocalFallbackRecipe({
   };
 }
 
+function sceneTypeForIndex(index: number, total: number): GeneratedReferenceSceneType {
+  if (index === 0) return 'hook';
+  if (index === total - 1) return 'cta';
+  if (index === 1) return 'proof';
+  return 'demonstration';
+}
+
+function normalizeReferencePlatform(platform: string | null | undefined): ReferenceRecipeGenerationResult['reference']['platform'] {
+  const normalized = platform?.toLowerCase().trim() ?? '';
+
+  if (normalized.includes('youtube')) return 'youtube-shorts';
+  if (normalized.includes('tiktok')) return 'tiktok';
+  if (normalized.includes('instagram')) return 'instagram-reels';
+  if (normalized) return 'short-form';
+
+  return 'unknown';
+}
+
+function compactText(value: string | null | undefined, fallback: string) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : fallback;
+}
+
+function optionalText(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return trimmed || null;
+}
+
+function getBestThumbnailUrl({
+  apiResponse,
+  referenceUrl,
+}: {
+  apiResponse: ReferenceAnalysisAPIResponse;
+  referenceUrl: string;
+}) {
+  const boardThumbnail =
+    apiResponse.cutBoard?.items?.find((item) => item.referenceMediaRef?.thumbnailUri)?.referenceMediaRef?.thumbnailUri ?? null;
+
+  return (
+    apiResponse.referenceMedia?.thumbnailUrl?.trim() ||
+    boardThumbnail?.trim() ||
+    getYouTubeThumbnailUrl(referenceUrl) ||
+    ''
+  );
+}
+
+function hasReferenceThumbnail(apiResponse: ReferenceAnalysisAPIResponse) {
+  const referenceUrl =
+    apiResponse.referenceUrl?.trim() ||
+    apiResponse.referenceMedia?.sourceUrl?.trim() ||
+    '';
+
+  return Boolean(getBestThumbnailUrl({ apiResponse, referenceUrl }));
+}
+
+export function isUsableReferenceAnalysisResponse(
+  value: ReferenceAnalysisAPIResponse,
+): value is ReferenceAnalysisAPIResponse & {
+  cutBoard: NonNullable<ReferenceAnalysisAPIResponse['cutBoard']> & { items: ReferenceAnalysisAPICutBoardItem[] };
+  recipe: NonNullable<ReferenceAnalysisAPIResponse['recipe']> & { scenes: ReferenceAnalysisAPIRecipeScene[] };
+} {
+  if (value.schemaVersion !== 'parrotkit.reference_analysis_response.v1') {
+    return false;
+  }
+
+  if (value.status !== 'ready' && value.status !== 'partial_ready') {
+    return false;
+  }
+
+  if (value.generation?.fallbackUsed) {
+    return false;
+  }
+
+  return Boolean(value.recipe?.scenes?.length && value.cutBoard?.items?.length && hasReferenceThumbnail(value));
+}
+
+export function mapReferenceAnalysisResponseToRecipeGenerationResult(
+  apiResponse: ReferenceAnalysisAPIResponse,
+  fallbackContext: {
+    goalId: RecipeCreateGoalId;
+    nicheId: RecipeCreateNicheId;
+    referenceUrl: string;
+  },
+): ReferenceRecipeGenerationResult {
+  if (!isUsableReferenceAnalysisResponse(apiResponse)) {
+    throw new Error(apiResponse.error?.userMessage || 'Reference analysis did not return a usable board.');
+  }
+
+  const referenceUrl =
+    apiResponse.referenceUrl?.trim() ||
+    apiResponse.referenceMedia?.sourceUrl?.trim() ||
+    fallbackContext.referenceUrl.trim();
+  const thumbnailUrl = getBestThumbnailUrl({ apiResponse, referenceUrl });
+  const title =
+    optionalText(apiResponse.referenceMedia?.title) ??
+    optionalText(apiResponse.recipe.title) ??
+    'Reference video';
+  const scenes = apiResponse.recipe.scenes.map((scene, index) => {
+    const matchingCut =
+      apiResponse.cutBoard.items.find((item) => item.projectionCutId && item.projectionCutId === scene.projectionCutId) ??
+      apiResponse.cutBoard.items[index];
+    const type = sceneTypeForIndex(index, apiResponse.recipe.scenes.length);
+    const lineToSay =
+      compactText(scene.lineToSay, compactText(matchingCut?.lineToSay ?? undefined, 'Say the key line for this moment.'));
+    const shootingGuideline = compactText(
+      scene.shootingGuideline,
+      compactText(matchingCut?.shotGuide ?? undefined, compactText(matchingCut?.referenceUsage, 'Film the matching creator action clearly.')),
+    );
+    const intent = compactText(
+      matchingCut?.referenceUsage,
+      compactText(scene.title, `Capture cut ${index + 1}`),
+    );
+    const requiredChecklist =
+      scene.requiredChecklist?.filter(Boolean) ??
+      matchingCut?.successCriteria?.filter(Boolean) ??
+      [];
+
+    return {
+      durationSec:
+        Number.isFinite(scene.durationSec) && scene.durationSec ? scene.durationSec : matchingCut?.durationSeconds ?? defaultDurations[type],
+      index: scene.index ?? index + 1,
+      intent,
+      lineToSay,
+      requiredChecklist,
+      shootingGuideline,
+      teleprompterLine: lineToSay,
+      title: compactText(scene.title, compactText(matchingCut?.executionTitle, `Cut ${index + 1}`)),
+      type,
+    };
+  });
+
+  return {
+    recipe: {
+      oneLineDescription: compactText(apiResponse.recipe.oneLineDescription, 'A reference-led shooting recipe generated from the pasted link.'),
+      scenes,
+      title: compactText(apiResponse.recipe.title, `${fallbackContext.nicheId} Reference Recipe`),
+      totalDurationSec:
+        apiResponse.recipe.totalDurationSec ??
+        apiResponse.cutBoard.estimatedDurationSeconds ??
+        scenes.reduce((sum, scene) => sum + scene.durationSec, 0),
+    },
+    reference: {
+      platform: normalizeReferencePlatform(apiResponse.referenceMedia?.platform),
+      thumbnailUrl,
+      title,
+      transcriptLanguage: apiResponse.referenceMedia?.language ?? null,
+      transcriptPreview: undefined,
+      transcriptSource: apiResponse.generation?.providerPipeline?.join(' + '),
+      url: referenceUrl,
+      videoId: getYouTubeVideoId(referenceUrl) || apiResponse.requestId || 'reference',
+    },
+    generation: {
+      fallbackReason: apiResponse.generation?.missingArtifacts?.length
+        ? `missing:${apiResponse.generation.missingArtifacts.join(',')}`
+        : null,
+      fallbackUsed: false,
+      generatedAt: apiResponse.generatedAt || new Date().toISOString(),
+      model: apiResponse.generation?.model ?? null,
+      status: 'generated',
+    },
+  };
+}
+
 export function buildLocalFallbackResult({
   goalId,
   nicheId,
@@ -207,49 +459,80 @@ export function buildLocalFallbackResult({
 
 export async function generateRecipeFromYouTubeReference({
   goalId,
+  languageHint,
   nicheId,
   referenceUrl,
 }: {
   goalId: RecipeCreateGoalId;
   nicheId: RecipeCreateNicheId;
   referenceUrl: string;
+  languageHint?: string;
 }): Promise<ReferenceRecipeGenerationResult> {
-  const fallback = buildLocalFallbackResult({ goalId, nicheId, referenceUrl });
+  const trimmedReferenceUrl = referenceUrl.trim();
+  const buildDevFallback = () =>
+    buildLocalFallbackResult({
+      goalId,
+      nicheId,
+      referenceUrl,
+    });
 
-  if (!isYouTubeReferenceUrl(referenceUrl)) {
-    return fallback;
+  if (!isHttpReferenceUrl(trimmedReferenceUrl)) {
+    if (isReferenceAnalysisDevFallbackEnabled()) {
+      return Promise.resolve(buildDevFallback());
+    }
+
+    throw new Error('Paste a valid public reference link.');
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45000);
+  const timeout = setTimeout(() => controller.abort(), 95000);
 
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/mobile/reference-recipe`, {
+    const response = await fetch(`${getApiBaseUrl()}/v1/reference-analysis`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        clientSchemaVersion: 'parrotkit.expo.reference_recipe_generation.v1',
         goal: normalizeGoalForApi(goalId),
+        idempotencyKey: `reference-${Date.now().toString(36)}`,
+        languageHint,
         niche: nicheId,
-        referenceUrl: referenceUrl.trim(),
+        referenceUrl: trimmedReferenceUrl,
       }),
       signal: controller.signal,
     });
 
     if (!response.ok) {
-      return fallback;
+      if (isReferenceAnalysisDevFallbackEnabled()) {
+        return buildDevFallback();
+      }
+
+      throw new Error('Reference analysis failed.');
     }
 
-    const data = await response.json() as ReferenceRecipeGenerationResult;
+    const data = await response.json() as ReferenceAnalysisAPIResponse;
 
-    if (!data?.recipe?.scenes?.length || !data.reference?.thumbnailUrl) {
-      return fallback;
+    if (!isUsableReferenceAnalysisResponse(data)) {
+      if (isReferenceAnalysisDevFallbackEnabled()) {
+        return buildDevFallback();
+      }
+
+      throw new Error(data.error?.userMessage || 'This link could not be analyzed.');
     }
 
-    return data;
-  } catch {
-    return fallback;
+    return mapReferenceAnalysisResponseToRecipeGenerationResult(data, {
+      goalId,
+      nicheId,
+      referenceUrl: trimmedReferenceUrl,
+    });
+  } catch (error) {
+    if (isReferenceAnalysisDevFallbackEnabled()) {
+      return buildDevFallback();
+    }
+
+    throw error;
   } finally {
     clearTimeout(timeout);
   }
@@ -272,9 +555,12 @@ export function mapGeneratedRecipeToMockScenes(
   result: ReferenceRecipeGenerationResult,
 ): MockRecipeScene[] {
   let elapsed = 0;
+  const sourceScenes = result.recipe.scenes.length
+    ? result.recipe.scenes
+    : buildLocalFallbackRecipe({ goalId: 'ad', nicheId: 'other' }).scenes;
 
-  return sceneTypes.map((type, index) => {
-    const generated = result.recipe.scenes[index] || buildLocalFallbackRecipe({ goalId: 'ad', nicheId: 'other' }).scenes[index];
+  return sourceScenes.map((generated, index) => {
+    const type = generated.type || sceneTypeForIndex(index, sourceScenes.length);
     const durationSec = Number.isFinite(generated.durationSec) ? generated.durationSec : defaultDurations[type];
     const startTime = formatTimestamp(elapsed);
     elapsed += durationSec;

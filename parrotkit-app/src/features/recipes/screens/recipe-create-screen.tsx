@@ -36,7 +36,7 @@ import {
   type RecipeCreateNicheId,
 } from '@/features/recipes/lib/recipe-create-flow';
 import {
-  buildLocalFallbackResult,
+  generateRecipeFromYouTubeReference,
   mapGeneratedRecipeToMockScenes,
 } from '@/features/recipes/lib/reference-recipe-generation';
 import { recipeCreateCopy } from '@/features/recipes/screens/recipe-create/recipe-create-copy';
@@ -70,6 +70,10 @@ export function RecipeCreateScreen({
   const [selectedGoalId, setSelectedGoalId] =
     useState<RecipeCreateGoalId>('ad');
   const [referenceUrl, setReferenceUrl] = useState('');
+  const [referenceAnalysisError, setReferenceAnalysisError] = useState<
+    string | null
+  >(null);
+  const [isAnalyzingReference, setIsAnalyzingReference] = useState(false);
   const [customNicheLabel, setCustomNicheLabel] = useState('');
   const closingRef = useRef(false);
   const drawerProgress = useRef(new Animated.Value(0)).current;
@@ -119,10 +123,17 @@ export function RecipeCreateScreen({
     }).start(completeDismiss);
   };
 
-  const handlePrimaryAction = () => {
-    if (!submitState.enabled) {
+  const handleReferenceUrlChange = (value: string) => {
+    setReferenceUrl(value);
+    setReferenceAnalysisError(null);
+  };
+
+  const handlePrimaryAction = async () => {
+    if (!submitState.enabled || isAnalyzingReference) {
       return;
     }
+
+    setReferenceAnalysisError(null);
 
     const action = getRecipeCreatePrimaryAction(selectedMode);
 
@@ -137,14 +148,25 @@ export function RecipeCreateScreen({
       nicheId: selectedNicheId,
       referenceUrl,
     });
-    const referenceResult =
-      selectedMode === 'reference'
-        ? buildLocalFallbackResult({
-            goalId: selectedGoalId,
-            nicheId: selectedNicheId,
-            referenceUrl,
-          })
-        : null;
+    let referenceResult = null;
+
+    if (selectedMode === 'reference') {
+      setIsAnalyzingReference(true);
+
+      try {
+        referenceResult = await generateRecipeFromYouTubeReference({
+          goalId: selectedGoalId,
+          languageHint: language,
+          nicheId: selectedNicheId,
+          referenceUrl,
+        });
+      } catch {
+        setReferenceAnalysisError(copy.analysisFailed as string);
+        setIsAnalyzingReference(false);
+        return;
+      }
+    }
+
     const recipe = createRecipeDraft({
       ...draft,
       ...(referenceResult
@@ -158,6 +180,10 @@ export function RecipeCreateScreen({
         : null),
     });
 
+    if (selectedMode === 'reference') {
+      setIsAnalyzingReference(false);
+    }
+
     if (onCreated) {
       onCreated(recipe.id);
       return;
@@ -170,6 +196,7 @@ export function RecipeCreateScreen({
     setSelectedMode(
       initialModeOverride ?? getInitialRecipeCreateMode(params.mode)
     );
+    setReferenceAnalysisError(null);
   }, [initialModeOverride, params.mode]);
 
   useEffect(() => {
@@ -244,7 +271,10 @@ export function RecipeCreateScreen({
                   item={modeCopy[mode]}
                   key={mode}
                   mode={mode}
-                  onPress={() => setSelectedMode(mode)}
+                  onPress={() => {
+                    setSelectedMode(mode);
+                    setReferenceAnalysisError(null);
+                  }}
                   proLabel={copy.pro as string}
                   selected={mode === selectedMode}
                 />
@@ -255,12 +285,12 @@ export function RecipeCreateScreen({
               brandPlaceholder={copy.brandPlaceholder as string}
               linkPlaceholder={copy.linkPlaceholder as string}
               mode={selectedMode}
-              onChangeReferenceUrl={setReferenceUrl}
+              onChangeReferenceUrl={handleReferenceUrlChange}
               referenceUrl={referenceUrl}
               referenceLinkError={
                 submitState.referenceLinkError
                   ? (copy.invalidLink as string)
-                  : null
+                  : referenceAnalysisError
               }
             />
 
@@ -321,8 +351,8 @@ export function RecipeCreateScreen({
           >
             <Pressable
               accessibilityRole="button"
-              accessibilityState={{ disabled: !submitState.enabled }}
-              disabled={!submitState.enabled}
+              accessibilityState={{ disabled: !submitState.enabled || isAnalyzingReference }}
+              disabled={!submitState.enabled || isAnalyzingReference}
               onPress={handlePrimaryAction}
               style={styles.primaryButtonPressable}
               testID="recipe-create-primary-action"
@@ -333,10 +363,16 @@ export function RecipeCreateScreen({
                 start={{ x: 0, y: 0 }}
                 style={[
                   styles.ctaButton,
-                  !submitState.enabled ? styles.ctaButtonDisabled : null,
+                  !submitState.enabled || isAnalyzingReference
+                    ? styles.ctaButtonDisabled
+                    : null,
                 ]}
               >
-                <Text style={styles.ctaText}>{copy.cta as string}</Text>
+                <Text style={styles.ctaText}>
+                  {isAnalyzingReference
+                    ? (copy.analyzingCta as string)
+                    : (copy.cta as string)}
+                </Text>
                 <MaterialCommunityIcons
                   color="#fff"
                   name="arrow-right"

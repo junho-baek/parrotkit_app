@@ -2532,3 +2532,25 @@ This plan contains exact file paths, commands, and code snippets for each implem
 
 **Type consistency:**  
 The Go response contract uses `schemaVersion`, `status`, `referenceMedia`, `breakdown`, `recipe`, `cutBoard`, `generation`, `error`, and optional `legacyRecipeResult`. The Expo adapter uses the same field names and maps only ready/usable partial responses into the existing `ReferenceRecipeGenerationResult`.
+
+---
+
+## Implementation Result
+
+Completed in branch `codex/live-reference-analysis-api`.
+
+- Added Go reference-analysis service under `services/reference-api/`.
+- Added canonical response contract validation and provider adapters for Super Data/Supadata and Replicate.
+- Added `/v1/reference-analysis` HTTP endpoint and deploy docs/container file.
+- Rewired Expo Paste flow to call the Go endpoint and reject failed/fallback responses in production.
+- Added explicit `EXPO_PUBLIC_REFERENCE_ANALYSIS_DEV_FALLBACK` escape hatch for local-only mock board testing.
+- Added drawer recovery state so analysis failure keeps the sheet open instead of creating a fake board.
+- Wrote context: `context/context_20260518_issue_19_live_reference_analysis_go_api.md`.
+
+Verification run:
+
+- `go test ./...`
+- `reference-recipe-generation.test.ts`
+- `reference-analysis-state.test.ts`
+- `tsc --noEmit --pretty false -p tsconfig.json`
+- `npm run check:architecture`
