@@ -192,6 +192,18 @@ if (!rootNativeTabsSource.includes('RecipeCreateScreen')) {
   throw new Error('Root app shell must compose RecipeCreateScreen for the Paste drawer.');
 }
 
+if (!rootNativeTabsSource.includes('onPress={openPasteDrawer}')) {
+  throw new Error('Bottom Paste action must open the in-place recipe-create drawer.');
+}
+
+if (rootNativeTabsSource.includes('router.push(rootPasteActionHref')) {
+  throw new Error('Bottom Paste action must not navigate away from the current tab.');
+}
+
+if (!rootNativeTabsSource.includes('style={styles.pasteDrawerLayer}')) {
+  throw new Error('Paste drawer must render in an app-shell overlay layer.');
+}
+
 if (
   !rootNativeTabsSource.includes('function getRootTabScreenHref') ||
   !rootNativeTabsSource.includes("if (tabName === 'paste')") ||

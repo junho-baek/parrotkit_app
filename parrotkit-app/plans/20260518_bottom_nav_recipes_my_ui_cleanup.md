@@ -14,7 +14,7 @@
 
 - Issue #19 live adapter work is deferred.
 - Current focus is product QA:
-  - Bottom nav center plus/Paste should open the recipe-create bottom drawer, but currently can fail or fall through.
+  - Bottom nav center Paste should open the recipe-create bottom drawer, but currently can fail or fall through.
   - Recipes tab should be a straightforward "my recipes" list, not search + filters + collections + Continue Shooting + publish/community UI.
   - My page has too many AI-slop surfaces: nested cards, pro/status copy, redundant section labels, extra CTAs, and boxed empty states.
 - DESIGN.md rules that apply:
@@ -89,7 +89,7 @@
 - `npm run check:architecture`
 - `git diff --check`
 - Manual QA in Expo Go:
-  - Explore -> bottom center Paste/plus -> recipe-create drawer visible.
+  - Explore -> bottom center Paste -> recipe-create drawer visible.
   - Drawer backdrop, drag handle, X close, Blank/Link/Brand tabs visible.
   - Recipes tab shows many user recipes directly with concise header.
   - My tab has no box-in-box pro/status panel or redundant labels.
@@ -111,7 +111,7 @@
 - Modify: `src/core/navigation/root-tab-config.test.ts`
 - Test: `src/core/navigation/paste-drawer-state.test.ts`
 
-- [ ] **Step 1: Add source contract assertions**
+- [x] **Step 1: Add source contract assertions**
 
 Add assertions to `root-tab-config.test.ts`:
 
@@ -129,7 +129,7 @@ if (!rootNativeTabsSource.includes('style={styles.pasteDrawerLayer}')) {
 }
 ```
 
-- [ ] **Step 2: Run the focused nav tests**
+- [x] **Step 2: Run the focused nav tests**
 
 Run:
 
@@ -140,7 +140,7 @@ NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.b
 
 Expected: PASS or a clear failure showing the drawer press path mismatch.
 
-- [ ] **Step 3: Fix the app-shell if needed**
+- [x] **Step 3: Fix the app-shell if needed**
 
 If source/test/manual QA shows the paste press falling through to `/`, update `RootTabButton` so the Paste button prevents default tab navigation and only calls `openPasteDrawer`:
 
@@ -163,7 +163,9 @@ Run Expo Go and verify from `/explore`, `/recipes`, and `/my`:
 NODE_PATH=/opt/homebrew/lib/node_modules npx expo start --go --tunnel --port 8083 --clear
 ```
 
-Expected: tapping center Paste/plus opens the bottom drawer, not Home and not a full-page route.
+Expected: tapping center Paste opens the bottom drawer, not Home and not a full-page route.
+
+Status: Source contract and Expo web smoke passed. Native simulator QA is left as a follow-up because Android had no attached device and `xcrun simctl` did not return in this environment.
 
 ## Task 2: Simplify Recipes Tab
 
@@ -171,7 +173,7 @@ Expected: tapping center Paste/plus opens the bottom drawer, not Home and not a 
 - Modify: `src/features/recipes/screens/recipes-screen.tsx`
 - Create: `src/features/recipes/screens/recipes-screen-design-contract.test.ts`
 
-- [ ] **Step 1: Add Recipes design guard test**
+- [x] **Step 1: Add Recipes design guard test**
 
 Create `src/features/recipes/screens/recipes-screen-design-contract.test.ts`:
 
@@ -215,7 +217,7 @@ for (const component of forbiddenComponents) {
 }
 ```
 
-- [ ] **Step 2: Replace Recipes screen with a flat list**
+- [x] **Step 2: Replace Recipes screen with a flat list**
 
 Use a compact structure:
 
@@ -246,7 +248,7 @@ return (
 );
 ```
 
-- [ ] **Step 3: Simplify recipe row**
+- [x] **Step 3: Simplify recipe row**
 
 Make the whole row the CTA:
 
@@ -277,7 +279,7 @@ function RecipeListRow({
 }
 ```
 
-- [ ] **Step 4: Run Recipes tests**
+- [x] **Step 4: Run Recipes tests**
 
 Run:
 
@@ -294,7 +296,7 @@ Expected: PASS.
 - Modify: `src/features/profile/screens/profile-screen.tsx`
 - Create: `src/features/profile/screens/profile-screen-design-contract.test.ts`
 
-- [ ] **Step 1: Add My design guard test**
+- [x] **Step 1: Add My design guard test**
 
 Create `src/features/profile/screens/profile-screen-design-contract.test.ts`:
 
@@ -322,7 +324,7 @@ for (const value of forbiddenCopyOrComponents) {
 }
 ```
 
-- [ ] **Step 2: Flatten profile header**
+- [x] **Step 2: Flatten profile header**
 
 Replace the bordered profile card with an unframed header:
 
@@ -335,11 +337,11 @@ Replace the bordered profile card with an unframed header:
 
 Do not render `profile.bio` and `focusTags` by default in this pass.
 
-- [ ] **Step 3: Remove Pro/status panel**
+- [x] **Step 3: Remove Pro/status panel**
 
 Delete the `proSection` card. This is boxed status copy without a clear immediate action.
 
-- [ ] **Step 4: Flatten saved recipe rows**
+- [x] **Step 4: Flatten saved recipe rows**
 
 Render saved recipes as direct rows, not inside `styles.listCard`, and remove the per-row `Start filming` button:
 
@@ -357,11 +359,11 @@ Render saved recipes as direct rows, not inside `styles.listCard`, and remove th
 </View>
 ```
 
-- [ ] **Step 5: Keep saved takes compact**
+- [x] **Step 5: Keep saved takes compact**
 
 Use one row title and one secondary line. Remove the right-side two-line status stack unless it is needed to identify final take.
 
-- [ ] **Step 6: Simplify empty states**
+- [x] **Step 6: Simplify empty states**
 
 If empty, show one plain text line under the section title, not a bordered empty card with an icon:
 
@@ -371,7 +373,7 @@ If empty, show one plain text line under the section title, not a bordered empty
 </Text>
 ```
 
-- [ ] **Step 7: Run My tests**
+- [x] **Step 7: Run My tests**
 
 Run:
 
@@ -389,7 +391,7 @@ Expected: PASS.
 - Modify: `context/context_20260518_bottom_nav_recipes_my_ui_cleanup.md`
 - Modify: `plans/20260518_bottom_nav_recipes_my_ui_cleanup.md`
 
-- [ ] **Step 1: Run full focused checks**
+- [x] **Step 1: Run full focused checks**
 
 Run:
 
@@ -420,7 +422,9 @@ Capture/report:
 - Recipes tab after simplification.
 - My tab after simplification.
 
-- [ ] **Step 3: Update context**
+Status: Expo web server returned HTTP 200 at `http://localhost:8084`. Native Expo Go screenshot QA remains follow-up for a simulator/device pass.
+
+- [x] **Step 3: Update context**
 
 Create `context/context_20260518_bottom_nav_recipes_my_ui_cleanup.md` with:
 
@@ -430,7 +434,7 @@ Create `context/context_20260518_bottom_nav_recipes_my_ui_cleanup.md` with:
 ## Request
 
 User deferred #19 live adapter and requested UI QA cleanup:
-- bottom center Paste/plus should open drawer
+- bottom center Paste should open drawer
 - Recipes should show owned recipes directly
 - Recipes should remove search, collections, Continue Shooting, publish/community clutter
 - My should remove AI-slop labels, nested boxes, and redundant CTA/copy
@@ -457,3 +461,12 @@ git push origin main
 ## 실행 방식 추천
 
 Subagent-driven으로 하기보다는 **inline execution**이 더 품질이 좋다. 이유는 세 화면이 같은 감도/문법으로 맞아야 해서, 여러 worker가 따로 만지면 Recipes/My/Home/Explore의 시각 언어가 다시 어긋날 가능성이 높다. 다만 QA 캡처는 별도 subagent 또는 별도 pass로 돌릴 수 있다.
+
+## 결과
+
+- Paste action: non-standard bottom tab presses now prevent default navigation and invoke the drawer action in place.
+- Recipes: simplified to a direct owned-recipes list; search, filters, collections, Continue Shooting, publish/community, FAB, and duplicate row CTAs were removed.
+- My: flattened to profile heading, saved recipe rows, saved take rows, and a compact language control; pro/status and nested list cards were removed.
+- Added source-level design contract tests for Recipes and My.
+- Context: `context/context_20260518_bottom_nav_recipes_my_ui_cleanup.md`
+- Remaining QA: native Expo Go screenshots on iOS/Android are still recommended before release. This pass verified source contracts, TypeScript, architecture, diff whitespace, and Expo web HTTP smoke.

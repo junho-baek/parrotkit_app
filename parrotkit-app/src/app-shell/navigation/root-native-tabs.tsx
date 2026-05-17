@@ -276,7 +276,13 @@ function RootTabButton({
       }
       hitSlop={{ bottom: 8, left: 8, right: 8, top: 10 }}
       onLongPress={onLongPress}
-      onPress={onPress}
+      onPress={(event) => {
+        if (!isStandardTab) {
+          event.preventDefault();
+        }
+
+        onPress?.(event);
+      }}
       style={({ pressed }) => [
         style,
         isStandardTab ? styles.regularTabButtonSurface : styles.pasteTabButtonSurface,
