@@ -178,9 +178,11 @@ export type ReferenceBreakdownArtifactMetadata = {
   analysisProfileVersion: string;
   breakdownId: string;
   createdAt: string;
+  jobId?: string;
   mediaAssetId: string;
   mediaAssetVersion: string;
   status: ReferenceAnalysisArtifactStatus;
+  traceId?: string;
   updatedAt: string;
   workspaceId: string;
 };

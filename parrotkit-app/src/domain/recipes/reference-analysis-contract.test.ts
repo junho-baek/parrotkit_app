@@ -80,6 +80,7 @@ const breakdown: ReferenceBreakdownArtifact = {
     uniqueAngle: 'Low mental-load meal system.',
     userApplication: 'Show your best final plate before process.',
   },
+  jobId: 'job_food_promo',
   mediaAssetId: mediaInput.mediaAssetId,
   mediaAssetVersion: mediaInput.assetVersion,
   missingArtifacts: [],
@@ -130,6 +131,7 @@ const breakdown: ReferenceBreakdownArtifact = {
     ],
     status: 'ready',
   },
+  traceId: 'trace_food_promo',
   updatedAt: '2026-05-17T10:00:00.000Z',
   visualLayout: {
     cameraMotion: 'Quick close-up into stable reaction.',
@@ -323,4 +325,8 @@ if (referenceProjectionTextLimits.executionTitle !== 56) {
 
 if (legacyBreakdownWithPipelineFields.artifact?.breakdownId !== breakdown.breakdownId) {
   throw new Error('ReferenceBreakdown must carry optional pipeline artifact metadata');
+}
+
+if (breakdown.jobId !== 'job_food_promo' || breakdown.traceId !== 'trace_food_promo') {
+  throw new Error('Breakdown artifacts must preserve job lineage fields');
 }

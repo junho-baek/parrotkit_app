@@ -67,3 +67,29 @@
 - `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json` PASS.
 - `npm run check:architecture` PASS.
 - `git diff --check` PASS.
+
+## 2026-05-17 Issue #18 실행
+
+- Superpowers stacked worktree: `/Users/junho/.config/superpowers/worktrees/parrotkit-app/codex-issue-18-reference-job-lifecycle`
+- Base branch: `codex/issue-17-reference-contracts`
+- GitHub issue: `#18 Implement reference analysis job lifecycle API`
+- 추가: `src/domain/recipes/reference-analysis-job.ts`
+  - internal job statuses
+  - client statuses: `preparing`, `analyzing`, `ready`, `partial`, `failed`
+  - stable error codes
+  - stage checklist contract
+  - idempotency key helper
+  - retryability rules
+  - terminal artifact coherence check
+  - client-safe polling read-model projection
+- 추가 테스트: `src/domain/recipes/reference-analysis-job.test.ts`
+- 수정: `src/domain/recipes/reference-analysis-contract.ts`
+  - `ReferenceBreakdownArtifactMetadata`에 optional `jobId`/`traceId` lineage fields 추가.
+
+## 2026-05-17 Issue #18 검증
+
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/domain/recipes/reference-analysis-job.test.ts` PASS.
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/domain/recipes/reference-analysis-contract.test.ts` PASS.
+- `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json` PASS.
+- `npm run check:architecture` PASS.
+- `git diff --check` PASS.
