@@ -146,3 +146,42 @@
 
 - 이번 작업은 domain/read-model 통합과 label guard까지다.
 - Android/iOS 실행 화면 캡처와 실제 reference preview / My Take interaction QA는 #21에서 진행한다.
+
+## 2026-05-17 Issue #19 실행
+
+- Superpowers worktree: `/Users/junho/.config/superpowers/worktrees/parrotkit-app/codex-issue-19-provider-adapter-boundary`
+- GitHub issue: `#19 Build provider adapter boundary and analysis prompt contract`
+- 리서치 문서 추가: `docs/reference-analysis/provider-adapter-research.md`
+  - Supadata/SuperData는 URL normalization/transcript/extract provider로 보고, 실제 명칭 차이는 adapter alias로 흡수한다.
+  - Replicate는 model runner로 보고, model별 input schema를 adapter mapper에 숨긴다.
+  - Gemini는 raw video understanding + structured output의 우선 후보로 둔다.
+  - OpenAI/Claude는 transcript/frame-normalized input 기반 model adapter로 둔다.
+- 추가: `src/domain/recipes/reference-analysis-prompt.ts`
+  - Sandcastle-style `parrotkit.reference_breakdown.v1` JSON schema/prompt contract.
+  - Summary / Transcript / Idea Analysis / Hook / Storytelling / Visual Layout section labels 유지.
+  - cut board에는 Hook/Proof/Storytelling/Visual Layout/confidence/model/prompt/provider/debug label이 새지 않도록 guard 추가.
+  - transcript unavailable일 때 visual-only partial output을 명시한다.
+- 추가: `src/domain/recipes/reference-analysis-provider.ts`
+  - `ReferenceMediaExtractionAdapter`
+  - `ReferenceAnalysisModelAdapter`
+  - provider runtime env names: `SUPADATA_API_KEY`, `REPLICATE_API_TOKEN`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`
+  - provider trace/debug stripping helper
+  - provider failure kind -> stable job error code mapper
+  - complete / visual-only partial / invalid model output validation helper
+
+## 2026-05-17 Issue #19 검증
+
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/domain/recipes/reference-analysis-prompt.test.ts` PASS.
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/domain/recipes/reference-analysis-provider.test.ts` PASS.
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/domain/recipes/reference-analysis-contract.test.ts` PASS.
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/domain/recipes/reference-analysis-job.test.ts` PASS.
+- `NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs' ./node_modules/.bin/sucrase-node src/domain/shoot-board/shoot-board-projection.test.ts` PASS.
+- `./node_modules/.bin/tsc --noEmit --pretty false -p tsconfig.json` PASS.
+- `npm run check:architecture` PASS.
+- `git diff --check` PASS.
+
+## 2026-05-17 Issue #19 다음 연결 단계
+
+- Backend/worker slice에서 Supadata `/extract` + `/transcript` adapter를 실제 network call로 추가한다.
+- Adapter output은 이번 `createReferenceAnalysisProviderResult()`로 검증한 뒤 `recipes.analysis_metadata.reference_breakdown`과 projection artifact로 persist한다.
+- 모바일 paste flow는 secret key를 직접 들지 않고 ParrotKit backend job endpoint만 호출한다.
