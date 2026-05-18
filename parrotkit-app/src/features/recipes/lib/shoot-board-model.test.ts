@@ -71,6 +71,16 @@ if (board.cuts[0]?.title !== "Scene #1: Hook") {
   );
 }
 
+if (
+  !board.cuts[0]?.shotFrame ||
+  !board.cuts[0]?.firstAction ||
+  !board.cuts[0]?.setupCue
+) {
+  throw new Error(
+    "Each shoot board cut should expose frame, first-action, and setup cues.",
+  );
+}
+
 const completedFirst = setShootBoardCutCompletion(
   board,
   board.cuts[0].id,
@@ -224,6 +234,9 @@ if (
   addedCut.speakingLineKo !== "" ||
   addedCut.shootingGuideline !== "" ||
   addedCut.shootingGuidelineKo !== "" ||
+  addedCut.shotFrame !== "" ||
+  addedCut.firstAction !== "" ||
+  addedCut.setupCue !== "" ||
   addedCut.requiredChecklist.some(
     (item) => item.label !== "" || item.labelKo !== "",
   )

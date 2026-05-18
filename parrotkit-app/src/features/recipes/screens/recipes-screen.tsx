@@ -475,9 +475,10 @@ function ContinueShootCard({
   return (
     <View className="gap-2">
       <Text className="text-[15px] font-black text-ink">{copy.continueSection as string}</Text>
-      <Pressable accessibilityRole="button" onPress={onOpen} style={styles.continueCard}>
-        <Image source={{ uri: recipe.thumbnail }} style={styles.continueImage} />
-        <View className="min-w-0 flex-1 gap-1.5">
+      <View style={styles.continueCard}>
+        <Pressable accessibilityRole="button" className="min-w-0 flex-1 flex-row gap-3" onPress={onOpen}>
+          <Image source={{ uri: recipe.thumbnail }} style={styles.continueImage} />
+          <View className="min-w-0 flex-1 gap-1.5">
           <View className="flex-row items-start justify-between gap-2">
             <Text className="flex-1 text-[16px] font-black leading-[20px] text-ink" numberOfLines={2}>
               {recipe.title}
@@ -493,15 +494,16 @@ function ContinueShootCard({
           <View style={styles.progressTrack}>
             <LinearGradient colors={['#8c67ff', '#de81c1']} style={[styles.progressFill, { width: progressWidth }]} />
           </View>
-          <View className="flex-row justify-end pt-1">
-            <Pressable accessibilityRole="button" className="overflow-hidden rounded-full" onPress={onShoot}>
-              <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.continueButton}>
-                <Text className="text-[12px] font-black text-white">{copy.continueAction as string}</Text>
-              </LinearGradient>
-            </Pressable>
           </View>
+        </Pressable>
+        <View className="flex-row justify-end pt-1">
+          <Pressable accessibilityRole="button" className="overflow-hidden rounded-full" onPress={onShoot}>
+            <LinearGradient colors={brandActionGradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.continueButton}>
+              <Text className="text-[12px] font-black text-white">{copy.continueAction as string}</Text>
+            </LinearGradient>
+          </Pressable>
         </View>
-      </Pressable>
+      </View>
     </View>
   );
 }

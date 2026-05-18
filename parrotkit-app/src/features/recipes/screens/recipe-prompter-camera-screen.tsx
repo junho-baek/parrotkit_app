@@ -311,7 +311,7 @@ export function RecipePrompterCameraScreen() {
     if (!reviewUri) return;
 
     setReviewStatus('saving');
-    setReviewStatusMessage('Saving this take to native Gallery.');
+    setReviewStatusMessage('Saving this take to your photo library.');
 
     const result = await saveTakeToGallery(reviewUri);
 
@@ -661,7 +661,7 @@ function CameraPermissionGate({
       <View className="rounded-[32px] border border-white/10 bg-white/5 px-6 py-7">
         <Text className="text-[28px] font-black text-white">Camera access</Text>
         <Text className="mt-3 text-sm leading-6 text-white/70">
-          Enable camera permission to open the native prompter view.
+          ParrotKit needs camera access only when you record a guided recipe take.
         </Text>
 
         <View className="mt-6 gap-3">

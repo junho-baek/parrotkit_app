@@ -2,7 +2,6 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { TouchableOpacity } from "react-native-gesture-handler";
 
 import type { AppLanguage } from "@/core/i18n/app-language";
 import { brandActionGradient } from "@/core/theme/colors";
@@ -54,8 +53,7 @@ export function ShootBoardSceneCard({
       ]}
     >
       <View className="flex-row items-start gap-2">
-        <TouchableOpacity
-          activeOpacity={0.72}
+        <Pressable
           accessibilityLabel={language === "ko" ? "드래그 핸들" : "Drag handle"}
           accessibilityRole="button"
           delayLongPress={180}
@@ -67,7 +65,7 @@ export function ShootBoardSceneCard({
             name="drag-vertical"
             size={22}
           />
-        </TouchableOpacity>
+        </Pressable>
 
         <Pressable
           accessibilityRole="button"
@@ -165,6 +163,8 @@ export function ShootBoardSceneCard({
               </Text>
             </Pressable>
           </View>
+
+          <ShotBriefRail cut={cut} language={language} />
 
           <DetailInput
             editing={editing}
@@ -326,6 +326,64 @@ export function ShootBoardSceneCard({
   );
 }
 
+function ShotBriefRail({
+  cut,
+  language,
+}: {
+  cut: ShootBoardCut;
+  language: AppLanguage;
+}) {
+  const items = [
+    {
+      icon: "cellphone-screenshot" as const,
+      title: language === "ko" ? "프레임" : "Frame",
+      value: language === "ko" ? cut.shotFrameKo : cut.shotFrame,
+    },
+    {
+      icon: "gesture-tap" as const,
+      title: language === "ko" ? "첫 동작" : "First move",
+      value: language === "ko" ? cut.firstActionKo : cut.firstAction,
+    },
+    {
+      icon: "cube-outline" as const,
+      title: language === "ko" ? "준비물" : "Setup",
+      value: language === "ko" ? cut.setupCueKo : cut.setupCue,
+    },
+  ].filter((item) => item.value.trim().length > 0);
+
+  if (!items.length) {
+    return null;
+  }
+
+  return (
+    <View style={styles.shotBrief}>
+      <View className="mb-2 flex-row items-center gap-2">
+        <MaterialCommunityIcons color="#8b5cf6" name="movie-open-play-outline" size={17} />
+        <Text className="text-[12px] font-black text-ink">
+          {language === "ko" ? "바로 찍는 브리프" : "Ready-to-shoot brief"}
+        </Text>
+      </View>
+      <View className="gap-2">
+        {items.map((item) => (
+          <View className="flex-row gap-2" key={item.title}>
+            <View style={styles.briefIcon}>
+              <MaterialCommunityIcons color="#8b5cf6" name={item.icon} size={15} />
+            </View>
+            <View className="min-w-0 flex-1">
+              <Text className="text-[10px] font-black uppercase text-muted">
+                {item.title}
+              </Text>
+              <Text className="mt-0.5 text-[12px] font-black leading-5 text-ink">
+                {item.value}
+              </Text>
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function DetailInput({
   editing,
   onChangeText,
@@ -429,6 +487,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 18,
   },
+  briefIcon: {
+    alignItems: "center",
+    backgroundColor: "#f3f0ff",
+    borderRadius: 999,
+    height: 28,
+    justifyContent: "center",
+    width: 28,
+  },
   completionCircle: {
     alignItems: "center",
     backgroundColor: "#ffffff",
@@ -492,5 +558,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 46,
     paddingHorizontal: 10,
+  },
+  shotBrief: {
+    backgroundColor: "#fbf8ff",
+    borderColor: "#eadfff",
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
 });

@@ -1,7 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { usePathname } from 'expo-router';
-import { Icon, Label, NativeTabs, VectorIcon } from 'expo-router/unstable-native-tabs';
-import { DynamicColorIOS, Platform, StyleSheet, View } from 'react-native';
+import { Tabs, usePathname } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
 
 import { useAppLanguage } from '@/core/i18n/app-language';
 import { AppTopBar } from '@/core/navigation/app-top-bar';
@@ -14,102 +13,73 @@ import {
 export function RootNativeTabs() {
   return (
     <NavigationChromeProvider>
-      <RootNativeTabsContent />
+      <RootTabsContent />
     </NavigationChromeProvider>
   );
 }
 
-function RootNativeTabsContent() {
-  const { homeQuickShootChromeHidden } = useNavigationChrome();
-  const pathname = usePathname();
+function RootTabsContent() {
   const { copy } = useAppLanguage();
-  const isIOS = Platform.OS === 'ios';
+  const pathname = usePathname();
+  const { homeQuickShootChromeHidden } = useNavigationChrome();
   const screenOwnsTopBar = pathname === '/recipes' || pathname.startsWith('/recipes/');
   const hiddenChromeColor = 'transparent';
-  const iosTintColor = isIOS
-    ? DynamicColorIOS({
-        dark: '#ffffff',
-        light: '#111827',
-      })
-    : '#111827';
-  const tabTintColor = homeQuickShootChromeHidden ? hiddenChromeColor : iosTintColor;
-  const tabLabelColor = homeQuickShootChromeHidden
-    ? hiddenChromeColor
-    : isIOS
-      ? iosTintColor
-      : '#57534e';
 
   return (
     <View className="flex-1 bg-canvas">
-      <NativeTabs
-        badgeBackgroundColor={homeQuickShootChromeHidden ? hiddenChromeColor : '#ff9568'}
-        backgroundColor={homeQuickShootChromeHidden ? hiddenChromeColor : isIOS ? null : '#ffffff'}
-        blurEffect={isIOS ? (homeQuickShootChromeHidden ? 'none' : 'systemChromeMaterial') : undefined}
-        disableTransparentOnScrollEdge={isIOS && !homeQuickShootChromeHidden}
-        iconColor={homeQuickShootChromeHidden ? { default: hiddenChromeColor, selected: hiddenChromeColor } : undefined}
-        labelStyle={{
-          color: tabLabelColor,
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: homeQuickShootChromeHidden ? hiddenChromeColor : '#111827',
+          tabBarInactiveTintColor: homeQuickShootChromeHidden ? hiddenChromeColor : '#64748b',
+          tabBarStyle: {
+            backgroundColor: homeQuickShootChromeHidden ? hiddenChromeColor : '#ffffff',
+            borderTopColor: homeQuickShootChromeHidden ? hiddenChromeColor : '#e2e8f0',
+            display: homeQuickShootChromeHidden ? 'none' : 'flex',
+            height: 64,
+            paddingBottom: 8,
+            paddingTop: 6,
+          },
         }}
-        labelVisibilityMode={homeQuickShootChromeHidden ? 'unlabeled' : undefined}
-        minimizeBehavior={isIOS ? 'onScrollDown' : undefined}
-        shadowColor={homeQuickShootChromeHidden ? hiddenChromeColor : undefined}
-        tintColor={tabTintColor}
       >
-        <NativeTabs.Trigger name="index">
-          <Icon
-            androidSrc={{
-              default: <VectorIcon family={MaterialCommunityIcons} name="home-variant-outline" />,
-              selected: <VectorIcon family={MaterialCommunityIcons} name="home-variant" />,
-            }}
-            sf={{ default: 'house', selected: 'house.fill' }}
-          />
-          <Label hidden={homeQuickShootChromeHidden}>{copy.nav.home}</Label>
-        </NativeTabs.Trigger>
-
-        <NativeTabs.Trigger name="explore">
-          <Icon
-            androidSrc={{
-              default: <VectorIcon family={MaterialCommunityIcons} name="compass-outline" />,
-              selected: <VectorIcon family={MaterialCommunityIcons} name="compass" />,
-            }}
-            sf={{ default: 'safari', selected: 'safari.fill' }}
-          />
-          <Label hidden={homeQuickShootChromeHidden}>{copy.nav.explore}</Label>
-        </NativeTabs.Trigger>
-
-        <NativeTabs.Trigger name="source">
-          <Icon
-            androidSrc={{
-              default: <VectorIcon family={MaterialCommunityIcons} name="layers-outline" />,
-              selected: <VectorIcon family={MaterialCommunityIcons} name="layers" />,
-            }}
-            sf={{ default: 'square.stack.3d.up', selected: 'square.stack.3d.up.fill' }}
-          />
-          <Label hidden={homeQuickShootChromeHidden}>{copy.nav.source}</Label>
-        </NativeTabs.Trigger>
-
-        <NativeTabs.Trigger name="recipes">
-          <Icon
-            androidSrc={{
-              default: <VectorIcon family={MaterialCommunityIcons} name="book-open-page-variant-outline" />,
-              selected: <VectorIcon family={MaterialCommunityIcons} name="book-open-page-variant" />,
-            }}
-            sf={{ default: 'book', selected: 'book.fill' }}
-          />
-          <Label hidden={homeQuickShootChromeHidden}>{copy.nav.recipes}</Label>
-        </NativeTabs.Trigger>
-
-        <NativeTabs.Trigger name="my">
-          <Icon
-            androidSrc={{
-              default: <VectorIcon family={MaterialCommunityIcons} name="account-outline" />,
-              selected: <VectorIcon family={MaterialCommunityIcons} name="account" />,
-            }}
-            sf={{ default: 'person', selected: 'person.fill' }}
-          />
-          <Label hidden={homeQuickShootChromeHidden}>{copy.nav.my}</Label>
-        </NativeTabs.Trigger>
-      </NativeTabs>
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: copy.nav.home,
+            tabBarIcon: ({ color }) => <MaterialCommunityIcons color={color} name="home-variant-outline" size={22} />,
+          }}
+        />
+        <Tabs.Screen
+          name="explore"
+          options={{
+            title: copy.nav.explore,
+            tabBarIcon: ({ color }) => <MaterialCommunityIcons color={color} name="compass-outline" size={22} />,
+          }}
+        />
+        <Tabs.Screen
+          name="source"
+          options={{
+            title: copy.nav.source,
+            tabBarIcon: ({ color }) => <MaterialCommunityIcons color={color} name="layers-outline" size={22} />,
+          }}
+        />
+        <Tabs.Screen
+          name="recipes"
+          options={{
+            title: copy.nav.recipes,
+            tabBarIcon: ({ color }) => (
+              <MaterialCommunityIcons color={color} name="book-open-page-variant-outline" size={22} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="my"
+          options={{
+            title: copy.nav.my,
+            tabBarIcon: ({ color }) => <MaterialCommunityIcons color={color} name="account-outline" size={22} />,
+          }}
+        />
+      </Tabs>
 
       {homeQuickShootChromeHidden ? null : (
         <>

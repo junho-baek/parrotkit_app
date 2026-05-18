@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "parrotkit-app",
-    "slug": "parrotkit-app",
-    "scheme": "parrotkit-app",
+    "name": "ParrotKit",
+    "slug": "parrotkit",
+    "scheme": "parrotkit",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -15,12 +15,17 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.parrotkitapp",
+      "bundleIdentifier": "com.parrotkit.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Allow ParrotKit to access your camera so you can shoot with recipe cues.",
-        "NSMicrophoneUsageDescription": "Allow ParrotKit to record your voice while shooting recipe takes.",
-        "NSPhotoLibraryAddUsageDescription": "Allow ParrotKit to save approved recipe takes to your photo library.",
-        "NSPhotoLibraryUsageDescription": "Allow ParrotKit to access saved recipe takes in your photo library."
+        "NSCameraUsageDescription": "ParrotKit uses the camera to record creator recipe takes with on-screen shooting cues.",
+        "NSMicrophoneUsageDescription": "ParrotKit uses the microphone only when you record video takes that include audio.",
+        "NSPhotoLibraryAddUsageDescription": "ParrotKit can save selected recipe takes to your photo library when you choose to export them.",
+        "NSPhotoLibraryUsageDescription": "ParrotKit can access videos you choose from your library to attach as recipe takes or references."
+      },
+      "privacyManifests": {
+        "NSPrivacyCollectedDataTypes": [],
+        "NSPrivacyTracking": false,
+        "NSPrivacyTrackingDomains": []
       }
     },
     "android": {
@@ -30,7 +35,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.parrotkitapp"
+      "package": "com.parrotkit.app"
     },
     "web": {
       "bundler": "metro",
@@ -44,8 +49,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow ParrotKit to access your camera so you can shoot with recipe cues.",
-          "microphonePermission": "Allow ParrotKit to record your voice while shooting recipe takes.",
+          "cameraPermission": "ParrotKit uses the camera to record creator recipe takes with on-screen shooting cues.",
+          "microphonePermission": "ParrotKit uses the microphone only when you record video takes that include audio.",
           "recordAudioAndroid": true
         }
       ],
@@ -55,8 +60,8 @@
           "granularPermissions": [
             "video"
           ],
-          "photosPermission": "Allow ParrotKit to access saved recipe takes in your photo library.",
-          "savePhotosPermission": "Allow ParrotKit to save approved recipe takes to your photo library."
+          "photosPermission": "ParrotKit can access videos you choose from your library to attach as recipe takes or references.",
+          "savePhotosPermission": "ParrotKit can save selected recipe takes to your photo library when you choose to export them."
         }
       ],
       "expo-video"

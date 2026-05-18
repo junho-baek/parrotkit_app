@@ -295,7 +295,8 @@ function RecentRecipeRow({
   const activityLabel = localizeActivityLabel(language, recipe.lastShotAt ?? recipe.savedAt);
 
   return (
-    <Pressable accessibilityRole="button" className="flex-row items-center gap-3 py-3" onPress={onOpen}>
+    <View className="flex-row items-center gap-3 py-3">
+      <Pressable accessibilityRole="button" className="min-w-0 flex-1 flex-row items-center gap-3" onPress={onOpen}>
       <Image source={{ uri: recipe.thumbnail }} style={styles.recentImage} />
       <View className="flex-1 gap-1">
         <Text className="text-[16px] font-black leading-5 text-ink" numberOfLines={2}>
@@ -310,10 +311,11 @@ function RecentRecipeRow({
           </Text>
         ) : null}
       </View>
+      </Pressable>
       <Pressable accessibilityRole="button" hitSlop={8} onPress={onPrimary} style={styles.recentPlay}>
         <MaterialCommunityIcons color="#111827" name="play" size={18} />
       </Pressable>
-    </Pressable>
+    </View>
   );
 }
 

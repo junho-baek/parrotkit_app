@@ -668,6 +668,7 @@ export function RecipeDetailScreen() {
         language={language}
         ListHeaderComponent={
           <>
+            <ShootBoardReadinessCard board={renderedShootBoard} language={language} />
             <ShootBoardNoteCta language={language} />
             <ShootBoardStickyHeader
               language={language}
@@ -730,6 +731,93 @@ export function RecipeDetailScreen() {
           visible={takeViewerCutId !== null}
         />
       ) : null}
+    </View>
+  );
+}
+
+function ShootBoardReadinessCard({
+  board,
+  language,
+}: {
+  board: ShootBoardRecipe;
+  language: AppLanguage;
+}) {
+  const nextCut = board.cuts.find((cut) => !cut.isShot) ?? board.cuts[0];
+  const firstAction = nextCut
+    ? language === "ko"
+      ? nextCut.firstActionKo || nextCut.firstAction
+      : nextCut.firstAction
+    : "";
+  const setupCue = nextCut
+    ? language === "ko"
+      ? nextCut.setupCueKo || nextCut.setupCue
+      : nextCut.setupCue
+    : "";
+
+  return (
+    <View className="mx-4 mb-3 rounded-[22px] border border-violet/20 bg-[#fbf8ff] px-4 py-4">
+      <View className="flex-row items-start gap-3">
+        <View className="h-11 w-11 items-center justify-center rounded-full bg-violet/10">
+          <MaterialCommunityIcons color="#8c67ff" name="camera-timer" size={22} />
+        </View>
+        <View className="min-w-0 flex-1">
+          <Text className="text-[12px] font-black uppercase text-violet">
+            {language === "ko" ? "오늘 바로 찍기" : "Shoot-ready plan"}
+          </Text>
+          <Text className="mt-1 text-[18px] font-black leading-6 text-ink">
+            {language === "ko"
+              ? `${board.totalCuts}컷을 ${board.totalDurationSeconds}초 구조로 바로 촬영`
+              : `${board.totalCuts} cuts, ${board.totalDurationSeconds}s structure`}
+          </Text>
+          <Text className="mt-1 text-[12px] font-semibold leading-5 text-muted">
+            {language === "ko"
+              ? "각 컷은 프레임, 첫 동작, 준비물을 먼저 확인하고 촬영으로 들어갑니다."
+              : "Each cut now starts with frame, first move, and setup cues before you record."}
+          </Text>
+        </View>
+      </View>
+
+      {nextCut ? (
+        <View className="mt-3 flex-row gap-2">
+          <ReadinessPill
+            icon="play-circle-outline"
+            label={language === "ko" ? "다음 컷" : "Next cut"}
+            value={language === "ko" ? nextCut.titleKo : nextCut.title}
+          />
+          <ReadinessPill
+            icon="gesture-tap"
+            label={language === "ko" ? "첫 동작" : "First move"}
+            value={firstAction}
+          />
+          <ReadinessPill
+            icon="cube-outline"
+            label={language === "ko" ? "준비물" : "Setup"}
+            value={setupCue}
+          />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function ReadinessPill({
+  icon,
+  label,
+  value,
+}: {
+  icon: IconName;
+  label: string;
+  value: string;
+}) {
+  return (
+    <View className="min-w-0 flex-1 rounded-[14px] bg-white px-3 py-3">
+      <MaterialCommunityIcons color="#8c67ff" name={icon} size={16} />
+      <Text className="mt-1 text-[10px] font-black uppercase text-muted">
+        {label}
+      </Text>
+      <Text className="mt-0.5 text-[11px] font-black leading-4 text-ink" numberOfLines={3}>
+        {value}
+      </Text>
     </View>
   );
 }

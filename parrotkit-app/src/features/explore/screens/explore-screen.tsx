@@ -417,7 +417,7 @@ function RecommendedRecipeCard({
   onPress: () => void;
 }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.recommendedCard}>
+    <View style={styles.recommendedCard}>
       <ImageBackground
         imageStyle={styles.recommendedImage}
         resizeMode="cover"
@@ -432,13 +432,15 @@ function RecommendedRecipeCard({
 
         <View className="flex-1 justify-end px-4 py-4">
           <View className="gap-2">
-            <Text style={styles.recommendedTitle} numberOfLines={2}>
-              {card.title}
-            </Text>
+            <Pressable accessibilityRole="button" onPress={onPress}>
+              <Text style={styles.recommendedTitle} numberOfLines={2}>
+                {card.title}
+              </Text>
 
-            <Text style={styles.recommendedCreator} numberOfLines={1}>
-              {card.creatorHandle}
-            </Text>
+              <Text style={styles.recommendedCreator} numberOfLines={1}>
+                {card.creatorHandle}
+              </Text>
+            </Pressable>
 
             <View className="flex-row items-center justify-end">
               <Pressable accessibilityRole="button" onPress={onAction} style={styles.recommendedCta}>
@@ -448,7 +450,7 @@ function RecommendedRecipeCard({
           </View>
         </View>
       </ImageBackground>
-    </Pressable>
+    </View>
   );
 }
 
@@ -464,7 +466,8 @@ function BrowseRecipeRow({
   onPress: () => void;
 }) {
   return (
-    <Pressable accessibilityRole="button" className="flex-row gap-3 py-3" onPress={onPress}>
+    <View className="flex-row gap-3 py-3">
+      <Pressable accessibilityRole="button" className="min-w-0 flex-1 flex-row gap-3" onPress={onPress}>
       <Image source={{ uri: card.image }} style={styles.rowImage} />
       <View className="min-w-0 flex-1 gap-1">
         <View className="flex-row items-start justify-between gap-2">
@@ -495,12 +498,15 @@ function BrowseRecipeRow({
             <Text className="text-[10px] font-bold text-muted">{formatCompactMetric(card.saveCount)} {copy.stats.saves}</Text>
             <Text className="text-[10px] font-bold text-muted">{formatCompactMetric(card.viewCount)} {copy.stats.views}</Text>
           </View>
-          <Pressable accessibilityRole="button" onPress={onAction} style={styles.rowCta}>
-            <Text className="text-[11px] font-black text-violet">{copy.actions[card.action]}</Text>
-          </Pressable>
         </View>
       </View>
-    </Pressable>
+      </Pressable>
+      <View className="justify-end pb-1">
+        <Pressable accessibilityRole="button" onPress={onAction} style={styles.rowCta}>
+          <Text className="text-[11px] font-black text-violet">{copy.actions[card.action]}</Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 

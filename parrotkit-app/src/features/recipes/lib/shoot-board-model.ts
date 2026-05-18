@@ -57,6 +57,12 @@ export type ShootBoardCut = {
   templateLineKo: string;
   shootingGuideline: string;
   shootingGuidelineKo: string;
+  shotFrame: string;
+  shotFrameKo: string;
+  firstAction: string;
+  firstActionKo: string;
+  setupCue: string;
+  setupCueKo: string;
   requiredChecklist: ShootBoardChecklistItem[];
   takes: ShootBoardTake[];
   finalTakeId?: string;
@@ -124,6 +130,8 @@ type ChecklistDefinition = {
 
 type CutDefinition = {
   durationSeconds: number;
+  firstAction?: string;
+  firstActionKo?: string;
   finalTakeId?: string;
   idSuffix?: string;
   instruction: string;
@@ -134,6 +142,10 @@ type CutDefinition = {
   requiredChecklist: ChecklistDefinition[];
   role: ShootBoardCutRole;
   sceneIndex: number;
+  setupCue?: string;
+  setupCueKo?: string;
+  shotFrame?: string;
+  shotFrameKo?: string;
   shootingGuideline: string;
   shootingGuidelineKo: string;
   speakingLine: string;
@@ -746,6 +758,12 @@ export function createAddedShootBoardCut(
     role: "custom",
     roleLabel: "",
     sceneId: board.cuts[board.cuts.length - 1]?.sceneId,
+    setupCue: "",
+    setupCueKo: "",
+    shotFrame: "",
+    shotFrameKo: "",
+    firstAction: "",
+    firstActionKo: "",
     shootingDirections: [],
     shootingDirectionsKo: [],
     shootingGuideline: "",
@@ -853,6 +871,15 @@ function createShootBoardCut({
     shootingDirectionsKo: createShootingDirectionsKo(definition),
     shootingGuideline: definition.shootingGuideline,
     shootingGuidelineKo: definition.shootingGuidelineKo,
+    shotFrame: definition.shotFrame ?? getDefaultShotFrame(definition.role),
+    shotFrameKo:
+      definition.shotFrameKo ?? getDefaultShotFrameKo(definition.role),
+    firstAction:
+      definition.firstAction ?? getDefaultFirstAction(definition.role),
+    firstActionKo:
+      definition.firstActionKo ?? getDefaultFirstActionKo(definition.role),
+    setupCue: definition.setupCue ?? getDefaultSetupCue(definition.role),
+    setupCueKo: definition.setupCueKo ?? getDefaultSetupCueKo(definition.role),
     speakingLine: definition.speakingLine,
     speakingLineKo: definition.speakingLineKo,
     takeStatus: definition.takeStatus ?? getInitialTakeStatus(takes),
@@ -923,6 +950,12 @@ function createShootBoardCutFromScene(
     shootingGuideline: shootingDirections[0] ?? roleDefinition.instruction,
     shootingGuidelineKo:
       shootingDirectionsKo[0] ?? roleDefinition.instructionKo,
+    shotFrame: getDefaultShotFrame(role),
+    shotFrameKo: getDefaultShotFrameKo(role),
+    firstAction: getDefaultFirstAction(role),
+    firstActionKo: getDefaultFirstActionKo(role),
+    setupCue: getDefaultSetupCue(role),
+    setupCueKo: getDefaultSetupCueKo(role),
     speakingLine,
     speakingLineKo: speakingLine,
     takeStatus: "none",
@@ -1048,6 +1081,54 @@ function createShootingDirectionsKo(definition: CutDefinition) {
     definition.purposeKo,
     definition.templateLineKo,
   ];
+}
+
+function getDefaultShotFrame(role: ShootBoardCutRole) {
+  if (role === "hook") return "Result-first vertical close-up";
+  if (role === "proof") return "Inspectable close proof frame";
+  if (role === "cta") return "Stable final frame with caption space";
+  if (role === "custom") return "";
+  return "Centered hands or product action";
+}
+
+function getDefaultShotFrameKo(role: ShootBoardCutRole) {
+  if (role === "hook") return "결과 먼저 보이는 세로 클로즈업";
+  if (role === "proof") return "확인 가능한 증거 클로즈업";
+  if (role === "cta") return "자막 공간이 있는 안정된 마무리 컷";
+  if (role === "custom") return "";
+  return "손 또는 제품 동작이 중앙에 보이는 컷";
+}
+
+function getDefaultFirstAction(role: ShootBoardCutRole) {
+  if (role === "hook") return "Hold the payoff before explaining";
+  if (role === "proof") return "Move proof into frame and pause";
+  if (role === "cta") return "Hold the final frame before the CTA";
+  if (role === "custom") return "";
+  return "Do one clear action before the next cut";
+}
+
+function getDefaultFirstActionKo(role: ShootBoardCutRole) {
+  if (role === "hook") return "설명 전에 결과를 먼저 잡기";
+  if (role === "proof") return "증거를 프레임에 넣고 멈추기";
+  if (role === "cta") return "CTA 전에 최종 컷을 잡기";
+  if (role === "custom") return "";
+  return "다음 컷 전에 명확한 동작 하나";
+}
+
+function getDefaultSetupCue(role: ShootBoardCutRole) {
+  if (role === "hook") return "Best result ready before recording";
+  if (role === "proof") return "Proof prop ready beside the phone";
+  if (role === "cta") return "Caption space checked";
+  if (role === "custom") return "";
+  return "Props arranged in shooting order";
+}
+
+function getDefaultSetupCueKo(role: ShootBoardCutRole) {
+  if (role === "hook") return "가장 좋은 결과 컷 준비";
+  if (role === "proof") return "증거 소품을 휴대폰 옆에 준비";
+  if (role === "cta") return "자막 공간 확인";
+  if (role === "custom") return "";
+  return "소품을 촬영 순서대로 배치";
 }
 
 function normalizeNonFinalTakeStatus(
