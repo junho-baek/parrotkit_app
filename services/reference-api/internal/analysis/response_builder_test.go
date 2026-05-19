@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/junho-baek/parrotkit-app/services/reference-api/internal/contracts"
@@ -97,7 +98,7 @@ func TestBuildReferenceAnalysisResponseReturnsTwoVariants(t *testing.T) {
 			OneLineDescription: "Preserve the reference rhythm.",
 			Scenes: []RecipeDraftScene{{
 				Title:             "20 hook",
-				LineToSay:         "20 reps is only the start",
+				LineToSay:         "Your coaching plan compounds reps without burning out.",
 				ShootingGuideline: "Face camera and hold the count.",
 			}},
 		},
@@ -129,5 +130,100 @@ func TestBuildReferenceAnalysisResponseReturnsTwoVariants(t *testing.T) {
 		if variant := response.CutBoard.Variants[name]; len(variant.Items) != 1 {
 			t.Fatalf("cutBoard variant %q items = %d", name, len(variant.Items))
 		}
+	}
+	sourceRecipe := response.Recipe.Variants["sourceFaithful"]
+	goalRecipe := response.Recipe.Variants["goalAdapted"]
+	if sourceRecipe.Scenes[0].LineToSay != "20 then 40 then 80, it does not end." {
+		t.Fatalf("sourceFaithful line = %q", sourceRecipe.Scenes[0].LineToSay)
+	}
+	if goalRecipe.Scenes[0].LineToSay != "Your coaching plan compounds reps without burning out." {
+		t.Fatalf("goalAdapted line = %q", goalRecipe.Scenes[0].LineToSay)
+	}
+	if response.Recipe.Scenes[0].LineToSay != sourceRecipe.Scenes[0].LineToSay {
+		t.Fatalf("top-level recipe should be sourceFaithful: %#v", response.Recipe.Scenes[0])
+	}
+	sourceBoard := response.CutBoard.Variants["sourceFaithful"].Items[0]
+	goalBoard := response.CutBoard.Variants["goalAdapted"].Items[0]
+	if sourceBoard.LineToSay == nil || *sourceBoard.LineToSay != "20 then 40 then 80, it does not end." {
+		t.Fatalf("sourceFaithful board line = %#v", sourceBoard.LineToSay)
+	}
+	if goalBoard.LineToSay == nil || *goalBoard.LineToSay != "Your coaching plan compounds reps without burning out." {
+		t.Fatalf("goalAdapted board line = %#v", goalBoard.LineToSay)
+	}
+	if sourceBoard.ProjectionCutID != goalBoard.ProjectionCutID {
+		t.Fatalf("variant switch should keep projection cut id: source=%s goal=%s", sourceBoard.ProjectionCutID, goalBoard.ProjectionCutID)
+	}
+	if sourceBoard.ReferenceMediaRef != goalBoard.ReferenceMediaRef {
+		t.Fatalf("variant switch should keep source reference span: source=%#v goal=%#v", sourceBoard.ReferenceMediaRef, goalBoard.ReferenceMediaRef)
+	}
+	if !strings.Contains(sourceBoard.ReferenceUsage, "{hook_context}") {
+		t.Fatalf("sourceFaithful usage should preserve placeholder braces: %q", sourceBoard.ReferenceUsage)
+	}
+}
+
+func TestBuildReferenceAnalysisResponseSourceFaithfulCutsKeepTranscriptSignalsAndSpans(t *testing.T) {
+	response := BuildReferenceAnalysisResponse(ReferenceAnalysisBuildInput{
+		Draft: RecipeDraft{
+			Title:              "Escalation board",
+			OneLineDescription: "Keep the escalation structure.",
+			Scenes: []RecipeDraftScene{
+				{
+					Title:             "Goal hook",
+					LineToSay:         "Start with a plan that compounds without burnout.",
+					ShootingGuideline: "Face camera with the program result.",
+				},
+				{
+					Title:             "Goal contrast",
+					LineToSay:         "Show the switch from random effort to a repeatable system.",
+					ShootingGuideline: "Cut between the old and new workflow.",
+				},
+				{
+					Title:             "Goal close",
+					LineToSay:         "Invite viewers to try the first step today.",
+					ShootingGuideline: "End with the checklist on screen.",
+				},
+			},
+		},
+		Extract: superdata.ExtractResult{Raw: map[string]any{"ok": true}},
+		Request: Request{
+			Goal:         "sell a coaching plan",
+			Niche:        "fitness",
+			ReferenceURL: "https://youtube.com/shorts/ySDpL4wUX7Y",
+		},
+		RequestID: "req_source_quality",
+		Transcript: []superdata.TranscriptSegment{
+			{ID: "seg-1", StartMs: 1200, EndMs: 3100, Text: "20 then 40 then 80, it does not end."},
+			{ID: "seg-2", StartMs: 3100, EndMs: 6200, Text: "The point is not more reps, it is the contrast."},
+			{ID: "seg-3", StartMs: 6200, EndMs: 9100, Text: "You repeat the same move until the viewer gets it."},
+		},
+	})
+
+	sourceItems := response.CutBoard.Variants["sourceFaithful"].Items
+	expectedLines := []string{
+		"20 then 40 then 80, it does not end.",
+		"The point is not more reps, it is the contrast.",
+		"You repeat the same move until the viewer gets it.",
+	}
+	expectedStarts := []int{1200, 3100, 6200}
+	expectedEnds := []int{3100, 6200, 9100}
+	if len(sourceItems) != len(expectedLines) {
+		t.Fatalf("sourceFaithful items = %#v", sourceItems)
+	}
+	for index, item := range sourceItems {
+		if item.LineToSay == nil || !strings.Contains(*item.LineToSay, expectedLines[index]) {
+			t.Fatalf("sourceFaithful item %d line = %#v", index, item.LineToSay)
+		}
+		if item.ReferenceMediaRef.StartMs != expectedStarts[index] || item.ReferenceMediaRef.EndMs != expectedEnds[index] {
+			t.Fatalf("sourceFaithful item %d reference span = %#v", index, item.ReferenceMediaRef)
+		}
+		if !strings.Contains(item.ReferenceUsage, "{") || !strings.Contains(item.ReferenceUsage, "}") {
+			t.Fatalf("sourceFaithful item %d lost placeholder template: %q", index, item.ReferenceUsage)
+		}
+	}
+	if response.Breakdown.Cuts[0]["source_transcript_ids"].([]string)[0] != "seg-1" {
+		t.Fatalf("breakdown cut transcript ids = %#v", response.Breakdown.Cuts)
+	}
+	if sourceTemplate, ok := response.Breakdown.Cuts[0]["source_template"].(string); !ok || !strings.Contains(sourceTemplate, "{hook_context}") {
+		t.Fatalf("breakdown source template = %#v", response.Breakdown.Cuts[0]["source_template"])
 	}
 }

@@ -22,6 +22,8 @@ func TestBuildPromptRequestsSmallDraftAndCarriesContext(t *testing.T) {
 		"small recipe draft",
 		"Language hint:",
 		"Product context JSON:",
+		"goal-adapted",
+		"backend builds sourceFaithful templates",
 		`"title"`,
 		`"scenes"`,
 	}

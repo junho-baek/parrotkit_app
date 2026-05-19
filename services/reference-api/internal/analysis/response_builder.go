@@ -102,8 +102,10 @@ func buildReferenceMedia(metadata superdata.Metadata, req Request, mediaAssetID 
 }
 
 func buildRecipeAndBoard(draft RecipeDraft, media *contracts.ReferenceMedia, transcript []superdata.TranscriptSegment, mediaAssetID string) (*contracts.Recipe, *contracts.CutBoard, []map[string]any) {
-	scenes := make([]contracts.RecipeScene, 0, len(draft.Scenes))
-	items := make([]contracts.CutBoardItem, 0, len(draft.Scenes))
+	sourceScenes := make([]contracts.RecipeScene, 0, len(draft.Scenes))
+	goalScenes := make([]contracts.RecipeScene, 0, len(draft.Scenes))
+	sourceItems := make([]contracts.CutBoardItem, 0, len(draft.Scenes))
+	goalItems := make([]contracts.CutBoardItem, 0, len(draft.Scenes))
 	cuts := make([]map[string]any, 0, len(draft.Scenes))
 	totalDurationSec := 0
 
@@ -116,68 +118,87 @@ func buildRecipeAndBoard(draft RecipeDraft, media *contracts.ReferenceMedia, tra
 
 		cutID := fmt.Sprintf("cut-%d", index+1)
 		sceneTitle := fallbackString(draftScene.Title, fmt.Sprintf("Scene %d", index+1))
-		line := fallbackString(draftScene.LineToSay, transcriptLine(transcript, index))
-		shootingGuideline := fallbackString(draftScene.ShootingGuideline, "Film this beat clearly and keep the action easy to repeat.")
+		transcriptText := transcriptLine(transcript, index)
+		goalLine := fallbackString(draftScene.LineToSay, transcriptText)
+		sourceLine := sourceFaithfulLine(draftScene, transcriptText, index)
+		goalGuide := fallbackString(draftScene.ShootingGuideline, "Film this beat clearly and keep the action easy to repeat.")
+		sourceGuide := sourceFaithfulShootingGuideline(draftScene, transcriptText)
 		successCriteria := draftScene.SuccessCriteria
 		if len(successCriteria) == 0 {
 			successCriteria = []string{"The beat is clear and repeatable."}
 		}
 
-		scenes = append(scenes, contracts.RecipeScene{
+		goalScene := contracts.RecipeScene{
 			DurationSec:       durationSec,
 			Index:             index + 1,
-			LineToSay:         line,
+			LineToSay:         goalLine,
 			ProjectionCutID:   cutID,
 			RequiredChecklist: successCriteria,
-			ShootingGuideline: shootingGuideline,
+			ShootingGuideline: goalGuide,
 			Title:             sceneTitle,
-		})
+		}
+		sourceScene := goalScene
+		sourceScene.LineToSay = sourceLine
+		sourceScene.ShootingGuideline = sourceGuide
+		goalScenes = append(goalScenes, goalScene)
+		sourceScenes = append(sourceScenes, sourceScene)
 
-		lineCopy := line
-		shotGuide := shootingGuideline
-		item := contracts.CutBoardItem{
+		goalLineCopy := goalLine
+		goalShotGuide := goalGuide
+		goalItem := contracts.CutBoardItem{
 			DurationSeconds:      durationSec,
 			ExecutionTitle:       sceneTitle,
-			LineToSay:            &lineCopy,
+			LineToSay:            &goalLineCopy,
 			MyTakeRelationship:   fallbackString(draftScene.MyTakeRelationship, "Adapt this reference beat to your own offer and audience."),
 			OrderIndex:           index,
 			ProjectionCutID:      cutID,
 			ReferenceMediaRef:    contracts.ReferenceMediaRef{MediaAssetID: mediaAssetID, StartMs: startMs, EndMs: endMs, ThumbnailURI: media.ThumbnailURL},
 			ReferenceObservation: fallbackString(draftScene.ReferenceObservation, "The reference uses this beat to keep the viewer moving."),
 			ReferenceUsage:       fallbackString(draftScene.ReferenceUsage, "Use the same structural role without copying the creator's exact content."),
-			ShotGuide:            &shotGuide,
+			ShotGuide:            &goalShotGuide,
 			SourceCutIDs:         []string{cutID},
 			SuccessCriteria:      successCriteria,
 		}
-		items = append(items, item)
+		sourceLineCopy := sourceLine
+		sourceShotGuide := sourceGuide
+		sourceItem := goalItem
+		sourceItem.LineToSay = &sourceLineCopy
+		sourceItem.MyTakeRelationship = sourceFaithfulMyTakeRelationship(draftScene, transcriptText, index)
+		sourceItem.ReferenceObservation = sourceFaithfulReferenceObservation(draftScene, transcriptText)
+		sourceItem.ReferenceUsage = sourceFaithfulReferenceUsage(draftScene, transcriptText, index)
+		sourceItem.ShotGuide = &sourceShotGuide
+		goalItems = append(goalItems, goalItem)
+		sourceItems = append(sourceItems, sourceItem)
 		cuts = append(cuts, map[string]any{
-			"duration_sec":          durationSec,
-			"id":                    cutID,
-			"scene_index":           index + 1,
-			"source_transcript_ids": transcriptIDsForScene(transcript, index),
-			"start_ms":              startMs,
-			"end_ms":                endMs,
-			"title":                 sceneTitle,
+			"duration_sec":           durationSec,
+			"id":                     cutID,
+			"scene_index":            index + 1,
+			"source_transcript_ids":  transcriptIDsForScene(transcript, index),
+			"source_template":        sourceFaithfulTemplate(transcriptText, index),
+			"source_transcript_text": transcriptText,
+			"start_ms":               startMs,
+			"end_ms":                 endMs,
+			"title":                  sceneTitle,
 		})
 	}
 
 	boardTitle := fallbackString(draft.Title, "Reference shooting board")
 	recipe := &contracts.Recipe{
 		OneLineDescription: draft.OneLineDescription,
-		Scenes:             scenes,
+		Scenes:             sourceScenes,
 		Title:              boardTitle,
 		TotalDurationSec:   totalDurationSec,
 	}
 	cutBoard := &contracts.CutBoard{
 		BoardTitle:               boardTitle,
 		EstimatedDurationSeconds: totalDurationSec,
-		Items:                    items,
+		Items:                    sourceItems,
 	}
-	attachRecipeVariants(recipe, cutBoard)
+	attachRecipeVariants(recipe, cutBoard, goalScenes, goalItems)
 	return recipe, cutBoard, cuts
 }
 
-func attachRecipeVariants(recipe *contracts.Recipe, cutBoard *contracts.CutBoard) {
+func attachRecipeVariants(recipe *contracts.Recipe, cutBoard *contracts.CutBoard, goalScenes []contracts.RecipeScene, goalItems []contracts.CutBoardItem) {
 	if recipe != nil {
 		recipe.DefaultVariant = "sourceFaithful"
 		recipe.Variants = map[string]contracts.RecipeVariant{
@@ -191,7 +212,7 @@ func attachRecipeVariants(recipe *contracts.Recipe, cutBoard *contracts.CutBoard
 			"goalAdapted": {
 				Label:              "Adapted",
 				OneLineDescription: recipe.OneLineDescription,
-				Scenes:             copyRecipeScenes(recipe.Scenes),
+				Scenes:             copyRecipeScenes(goalScenes),
 				Title:              recipe.Title,
 				TotalDurationSec:   recipe.TotalDurationSec,
 			},
@@ -209,7 +230,7 @@ func attachRecipeVariants(recipe *contracts.Recipe, cutBoard *contracts.CutBoard
 			"goalAdapted": {
 				BoardTitle:               cutBoard.BoardTitle,
 				EstimatedDurationSeconds: cutBoard.EstimatedDurationSeconds,
-				Items:                    copyCutBoardItems(cutBoard.Items),
+				Items:                    copyCutBoardItems(goalItems),
 				Label:                    "Adapted",
 			},
 		}
@@ -232,6 +253,90 @@ func copyCutBoardItems(items []contracts.CutBoardItem) []contracts.CutBoardItem 
 	copyItems := make([]contracts.CutBoardItem, len(items))
 	copy(copyItems, items)
 	return copyItems
+}
+
+func sourceFaithfulLine(draftScene RecipeDraftScene, transcriptText string, index int) string {
+	transcriptText = strings.TrimSpace(transcriptText)
+	if transcriptText != "" {
+		return transcriptText
+	}
+	if hasPlaceholder(draftScene.LineToSay) {
+		return draftScene.LineToSay
+	}
+	return fallbackString(draftScene.LineToSay, sourcePlaceholder(index))
+}
+
+func sourceFaithfulShootingGuideline(draftScene RecipeDraftScene, transcriptText string) string {
+	if hasPlaceholder(draftScene.ShootingGuideline) {
+		return draftScene.ShootingGuideline
+	}
+	if strings.TrimSpace(transcriptText) != "" {
+		return fmt.Sprintf("Match the source beat around %q before changing the replaceable detail.", sourceSnippet(transcriptText))
+	}
+	return fallbackString(draftScene.ShootingGuideline, "Film the source beat clearly and keep the action easy to repeat.")
+}
+
+func sourceFaithfulReferenceObservation(draftScene RecipeDraftScene, transcriptText string) string {
+	if strings.TrimSpace(transcriptText) != "" {
+		return fmt.Sprintf("The source beat says %q.", sourceSnippet(transcriptText))
+	}
+	return fallbackString(draftScene.ReferenceObservation, "The source uses this beat to keep the viewer moving.")
+}
+
+func sourceFaithfulReferenceUsage(draftScene RecipeDraftScene, transcriptText string, index int) string {
+	if hasPlaceholder(draftScene.ReferenceUsage) {
+		return draftScene.ReferenceUsage
+	}
+	placeholder := sourcePlaceholder(index)
+	if strings.TrimSpace(transcriptText) != "" {
+		return fmt.Sprintf("Keep %q in this beat and replace only %s.", sourceSnippet(transcriptText), placeholder)
+	}
+	return fmt.Sprintf("Keep the same beat and replace only %s.", placeholder)
+}
+
+func sourceFaithfulMyTakeRelationship(draftScene RecipeDraftScene, transcriptText string, index int) string {
+	if hasPlaceholder(draftScene.MyTakeRelationship) {
+		return draftScene.MyTakeRelationship
+	}
+	placeholder := sourcePlaceholder(index)
+	if strings.TrimSpace(transcriptText) != "" {
+		return fmt.Sprintf("Map %s onto your context after the source line stays recognizable.", placeholder)
+	}
+	return fallbackString(draftScene.MyTakeRelationship, fmt.Sprintf("Map %s onto your own offer and audience.", placeholder))
+}
+
+func sourceFaithfulTemplate(transcriptText string, index int) string {
+	placeholder := sourcePlaceholder(index)
+	if strings.TrimSpace(transcriptText) == "" {
+		return placeholder
+	}
+	return fmt.Sprintf("%s -> %s", sourceSnippet(transcriptText), placeholder)
+}
+
+func sourcePlaceholder(index int) string {
+	switch index {
+	case 0:
+		return "{hook_context}"
+	case 1:
+		return "{proof_detail}"
+	case 2:
+		return "{viewer_action}"
+	default:
+		return fmt.Sprintf("{cut_%d_detail}", index+1)
+	}
+}
+
+func hasPlaceholder(text string) bool {
+	return strings.Contains(text, "{") && strings.Contains(text, "}")
+}
+
+func sourceSnippet(text string) string {
+	trimmed := strings.TrimSpace(text)
+	runes := []rune(trimmed)
+	if len(runes) <= 96 {
+		return trimmed
+	}
+	return string(runes[:96]) + "..."
 }
 
 func buildBreakdown(draft RecipeDraft, input ReferenceAnalysisBuildInput, cuts []map[string]any) *contracts.Breakdown {

@@ -1,6 +1,10 @@
 package contracts
 
-import "testing"
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
 
 func TestReadyRequiresUsableArtifacts(t *testing.T) {
 	response := ReadyFixture()
@@ -79,5 +83,24 @@ func TestReadyFixtureIncludesTwoRecipeVariants(t *testing.T) {
 		if !ok || len(boardVariant.Items) == 0 {
 			t.Fatalf("missing cutBoard variant %q: %#v", name, response.CutBoard.Variants)
 		}
+	}
+}
+
+func TestProviderTraceIsInternalOnly(t *testing.T) {
+	response := ReadyFixture()
+	response.Generation.ProviderTrace = []ProviderTraceEvent{{
+		ErrorMessage: "raw provider stack detail",
+		RequestID:    "req_trace",
+		Stage:        "superdata.extract",
+		Status:       "failure",
+	}}
+
+	bytes, err := json.Marshal(response)
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+	body := string(bytes)
+	if strings.Contains(body, "providerTrace") || strings.Contains(body, "raw provider stack detail") {
+		t.Fatalf("provider trace leaked to JSON: %s", body)
 	}
 }

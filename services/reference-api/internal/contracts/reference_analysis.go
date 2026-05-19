@@ -68,7 +68,7 @@ type Generation struct {
 	MissingArtifacts []string             `json:"missingArtifacts"`
 	Model            *string              `json:"model"`
 	ProviderPipeline []string             `json:"providerPipeline"`
-	ProviderTrace    []ProviderTraceEvent `json:"providerTrace,omitempty"`
+	ProviderTrace    []ProviderTraceEvent `json:"-"`
 }
 
 type ProviderTraceEvent struct {

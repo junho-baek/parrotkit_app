@@ -67,5 +67,7 @@ Rules:
 4. Keep scene copy concise and usable by a creator.
 5. Do not return schemaVersion, status, referenceMedia, breakdown, recipe, cutBoard, generation, markdown, comments, or debug labels.
 6. Never invent creator, title, duration, or product facts.
+7. Write lineToSay as natural complete goal-adapted copy for the requested niche and goal.
+8. Do not use placeholder braces in goal-adapted lineToSay; the backend builds sourceFaithful templates from transcript spans.
 `, input.ReferenceURL, input.Niche, input.Goal, input.LanguageHint, input.ProductContext, input.MetadataJSON, input.Transcript, input.ExtractJSON)
 }

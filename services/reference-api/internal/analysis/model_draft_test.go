@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"slices"
 	"strings"
@@ -195,6 +196,17 @@ func TestLiveProviderReturnsPartialReadyWhenExtractFailsButTranscriptAndDraftSuc
 	}
 	if !slices.Contains(response.Generation.MissingArtifacts, "visual_extract") {
 		t.Fatalf("missingArtifacts = %#v", response.Generation.MissingArtifacts)
+	}
+	bodyBytes, err := json.Marshal(response)
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+	body := string(bodyBytes)
+	if strings.Contains(body, "providerTrace") || strings.Contains(body, "extract failed") {
+		t.Fatalf("provider trace leaked to partial_ready JSON: %s", body)
+	}
+	if len(response.Generation.ProviderTrace) == 0 {
+		t.Fatalf("internal provider trace should still be available on the Go response")
 	}
 	if response.Recipe == nil || len(response.Recipe.Scenes) == 0 {
 		t.Fatalf("recipe = %#v", response.Recipe)
