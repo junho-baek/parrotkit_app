@@ -52,8 +52,11 @@ import {
 import {
   getExplicitSceneExpansionCutId,
   getBoardOverviewUiState,
+  getShootBoardVariantOptions,
   hydrateShootBoardReferenceMedia,
   hydrateShootBoardWithWorkspaceTakes,
+  projectNativeRecipeForShootBoardVariant,
+  type ShootBoardRecipeVariantId,
 } from "@/features/recipes/screens/recipe-detail/recipe-detail-board-state";
 import {
   NativeRecipe,
@@ -216,16 +219,18 @@ export function RecipeDetailScreen() {
     [params.analysisQaState, recipe],
   );
   const routeHighlightedCutId =
-    typeof params.highlightCutId === "string"
-      ? params.highlightCutId
-      : null;
+    typeof params.highlightCutId === "string" ? params.highlightCutId : null;
   const nativeRecipe = useMemo(
     () => (displayRecipe ? normalizeNativeRecipe(displayRecipe) : null),
     [displayRecipe],
   );
 
   const [activeTab, setActiveTab] = useState<DetailTab>("recipe");
-  const [activeBoardTab, setActiveBoardTab] = useState<"board" | "breakdown">("board");
+  const [activeBoardTab, setActiveBoardTab] = useState<"board" | "breakdown">(
+    "board",
+  );
+  const [selectedBoardVariant, setSelectedBoardVariant] =
+    useState<ShootBoardRecipeVariantId>("sourceFaithful");
   const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null);
   const [boardState, setBoardState] = useState<ShootBoardRecipe | null>(null);
   const [reorderMode, setReorderMode] = useState(false);
@@ -280,18 +285,45 @@ export function RecipeDetailScreen() {
     setActiveBoardTab(params.boardTab);
   }, [params.boardTab]);
 
+  const boardVariantOptions = useMemo(
+    () => getShootBoardVariantOptions(nativeRecipe),
+    [nativeRecipe],
+  );
+  const variantNativeRecipe = useMemo(
+    () =>
+      nativeRecipe
+        ? projectNativeRecipeForShootBoardVariant({
+            nativeRecipe,
+            variantId: selectedBoardVariant,
+          })
+        : null,
+    [nativeRecipe, selectedBoardVariant],
+  );
+
   useEffect(() => {
-    if (!nativeRecipe) {
+    if (
+      selectedBoardVariant !== "sourceFaithful" &&
+      !boardVariantOptions.some((option) => option.id === selectedBoardVariant)
+    ) {
+      setSelectedBoardVariant("sourceFaithful");
+    }
+  }, [boardVariantOptions, selectedBoardVariant]);
+
+  useEffect(() => {
+    if (!nativeRecipe || !variantNativeRecipe) {
       boardStateRef.current = null;
       setBoardState(null);
       return;
     }
 
-    const originalBoard = createShootBoardRecipe(nativeRecipe, {
+    const originalBoard = createShootBoardRecipe(variantNativeRecipe, {
       isSaved: recipeSaved,
       shotCutIds: [],
     });
-    const existingBoard = getRecipeEditorBoard(nativeRecipe.id);
+    const existingBoard =
+      selectedBoardVariant === "sourceFaithful"
+        ? getRecipeEditorBoard(nativeRecipe.id)
+        : null;
     const nextBoard = existingBoard
       ? hydrateShootBoardReferenceMedia({
           board: existingBoard,
@@ -304,7 +336,10 @@ export function RecipeDetailScreen() {
     );
     boardStateRef.current = nextBoard;
     setBoardState(nextBoard);
-    if (!existingBoard || nextBoard !== existingBoard) {
+    if (
+      selectedBoardVariant === "sourceFaithful" &&
+      (!existingBoard || nextBoard !== existingBoard)
+    ) {
       setRecipeEditorBoard(nextBoard);
     }
     setNoteEntryOpen(false);
@@ -315,7 +350,15 @@ export function RecipeDetailScreen() {
     setReferenceViewerCutId(null);
     setTakeViewerCutId(null);
     setSelectedTakeId(undefined);
-  }, [nativeRecipe, params.boardTab, recipeSaved, setRecipeEditorBoard]);
+  }, [
+    getRecipeEditorBoard,
+    nativeRecipe,
+    params.boardTab,
+    recipeSaved,
+    selectedBoardVariant,
+    setRecipeEditorBoard,
+    variantNativeRecipe,
+  ]);
 
   const shootBoard = boardState;
   const renderedShootBoard = useMemo(() => {
@@ -386,8 +429,7 @@ export function RecipeDetailScreen() {
       params.sceneId
     }:${params.takeId ?? ""}`;
     if (
-      handledExplicitSceneExpansionKeyRef.current ===
-      explicitSceneExpansionKey
+      handledExplicitSceneExpansionKeyRef.current === explicitSceneExpansionKey
     ) {
       return;
     }
@@ -519,7 +561,10 @@ export function RecipeDetailScreen() {
     return recipe;
   };
 
-  const openPrompterForCut = (cut: ShootBoardCut | null, take?: ShootBoardTake) => {
+  const openPrompterForCut = (
+    cut: ShootBoardCut | null,
+    take?: ShootBoardTake,
+  ) => {
     const targetRecipe = saveRecipe();
 
     if (!targetRecipe || !cut) {
@@ -549,7 +594,7 @@ export function RecipeDetailScreen() {
         : cut.speakingLine;
     const shootingGuideline =
       language === "ko"
-        ? (cut.shootingGuidelineKo || cut.shootingGuideline)
+        ? cut.shootingGuidelineKo || cut.shootingGuideline
         : cut.shootingGuideline;
     const query = [
       `cutId=${encodeURIComponent(cut.id)}`,
@@ -574,7 +619,9 @@ export function RecipeDetailScreen() {
     const nextBoard = updater(currentBoard);
     boardStateRef.current = nextBoard;
     setBoardState(nextBoard);
-    setRecipeEditorBoard(nextBoard);
+    if (selectedBoardVariant === "sourceFaithful") {
+      setRecipeEditorBoard(nextBoard);
+    }
   };
 
   const handleReorderCuts = (cuts: ShootBoardCut[]) => {
@@ -832,6 +879,36 @@ export function RecipeDetailScreen() {
     ? (renderedShootBoard.cuts.find((cut) => cut.id === takeViewerCutId) ??
       null)
     : null;
+  const boardVariantSwitch =
+    boardVariantOptions.length > 1 ? (
+      <View style={styles.boardTabSwitch}>
+        {boardVariantOptions.map((variant) => {
+          const active = selectedBoardVariant === variant.id;
+
+          return (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              key={variant.id}
+              onPress={() => setSelectedBoardVariant(variant.id)}
+              style={[
+                styles.boardTabButton,
+                active && styles.boardTabButtonActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.boardTabText,
+                  active && styles.boardTabTextActive,
+                ]}
+              >
+                {variant.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    ) : null;
   const boardTabSwitch = (
     <View style={styles.boardTabSwitch}>
       {(["board", "breakdown"] as const).map((tab) => {
@@ -857,10 +934,7 @@ export function RecipeDetailScreen() {
             ]}
           >
             <Text
-              style={[
-                styles.boardTabText,
-                active && styles.boardTabTextActive,
-              ]}
+              style={[styles.boardTabText, active && styles.boardTabTextActive]}
             >
               {label}
             </Text>
@@ -879,9 +953,12 @@ export function RecipeDetailScreen() {
         />
       ) : (
         <View style={styles.breakdownBodyHeader}>
-          <Text style={styles.breakdownBodyTitle}>{renderedShootBoard.title}</Text>
+          <Text style={styles.breakdownBodyTitle}>
+            {renderedShootBoard.title}
+          </Text>
         </View>
       )}
+      {boardVariantSwitch}
       {boardTabSwitch}
       {activeBoardTab === "board" ? (
         <>
@@ -956,7 +1033,6 @@ export function RecipeDetailScreen() {
           ) : null}
         </ScrollView>
       )}
-
 
       {referenceViewerCut ? (
         <ReferenceViewerModal
@@ -1590,8 +1666,7 @@ function getDetailTitle(language: AppLanguage, recipe: MockRecipe) {
 
   if (recipe.id.includes("beauty-proof-routine"))
     return "화장품 구매율 높이는 훅 전환형 가이드";
-  if (recipe.id.includes("core-control-proof"))
-    return "음식 홍보 촬영 가이드";
+  if (recipe.id.includes("core-control-proof")) return "음식 홍보 촬영 가이드";
   if (recipe.id.includes("founder-problem-hook"))
     return "문제제기형 앱 데모 가이드";
   return recipe.title;

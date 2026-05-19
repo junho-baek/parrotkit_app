@@ -44,6 +44,10 @@ export type ReferenceBreakdownVisualCategory =
   | 'hybrid'
   | 'other';
 
+export type ReferenceBreakdownBoardVariantId =
+  | 'sourceFaithful'
+  | 'goalAdapted';
+
 export type ReferenceBreakdownVideoSectionLabel =
   | 'Summary'
   | 'Transcript'
@@ -144,6 +148,9 @@ export type ReferenceBreakdown = {
     }>;
   };
   shooting_board_projection?: ShootingBoardProjection;
+  shooting_board_projection_variants?: Partial<
+    Record<ReferenceBreakdownBoardVariantId, ShootingBoardProjection>
+  >;
   user_overrides?: UserRecipeBoardOverrides;
   vault_candidates: {
     idea: {

@@ -9,6 +9,19 @@ import {
   type ShootBoardTake,
 } from "@/features/recipes/lib/shoot-board-model";
 import type { NativeRecipe } from "@/features/recipes/types/recipe-domain";
+import type { ReferenceBreakdownBoardVariantId } from "@/domain/recipes/reference-breakdown";
+
+export type ShootBoardRecipeVariantId = ReferenceBreakdownBoardVariantId;
+
+export type ShootBoardVariantOption = {
+  id: ShootBoardRecipeVariantId;
+  label: string;
+};
+
+const shootBoardVariantLabels: Record<ShootBoardRecipeVariantId, string> = {
+  sourceFaithful: "Original style",
+  goalAdapted: "Adapted",
+};
 
 export type GetSavedRecipeTakes = (
   recipeId?: string,
@@ -27,6 +40,67 @@ export type BoardOverviewUiState = {
   highlightState: BoardOverviewHighlightState;
   cameraEntryRequiresTap: true;
 };
+
+export function getShootBoardVariantOptions(
+  nativeRecipe: NativeRecipe | null,
+): ShootBoardVariantOption[] {
+  const breakdown = nativeRecipe?.referenceBreakdown;
+  if (!breakdown?.shooting_board_projection) {
+    return [];
+  }
+
+  const variants = breakdown.shooting_board_projection_variants;
+  const options: ShootBoardVariantOption[] = [
+    {
+      id: "sourceFaithful",
+      label: shootBoardVariantLabels.sourceFaithful,
+    },
+  ];
+
+  if (variants?.goalAdapted?.items.length) {
+    options.push({
+      id: "goalAdapted",
+      label: shootBoardVariantLabels.goalAdapted,
+    });
+  }
+
+  return options;
+}
+
+export function projectNativeRecipeForShootBoardVariant({
+  nativeRecipe,
+  variantId,
+}: {
+  nativeRecipe: NativeRecipe;
+  variantId: ShootBoardRecipeVariantId;
+}): NativeRecipe {
+  const breakdown = nativeRecipe.referenceBreakdown;
+  if (!breakdown?.shooting_board_projection) {
+    return nativeRecipe;
+  }
+
+  const variantProjection =
+    variantId === "sourceFaithful"
+      ? (breakdown.shooting_board_projection_variants?.sourceFaithful ??
+        breakdown.shooting_board_projection)
+      : breakdown.shooting_board_projection_variants?.goalAdapted;
+
+  if (!variantProjection) {
+    return nativeRecipe;
+  }
+
+  if (variantProjection === breakdown.shooting_board_projection) {
+    return nativeRecipe;
+  }
+
+  return {
+    ...nativeRecipe,
+    referenceBreakdown: {
+      ...breakdown,
+      shooting_board_projection: variantProjection,
+    },
+  };
+}
 
 export function getBoardOverviewUiState({
   board,
@@ -112,7 +186,9 @@ export function hydrateShootBoardWithWorkspaceTakes(
       savedTakes.find((take) => take.isFinalTake)?.takeId ??
       savedTakes[0]?.takeId;
     const hasExplicitWorkspaceTakeState =
-      cut.takeStatus !== "none" || cut.takes.length > 0 || Boolean(cut.finalTakeId);
+      cut.takeStatus !== "none" ||
+      cut.takes.length > 0 ||
+      Boolean(cut.finalTakeId);
     const requiredChecklist = hasExplicitWorkspaceTakeState
       ? cut.requiredChecklist
       : cut.requiredChecklist.map((item) => ({
@@ -153,9 +229,7 @@ export function hydrateShootBoardReferenceMedia({
   sourceBoard: ShootBoardRecipe;
 }): ShootBoardRecipe {
   let foundMissingMedia = false;
-  const sourceCutsById = new Map(
-    sourceBoard.cuts.map((cut) => [cut.id, cut]),
-  );
+  const sourceCutsById = new Map(sourceBoard.cuts.map((cut) => [cut.id, cut]));
   const sourceCutsByOrder = new Map(
     sourceBoard.cuts.map((cut) => [cut.order, cut]),
   );

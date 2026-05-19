@@ -113,6 +113,16 @@ type Breakdown struct {
 }
 
 type Recipe struct {
+	DefaultVariant     string                   `json:"defaultVariant,omitempty"`
+	OneLineDescription string                   `json:"oneLineDescription"`
+	Scenes             []RecipeScene            `json:"scenes"`
+	Title              string                   `json:"title"`
+	TotalDurationSec   int                      `json:"totalDurationSec"`
+	Variants           map[string]RecipeVariant `json:"variants,omitempty"`
+}
+
+type RecipeVariant struct {
+	Label              string        `json:"label"`
 	OneLineDescription string        `json:"oneLineDescription"`
 	Scenes             []RecipeScene `json:"scenes"`
 	Title              string        `json:"title"`
@@ -130,9 +140,18 @@ type RecipeScene struct {
 }
 
 type CutBoard struct {
+	DefaultVariant           string                     `json:"defaultVariant,omitempty"`
+	BoardTitle               string                     `json:"boardTitle"`
+	EstimatedDurationSeconds int                        `json:"estimatedDurationSeconds"`
+	Items                    []CutBoardItem             `json:"items"`
+	Variants                 map[string]CutBoardVariant `json:"variants,omitempty"`
+}
+
+type CutBoardVariant struct {
 	BoardTitle               string         `json:"boardTitle"`
 	EstimatedDurationSeconds int            `json:"estimatedDurationSeconds"`
 	Items                    []CutBoardItem `json:"items"`
+	Label                    string         `json:"label"`
 }
 
 type CutBoardItem struct {
@@ -238,6 +257,7 @@ func ReadyFixture() ReferenceAnalysisResponse {
 			Confidence:         map[string]any{"overall": 0.8},
 		},
 		Recipe: &Recipe{
+			DefaultVariant:     "sourceFaithful",
 			Title:              "Recipe",
 			OneLineDescription: "Shoot this.",
 			TotalDurationSec:   5,
@@ -250,8 +270,41 @@ func ReadyFixture() ReferenceAnalysisResponse {
 				ShootingGuideline: "Film the result.",
 				Title:             "Show the result",
 			}},
+			Variants: map[string]RecipeVariant{
+				"sourceFaithful": {
+					Label:              "Original style",
+					OneLineDescription: "Shoot this.",
+					Scenes: []RecipeScene{{
+						DurationSec:       5,
+						Index:             1,
+						LineToSay:         "Say this",
+						ProjectionCutID:   "cut-1",
+						RequiredChecklist: []string{"Visible result"},
+						ShootingGuideline: "Film the result.",
+						Title:             "Show the result",
+					}},
+					Title:            "Recipe",
+					TotalDurationSec: 5,
+				},
+				"goalAdapted": {
+					Label:              "Adapted",
+					OneLineDescription: "Shoot this for your goal.",
+					Scenes: []RecipeScene{{
+						DurationSec:       5,
+						Index:             1,
+						LineToSay:         "Say this for your goal",
+						ProjectionCutID:   "cut-1",
+						RequiredChecklist: []string{"Visible result"},
+						ShootingGuideline: "Film the result for your offer.",
+						Title:             "Show your result",
+					}},
+					Title:            "Recipe",
+					TotalDurationSec: 5,
+				},
+			},
 		},
 		CutBoard: &CutBoard{
+			DefaultVariant:           "sourceFaithful",
 			BoardTitle:               "Board",
 			EstimatedDurationSeconds: 5,
 			Items: []CutBoardItem{{
@@ -268,6 +321,46 @@ func ReadyFixture() ReferenceAnalysisResponse {
 				SourceCutIDs:         []string{"source-cut-1"},
 				SuccessCriteria:      []string{"Result visible immediately"},
 			}},
+			Variants: map[string]CutBoardVariant{
+				"sourceFaithful": {
+					BoardTitle:               "Board",
+					EstimatedDurationSeconds: 5,
+					Items: []CutBoardItem{{
+						DurationSeconds:      5,
+						ExecutionTitle:       "Show the result",
+						LineToSay:            &line,
+						MyTakeRelationship:   "Use this as your opening take.",
+						OrderIndex:           0,
+						ProjectionCutID:      "cut-1",
+						ReferenceMediaRef:    ReferenceMediaRef{MediaAssetID: "media-1", StartMs: 0, EndMs: 5000},
+						ReferenceObservation: "Reference opens on the finished result.",
+						ReferenceUsage:       "Mirror the result-first framing.",
+						ShotGuide:            &line,
+						SourceCutIDs:         []string{"source-cut-1"},
+						SuccessCriteria:      []string{"Result visible immediately"},
+					}},
+					Label: "Original style",
+				},
+				"goalAdapted": {
+					BoardTitle:               "Board",
+					EstimatedDurationSeconds: 5,
+					Items: []CutBoardItem{{
+						DurationSeconds:      5,
+						ExecutionTitle:       "Show your result",
+						LineToSay:            &line,
+						MyTakeRelationship:   "Use this opening take for your goal.",
+						OrderIndex:           0,
+						ProjectionCutID:      "cut-1",
+						ReferenceMediaRef:    ReferenceMediaRef{MediaAssetID: "media-1", StartMs: 0, EndMs: 5000},
+						ReferenceObservation: "Reference opens on the finished result.",
+						ReferenceUsage:       "Keep the result-first framing while changing the niche copy.",
+						ShotGuide:            &line,
+						SourceCutIDs:         []string{"source-cut-1"},
+						SuccessCriteria:      []string{"Result visible immediately"},
+					}},
+					Label: "Adapted",
+				},
+			},
 		},
 		Generation: Generation{
 			FallbackUsed:     false,

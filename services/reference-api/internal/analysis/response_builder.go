@@ -109,8 +109,9 @@ func buildRecipeAndBoard(draft RecipeDraft, media *contracts.ReferenceMedia, tra
 
 	for index, draftScene := range draft.Scenes {
 		durationSec := normalizedDurationSec(draftScene.DurationSec, len(draft.Scenes))
-		startMs := totalDurationSec * 1000
-		endMs := startMs + durationSec*1000
+		fallbackStartMs := totalDurationSec * 1000
+		fallbackEndMs := fallbackStartMs + durationSec*1000
+		startMs, endMs := sourceTimeRangeForScene(transcript, index, fallbackStartMs, fallbackEndMs)
 		totalDurationSec += durationSec
 
 		cutID := fmt.Sprintf("cut-%d", index+1)
@@ -161,16 +162,76 @@ func buildRecipeAndBoard(draft RecipeDraft, media *contracts.ReferenceMedia, tra
 	}
 
 	boardTitle := fallbackString(draft.Title, "Reference shooting board")
-	return &contracts.Recipe{
-			OneLineDescription: draft.OneLineDescription,
-			Scenes:             scenes,
-			Title:              boardTitle,
-			TotalDurationSec:   totalDurationSec,
-		}, &contracts.CutBoard{
-			BoardTitle:               boardTitle,
-			EstimatedDurationSeconds: totalDurationSec,
-			Items:                    items,
-		}, cuts
+	recipe := &contracts.Recipe{
+		OneLineDescription: draft.OneLineDescription,
+		Scenes:             scenes,
+		Title:              boardTitle,
+		TotalDurationSec:   totalDurationSec,
+	}
+	cutBoard := &contracts.CutBoard{
+		BoardTitle:               boardTitle,
+		EstimatedDurationSeconds: totalDurationSec,
+		Items:                    items,
+	}
+	attachRecipeVariants(recipe, cutBoard)
+	return recipe, cutBoard, cuts
+}
+
+func attachRecipeVariants(recipe *contracts.Recipe, cutBoard *contracts.CutBoard) {
+	if recipe != nil {
+		recipe.DefaultVariant = "sourceFaithful"
+		recipe.Variants = map[string]contracts.RecipeVariant{
+			"sourceFaithful": {
+				Label:              "Original style",
+				OneLineDescription: recipe.OneLineDescription,
+				Scenes:             copyRecipeScenes(recipe.Scenes),
+				Title:              recipe.Title,
+				TotalDurationSec:   recipe.TotalDurationSec,
+			},
+			"goalAdapted": {
+				Label:              "Adapted",
+				OneLineDescription: recipe.OneLineDescription,
+				Scenes:             copyRecipeScenes(recipe.Scenes),
+				Title:              recipe.Title,
+				TotalDurationSec:   recipe.TotalDurationSec,
+			},
+		}
+	}
+	if cutBoard != nil {
+		cutBoard.DefaultVariant = "sourceFaithful"
+		cutBoard.Variants = map[string]contracts.CutBoardVariant{
+			"sourceFaithful": {
+				BoardTitle:               cutBoard.BoardTitle,
+				EstimatedDurationSeconds: cutBoard.EstimatedDurationSeconds,
+				Items:                    copyCutBoardItems(cutBoard.Items),
+				Label:                    "Original style",
+			},
+			"goalAdapted": {
+				BoardTitle:               cutBoard.BoardTitle,
+				EstimatedDurationSeconds: cutBoard.EstimatedDurationSeconds,
+				Items:                    copyCutBoardItems(cutBoard.Items),
+				Label:                    "Adapted",
+			},
+		}
+	}
+}
+
+func copyRecipeScenes(scenes []contracts.RecipeScene) []contracts.RecipeScene {
+	if scenes == nil {
+		return nil
+	}
+	copyScenes := make([]contracts.RecipeScene, len(scenes))
+	copy(copyScenes, scenes)
+	return copyScenes
+}
+
+func copyCutBoardItems(items []contracts.CutBoardItem) []contracts.CutBoardItem {
+	if items == nil {
+		return nil
+	}
+	copyItems := make([]contracts.CutBoardItem, len(items))
+	copy(copyItems, items)
+	return copyItems
 }
 
 func buildBreakdown(draft RecipeDraft, input ReferenceAnalysisBuildInput, cuts []map[string]any) *contracts.Breakdown {
@@ -242,6 +303,16 @@ func normalizedDurationSec(durationSec int, sceneCount int) int {
 		return 5
 	}
 	return 4
+}
+
+func sourceTimeRangeForScene(transcript []superdata.TranscriptSegment, index int, fallbackStartMs int, fallbackEndMs int) (int, int) {
+	if index >= 0 && index < len(transcript) {
+		segment := transcript[index]
+		if segment.EndMs > segment.StartMs {
+			return segment.StartMs, segment.EndMs
+		}
+	}
+	return fallbackStartMs, fallbackEndMs
 }
 
 func transcriptLine(transcript []superdata.TranscriptSegment, index int) string {

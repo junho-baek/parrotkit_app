@@ -219,7 +219,9 @@ non_goals:
 verification_plan:
   local_tests:
   - cd services/reference-api && go test ./...
-  - Run focused Expo/domain tests for reference recipe generation and provider mapping.
+  - npx --prefix parrotkit-app tsc --noEmit -p parrotkit-app/tsconfig.json
+  - cd parrotkit-app && NODE_OPTIONS='--require ./scripts/register-tsconfig-alias.cjs'
+    ./node_modules/.bin/sucrase-node src/features/recipes/screens/recipe-detail/recipe-detail-board-state.test.ts
   - git diff --check
   fixture_tests:
   - Fixture 1: Korean talking-head exercise/physique transcript with 20/40/80 repetition
@@ -237,6 +239,11 @@ verification_plan:
       state.
   - Test command outputs.
   - No raw secrets printed.
+  do_not_run:
+  - Do not run npm test; this repository/package currently has no npm test script
+    and that missing script is not a product failure.
+  - Do not treat missing generic npm test as AC failure when the focused sucrase-node
+    contract test and TypeScript check pass.
 metadata:
   seed_id: parrotkit_reference_recipe_vertical_slice_20260520
   ambiguity_score: 0.0
@@ -330,4 +337,15 @@ ontology_schema:
 constraints:
 - 'No AI-slop design: UI copy and visuals must stay compact, concrete, source-grounded,
   brand-native, and must avoid generic AI labels, decorative progress, console/debug/provider
-  language, Proof Point/Sandcastle labels, confidence badges, and box-in-box clutter.'
+  language, Proof Point/Sandcastle labels, confidence badges, and box-in-box clutter.
+  Placeholder/template braces are not AI slop when they appear in the correct layer:
+  sourceFaithful recipe cuts and Breakdown Extracted Structure must expose reusable
+  {placeholder} templates such as {basic_action}, {intense_action}, {product}, or
+  {customer_context}; goalAdapted final shooting copy should normally be natural complete
+  copy and may omit braces. Do not strip required braces from sourceFaithful or extractedStructure
+  as a cleanup/design-polish step.'
+- Run from the repository root. The seed file may live in seeds/, but shell commands
+  must use /Users/junho/project/parrotkit-app as the working directory; do not use
+  the seed directory as the project root.
+- Use focused verification commands listed in verification_plan.local_tests. Do not
+  call generic npm test because it is intentionally undefined in parrotkit-app.

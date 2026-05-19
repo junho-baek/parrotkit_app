@@ -60,3 +60,24 @@ func TestFailedCannotContainBoard(t *testing.T) {
 		t.Fatalf("failed with cutBoard should fail validation")
 	}
 }
+
+func TestReadyFixtureIncludesTwoRecipeVariants(t *testing.T) {
+	response := ReadyFixture()
+
+	if response.Recipe.DefaultVariant != "sourceFaithful" {
+		t.Fatalf("recipe default variant = %q", response.Recipe.DefaultVariant)
+	}
+	if response.CutBoard.DefaultVariant != "sourceFaithful" {
+		t.Fatalf("cutBoard default variant = %q", response.CutBoard.DefaultVariant)
+	}
+	for _, name := range []string{"sourceFaithful", "goalAdapted"} {
+		recipeVariant, ok := response.Recipe.Variants[name]
+		if !ok || len(recipeVariant.Scenes) == 0 {
+			t.Fatalf("missing recipe variant %q: %#v", name, response.Recipe.Variants)
+		}
+		boardVariant, ok := response.CutBoard.Variants[name]
+		if !ok || len(boardVariant.Items) == 0 {
+			t.Fatalf("missing cutBoard variant %q: %#v", name, response.CutBoard.Variants)
+		}
+	}
+}

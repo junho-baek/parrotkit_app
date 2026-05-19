@@ -1,6 +1,7 @@
 import Module from "node:module";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import type { ShootingBoardProjection } from "@/domain/recipes/reference-analysis-contract";
 
 const originalResolveFilename = (
   Module as unknown as {
@@ -43,13 +44,17 @@ const originalResolveFilename = (
 const {
   getBoardOverviewUiState,
   getExplicitSceneExpansionCutId,
+  getShootBoardVariantOptions,
   hydrateShootBoardReferenceMedia,
   hydrateShootBoardWithWorkspaceTakes,
+  projectNativeRecipeForShootBoardVariant,
 } = require("./recipe-detail-board-state") as {
   getBoardOverviewUiState: typeof import("./recipe-detail-board-state").getBoardOverviewUiState;
   getExplicitSceneExpansionCutId: typeof import("./recipe-detail-board-state").getExplicitSceneExpansionCutId;
+  getShootBoardVariantOptions: typeof import("./recipe-detail-board-state").getShootBoardVariantOptions;
   hydrateShootBoardReferenceMedia: typeof import("./recipe-detail-board-state").hydrateShootBoardReferenceMedia;
   hydrateShootBoardWithWorkspaceTakes: typeof import("./recipe-detail-board-state").hydrateShootBoardWithWorkspaceTakes;
+  projectNativeRecipeForShootBoardVariant: typeof import("./recipe-detail-board-state").projectNativeRecipeForShootBoardVariant;
 };
 
 const emptyGetSavedRecipeTakes = () => [];
@@ -93,10 +98,7 @@ const recipe = {
 
 const board = {
   id: "recipe-1",
-  cuts: [
-    createCut("cut-1", "scene-1", 1),
-    createCut("cut-2", "scene-2", 2),
-  ],
+  cuts: [createCut("cut-1", "scene-1", 1), createCut("cut-2", "scene-2", 2)],
 };
 
 const nextRequiredState = getBoardOverviewUiState({
@@ -110,8 +112,9 @@ const nextRequiredState = getBoardOverviewUiState({
       Parameters<typeof getBoardOverviewUiState>[0]["getSavedRecipeTakes"]
     >[number],
   ],
-  nativeRecipe:
-    recipe as Parameters<typeof getBoardOverviewUiState>[0]["nativeRecipe"],
+  nativeRecipe: recipe as Parameters<
+    typeof getBoardOverviewUiState
+  >[0]["nativeRecipe"],
   routeHighlightCutId: null,
 });
 
@@ -139,22 +142,22 @@ if ("autoExpandCutId" in nextRequiredState) {
 
 if (
   getExplicitSceneExpansionCutId({
-    board:
-      board as unknown as Parameters<
-        typeof getExplicitSceneExpansionCutId
-      >[0]["board"],
+    board: board as unknown as Parameters<
+      typeof getExplicitSceneExpansionCutId
+    >[0]["board"],
     sceneId: "scene-2",
   }) !== "cut-2"
 ) {
-  throw new Error("Explicit scene deep links must resolve the matching cut id.");
+  throw new Error(
+    "Explicit scene deep links must resolve the matching cut id.",
+  );
 }
 
 if (
   getExplicitSceneExpansionCutId({
-    board:
-      board as unknown as Parameters<
-        typeof getExplicitSceneExpansionCutId
-      >[0]["board"],
+    board: board as unknown as Parameters<
+      typeof getExplicitSceneExpansionCutId
+    >[0]["board"],
     sceneId: "cut-1",
   }) !== "cut-1"
 ) {
@@ -163,10 +166,9 @@ if (
 
 if (
   getExplicitSceneExpansionCutId({
-    board:
-      board as unknown as Parameters<
-        typeof getExplicitSceneExpansionCutId
-      >[0]["board"],
+    board: board as unknown as Parameters<
+      typeof getExplicitSceneExpansionCutId
+    >[0]["board"],
     sceneId: null,
   }) !== null
 ) {
@@ -308,12 +310,12 @@ if (referenceMediaHydratedBoard === staleBoardWithoutReferenceMedia) {
 }
 
 if (referenceMediaHydratedCut?.thumbnailUrl !== "mock://reference-thumbnail") {
-  throw new Error("Reference media hydration must restore missing thumbnailUrl.");
+  throw new Error(
+    "Reference media hydration must restore missing thumbnailUrl.",
+  );
 }
 
-if (
-  referenceMediaHydratedCut?.referenceVideoUrl !== "mock://reference-video"
-) {
+if (referenceMediaHydratedCut?.referenceVideoUrl !== "mock://reference-video") {
   throw new Error(
     "Reference media hydration must restore missing referenceVideoUrl.",
   );
@@ -321,6 +323,81 @@ if (
 
 if (referenceMediaHydratedCut?.lineToSay !== "Edited line should stay") {
   throw new Error("Reference media hydration must preserve edited cut copy.");
+}
+
+const sourceProjection = createProjection({
+  boardTitle: "Original style board",
+  lineToSay: "Keep the {product} contrast from the reference.",
+  projectionId: "projection-source",
+});
+const goalProjection = createProjection({
+  boardTitle: "Adapted board",
+  lineToSay: "Open with the meal-prep app result before explaining it.",
+  projectionId: "projection-goal",
+});
+const recipeWithBoardVariants = {
+  id: "recipe-with-board-variants",
+  scenes: [],
+  referenceBreakdown: {
+    shooting_board_projection: sourceProjection,
+    shooting_board_projection_variants: {
+      sourceFaithful: sourceProjection,
+      goalAdapted: goalProjection,
+    },
+  },
+};
+const variantOptions = getShootBoardVariantOptions(
+  recipeWithBoardVariants as unknown as Parameters<
+    typeof getShootBoardVariantOptions
+  >[0],
+);
+
+if (
+  variantOptions.map((option) => option.id).join(",") !==
+  "sourceFaithful,goalAdapted"
+) {
+  throw new Error(
+    `Board variant options must expose sourceFaithful then goalAdapted. Found: ${variantOptions
+      .map((option) => option.id)
+      .join(",")}`,
+  );
+}
+
+const sourceProjectedRecipe = projectNativeRecipeForShootBoardVariant({
+  nativeRecipe: recipeWithBoardVariants as unknown as Parameters<
+    typeof projectNativeRecipeForShootBoardVariant
+  >[0]["nativeRecipe"],
+  variantId: "sourceFaithful",
+});
+const goalProjectedRecipe = projectNativeRecipeForShootBoardVariant({
+  nativeRecipe: recipeWithBoardVariants as unknown as Parameters<
+    typeof projectNativeRecipeForShootBoardVariant
+  >[0]["nativeRecipe"],
+  variantId: "goalAdapted",
+});
+
+if (
+  sourceProjectedRecipe.referenceBreakdown?.shooting_board_projection !==
+  sourceProjection
+) {
+  throw new Error("Source-faithful selection must keep the source projection.");
+}
+
+if (goalProjectedRecipe.id !== recipeWithBoardVariants.id) {
+  throw new Error("Goal-adapted selection must keep the same recipe id.");
+}
+
+if (goalProjectedRecipe.scenes !== recipeWithBoardVariants.scenes) {
+  throw new Error("Goal-adapted selection must reuse existing recipe data.");
+}
+
+if (
+  goalProjectedRecipe.referenceBreakdown?.shooting_board_projection !==
+  goalProjection
+) {
+  throw new Error(
+    "Goal-adapted selection must switch to the stored goal projection.",
+  );
 }
 
 const screenSource = readFileSync(
@@ -401,6 +478,79 @@ if (explicitSceneExpansionDependencies.includes("    renderedShootBoard,\n")) {
   throw new Error(
     "Explicit scene expansion must not depend on the whole rendered board object.",
   );
+}
+
+if (
+  !screenSource.includes("onPress={() => setSelectedBoardVariant(variant.id)}")
+) {
+  throw new Error(
+    "Board variant switch must change local selectedBoardVariant state in-place.",
+  );
+}
+
+if (
+  !screenSource.includes(
+    'selectedBoardVariant === "sourceFaithful"\n        ? getRecipeEditorBoard(nativeRecipe.id)\n        : null',
+  )
+) {
+  throw new Error(
+    "Goal-adapted board selection must not hydrate from the saved source board.",
+  );
+}
+
+function createProjection({
+  boardTitle,
+  lineToSay,
+  projectionId,
+}: {
+  boardTitle: string;
+  lineToSay: string;
+  projectionId: string;
+}): ShootingBoardProjection {
+  return {
+    analysisProfileVersion: "test",
+    boardTitle,
+    breakdownId: "breakdown-1",
+    confidence: {
+      notes: [],
+      overall: 1,
+    },
+    createdAt: "2026-05-20T00:00:00.000Z",
+    estimatedDurationSeconds: 5,
+    items: [
+      {
+        durationSeconds: 5,
+        editableFields: ["lineToSay", "shotGuide"],
+        executionTitle: boardTitle,
+        lineToSay,
+        missingArtifacts: [],
+        myTakeRelationship: "Reuse this reference beat for the same goal.",
+        orderIndex: 0,
+        projectionCutId: `${projectionId}-cut-1`,
+        referenceMediaRef: {
+          endMs: 5000,
+          mediaAssetId: "media-1",
+          startMs: 0,
+          thumbnailUri: "mock://thumb",
+        },
+        referenceObservation: "The source opens with a concrete contrast.",
+        referenceUsage: "Keep the same first-beat structure.",
+        shotGuide: "Film the opening result clearly.",
+        sourceCutIds: ["source-cut-1"],
+        sourceTimeRangeMs: { endMs: 5000, startMs: 0 },
+        successCriteria: ["The source beat is still recognizable."],
+      },
+    ],
+    mediaAssetId: "media-1",
+    mediaAssetVersion: "v1",
+    missingArtifacts: [],
+    projectionId,
+    projectionSchemaVersion: "parrotkit.shooting_board_projection.v1",
+    sourceCutCount: 1,
+    status: "ready",
+    updatedAt: "2026-05-20T00:00:00.000Z",
+    workspaceId: "workspace-1",
+  };
 }
 
 function createCut(id: string, sceneId: string, order: number) {
