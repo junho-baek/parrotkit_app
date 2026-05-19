@@ -1,0 +1,83 @@
+{
+  "checks": [
+    {
+      "name": "contract_validate",
+      "pass": true
+    },
+    {
+      "detail": "sourceFaithful",
+      "name": "recipe_default_sourceFaithful",
+      "pass": true
+    },
+    {
+      "detail": "sourceFaithful",
+      "name": "board_default_sourceFaithful",
+      "pass": true
+    },
+    {
+      "detail": "board:goalAdapted,board:sourceFaithful,recipe:goalAdapted,recipe:sourceFaithful",
+      "name": "sourceFaithful_and_goalAdapted_variants",
+      "pass": true
+    },
+    {
+      "detail": "4 cuts",
+      "name": "compact_cut_board_present",
+      "pass": true
+    },
+    {
+      "name": "breakdown_transcript_present",
+      "pass": true
+    },
+    {
+      "name": "timestamp_ranges_present",
+      "pass": true
+    },
+    {
+      "name": "variant_cut_ids_and_spans_match",
+      "pass": true
+    }
+  ],
+  "cutCount": 4,
+  "defaultBoardVariant": "sourceFaithful",
+  "defaultRecipeVariant": "sourceFaithful",
+  "generatedAt": "2026-05-19T20:15:18Z",
+  "issue": "33",
+  "missingArtifacts": [
+    "visual_extract"
+  ],
+  "referenceUrl": "https://youtube.com/shorts/ySDpL4wUX7Y?si=mSIY3VG1KRWiLaaH",
+  "requestId": "req_20260519201441",
+  "responseStatus": "partial_ready",
+  "ranAt": "2026-05-19T20:14:41Z",
+  "statusClassification": "partial_ready",
+  "timestampRanges": [
+    {
+      "cutId": "cut-1",
+      "endMs": 18960,
+      "startMs": 120
+    },
+    {
+      "cutId": "cut-2",
+      "endMs": 18960,
+      "startMs": 120
+    },
+    {
+      "cutId": "cut-3",
+      "endMs": 18960,
+      "startMs": 120
+    },
+    {
+      "cutId": "cut-4",
+      "endMs": 18960,
+      "startMs": 120
+    }
+  ],
+  "title": "Beyond Basic Beauty",
+  "transcriptPresent": true,
+  "variantNames": [
+    "board:goalAdapted",
+    "board:sourceFaithful",
+    "recipe:goalAdapted",
+    "recipe:sourceFaithful"
+  ]
+}
