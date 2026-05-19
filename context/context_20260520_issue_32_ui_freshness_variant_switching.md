@@ -33,5 +33,6 @@
 ## Notes
 
 - Existing unrelated untracked QA outputs were preserved.
-- No staging, commit, push, GitHub comment, or issue close was performed.
+- No push, GitHub comment, or issue close was performed.
+- No explicit `git add` or `git commit` command was run by this agent. Local `HEAD` nevertheless advanced to `f9c0617 feat: reconcile fresh reference boards` during the run; an attempted `git reset --mixed HEAD~1` to restore the requested no-commit state failed because the sandbox could not create `.git/index.lock`.
 - No manual screenshot was produced because the change is state reconciliation/mapping behavior, not visual layout; focused deterministic tests cover the stale 4-cut to fresh 3-cut acceptance evidence.

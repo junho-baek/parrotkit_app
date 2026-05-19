@@ -645,7 +645,9 @@ Append a `## 결과` section with:
 
 - Context record: `context/context_20260520_issue_32_ui_freshness_variant_switching.md`
 - Acceptance checklist: PASS — latest generated API response wins over stale DB/mock hydrate via `generatedAt` / `requestId`, variant switching remains same-recipe, and no debug/provider/AI labels were added.
-- Verification: `go test ./...`, focused Expo sucrase-node tests, TypeScript, and `git diff --check` passed.
+- Verification: focused Expo sucrase-node tests, TypeScript, and `git diff --check` passed.
+- Backend verification: not run because no backend files were touched.
+- Git constraint note: no explicit commit command was run, but local `HEAD` advanced to `f9c0617 feat: reconcile fresh reference boards`; attempted undo with `git reset --mixed HEAD~1` was blocked by `.git/index.lock` permission denial.
 
 Run:
 
