@@ -42,6 +42,7 @@ const originalResolveFilename = (
 };
 
 const {
+  getCutReferencePlaybackOpenData,
   getBoardOverviewUiState,
   getExplicitSceneExpansionCutId,
   getShootBoardVariantOptions,
@@ -49,12 +50,16 @@ const {
   hydrateShootBoardWithWorkspaceTakes,
   projectNativeRecipeForShootBoardVariant,
 } = require("./recipe-detail-board-state") as {
+  getCutReferencePlaybackOpenData: typeof import("./recipe-detail-board-state").getCutReferencePlaybackOpenData;
   getBoardOverviewUiState: typeof import("./recipe-detail-board-state").getBoardOverviewUiState;
   getExplicitSceneExpansionCutId: typeof import("./recipe-detail-board-state").getExplicitSceneExpansionCutId;
   getShootBoardVariantOptions: typeof import("./recipe-detail-board-state").getShootBoardVariantOptions;
   hydrateShootBoardReferenceMedia: typeof import("./recipe-detail-board-state").hydrateShootBoardReferenceMedia;
   hydrateShootBoardWithWorkspaceTakes: typeof import("./recipe-detail-board-state").hydrateShootBoardWithWorkspaceTakes;
   projectNativeRecipeForShootBoardVariant: typeof import("./recipe-detail-board-state").projectNativeRecipeForShootBoardVariant;
+};
+const { createShootBoardRecipe } = require("@/features/recipes/lib/shoot-board-model") as {
+  createShootBoardRecipe: typeof import("@/features/recipes/lib/shoot-board-model").createShootBoardRecipe;
 };
 
 const emptyGetSavedRecipeTakes = () => [];
@@ -400,6 +405,55 @@ if (
   );
 }
 
+const playbackProjection = createProjection({
+  boardTitle: "Timestamp board",
+  lineToSay: "20 then 40 then 80.",
+  projectionId: "projection-playback",
+  startMs: 23000,
+});
+const playbackRecipe = {
+  id: "recipe-playback",
+  creator: "@source",
+  goal: "Reference study",
+  niche: "Fitness",
+  notes: "",
+  platform: "YouTube Shorts",
+  savedAt: "2026-05-20T00:00:00.000Z",
+  scenes: [],
+  sourceUrl: "https://youtube.com/shorts/ySDpL4wUX7Y?si=abc",
+  summary: "Timestamp playback fixture.",
+  thumbnail: "mock://thumb",
+  title: "Timestamp playback fixture",
+  referenceBreakdown: {
+    shooting_board_projection: playbackProjection,
+  },
+};
+const playbackBoard = createShootBoardRecipe(
+  playbackRecipe as unknown as Parameters<typeof createShootBoardRecipe>[0],
+);
+const playbackOpenData = getCutReferencePlaybackOpenData(
+  playbackBoard.cuts[0] ?? null,
+);
+
+if (!playbackOpenData) {
+  throw new Error("Selected cut playback data should be available.");
+}
+
+if (playbackOpenData.cutId !== "projection-playback-cut-1") {
+  throw new Error(
+    `Selected cut playback data should preserve cut id. Found: ${playbackOpenData.cutId}`,
+  );
+}
+
+if (
+  playbackOpenData.url !==
+  "https://youtube.com/shorts/ySDpL4wUX7Y?si=abc&t=23"
+) {
+  throw new Error(
+    `Selected cut playback data should expose YouTube t= link. Found: ${playbackOpenData.url}`,
+  );
+}
+
 const screenSource = readFileSync(
   resolve(__dirname, "../recipe-detail-screen.tsx"),
   "utf8",
@@ -502,10 +556,12 @@ function createProjection({
   boardTitle,
   lineToSay,
   projectionId,
+  startMs = 0,
 }: {
   boardTitle: string;
   lineToSay: string;
   projectionId: string;
+  startMs?: number;
 }): ShootingBoardProjection {
   return {
     analysisProfileVersion: "test",
@@ -528,16 +584,16 @@ function createProjection({
         orderIndex: 0,
         projectionCutId: `${projectionId}-cut-1`,
         referenceMediaRef: {
-          endMs: 5000,
+          endMs: startMs + 5000,
           mediaAssetId: "media-1",
-          startMs: 0,
+          startMs,
           thumbnailUri: "mock://thumb",
         },
         referenceObservation: "The source opens with a concrete contrast.",
         referenceUsage: "Keep the same first-beat structure.",
         shotGuide: "Film the opening result clearly.",
         sourceCutIds: ["source-cut-1"],
-        sourceTimeRangeMs: { endMs: 5000, startMs: 0 },
+        sourceTimeRangeMs: { endMs: startMs + 5000, startMs },
         successCriteria: ["The source beat is still recognizable."],
       },
     ],

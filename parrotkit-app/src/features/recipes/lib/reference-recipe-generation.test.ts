@@ -246,6 +246,18 @@ if (mappedReadyResult.reference.thumbnailUrl !== 'https://cdn.example.com/thumb.
   throw new Error('Ready API responses should prefer canonical reference media thumbnails.');
 }
 
+const mappedProjection = mappedReadyResult.referenceBreakdown?.shooting_board_projection;
+if (!mappedProjection || mappedProjection.items.length !== 2) {
+  throw new Error('Ready API responses should preserve cutBoard as a shooting board projection.');
+}
+
+if (
+  mappedProjection.items[1]?.sourceTimeRangeMs.startMs !== 6000 ||
+  mappedProjection.items[1]?.sourceTimeRangeMs.endMs !== 20000
+) {
+  throw new Error('Generated projection should preserve API cutBoard timestamp spans.');
+}
+
 if (mapGeneratedRecipeToMockScenes(mappedReadyResult).length !== 2) {
   throw new Error('Generated API recipe scenes should preserve the live cut count.');
 }

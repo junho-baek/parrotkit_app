@@ -576,38 +576,64 @@ func normalizedDurationSec(durationSec int, sceneCount int) int {
 }
 
 func sourceTimeRangeForScene(transcript []superdata.TranscriptSegment, index int, fallbackStartMs int, fallbackEndMs int) (int, int) {
-	if index >= 0 && index < len(transcript) {
-		segment := transcript[index]
-		if segment.EndMs > segment.StartMs {
-			return segment.StartMs, segment.EndMs
-		}
+	if segment, ok := timedTranscriptSegmentForScene(transcript, index); ok {
+		return segment.StartMs, segment.EndMs
 	}
 	return fallbackStartMs, fallbackEndMs
 }
 
 func transcriptLine(transcript []superdata.TranscriptSegment, index int) string {
-	if len(transcript) == 0 {
-		return ""
+	if segment, ok := transcriptSegmentForScene(transcript, index); ok {
+		return strings.TrimSpace(segment.Text)
 	}
-	if index >= 0 && index < len(transcript) {
-		return strings.TrimSpace(transcript[index].Text)
-	}
-	return strings.TrimSpace(transcript[len(transcript)-1].Text)
+	return ""
 }
 
 func transcriptIDsForScene(transcript []superdata.TranscriptSegment, index int) []string {
-	if len(transcript) == 0 {
-		return []string{}
-	}
-	if index >= 0 && index < len(transcript) && transcript[index].ID != "" {
-		return []string{transcript[index].ID}
-	}
-	for _, segment := range transcript {
-		if segment.ID != "" {
-			return []string{segment.ID}
-		}
+	if segment, ok := transcriptSegmentForScene(transcript, index); ok && segment.ID != "" {
+		return []string{segment.ID}
 	}
 	return []string{}
+}
+
+func transcriptSegmentForScene(transcript []superdata.TranscriptSegment, index int) (superdata.TranscriptSegment, bool) {
+	if len(transcript) == 0 {
+		return superdata.TranscriptSegment{}, false
+	}
+	if index < 0 {
+		index = 0
+	}
+	if index >= len(transcript) {
+		index = len(transcript) - 1
+	}
+	return transcript[index], true
+}
+
+func timedTranscriptSegmentForScene(transcript []superdata.TranscriptSegment, index int) (superdata.TranscriptSegment, bool) {
+	if len(transcript) == 0 {
+		return superdata.TranscriptSegment{}, false
+	}
+	searchIndex := index
+	if searchIndex < 0 {
+		searchIndex = 0
+	}
+	if searchIndex >= len(transcript) {
+		searchIndex = len(transcript) - 1
+	}
+	if segment := transcript[searchIndex]; segment.EndMs > segment.StartMs {
+		return segment, true
+	}
+	for offset := 1; offset < len(transcript); offset++ {
+		before := searchIndex - offset
+		if before >= 0 && before < len(transcript) && transcript[before].EndMs > transcript[before].StartMs {
+			return transcript[before], true
+		}
+		after := searchIndex + offset
+		if after >= 0 && after < len(transcript) && transcript[after].EndMs > transcript[after].StartMs {
+			return transcript[after], true
+		}
+	}
+	return superdata.TranscriptSegment{}, false
 }
 
 func transcriptSummary(transcript []superdata.TranscriptSegment) (string, int) {

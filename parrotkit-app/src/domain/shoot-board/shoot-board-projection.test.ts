@@ -133,6 +133,40 @@ if (cuts[0]?.referenceVideoUrl !== recipe.sourceUrl) {
   throw new Error('Projection board cuts should use the recipe reference media source.');
 }
 
+if (cuts[1]?.sourceTimeRangeMs?.startMs !== 5000) {
+  throw new Error('Projection board cut should preserve sourceTimeRangeMs.');
+}
+
+const youtubeRecipe = {
+  ...recipe,
+  id: 'recipe_youtube_reference',
+  referenceVideoSource: undefined,
+  sourceUrl: 'https://youtube.com/shorts/ySDpL4wUX7Y?si=abc',
+};
+const youtubeProjection: ShootingBoardProjection = {
+  ...projection,
+  items: projection.items.map((item, index) => ({
+    ...item,
+    referenceMediaRef: {
+      ...item.referenceMediaRef,
+      startMs: index === 0 ? 0 : 23000,
+      endMs: index === 0 ? 5000 : 31000,
+    },
+    sourceTimeRangeMs: {
+      startMs: index === 0 ? 0 : 23000,
+      endMs: index === 0 ? 5000 : 31000,
+    },
+  })),
+};
+const youtubeCuts = mapShootingBoardProjectionToCuts({
+  projection: youtubeProjection,
+  recipe: youtubeRecipe,
+});
+
+if (youtubeCuts[1]?.referenceVideoUrl !== 'https://youtube.com/shorts/ySDpL4wUX7Y?si=abc&t=23') {
+  throw new Error(`YouTube projection cut should use timestamped source link. Found: ${youtubeCuts[1]?.referenceVideoUrl}`);
+}
+
 if (cuts[0]?.timeRangeLabel !== '0:00-0:05') {
   throw new Error(`Unexpected projection time range: ${cuts[0]?.timeRangeLabel}`);
 }

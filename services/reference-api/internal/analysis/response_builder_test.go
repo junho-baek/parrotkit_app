@@ -72,6 +72,40 @@ func TestBuildRecipeAndBoardUsesTranscriptTimeRangesBeforeGeneratedDurations(t *
 	}
 }
 
+func TestBuildRecipeAndBoardReusesTranscriptTimestampWhenSceneHasNoDirectSegment(t *testing.T) {
+	thumb := "https://cdn.example/thumb.jpg"
+	media := &contracts.ReferenceMedia{ThumbnailURL: &thumb}
+	draft := RecipeDraft{
+		Title: "Reference board",
+		Scenes: []RecipeDraftScene{
+			{Title: "First beat", DurationSec: 2},
+			{Title: "Second beat", DurationSec: 8},
+		},
+	}
+	transcript := []superdata.TranscriptSegment{
+		{ID: "seg-1", StartMs: 11000, EndMs: 17000, Text: "Only timestamped transcript beat."},
+	}
+
+	_, board, cuts := buildRecipeAndBoard(draft, media, transcript, "media-1")
+
+	if len(board.Items) != 2 {
+		t.Fatalf("items = %#v", board.Items)
+	}
+	secondRef := board.Items[1].ReferenceMediaRef
+	if secondRef.StartMs != 11000 || secondRef.EndMs != 17000 {
+		t.Fatalf("second reference range should reuse transcript timestamp, got %#v", secondRef)
+	}
+	if secondRef.StartMs == 2000 || secondRef.EndMs == 10000 {
+		t.Fatalf("second reference range used generated duration accumulation: %#v", secondRef)
+	}
+	if ids := cuts[1]["source_transcript_ids"].([]string); len(ids) != 1 || ids[0] != "seg-1" {
+		t.Fatalf("second cut transcript ids = %#v", cuts[1]["source_transcript_ids"])
+	}
+	if text := cuts[1]["source_transcript_text"]; text != "Only timestamped transcript beat." {
+		t.Fatalf("second cut transcript text = %#v", text)
+	}
+}
+
 func usableStatusRecipe() *contracts.Recipe {
 	return &contracts.Recipe{
 		Title: "Reference board",

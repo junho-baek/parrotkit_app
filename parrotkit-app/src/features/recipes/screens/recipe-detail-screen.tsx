@@ -6,6 +6,7 @@ import { ComponentProps, useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
   ImageBackground,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -52,6 +53,7 @@ import {
 import {
   getExplicitSceneExpansionCutId,
   getBoardOverviewUiState,
+  getCutReferencePlaybackOpenData,
   getShootBoardVariantOptions,
   hydrateShootBoardReferenceMedia,
   hydrateShootBoardWithWorkspaceTakes,
@@ -630,6 +632,11 @@ export function RecipeDetailScreen() {
 
   const openReferenceViewer = (cut: ShootBoardCut | null) => {
     if (!cut) return;
+    const playbackOpenData = getCutReferencePlaybackOpenData(cut);
+    if (playbackOpenData) {
+      void Linking.openURL(playbackOpenData.url);
+      return;
+    }
     setReferenceViewerCutId(cut.id);
   };
 

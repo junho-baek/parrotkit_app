@@ -41,6 +41,34 @@ export type BoardOverviewUiState = {
   cameraEntryRequiresTap: true;
 };
 
+export type CutReferencePlaybackOpenData = {
+  cutId: string;
+  url: string;
+};
+
+export function getCutReferencePlaybackOpenData(
+  cut: ShootBoardCut | null,
+): CutReferencePlaybackOpenData | null {
+  if (!cut) {
+    return null;
+  }
+
+  const source = cut.referenceVideoUrl;
+  if (typeof source !== "string") {
+    return null;
+  }
+
+  const trimmed = source.trim();
+  if (!/^https?:\/\//i.test(trimmed)) {
+    return null;
+  }
+
+  return {
+    cutId: cut.id,
+    url: trimmed,
+  };
+}
+
 export function getShootBoardVariantOptions(
   nativeRecipe: NativeRecipe | null,
 ): ShootBoardVariantOption[] {
@@ -246,6 +274,7 @@ export function hydrateShootBoardReferenceMedia({
       ...cut,
       referenceVideoUrl: cut.referenceVideoUrl ?? sourceCut.referenceVideoUrl,
       sceneId: cut.sceneId ?? sourceCut.sceneId,
+      sourceTimeRangeMs: cut.sourceTimeRangeMs ?? sourceCut.sourceTimeRangeMs,
       takeThumbnailSource:
         cut.takeThumbnailSource ?? sourceCut.takeThumbnailSource,
       takeThumbnailUrl: cut.takeThumbnailUrl || sourceCut.takeThumbnailUrl,
@@ -256,6 +285,7 @@ export function hydrateShootBoardReferenceMedia({
     if (
       nextCut.referenceVideoUrl !== cut.referenceVideoUrl ||
       nextCut.sceneId !== cut.sceneId ||
+      nextCut.sourceTimeRangeMs !== cut.sourceTimeRangeMs ||
       nextCut.takeThumbnailSource !== cut.takeThumbnailSource ||
       nextCut.takeThumbnailUrl !== cut.takeThumbnailUrl ||
       nextCut.thumbnailSource !== cut.thumbnailSource ||

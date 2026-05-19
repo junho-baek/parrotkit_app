@@ -172,6 +172,7 @@ export function RecipeCreateScreen({
       ...(referenceResult
         ? {
             referenceVideoSource: referenceResult.reference.url,
+            referenceBreakdown: referenceResult.referenceBreakdown,
             scenes: mapGeneratedRecipeToMockScenes(referenceResult),
             summary: referenceResult.recipe.oneLineDescription,
             thumbnail: referenceResult.reference.thumbnailUrl,

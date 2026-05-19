@@ -1,4 +1,9 @@
 import type { MockRecipeScene } from '@/core/mocks/parrotkit-data';
+import type { ShootingBoardProjection, ShootingBoardProjectionItem } from '@/domain/recipes/reference-analysis-contract';
+import type {
+  ReferenceBreakdown,
+  ReferenceBreakdownBoardVariantId,
+} from '@/domain/recipes/reference-breakdown';
 import type { RecipeCreateGoalId, RecipeCreateNicheId } from '@/features/recipes/lib/recipe-create-flow';
 
 export type GeneratedReferenceSceneType = 'hook' | 'proof' | 'demonstration' | 'cta';
@@ -24,6 +29,7 @@ export type GeneratedReferenceRecipe = {
 
 export type ReferenceRecipeGenerationResult = {
   recipe: GeneratedReferenceRecipe;
+  referenceBreakdown?: ReferenceBreakdown;
   reference: {
     platform: 'instagram-reels' | 'short-form' | 'tiktok' | 'unknown' | 'youtube-shorts';
     thumbnailUrl: string;
@@ -92,6 +98,17 @@ export type ReferenceAnalysisAPIResponse = {
     boardTitle?: string;
     estimatedDurationSeconds?: number;
     items?: ReferenceAnalysisAPICutBoardItem[];
+    variants?: Partial<
+      Record<
+        ReferenceBreakdownBoardVariantId,
+        {
+          boardTitle?: string;
+          estimatedDurationSeconds?: number;
+          items?: ReferenceAnalysisAPICutBoardItem[];
+          label?: string;
+        }
+      >
+    >;
   } | null;
   error?: {
     code?: string;
@@ -317,6 +334,297 @@ function hasReferenceThumbnail(apiResponse: ReferenceAnalysisAPIResponse) {
   return Boolean(getBestThumbnailUrl({ apiResponse, referenceUrl }));
 }
 
+function mapApiCutBoardToProjection({
+  apiResponse,
+  boardTitle,
+  items,
+  projectionId,
+}: {
+  apiResponse: ReferenceAnalysisAPIResponse;
+  boardTitle: string;
+  items: ReferenceAnalysisAPICutBoardItem[];
+  projectionId: string;
+}): ShootingBoardProjection {
+  const generatedAt = apiResponse.generatedAt || new Date().toISOString();
+  const mediaAssetId =
+    apiResponse.referenceMedia?.mediaAssetId ||
+    items.find((item) => item.referenceMediaRef?.mediaAssetId)?.referenceMediaRef?.mediaAssetId ||
+    apiResponse.requestId ||
+    'reference-media';
+  const missingArtifacts = apiResponse.generation?.missingArtifacts ?? [];
+  const projectionItems: ShootingBoardProjectionItem[] = items.map((item, index) => {
+    const startMs = safeMilliseconds(item.referenceMediaRef?.startMs);
+    const endMs = Math.max(
+      safeMilliseconds(item.referenceMediaRef?.endMs),
+      startMs,
+    );
+    const orderIndex = Number.isFinite(Number(item.orderIndex))
+      ? Number(item.orderIndex)
+      : index;
+
+    return {
+      durationSeconds:
+        Number.isFinite(item.durationSeconds) && item.durationSeconds
+          ? item.durationSeconds
+          : Math.max(1, Math.ceil((endMs - startMs) / 1000)),
+      editableFields: ['lineToSay', 'shotGuide', 'successCriteria'],
+      executionTitle: compactText(item.executionTitle, `Cut ${index + 1}`),
+      lineToSay: item.lineToSay ?? null,
+      missingArtifacts: [...missingArtifacts],
+      myTakeRelationship: compactText(
+        item.myTakeRelationship,
+        'Apply this source beat to your own take.',
+      ),
+      orderIndex,
+      projectionCutId: compactText(item.projectionCutId, `cut-${index + 1}`),
+      referenceMediaRef: {
+        endMs,
+        mediaAssetId: item.referenceMediaRef?.mediaAssetId || mediaAssetId,
+        startMs,
+        thumbnailUri:
+          item.referenceMediaRef?.thumbnailUri ??
+          apiResponse.referenceMedia?.thumbnailUrl ??
+          null,
+      },
+      referenceObservation: compactText(
+        item.referenceObservation,
+        'The source uses this beat clearly.',
+      ),
+      referenceUsage: compactText(
+        item.referenceUsage,
+        'Keep the same source role for this cut.',
+      ),
+      shotGuide: item.shotGuide ?? null,
+      sourceCutIds: item.sourceCutIds?.filter(Boolean).length
+        ? item.sourceCutIds.filter(Boolean)
+        : [compactText(item.projectionCutId, `cut-${index + 1}`)],
+      sourceTimeRangeMs: {
+        endMs,
+        startMs,
+      },
+      successCriteria: item.successCriteria?.filter(Boolean).length
+        ? item.successCriteria.filter(Boolean)
+        : ['The source beat is still recognizable.'],
+    };
+  });
+
+  return {
+    analysisProfileVersion: 'reference-analysis-v1',
+    boardTitle,
+    breakdownId: apiResponse.requestId || 'reference-breakdown',
+    confidence: {
+      overall: apiResponse.status === 'ready' ? 0.82 : 0.68,
+      notes: [],
+    },
+    createdAt: generatedAt,
+    estimatedDurationSeconds:
+      apiResponse.cutBoard?.estimatedDurationSeconds ??
+      projectionItems.reduce((sum, item) => sum + item.durationSeconds, 0),
+    items: projectionItems,
+    mediaAssetId,
+    mediaAssetVersion: 'v1',
+    missingArtifacts: [...missingArtifacts],
+    projectionId,
+    projectionSchemaVersion: 'parrotkit.shooting_board_projection.v1',
+    sourceCutCount: projectionItems.length,
+    status: apiResponse.status === 'ready' ? 'ready' : 'partial',
+    updatedAt: generatedAt,
+    workspaceId: 'local',
+  };
+}
+
+function mapApiResponseToReferenceBreakdown({
+  apiResponse,
+  referenceUrl,
+}: {
+  apiResponse: ReferenceAnalysisAPIResponse;
+  referenceUrl: string;
+}): ReferenceBreakdown | undefined {
+  const sourceItems =
+    apiResponse.cutBoard?.variants?.sourceFaithful?.items ??
+    apiResponse.cutBoard?.items ??
+    [];
+  if (!sourceItems.length) {
+    return undefined;
+  }
+
+  const sourceProjection = mapApiCutBoardToProjection({
+    apiResponse,
+    boardTitle:
+      apiResponse.cutBoard?.variants?.sourceFaithful?.boardTitle ??
+      apiResponse.cutBoard?.boardTitle ??
+      apiResponse.recipe?.title ??
+      'Reference shooting board',
+    items: sourceItems,
+    projectionId: `${apiResponse.requestId || 'reference'}-sourceFaithful`,
+  });
+  const goalItems = apiResponse.cutBoard?.variants?.goalAdapted?.items ?? [];
+  const goalProjection = goalItems.length
+    ? mapApiCutBoardToProjection({
+        apiResponse,
+        boardTitle:
+          apiResponse.cutBoard?.variants?.goalAdapted?.boardTitle ??
+          apiResponse.cutBoard?.boardTitle ??
+          sourceProjection.boardTitle,
+        items: goalItems,
+        projectionId: `${apiResponse.requestId || 'reference'}-goalAdapted`,
+      })
+    : undefined;
+  const existingBreakdown =
+    isRecord(apiResponse.breakdown) &&
+    apiResponse.breakdown.schema_version === 'parrotkit.reference_breakdown.v1'
+      ? (apiResponse.breakdown as ReferenceBreakdown)
+      : null;
+  const mergedBreakdown = existingBreakdown ?? createMinimalReferenceBreakdown({
+    apiResponse,
+    referenceUrl,
+    sourceProjection,
+  });
+
+  return {
+    ...mergedBreakdown,
+    reference: {
+      ...mergedBreakdown.reference,
+      source_url: referenceUrl,
+    },
+    shooting_board_projection: sourceProjection,
+    shooting_board_projection_variants: {
+      sourceFaithful: sourceProjection,
+      ...(goalProjection ? { goalAdapted: goalProjection } : {}),
+    },
+  };
+}
+
+function createMinimalReferenceBreakdown({
+  apiResponse,
+  referenceUrl,
+  sourceProjection,
+}: {
+  apiResponse: ReferenceAnalysisAPIResponse;
+  referenceUrl: string;
+  sourceProjection: ShootingBoardProjection;
+}): ReferenceBreakdown {
+  const transcriptClean = sourceProjection.items
+    .map((item) => item.lineToSay)
+    .filter((line): line is string => Boolean(line))
+    .join(' ');
+  const normalizedPlatform = normalizeReferencePlatform(
+    apiResponse.referenceMedia?.platform,
+  );
+
+  return {
+    schema_version: 'parrotkit.reference_breakdown.v1',
+    reference: {
+      source_url: referenceUrl,
+      platform: normalizedPlatform.includes('youtube') ? 'youtube' : 'unknown',
+      creator_handle: apiResponse.referenceMedia?.creatorHandle ?? null,
+      title: apiResponse.referenceMedia?.title ?? apiResponse.recipe?.title ?? null,
+      duration_seconds: apiResponse.referenceMedia?.durationSeconds ?? null,
+      language: apiResponse.referenceMedia?.language ?? '',
+      thumbnail_description: '',
+    },
+    summary: {
+      one_liner: compactText(
+        apiResponse.recipe?.oneLineDescription,
+        'A reference-led shooting recipe.',
+      ),
+      audience: '',
+      promise: '',
+      why_viewers_keep_watching: '',
+    },
+    transcript: {
+      clean: transcriptClean,
+      notable_lines: [],
+      raw: transcriptClean ? [transcriptClean] : [],
+    },
+    idea_analysis: {
+      common_belief_to_challenge: '',
+      contrarian_reality: '',
+      idea_seed: '',
+      supporting_evidence: [],
+      topic: '',
+      unique_angle: '',
+      user_application: '',
+    },
+    hook: {
+      adaptation_rule: '',
+      category: 'other',
+      formula: '',
+      spoken_hook: sourceProjection.items[0]?.lineToSay ?? '',
+      visual_hook: '',
+      why_it_works: '',
+    },
+    storytelling_format: {
+      beat_order: sourceProjection.items.map((item) => item.executionTitle),
+      category: 'other',
+      description: '',
+      reuse_when: '',
+      why_it_works: '',
+    },
+    visual_layout: {
+      camera_motion: '',
+      caption_strategy: '',
+      category: 'other',
+      framing: '',
+      sub_category: '',
+      subject_product_relationship: '',
+      user_application: '',
+    },
+    proof_structure: {
+      proof_points: [],
+      trust_signals: [],
+      risk_or_gap: '',
+    },
+    cuts: sourceProjection.items.map((item) => ({
+      id: item.projectionCutId,
+      time_range: `${Math.floor(item.sourceTimeRangeMs.startMs / 1000)}-${Math.floor(item.sourceTimeRangeMs.endMs / 1000)}s`,
+      execution_title: item.executionTitle,
+      reference_observation: item.referenceObservation,
+      line_to_say: item.lineToSay ?? '',
+      shooting_guide: item.shotGuide ?? '',
+      why_this_beat_exists: item.referenceUsage,
+      my_take_success_criteria: item.successCriteria,
+    })),
+    shooting_projection: {
+      board_title: sourceProjection.boardTitle,
+      video_level_breakdown: [],
+      cut_rows: sourceProjection.items.map((item) => ({
+        cut_id: item.projectionCutId,
+        execution_title: item.executionTitle,
+        line_to_say: item.lineToSay ?? '',
+        shot_guide: item.shotGuide ?? '',
+        reference_usage: item.referenceUsage,
+        my_take_relationship: item.myTakeRelationship,
+      })),
+    },
+    vault_candidates: {
+      idea: { title: sourceProjection.boardTitle, tags: [] },
+      hook: { formula: '', category: 'other' },
+      story_format: { name: '', tags: [] },
+      visual_layout: { name: '', tags: [] },
+      channel: {
+        creator_handle: apiResponse.referenceMedia?.creatorHandle ?? null,
+        why_follow: '',
+      },
+    },
+    confidence: {
+      overall: sourceProjection.confidence.overall,
+      transcript: sourceProjection.confidence.overall,
+      visual: 0,
+      cut_segmentation: sourceProjection.confidence.overall,
+      notes: [],
+    },
+  };
+}
+
+function safeMilliseconds(value: unknown) {
+  return Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
 export function isUsableReferenceAnalysisResponse(
   value: ReferenceAnalysisAPIResponse,
 ): value is ReferenceAnalysisAPIResponse & {
@@ -403,6 +711,10 @@ export function mapReferenceAnalysisResponseToRecipeGenerationResult(
         apiResponse.cutBoard.estimatedDurationSeconds ??
         scenes.reduce((sum, scene) => sum + scene.durationSec, 0),
     },
+    referenceBreakdown: mapApiResponseToReferenceBreakdown({
+      apiResponse,
+      referenceUrl,
+    }),
     reference: {
       platform: normalizeReferencePlatform(apiResponse.referenceMedia?.platform),
       thumbnailUrl,

@@ -123,12 +123,77 @@ export function createProjectionCutTimeRangeLabel({
 }
 
 export function getProjectionCutReferenceVideoSource({
+  item,
   recipe,
 }: {
   item: ShootingBoardProjectionItem;
   recipe: NativeRecipe;
 }) {
+  const originalSource = getOriginalYouTubeSourceUrl(recipe);
+
+  if (originalSource) {
+    return createYouTubeTimestampUrl({
+      sourceUrl: originalSource,
+      startMs: item.sourceTimeRangeMs.startMs,
+    });
+  }
+
   return recipe.referenceVideoSource ?? recipe.sourceUrl;
+}
+
+export function createYouTubeTimestampUrl({
+  sourceUrl,
+  startMs,
+}: {
+  sourceUrl: string;
+  startMs: number;
+}) {
+  const trimmed = sourceUrl.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (!isYouTubeHost(parsed.hostname)) {
+      return trimmed;
+    }
+
+    parsed.searchParams.set(
+      't',
+      String(Math.max(0, Math.floor(startMs / 1000))),
+    );
+    return parsed.toString();
+  } catch {
+    return trimmed;
+  }
+}
+
+function getOriginalYouTubeSourceUrl(recipe: NativeRecipe) {
+  for (const source of [recipe.sourceUrl, recipe.referenceVideoSource]) {
+    if (typeof source !== 'string') {
+      continue;
+    }
+    const trimmed = source.trim();
+    if (!trimmed) {
+      continue;
+    }
+    try {
+      const parsed = new URL(trimmed);
+      if (isYouTubeHost(parsed.hostname)) {
+        return trimmed;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
+function isYouTubeHost(hostname: string) {
+  const normalized = hostname.toLowerCase().replace(/^www\./, '');
+  return normalized === 'youtube.com' || normalized === 'youtu.be';
 }
 
 export function hasForbiddenBoardProjectionLabel(value?: string | null) {
@@ -203,6 +268,7 @@ function mapProjectionItemToCut({
     shootingGuideline: shotGuide,
     shootingGuidelineKo: shotGuide,
     sourceCutIds: [...item.sourceCutIds],
+    sourceTimeRangeMs: { ...item.sourceTimeRangeMs },
     speakingLine: lineToSay,
     speakingLineKo: lineToSay,
     takeStatus: 'none',

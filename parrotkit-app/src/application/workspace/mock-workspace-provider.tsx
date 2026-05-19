@@ -48,6 +48,7 @@ import {
   createShootBoardRecipe,
   type ShootBoardRecipe,
 } from '@/domain/shoot-board/shoot-board-model';
+import type { ReferenceBreakdown } from '@/domain/recipes/reference-breakdown';
 import {
   addQuickTake,
   createProjectTake,
@@ -80,6 +81,7 @@ import type { PrompterDisplayMode } from '@/features/recipes/lib/prompter-displa
 import type { PrompterBlock } from '@/domain/recipes/native-recipe';
 
 type CreateRecipeDraftInput = {
+  referenceBreakdown?: ReferenceBreakdown;
   referenceVideoSource?: string | number;
   scenes?: MockRecipeScene[];
   summary?: string;
@@ -417,6 +419,7 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
     niche = '',
     notes = '',
     referenceVideoSource,
+    referenceBreakdown,
     scenes,
     summary,
     thumbnail,
@@ -442,6 +445,10 @@ export function MockWorkspaceProvider({ children }: PropsWithChildren) {
       savedAt: 'Saved just now',
       sourceUrl: videoUrl.trim(),
       referenceVideoSource,
+      referenceBreakdown,
+      analysisMetadata: referenceBreakdown
+        ? { reference_breakdown: referenceBreakdown }
+        : undefined,
       summary: summary?.trim() || `${resolvedTitle} is now a local draft recipe shell you can shape before wiring real analysis.`,
       niche: niche.trim() || 'Creator',
       goal: goal.trim() || 'Sharper pacing',
