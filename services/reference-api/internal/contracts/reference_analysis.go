@@ -2,6 +2,7 @@ package contracts
 
 import (
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -102,6 +103,9 @@ type Breakdown struct {
 	Summary            map[string]any   `json:"summary"`
 	Transcript         map[string]any   `json:"transcript"`
 	IdeaAnalysis       map[string]any   `json:"idea_analysis"`
+	OriginalAnalysis   map[string]any   `json:"original_analysis"`
+	ExtractedStructure map[string]any   `json:"extracted_structure"`
+	ApplyToYourContent map[string]any   `json:"apply_to_your_content"`
 	Hook               map[string]any   `json:"hook"`
 	StorytellingFormat map[string]any   `json:"storytelling_format"`
 	VisualLayout       map[string]any   `json:"visual_layout"`
@@ -214,7 +218,21 @@ func (r ReferenceAnalysisResponse) Validate() error {
 }
 
 func hasBreakdown(breakdown *Breakdown) bool {
-	return breakdown != nil && breakdown.SchemaVersion == BreakdownSchemaVersion && len(breakdown.Cuts) > 0
+	return breakdown != nil &&
+		breakdown.SchemaVersion == BreakdownSchemaVersion &&
+		len(breakdown.Cuts) > 0 &&
+		hasTextMapValue(breakdown.Transcript, "clean") &&
+		len(breakdown.OriginalAnalysis) > 0 &&
+		len(breakdown.ExtractedStructure) > 0 &&
+		len(breakdown.ApplyToYourContent) > 0 &&
+		len(breakdown.Hook) > 0 &&
+		len(breakdown.StorytellingFormat) > 0 &&
+		len(breakdown.VisualLayout) > 0
+}
+
+func hasTextMapValue(values map[string]any, key string) bool {
+	value, ok := values[key].(string)
+	return ok && strings.TrimSpace(value) != ""
 }
 
 func hasRecipe(recipe *Recipe) bool {
@@ -242,11 +260,45 @@ func ReadyFixture() ReferenceAnalysisResponse {
 			Title:     &title,
 		},
 		Breakdown: &Breakdown{
-			SchemaVersion:      BreakdownSchemaVersion,
-			Reference:          map[string]any{"source_url": "https://example.com/video"},
-			Summary:            map[string]any{"one_liner": "A useful reference."},
-			Transcript:         map[string]any{"clean": "Transcript"},
-			IdeaAnalysis:       map[string]any{"topic": "Beauty"},
+			SchemaVersion: BreakdownSchemaVersion,
+			Reference:     map[string]any{"source_url": "https://example.com/video"},
+			Summary:       map[string]any{"one_liner": "A useful reference."},
+			Transcript:    map[string]any{"clean": "Transcript"},
+			IdeaAnalysis:  map[string]any{"topic": "Beauty"},
+			OriginalAnalysis: map[string]any{
+				"transcript":              "Transcript",
+				"original_hook":           "Say this",
+				"storytelling_structure":  []string{"Say this"},
+				"visual_layout":           "Reference opens on the finished result.",
+				"source_specific_signals": []string{"Say this"},
+				"why_source_works":        "The reference opens with a direct line.",
+			},
+			ExtractedStructure: map[string]any{
+				"source_skeleton_id": "source-skeleton-1",
+				"templates": []map[string]any{{
+					"cut_id":          "cut-1",
+					"source_template": "Say this -> {hook_context}",
+				}},
+				"sourceFaithful_mapping": []map[string]any{{
+					"cut_id":          "cut-1",
+					"line_to_say":     "Say this",
+					"source_template": "Say this -> {hook_context}",
+					"source_span":     map[string]any{"start_ms": 0, "end_ms": 5000, "transcript_ids": []string{"tr-1"}},
+				}},
+			},
+			ApplyToYourContent: map[string]any{
+				"source_skeleton_id": "source-skeleton-1",
+				"target_goal":        "conversion",
+				"target_niche":       "beauty",
+				"what_is_preserved":  []string{"source beat order", "timestamp lineage", "source-specific phrase"},
+				"what_changes":       []string{"niche copy", "shooting instruction"},
+				"goalAdapted_mapping": []map[string]any{{
+					"cut_id":          "cut-1",
+					"line_to_say":     "Say this for your goal",
+					"source_template": "Say this -> {hook_context}",
+					"source_span":     map[string]any{"start_ms": 0, "end_ms": 5000, "transcript_ids": []string{"tr-1"}},
+				}},
+			},
 			Hook:               map[string]any{"category": "authority"},
 			StorytellingFormat: map[string]any{"category": "review"},
 			VisualLayout:       map[string]any{"category": "talking_head"},

@@ -52,7 +52,7 @@ func BuildReferenceAnalysisResponse(input ReferenceAnalysisBuildInput) contracts
 	mediaAssetID := "media-1"
 	referenceMedia := buildReferenceMedia(input.Metadata, input.Request, mediaAssetID)
 	recipe, cutBoard, cuts := buildRecipeAndBoard(draft, referenceMedia, input.Transcript, mediaAssetID)
-	breakdown := buildBreakdown(draft, input, cuts)
+	breakdown := buildBreakdown(draft, input, cuts, recipe, cutBoard)
 	modelName := strings.TrimSpace(input.ModelName)
 	return contracts.ReferenceAnalysisResponse{
 		Breakdown:      breakdown,
@@ -339,7 +339,7 @@ func sourceSnippet(text string) string {
 	return string(runes[:96]) + "..."
 }
 
-func buildBreakdown(draft RecipeDraft, input ReferenceAnalysisBuildInput, cuts []map[string]any) *contracts.Breakdown {
+func buildBreakdown(draft RecipeDraft, input ReferenceAnalysisBuildInput, cuts []map[string]any, recipe *contracts.Recipe, cutBoard *contracts.CutBoard) *contracts.Breakdown {
 	transcriptText, transcriptChars := transcriptSummary(input.Transcript)
 	visualExtractPresent := len(input.Extract.Raw) > 0
 	return &contracts.Breakdown{
@@ -362,9 +362,16 @@ func buildBreakdown(draft RecipeDraft, input ReferenceAnalysisBuildInput, cuts [
 			"goal":  input.Request.Goal,
 			"topic": input.Request.Niche,
 		},
+		OriginalAnalysis:   buildOriginalAnalysis(draft, input, cuts, transcriptText, visualExtractPresent),
+		ExtractedStructure: buildExtractedStructure(cuts, cutBoard),
+		ApplyToYourContent: buildApplyToYourContent(input, cuts, cutBoard),
 		Hook: map[string]any{
-			"category": "transcript_first",
-			"line":     firstSceneLine(draft),
+			"category":            "transcript_first",
+			"line":                firstTranscriptLine(input.Transcript),
+			"original_hook":       firstTranscriptLine(input.Transcript),
+			"sourceFaithful_hook": firstVariantLine(recipe, "sourceFaithful"),
+			"goalAdapted_hook":    firstVariantLine(recipe, "goalAdapted"),
+			"source_skeleton_id":  sourceSkeletonID,
 		},
 		StorytellingFormat: map[string]any{
 			"category": "scene_sequence",
@@ -389,6 +396,164 @@ func buildBreakdown(draft RecipeDraft, input ReferenceAnalysisBuildInput, cuts [
 			"visual_extract_present": visualExtractPresent,
 		},
 	}
+}
+
+const sourceSkeletonID = "source-skeleton-1"
+
+func buildOriginalAnalysis(draft RecipeDraft, input ReferenceAnalysisBuildInput, cuts []map[string]any, transcriptText string, visualExtractPresent bool) map[string]any {
+	return map[string]any{
+		"transcript":              transcriptText,
+		"original_hook":           firstTranscriptLine(input.Transcript),
+		"storytelling_structure":  sourceBeatOrder(cuts),
+		"visual_layout":           visualLayoutSummary(visualExtractPresent),
+		"source_specific_signals": sourceSpecificSignals(input.Transcript),
+		"why_source_works":        sourceWhyItWorks(input.Transcript, draft),
+	}
+}
+
+func buildExtractedStructure(cuts []map[string]any, cutBoard *contracts.CutBoard) map[string]any {
+	return map[string]any{
+		"source_skeleton_id":     sourceSkeletonID,
+		"templates":              sourceTemplates(cuts),
+		"sourceFaithful_mapping": variantMapping("sourceFaithful", cuts, cutBoard),
+	}
+}
+
+func buildApplyToYourContent(input ReferenceAnalysisBuildInput, cuts []map[string]any, cutBoard *contracts.CutBoard) map[string]any {
+	return map[string]any{
+		"source_skeleton_id":  sourceSkeletonID,
+		"target_goal":         input.Request.Goal,
+		"target_niche":        input.Request.Niche,
+		"what_is_preserved":   []string{"source beat order", "timestamp lineage", "source-specific phrase, number, repetition, or contrast"},
+		"what_changes":        []string{"niche copy", "shooting instruction", "viewer-facing call to action"},
+		"goalAdapted_mapping": variantMapping("goalAdapted", cuts, cutBoard),
+	}
+}
+
+func sourceTemplates(cuts []map[string]any) []map[string]any {
+	templates := make([]map[string]any, 0, len(cuts))
+	for _, cut := range cuts {
+		templates = append(templates, map[string]any{
+			"cut_id":                 cut["id"],
+			"source_template":        cut["source_template"],
+			"source_transcript_text": cut["source_transcript_text"],
+			"source_transcript_ids":  cut["source_transcript_ids"],
+			"start_ms":               cut["start_ms"],
+			"end_ms":                 cut["end_ms"],
+		})
+	}
+	return templates
+}
+
+func variantMapping(variantID string, cuts []map[string]any, cutBoard *contracts.CutBoard) []map[string]any {
+	items := variantItems(variantID, cutBoard)
+	mappings := make([]map[string]any, 0, len(items))
+	for index, item := range items {
+		cut := cutForMapping(index, item.ProjectionCutID, cuts)
+		mappings = append(mappings, map[string]any{
+			"cut_id":                 item.ProjectionCutID,
+			"line_to_say":            derefString(item.LineToSay),
+			"reference_observation":  item.ReferenceObservation,
+			"reference_usage":        item.ReferenceUsage,
+			"my_take_relationship":   item.MyTakeRelationship,
+			"source_template":        cut["source_template"],
+			"source_transcript_text": cut["source_transcript_text"],
+			"source_specific_signal": sourceSnippet(fmt.Sprint(cut["source_transcript_text"])),
+			"source_span": map[string]any{
+				"start_ms":       cut["start_ms"],
+				"end_ms":         cut["end_ms"],
+				"transcript_ids": cut["source_transcript_ids"],
+			},
+		})
+	}
+	return mappings
+}
+
+func variantItems(variantID string, cutBoard *contracts.CutBoard) []contracts.CutBoardItem {
+	if cutBoard == nil {
+		return nil
+	}
+	if variant, ok := cutBoard.Variants[variantID]; ok && len(variant.Items) > 0 {
+		return variant.Items
+	}
+	return cutBoard.Items
+}
+
+func cutForMapping(index int, projectionCutID string, cuts []map[string]any) map[string]any {
+	for _, cut := range cuts {
+		if fmt.Sprint(cut["id"]) == projectionCutID {
+			return cut
+		}
+	}
+	if index >= 0 && index < len(cuts) {
+		return cuts[index]
+	}
+	return map[string]any{}
+}
+
+func sourceBeatOrder(cuts []map[string]any) []string {
+	beats := make([]string, 0, len(cuts))
+	for _, cut := range cuts {
+		template := strings.TrimSpace(fmt.Sprint(cut["source_template"]))
+		title := strings.TrimSpace(fmt.Sprint(cut["title"]))
+		if template != "" && template != "<nil>" {
+			beats = append(beats, template)
+			continue
+		}
+		if title != "" && title != "<nil>" {
+			beats = append(beats, title)
+		}
+	}
+	return beats
+}
+
+func firstTranscriptLine(transcript []superdata.TranscriptSegment) string {
+	for _, segment := range transcript {
+		text := strings.TrimSpace(segment.Text)
+		if text != "" {
+			return text
+		}
+	}
+	return ""
+}
+
+func firstVariantLine(recipe *contracts.Recipe, variantID string) string {
+	if recipe == nil {
+		return ""
+	}
+	if variant, ok := recipe.Variants[variantID]; ok && len(variant.Scenes) > 0 {
+		return variant.Scenes[0].LineToSay
+	}
+	if len(recipe.Scenes) > 0 {
+		return recipe.Scenes[0].LineToSay
+	}
+	return ""
+}
+
+func sourceSpecificSignals(transcript []superdata.TranscriptSegment) []string {
+	signals := make([]string, 0, len(transcript))
+	for _, segment := range transcript {
+		text := strings.TrimSpace(segment.Text)
+		if text != "" {
+			signals = append(signals, sourceSnippet(text))
+		}
+	}
+	return signals
+}
+
+func sourceWhyItWorks(transcript []superdata.TranscriptSegment, draft RecipeDraft) string {
+	first := firstTranscriptLine(transcript)
+	if first != "" {
+		return fmt.Sprintf("The source works by making the first beat concrete: %q.", sourceSnippet(first))
+	}
+	return fallbackString(draft.OneLineDescription, "The source works by ordering each beat into a reusable short-form structure.")
+}
+
+func visualLayoutSummary(extractPresent bool) string {
+	if extractPresent {
+		return "Visual layout is available as optional enrichment and remains linked to the transcript cut order."
+	}
+	return "Visual layout is inferred from transcript beat order because optional visual extraction is unavailable."
 }
 
 func applyDraftDefaults(draft *RecipeDraft, input ReferenceAnalysisBuildInput) {

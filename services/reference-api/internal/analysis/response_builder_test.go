@@ -227,3 +227,117 @@ func TestBuildReferenceAnalysisResponseSourceFaithfulCutsKeepTranscriptSignalsAn
 		t.Fatalf("breakdown source template = %#v", response.Breakdown.Cuts[0]["source_template"])
 	}
 }
+
+func TestBuildReferenceAnalysisResponseBreakdownTranscriptIsRealTranscript(t *testing.T) {
+	response := BuildReferenceAnalysisResponse(ReferenceAnalysisBuildInput{
+		Draft: RecipeDraft{
+			Title:              "Adapted coaching board",
+			OneLineDescription: "Adapt the reference to a coaching offer.",
+			Scenes: []RecipeDraftScene{{
+				Title:             "Adapted hook",
+				LineToSay:         "Adopt the conversational coaching hook and promise a repeatable routine.",
+				ShootingGuideline: "Face camera and explain the adapted angle.",
+			}},
+		},
+		Extract: superdata.ExtractResult{Raw: map[string]any{"ok": true}},
+		Request: Request{
+			Goal:         "sell a coaching plan",
+			Niche:        "fitness",
+			ReferenceURL: "https://youtube.com/shorts/ySDpL4wUX7Y",
+		},
+		RequestID: "req_breakdown_transcript",
+		Transcript: []superdata.TranscriptSegment{{
+			ID:      "seg-1",
+			StartMs: 1200,
+			EndMs:   3100,
+			Text:    "20 then 40 then 80, it does not end.",
+		}},
+	})
+
+	clean, ok := response.Breakdown.Transcript["clean"].(string)
+	if !ok || !strings.Contains(clean, "20 then 40 then 80") {
+		t.Fatalf("breakdown transcript clean = %#v", response.Breakdown.Transcript["clean"])
+	}
+	if strings.Contains(clean, "Adopt the conversational") {
+		t.Fatalf("breakdown transcript leaked analysis prose: %q", clean)
+	}
+	originalTranscript, ok := response.Breakdown.OriginalAnalysis["transcript"].(string)
+	if !ok || !strings.Contains(originalTranscript, "20 then 40 then 80") {
+		t.Fatalf("original analysis transcript = %#v", response.Breakdown.OriginalAnalysis["transcript"])
+	}
+}
+
+func TestBuildReferenceAnalysisResponseBreakdownInformationArchitecture(t *testing.T) {
+	response := BuildReferenceAnalysisResponse(ReferenceAnalysisBuildInput{
+		Draft: RecipeDraft{
+			Title:              "Escalation board",
+			OneLineDescription: "Keep the escalation structure.",
+			Scenes: []RecipeDraftScene{
+				{
+					Title:             "Goal hook",
+					LineToSay:         "Start with a plan that compounds without burnout.",
+					ShootingGuideline: "Face camera with the program result.",
+				},
+				{
+					Title:             "Goal contrast",
+					LineToSay:         "Show the switch from random effort to a repeatable system.",
+					ShootingGuideline: "Cut between the old and new workflow.",
+				},
+			},
+		},
+		Extract: superdata.ExtractResult{Raw: map[string]any{"ok": true}},
+		Request: Request{
+			Goal:         "sell a coaching plan",
+			Niche:        "fitness",
+			ReferenceURL: "https://youtube.com/shorts/ySDpL4wUX7Y",
+		},
+		RequestID: "req_breakdown_ia",
+		Transcript: []superdata.TranscriptSegment{
+			{ID: "seg-1", StartMs: 1200, EndMs: 3100, Text: "20 then 40 then 80, it does not end."},
+			{ID: "seg-2", StartMs: 3100, EndMs: 6200, Text: "The point is not more reps, it is the contrast."},
+		},
+	})
+
+	breakdown := response.Breakdown
+	if len(breakdown.OriginalAnalysis) == 0 || len(breakdown.ExtractedStructure) == 0 || len(breakdown.ApplyToYourContent) == 0 {
+		t.Fatalf("missing IA fields: original=%#v extracted=%#v apply=%#v", breakdown.OriginalAnalysis, breakdown.ExtractedStructure, breakdown.ApplyToYourContent)
+	}
+	for name, section := range map[string]map[string]any{
+		"hook":                  breakdown.Hook,
+		"storytelling_format":   breakdown.StorytellingFormat,
+		"visual_layout":         breakdown.VisualLayout,
+		"original_analysis":     breakdown.OriginalAnalysis,
+		"extracted_structure":   breakdown.ExtractedStructure,
+		"apply_to_your_content": breakdown.ApplyToYourContent,
+	} {
+		if len(section) == 0 {
+			t.Fatalf("breakdown section %s is empty", name)
+		}
+	}
+
+	extractedSkeletonID, ok := breakdown.ExtractedStructure["source_skeleton_id"].(string)
+	if !ok || extractedSkeletonID == "" {
+		t.Fatalf("extracted source skeleton id = %#v", breakdown.ExtractedStructure["source_skeleton_id"])
+	}
+	applySkeletonID, ok := breakdown.ApplyToYourContent["source_skeleton_id"].(string)
+	if !ok || applySkeletonID != extractedSkeletonID {
+		t.Fatalf("mapping skeleton mismatch: extracted=%#v apply=%#v", extractedSkeletonID, breakdown.ApplyToYourContent["source_skeleton_id"])
+	}
+	sourceMapping := breakdown.ExtractedStructure["sourceFaithful_mapping"].([]map[string]any)
+	goalMapping := breakdown.ApplyToYourContent["goalAdapted_mapping"].([]map[string]any)
+	if len(sourceMapping) != 2 || len(goalMapping) != 2 {
+		t.Fatalf("variant mappings = source:%#v goal:%#v", sourceMapping, goalMapping)
+	}
+	if sourceMapping[0]["cut_id"] != goalMapping[0]["cut_id"] {
+		t.Fatalf("mapping cut ids differ: source=%#v goal=%#v", sourceMapping[0], goalMapping[0])
+	}
+	if template, ok := sourceMapping[0]["source_template"].(string); !ok || !strings.Contains(template, "{hook_context}") {
+		t.Fatalf("source template lost placeholder braces: %#v", sourceMapping[0]["source_template"])
+	}
+	if line, ok := sourceMapping[0]["line_to_say"].(string); !ok || !strings.Contains(line, "20 then 40 then 80") {
+		t.Fatalf("source mapping line lost transcript structure: %#v", sourceMapping[0]["line_to_say"])
+	}
+	if span := sourceMapping[0]["source_span"].(map[string]any); span["start_ms"] != 1200 || span["end_ms"] != 3100 {
+		t.Fatalf("source mapping span = %#v", sourceMapping[0]["source_span"])
+	}
+}

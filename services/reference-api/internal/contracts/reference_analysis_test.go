@@ -104,3 +104,15 @@ func TestProviderTraceIsInternalOnly(t *testing.T) {
 		t.Fatalf("provider trace leaked to JSON: %s", body)
 	}
 }
+
+func TestReadyRequiresBreakdownInformationArchitecture(t *testing.T) {
+	response := ReadyFixture()
+	if err := response.Validate(); err != nil {
+		t.Fatalf("ready fixture Validate() error = %v", err)
+	}
+
+	response.Breakdown.OriginalAnalysis = nil
+	if err := response.Validate(); err == nil {
+		t.Fatalf("ready response without original_analysis should fail validation")
+	}
+}
