@@ -308,6 +308,107 @@ export function hydrateShootBoardReferenceMedia({
   };
 }
 
+export function reconcileShootBoardWithLatestSource({
+  candidateBoard,
+  latestBoard,
+}: {
+  candidateBoard: ShootBoardRecipe;
+  latestBoard: ShootBoardRecipe;
+}): ShootBoardRecipe {
+  if (isCandidateBoardOlderThanLatestSource({ candidateBoard, latestBoard })) {
+    return latestBoard;
+  }
+
+  return hydrateShootBoardReferenceMedia({
+    board: candidateBoard,
+    sourceBoard: latestBoard,
+  });
+}
+
+function isCandidateBoardOlderThanLatestSource({
+  candidateBoard,
+  latestBoard,
+}: {
+  candidateBoard: ShootBoardRecipe;
+  latestBoard: ShootBoardRecipe;
+}) {
+  const latestHasFreshness =
+    Boolean(latestBoard.sourceGeneratedAt) ||
+    Boolean(latestBoard.sourceProjectionId) ||
+    Boolean(latestBoard.sourceRequestId);
+
+  if (!latestHasFreshness) {
+    return false;
+  }
+
+  const latestTime = parseFreshnessTime(latestBoard.sourceGeneratedAt);
+  const candidateTime = parseFreshnessTime(candidateBoard.sourceGeneratedAt);
+
+  if (latestTime !== null && candidateTime !== null) {
+    if (latestTime > candidateTime) {
+      return true;
+    }
+
+    if (candidateTime > latestTime) {
+      return false;
+    }
+  }
+
+  if (
+    latestBoard.sourceRequestId &&
+    candidateBoard.sourceRequestId &&
+    latestBoard.sourceRequestId !== candidateBoard.sourceRequestId
+  ) {
+    return true;
+  }
+
+  if (
+    latestBoard.sourceProjectionId &&
+    candidateBoard.sourceProjectionId &&
+    latestBoard.sourceProjectionId !== candidateBoard.sourceProjectionId
+  ) {
+    return true;
+  }
+
+  if (latestTime !== null && candidateTime === null) {
+    return !hasSameBoardCutSignature(candidateBoard, latestBoard);
+  }
+
+  if (
+    (latestBoard.sourceRequestId || latestBoard.sourceProjectionId) &&
+    !candidateBoard.sourceRequestId &&
+    !candidateBoard.sourceProjectionId
+  ) {
+    return !hasSameBoardCutSignature(candidateBoard, latestBoard);
+  }
+
+  return false;
+}
+
+function parseFreshnessTime(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? time : null;
+}
+
+function hasSameBoardCutSignature(
+  candidateBoard: ShootBoardRecipe,
+  latestBoard: ShootBoardRecipe,
+) {
+  return (
+    getBoardCutSignature(candidateBoard) === getBoardCutSignature(latestBoard)
+  );
+}
+
+function getBoardCutSignature(board: ShootBoardRecipe) {
+  return board.cuts
+    .map((cut) => `${cut.id}:${cut.projectionCutId ?? ""}:${cut.order}`)
+    .join("|");
+}
+
 function mapWorkspaceTakeToBoardTake(
   take: SavedRecipeTakeRecord,
   cut: ShootBoardCut,

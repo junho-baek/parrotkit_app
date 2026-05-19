@@ -55,9 +55,9 @@ import {
   getBoardOverviewUiState,
   getCutReferencePlaybackOpenData,
   getShootBoardVariantOptions,
-  hydrateShootBoardReferenceMedia,
   hydrateShootBoardWithWorkspaceTakes,
   projectNativeRecipeForShootBoardVariant,
+  reconcileShootBoardWithLatestSource,
   type ShootBoardRecipeVariantId,
 } from "@/features/recipes/screens/recipe-detail/recipe-detail-board-state";
 import {
@@ -327,9 +327,9 @@ export function RecipeDetailScreen() {
         ? getRecipeEditorBoard(nativeRecipe.id)
         : null;
     const nextBoard = existingBoard
-      ? hydrateShootBoardReferenceMedia({
-          board: existingBoard,
-          sourceBoard: originalBoard,
+      ? reconcileShootBoardWithLatestSource({
+          candidateBoard: existingBoard,
+          latestBoard: originalBoard,
         })
       : originalBoard;
 

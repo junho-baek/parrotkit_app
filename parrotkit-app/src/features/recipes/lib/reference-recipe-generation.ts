@@ -45,6 +45,7 @@ export type ReferenceRecipeGenerationResult = {
     fallbackUsed: boolean;
     generatedAt: string;
     model?: string | null;
+    requestId?: string | null;
     status: 'fallback' | 'generated';
   };
 };
@@ -732,6 +733,7 @@ export function mapReferenceAnalysisResponseToRecipeGenerationResult(
       fallbackUsed: false,
       generatedAt: apiResponse.generatedAt || new Date().toISOString(),
       model: apiResponse.generation?.model ?? null,
+      requestId: apiResponse.requestId ?? null,
       status: 'generated',
     },
   };
@@ -764,6 +766,7 @@ export function buildLocalFallbackResult({
       fallbackUsed: true,
       generatedAt: new Date().toISOString(),
       model: null,
+      requestId: null,
       status: 'fallback',
     },
   };

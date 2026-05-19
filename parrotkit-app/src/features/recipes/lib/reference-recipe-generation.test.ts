@@ -9,6 +9,7 @@ import {
   mapReferenceAnalysisResponseToRecipeGenerationResult,
   mapGeneratedRecipeToMockScenes,
   referenceBreakdownSteps,
+  type ReferenceAnalysisAPICutBoardItem,
   type ReferenceAnalysisAPIResponse,
   type ReferenceRecipeGenerationResult,
 } from '@/features/recipes/lib/reference-recipe-generation';
@@ -262,6 +263,126 @@ if (mapGeneratedRecipeToMockScenes(mappedReadyResult).length !== 2) {
   throw new Error('Generated API recipe scenes should preserve the live cut count.');
 }
 
+const latestThreeCutResponse: ReferenceAnalysisAPIResponse = {
+  ...readyAnalysisResponse,
+  requestId: 'req_latest_three',
+  generatedAt: '2026-05-20T03:00:00.000Z',
+  breakdown: {
+    ...(readyAnalysisResponse.breakdown as Record<string, unknown>),
+    transcript: {
+      clean: 'Latest three-cut transcript. Middle proof. Final save line.',
+      notable_lines: [],
+      raw: ['Latest three-cut transcript. Middle proof. Final save line.'],
+    },
+  },
+  recipe: {
+    title: 'Latest Three Cut Recipe',
+    oneLineDescription: 'A fresh three-cut generated response.',
+    totalDurationSec: 18,
+    scenes: [
+      {
+        durationSec: 5,
+        index: 1,
+        lineToSay: 'Latest hook line.',
+        projectionCutId: 'latest-cut-1',
+        requiredChecklist: ['Hook visible'],
+        shootingGuideline: 'Open on the latest hook.',
+        title: 'Latest hook',
+      },
+      {
+        durationSec: 7,
+        index: 2,
+        lineToSay: 'Latest proof line.',
+        projectionCutId: 'latest-cut-2',
+        requiredChecklist: ['Proof visible'],
+        shootingGuideline: 'Show the latest proof.',
+        title: 'Latest proof',
+      },
+      {
+        durationSec: 6,
+        index: 3,
+        lineToSay: 'Latest save line.',
+        projectionCutId: 'latest-cut-3',
+        requiredChecklist: ['CTA visible'],
+        shootingGuideline: 'End on the latest CTA.',
+        title: 'Latest CTA',
+      },
+    ],
+  },
+  cutBoard: {
+    boardTitle: 'Latest Three Cut Recipe',
+    estimatedDurationSeconds: 18,
+    items: [
+      createApiCutBoardItem('latest-cut-1', 'Latest hook', 'Latest hook line.', 0, 5000),
+      createApiCutBoardItem('latest-cut-2', 'Latest proof', 'Latest proof line.', 5000, 12000),
+      createApiCutBoardItem('latest-cut-3', 'Latest CTA', 'Latest save line.', 12000, 18000),
+    ],
+    variants: {
+      sourceFaithful: {
+        boardTitle: 'Latest Three Cut Recipe',
+        items: [
+          createApiCutBoardItem('latest-cut-1', 'Latest hook', 'Latest hook line.', 0, 5000),
+          createApiCutBoardItem('latest-cut-2', 'Latest proof', 'Latest proof line.', 5000, 12000),
+          createApiCutBoardItem('latest-cut-3', 'Latest CTA', 'Latest save line.', 12000, 18000),
+        ],
+      },
+      goalAdapted: {
+        boardTitle: 'Latest Three Cut Recipe Adapted',
+        items: [
+          createApiCutBoardItem('latest-cut-1', 'Adapted hook', 'Adapted hook line.', 0, 5000),
+          createApiCutBoardItem('latest-cut-2', 'Adapted proof', 'Adapted proof line.', 5000, 12000),
+          createApiCutBoardItem('latest-cut-3', 'Adapted CTA', 'Adapted save line.', 12000, 18000),
+        ],
+      },
+    },
+  },
+};
+
+const latestThreeCutResult = mapReferenceAnalysisResponseToRecipeGenerationResult(
+  latestThreeCutResponse,
+  {
+    goalId: 'ad',
+    nicheId: 'beauty',
+    referenceUrl: shortsUrl,
+  },
+);
+
+if (latestThreeCutResult.generation.requestId !== 'req_latest_three') {
+  throw new Error('Generated result should preserve latest API requestId.');
+}
+
+if (mapGeneratedRecipeToMockScenes(latestThreeCutResult).length !== 3) {
+  throw new Error('Generated scenes must keep the latest three-cut API count.');
+}
+
+const latestProjection = latestThreeCutResult.referenceBreakdown?.shooting_board_projection;
+
+if (!latestProjection || latestProjection.items.length !== 3) {
+  throw new Error('Latest API cutBoard must become a three-item sourceFaithful projection.');
+}
+
+if (latestProjection.breakdownId !== 'req_latest_three') {
+  throw new Error(`Latest projection should carry request freshness. Found: ${latestProjection.breakdownId}`);
+}
+
+if (latestProjection.updatedAt !== '2026-05-20T03:00:00.000Z') {
+  throw new Error(`Latest projection should carry generatedAt freshness. Found: ${latestProjection.updatedAt}`);
+}
+
+if (
+  latestThreeCutResult.referenceBreakdown?.transcript.clean !==
+  'Latest three-cut transcript. Middle proof. Final save line.'
+) {
+  throw new Error('Breakdown transcript must come from the latest API response.');
+}
+
+const latestGoalProjection =
+  latestThreeCutResult.referenceBreakdown?.shooting_board_projection_variants?.goalAdapted;
+
+if (!latestGoalProjection || latestGoalProjection.items[0]?.lineToSay !== 'Adapted hook line.') {
+  throw new Error('Goal-adapted projection must remain selectable from the same latest response.');
+}
+
 const failedAnalysisResponse: ReferenceAnalysisAPIResponse = {
   schemaVersion: 'parrotkit.reference_analysis_response.v1',
   status: 'failed',
@@ -407,3 +528,33 @@ void runAsyncGenerationAssertions().catch((error) => {
     throw error;
   }, 0);
 });
+
+function createApiCutBoardItem(
+  projectionCutId: string,
+  executionTitle: string,
+  lineToSay: string,
+  startMs: number,
+  endMs: number,
+): ReferenceAnalysisAPICutBoardItem {
+  const orderSuffix = projectionCutId.split('-').slice(-1)[0] ?? '1';
+
+  return {
+    durationSeconds: Math.max(1, Math.ceil((endMs - startMs) / 1000)),
+    executionTitle,
+    lineToSay,
+    myTakeRelationship: 'Use this latest beat for your take.',
+    orderIndex: Number(orderSuffix) - 1,
+    projectionCutId,
+    referenceMediaRef: {
+      endMs,
+      mediaAssetId: 'media-latest',
+      startMs,
+      thumbnailUri: 'https://cdn.example.com/latest.jpg',
+    },
+    referenceObservation: 'The latest response owns this beat.',
+    referenceUsage: 'Keep the latest source role.',
+    shotGuide: `Film ${executionTitle.toLowerCase()}.`,
+    sourceCutIds: [projectionCutId],
+    successCriteria: [`${executionTitle} is visible`],
+  };
+}

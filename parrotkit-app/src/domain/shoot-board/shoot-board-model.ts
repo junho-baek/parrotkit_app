@@ -98,6 +98,9 @@ export type ShootBoardRecipe = {
   boardNote: string;
   boardNoteChecked: boolean;
   id: string;
+  sourceGeneratedAt?: string;
+  sourceProjectionId?: string;
+  sourceRequestId?: string;
   title: string;
   summary: ShootBoardRecipeSummary;
   totalCuts: number;
@@ -487,6 +490,9 @@ export function createShootBoardRecipe(
       id: recipe.id,
       isSaved: options.isSaved ?? true,
       shotCount: getShotCount(cuts),
+      sourceGeneratedAt: projection.updatedAt || projection.createdAt,
+      sourceProjectionId: projection.projectionId,
+      sourceRequestId: projection.breakdownId,
       summary: getProjectionShootBoardSummary(
         recipe,
         projection,

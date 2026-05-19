@@ -49,6 +49,7 @@ const {
   hydrateShootBoardReferenceMedia,
   hydrateShootBoardWithWorkspaceTakes,
   projectNativeRecipeForShootBoardVariant,
+  reconcileShootBoardWithLatestSource,
 } = require("./recipe-detail-board-state") as {
   getCutReferencePlaybackOpenData: typeof import("./recipe-detail-board-state").getCutReferencePlaybackOpenData;
   getBoardOverviewUiState: typeof import("./recipe-detail-board-state").getBoardOverviewUiState;
@@ -57,6 +58,7 @@ const {
   hydrateShootBoardReferenceMedia: typeof import("./recipe-detail-board-state").hydrateShootBoardReferenceMedia;
   hydrateShootBoardWithWorkspaceTakes: typeof import("./recipe-detail-board-state").hydrateShootBoardWithWorkspaceTakes;
   projectNativeRecipeForShootBoardVariant: typeof import("./recipe-detail-board-state").projectNativeRecipeForShootBoardVariant;
+  reconcileShootBoardWithLatestSource: typeof import("./recipe-detail-board-state").reconcileShootBoardWithLatestSource;
 };
 const { createShootBoardRecipe } = require("@/features/recipes/lib/shoot-board-model") as {
   createShootBoardRecipe: typeof import("@/features/recipes/lib/shoot-board-model").createShootBoardRecipe;
@@ -330,6 +332,85 @@ if (referenceMediaHydratedCut?.lineToSay !== "Edited line should stay") {
   throw new Error("Reference media hydration must preserve edited cut copy.");
 }
 
+const latestThreeCutBoard = {
+  id: "recipe-freshness",
+  sourceGeneratedAt: "2026-05-20T03:00:00.000Z",
+  sourceProjectionId: "req_latest_three-sourceFaithful",
+  sourceRequestId: "req_latest_three",
+  totalCuts: 3,
+  cuts: [
+    createCut("latest-cut-1", "latest-cut-1", 1),
+    createCut("latest-cut-2", "latest-cut-2", 2),
+    createCut("latest-cut-3", "latest-cut-3", 3),
+  ],
+};
+const staleFourCutBoard = {
+  id: "recipe-freshness",
+  sourceGeneratedAt: "2026-05-20T01:00:00.000Z",
+  sourceProjectionId: "req_old_four-sourceFaithful",
+  sourceRequestId: "req_old_four",
+  totalCuts: 4,
+  cuts: [
+    createCut("stale-cut-1", "stale-cut-1", 1),
+    createCut("stale-cut-2", "stale-cut-2", 2),
+    createCut("stale-cut-3", "stale-cut-3", 3),
+    createCut("stale-cut-4", "stale-cut-4", 4),
+  ],
+};
+const reconciledLatestBoard = reconcileShootBoardWithLatestSource({
+  candidateBoard: staleFourCutBoard as unknown as Parameters<
+    typeof reconcileShootBoardWithLatestSource
+  >[0]["candidateBoard"],
+  latestBoard: latestThreeCutBoard as unknown as Parameters<
+    typeof reconcileShootBoardWithLatestSource
+  >[0]["latestBoard"],
+});
+
+if (reconciledLatestBoard !== latestThreeCutBoard) {
+  throw new Error(
+    "Older hydrated board must not overwrite a newer generated response.",
+  );
+}
+
+if (
+  reconciledLatestBoard.cuts.length !== 3 ||
+  reconciledLatestBoard.totalCuts !== 3
+) {
+  throw new Error(
+    "Freshness reconciliation must remove stale four-cut boards after a three-cut response.",
+  );
+}
+
+const editedCurrentBoard = {
+  ...latestThreeCutBoard,
+  cuts: latestThreeCutBoard.cuts.map((cut, index) =>
+    index === 0
+      ? { ...cut, lineToSay: "Edited latest line should stay" }
+      : cut,
+  ),
+};
+const reconciledCurrentBoard = reconcileShootBoardWithLatestSource({
+  candidateBoard: editedCurrentBoard as unknown as Parameters<
+    typeof reconcileShootBoardWithLatestSource
+  >[0]["candidateBoard"],
+  latestBoard: latestThreeCutBoard as unknown as Parameters<
+    typeof reconcileShootBoardWithLatestSource
+  >[0]["latestBoard"],
+});
+
+if (reconciledCurrentBoard === latestThreeCutBoard) {
+  throw new Error("Same-generation saved board edits should survive hydration.");
+}
+
+if (
+  reconciledCurrentBoard.cuts[0]?.lineToSay !==
+  "Edited latest line should stay"
+) {
+  throw new Error(
+    "Same-generation board reconciliation must preserve edited copy.",
+  );
+}
+
 const sourceProjection = createProjection({
   boardTitle: "Original style board",
   lineToSay: "Keep the {product} contrast from the reference.",
@@ -497,6 +578,12 @@ if (!screenSource.includes("return current.filter((cutId) =>")) {
 if (!screenSource.includes("renderedShootBoard?.id === board.id")) {
   throw new Error(
     "Checklist toggles must persist against the hydrated board when workspace takes are visible.",
+  );
+}
+
+if (!screenSource.includes("reconcileShootBoardWithLatestSource({")) {
+  throw new Error(
+    "Recipe detail screen must reconcile saved boards against the latest generated source board.",
   );
 }
 
