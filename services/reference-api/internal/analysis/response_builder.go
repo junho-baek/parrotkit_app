@@ -53,11 +53,6 @@ func BuildReferenceAnalysisResponse(input ReferenceAnalysisBuildInput) contracts
 	referenceMedia := buildReferenceMedia(input.Metadata, input.Request, mediaAssetID)
 	recipe, cutBoard, cuts := buildRecipeAndBoard(draft, referenceMedia, input.Transcript, mediaAssetID)
 	breakdown := buildBreakdown(draft, input, cuts)
-	status := contracts.StatusReady
-	if len(missingArtifacts) > 0 {
-		status = contracts.StatusPartialReady
-	}
-
 	modelName := strings.TrimSpace(input.ModelName)
 	return contracts.ReferenceAnalysisResponse{
 		Breakdown:      breakdown,
@@ -68,7 +63,7 @@ func BuildReferenceAnalysisResponse(input ReferenceAnalysisBuildInput) contracts
 		ReferenceURL:   input.Request.ReferenceURL,
 		RequestID:      requestID,
 		SchemaVersion:  contracts.SchemaVersion,
-		Status:         status,
+		Status:         deriveResponseStatus(recipe, cutBoard, missingArtifacts),
 		Generation: contracts.Generation{
 			FallbackUsed:     false,
 			MissingArtifacts: missingArtifacts,
@@ -77,6 +72,16 @@ func BuildReferenceAnalysisResponse(input ReferenceAnalysisBuildInput) contracts
 			ProviderTrace:    input.ProviderTrace,
 		},
 	}
+}
+
+func deriveResponseStatus(recipe *contracts.Recipe, cutBoard *contracts.CutBoard, missingArtifacts []string) contracts.Status {
+	if recipe == nil || len(recipe.Scenes) == 0 || cutBoard == nil || len(cutBoard.Items) == 0 {
+		return contracts.StatusFailed
+	}
+	if len(missingArtifacts) > 0 {
+		return contracts.StatusPartialReady
+	}
+	return contracts.StatusReady
 }
 
 func buildReferenceMedia(metadata superdata.Metadata, req Request, mediaAssetID string) *contracts.ReferenceMedia {

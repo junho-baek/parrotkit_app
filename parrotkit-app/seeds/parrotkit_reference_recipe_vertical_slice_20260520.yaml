@@ -2,7 +2,7 @@ goal: Implement and verify a ParrotKit vertical slice where one real YouTube Sho
   reference generates transcript-grounded sourceFaithful and goalAdapted recipe variants,
   an immutable Breakdown artifact, a compact Shooting Board projection, immediate
   UI reflection of the latest API response, and cut-level YouTube timestamp jumping.
-task_type: implementation
+task_type: code
 source_context:
   interview_window: 2026-05-19T23:52:00+09:00..2026-05-20T01:36:00+09:00
   primary_repo: /Users/junho/project/parrotkit-app
@@ -180,6 +180,69 @@ ui_requirements:
   - No dead play buttons; unavailable embedded playback must degrade to explicit external
     timestamp open.
 acceptance_criteria:
+- 'Two-variant generation: For fixture inputs, backend returns both sourceFaithful
+  and goalAdapted variants.; Board default projection is sourceFaithful.; Goal-adapted
+  projection can be selected without creating a new recipe.'
+- 'Source-faithful quality: Every sourceFaithful cut preserves the original transcript
+  rhetorical structure.; Every sourceFaithful cut retains at least one source-specific
+  phrase, number, repetition, or contrast as template or mapped phrase.; Every sourceFaithful
+  cut links to a concrete source timestamp/transcript span.'
+- 'Breakdown correctness: Breakdown Transcript contains actual clean transcript or
+  excerpts, not analysis prose.; Breakdown includes Original Analysis, Extracted Structure,
+  Apply to Your Content, Hook, Storytelling Structure, and Visual Layout sections
+  or equivalent contract fields.; SourceFaithful and goalAdapted mappings are traceable
+  from the same source skeleton.'
+- 'Timestamp and playback: CutBoard items include source time ranges derived from
+  transcript timestamps when available.; v1 UI can open the original YouTube link
+  at the selected cut timestamp.; Generated duration accumulation is not used as the
+  primary timestamp source when transcript timestamps exist.'
+- 'UI freshness: Immediately after generation, the screen renders the latest API response,
+  not stale mock/cache/previous recipe data.; Header cut count, board cards, breakdown
+  transcript, and selected variant all match the latest generated response.; Later
+  DB hydrate reconciles without overwriting newer generatedAt/requestId data.'
+- 'Partial usability: Transcript success plus optional visual extract failure yields
+  ready or partial_ready when recipe/cutBoard are usable.; Optional provider failures
+  are recorded internally without leaking debug traces to UI.'
+- 'Live vertical-slice smoke: With credentials present, the primary vertical-slice
+  link returns ready or usable partial_ready.; The response is not failed/model_invalid_output.;
+  The result contains transcript-grounded sourceFaithful and goalAdapted variants,
+  real timestamp mapping, and a compact board projection.'
+non_goals:
+- Do not implement Instagram/TikTok embedded playback in this seed.
+- Do not require in-app embedded YouTube player for v1 if external timestamp links
+  work.
+- Do not implement Save adapted as new recipe in v1.
+- Do not expose provider traces, prompts, confidence/debug labels, or raw model payloads
+  in UI.
+- Do not move server credentials into Expo public env.
+- Do not commit or push automatically unless explicitly authorized.
+verification_plan:
+  local_tests:
+  - cd services/reference-api && go test ./...
+  - Run focused Expo/domain tests for reference recipe generation and provider mapping.
+  - git diff --check
+  fixture_tests:
+  - Fixture 1: Korean talking-head exercise/physique transcript with 20/40/80 repetition
+      structure.
+  - Fixture 2: a second transcript fixture that verifies transcript timestamp mapping
+      and variant switching.
+  live_smoke:
+    url: https://youtube.com/shorts/ySDpL4wUX7Y?si=mSIY3VG1KRWiLaaH
+    expected: ready or partial_ready with sourceFaithful default board, goalAdapted
+      switchable variant, actual transcript in Breakdown, cut timestamp links.
+  evidence_required:
+  - API response summary: status, title, variant names, cut count, transcript presence,
+      timestamp ranges.
+  - UI evidence or screenshot showing latest response reflected: title/cut count/transcript/variant
+      state.
+  - Test command outputs.
+  - No raw secrets printed.
+metadata:
+  seed_id: parrotkit_reference_recipe_vertical_slice_20260520
+  ambiguity_score: 0.0
+  generated_by: Hermes manual Ouroboros interview recovery
+  status: seed_ready
+detailed_acceptance_criteria:
 - name: Two-variant generation
   criteria:
   - For fixture inputs, backend returns both sourceFaithful and goalAdapted variants.
@@ -226,38 +289,45 @@ acceptance_criteria:
   - The response is not failed/model_invalid_output.
   - The result contains transcript-grounded sourceFaithful and goalAdapted variants,
     real timestamp mapping, and a compact board projection.
-non_goals:
-- Do not implement Instagram/TikTok embedded playback in this seed.
-- Do not require in-app embedded YouTube player for v1 if external timestamp links
-  work.
-- Do not implement Save adapted as new recipe in v1.
-- Do not expose provider traces, prompts, confidence/debug labels, or raw model payloads
-  in UI.
-- Do not move server credentials into Expo public env.
-- Do not commit or push automatically unless explicitly authorized.
-verification_plan:
-  local_tests:
-  - cd services/reference-api && go test ./...
-  - Run focused Expo/domain tests for reference recipe generation and provider mapping.
-  - git diff --check
-  fixture_tests:
-  - Fixture 1: Korean talking-head exercise/physique transcript with 20/40/80 repetition
-      structure.
-  - Fixture 2: a second transcript fixture that verifies transcript timestamp mapping
-      and variant switching.
-  live_smoke:
-    url: https://youtube.com/shorts/ySDpL4wUX7Y?si=mSIY3VG1KRWiLaaH
-    expected: ready or partial_ready with sourceFaithful default board, goalAdapted
-      switchable variant, actual transcript in Breakdown, cut timestamp links.
-  evidence_required:
-  - API response summary: status, title, variant names, cut count, transcript presence,
-      timestamp ranges.
-  - UI evidence or screenshot showing latest response reflected: title/cut count/transcript/variant
-      state.
-  - Test command outputs.
-  - No raw secrets printed.
-metadata:
-  seed_id: parrotkit_reference_recipe_vertical_slice_20260520
-  ambiguity_score: 0.0
-  generated_by: Hermes manual Ouroboros interview recovery
-  status: seed_ready
+ontology_schema:
+  name: ParrotKitReferenceRecipeVerticalSlice
+  description: Transcript-grounded reference recipe generation from source media to
+    immutable Breakdown and compact Shooting Board variants.
+  fields:
+  - name: reference_url
+    type: string
+    description: Source short-form URL used for live smoke and timestamp links.
+    required: true
+  - name: source_transcript
+    type: object
+    description: Clean transcript with timestamp spans used as evidence for cuts.
+    required: true
+  - name: sourceFaithful
+    type: object
+    description: Default board variant preserving source structure, wording patterns,
+      numbers, and repetition.
+    required: true
+  - name: goalAdapted
+    type: object
+    description: Same source skeleton adapted to target niche and goal.
+    required: true
+  - name: breakdown
+    type: object
+    description: Immutable analysis artifact containing transcript, original analysis,
+      extracted template, apply guidance, hooks, storytelling, visual layout, and
+      variant mapping.
+    required: true
+  - name: cutBoard
+    type: object
+    description: Compact execution-first projection with source timestamp ranges and
+      variant switching.
+    required: true
+  - name: ui_source_of_truth
+    type: string
+    description: Latest API response wins immediately, persisted hydrate reconciles
+      later.
+    required: true
+constraints:
+- 'No AI-slop design: UI copy and visuals must stay compact, concrete, source-grounded,
+  brand-native, and must avoid generic AI labels, decorative progress, console/debug/provider
+  language, Proof Point/Sandcastle labels, confidence badges, and box-in-box clutter.'
