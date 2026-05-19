@@ -3,19 +3,38 @@ package analysis
 import "fmt"
 
 type PromptInput struct {
-	ExtractJSON  string
-	Goal         string
-	MetadataJSON string
-	Niche        string
-	ReferenceURL string
-	Transcript   string
+	ExtractJSON    string
+	Goal           string
+	LanguageHint   string
+	MetadataJSON   string
+	Niche          string
+	ProductContext string
+	ReferenceURL   string
+	Transcript     string
 }
 
 func BuildPrompt(input PromptInput) string {
 	return fmt.Sprintf(`You are ParrotKit's reference-video analyst.
 
-Return JSON only. Return schemaVersion "parrotkit.reference_analysis_response.v1".
-The embedded breakdown must use schema_version "parrotkit.reference_breakdown.v1".
+Return JSON only. Return a small recipe draft only, not the API response contract.
+
+Required JSON shape:
+{
+  "title": "string",
+  "oneLineDescription": "string",
+  "scenes": [
+    {
+      "title": "string",
+      "durationSec": 5,
+      "lineToSay": "string",
+      "shootingGuideline": "string",
+      "referenceObservation": "string",
+      "referenceUsage": "string",
+      "myTakeRelationship": "string",
+      "successCriteria": ["string"]
+    }
+  ]
+}
 
 Reference URL:
 %s
@@ -24,6 +43,12 @@ Niche:
 %s
 
 Goal:
+%s
+
+Language hint:
+%s
+
+Product context JSON:
 %s
 
 Metadata JSON:
@@ -36,13 +61,11 @@ Visual extract JSON:
 %s
 
 Rules:
-1. Analyze the whole short-form reference, then create a compact shooting board.
-2. Do not repeat hook analysis on every cut. Hook is video-level unless the first cut is specifically the opening hook.
-3. Every cutBoard item must be shootable and must include executionTitle, referenceObservation, referenceUsage, myTakeRelationship, lineToSay, shotGuide, and successCriteria.
-4. Do not expose provider, model, prompt, confidence, or debug labels in the cut board.
-5. If transcript or visual evidence is missing, return partial_ready with missingArtifacts only if at least one usable cutBoard item remains.
-6. If no usable board can be created from real evidence, return failed with no breakdown, recipe, or cutBoard.
-7. Never invent creator, title, duration, or product facts. Use null for unknown metadata fields.
-8. Keep visible copy concise. Do not use AI-sounding labels like "AI analysis", "model confidence", or "proof point" in the execution board.
-`, input.ReferenceURL, input.Niche, input.Goal, input.MetadataJSON, input.Transcript, input.ExtractJSON)
+1. Use the transcript as the primary evidence.
+2. Use visual extract only as optional enrichment when present.
+3. Create one to six shootable scenes.
+4. Keep scene copy concise and usable by a creator.
+5. Do not return schemaVersion, status, referenceMedia, breakdown, recipe, cutBoard, generation, markdown, comments, or debug labels.
+6. Never invent creator, title, duration, or product facts.
+`, input.ReferenceURL, input.Niche, input.Goal, input.LanguageHint, input.ProductContext, input.MetadataJSON, input.Transcript, input.ExtractJSON)
 }

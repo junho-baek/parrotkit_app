@@ -25,10 +25,19 @@ func main() {
 		APIToken: cfg.ReplicateAPIToken,
 		BaseURL:  cfg.ReplicateAPI,
 	})
+	modelProvider, err := analysis.NewModelProvider(analysis.ModelProviderConfig{
+		ModelName:       cfg.ReferenceModelName,
+		ProviderName:    cfg.ReferenceModelProvider,
+		ReplicateClient: replicateClient,
+	})
+	if err != nil {
+		log.Fatalf("model provider: %v", err)
+	}
 	pipeline := analysis.NewPipeline(analysis.LiveProvider{
-		Model:     cfg.ReplicateModel,
-		Replicate: replicateClient,
-		SuperData: superDataClient,
+		Model:         cfg.ReferenceModelName,
+		ModelProvider: modelProvider,
+		Replicate:     replicateClient,
+		SuperData:     superDataClient,
 	})
 
 	handler := httpapi.NewServer(httpapi.Dependencies{

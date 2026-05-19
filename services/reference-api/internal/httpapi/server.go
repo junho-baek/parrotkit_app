@@ -53,7 +53,9 @@ func NewServer(deps Dependencies) http.Handler {
 		response, err := analyzer.Analyze(ctx, analysis.Request{
 			Goal:           strings.TrimSpace(request.Goal),
 			IDempotencyKey: strings.TrimSpace(request.IDempotencyKey),
+			LanguageHint:   strings.TrimSpace(request.LanguageHint),
 			Niche:          strings.TrimSpace(request.Niche),
+			ProductContext: request.ProductContext,
 			ReferenceURL:   strings.TrimSpace(request.ReferenceURL),
 		})
 		if err != nil {

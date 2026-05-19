@@ -150,6 +150,20 @@ EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY="your-publishable-key"
 
 Do not put `SUPERDATA_API_KEY`, `SUPADATA_API_KEY`, `REPLICATE_API_TOKEN`, `SUPABASE_SECRET_KEY`, or `DATABASE_URL` in the Expo env.
 
+For local iPhone reference-analysis QA, run the Go API instead of pointing Expo
+at the Next dev server:
+
+```bash
+# Terminal 1, repo root. Loads root .env.local and starts :8787.
+npm run dev:reference-api
+
+# Terminal 2, repo root. Replace with your Mac LAN IP.
+PARROTKIT_LAN_IP=192.168.0.10 npm run dev:mobile:lan
+```
+
+The Expo API base for this flow is `http://<Mac-LAN-IP>:8787`; do not use
+`http://<Mac-LAN-IP>:3000` for reference analysis.
+
 Important analytics rule:
 - The app pushes events into `window.dataLayer`.
 - GTM fans those events out to GA4 and Meta Pixel.

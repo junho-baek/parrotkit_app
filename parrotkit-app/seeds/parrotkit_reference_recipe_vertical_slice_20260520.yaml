@@ -1,0 +1,263 @@
+goal: Implement and verify a ParrotKit vertical slice where one real YouTube Shorts
+  reference generates transcript-grounded sourceFaithful and goalAdapted recipe variants,
+  an immutable Breakdown artifact, a compact Shooting Board projection, immediate
+  UI reflection of the latest API response, and cut-level YouTube timestamp jumping.
+task_type: implementation
+source_context:
+  interview_window: 2026-05-19T23:52:00+09:00..2026-05-20T01:36:00+09:00
+  primary_repo: /Users/junho/project/parrotkit-app
+  related_issue: https://github.com/junho-baek/parrotkit_app/issues/19
+  prior_seeds:
+  - parrotkit-app/seeds/parrotkit_recipe_analysis_contract_20260517.yaml
+  - parrotkit-app/seeds/parrotkit_reference_analysis_pipeline_contract_20260517.yaml
+  - parrotkit-app/seeds/parrotkit_emergency_ui_patch_20260515.yaml
+  live_links:
+    primary_vertical_slice: https://youtube.com/shorts/ySDpL4wUX7Y?si=mSIY3VG1KRWiLaaH
+    previous_go_failure_links:
+    - https://youtube.com/shorts/KalfC-2x-CQ?si=kZqrREZaoPxCFzIJ
+    - https://www.youtube.com/shorts/dtnIqkMmbs0
+  observed_failures:
+  - Go API reached successfully but returned status failed/model_invalid_output for
+    KalfC-2x-CQ and dtnIqkMmbs0.
+  - A prior ready response for ySDpL4wUX7Y produced 3 server cuts while the UI showed
+    an old 4-cut recipe, proving generated result hydration/state mismatch.
+  - Breakdown Transcript UI showed analysis prose such as "Adopt the conversational..."
+    instead of actual clean transcript text.
+  - Generated recipe was directionally right but too generic; it lost source-specific
+    numbers/repetition such as 20 -> 40 -> 80 and "끝이 없음".
+product_decisions:
+  recipe_quality_target:
+  - Good recipes preserve the source transcript's rhetorical structure, beat order,
+    contrast, numbers, repetition, and voice.
+  - Adaptation may change niche/goal copy, but if the output could have been generated
+    without reading the transcript it fails quality.
+  - The source transcript is the anchor; provider/model output is not trusted as the
+    final app contract.
+  variants:
+    generate_both: true
+    sourceFaithful:
+      role: Default Board variant for learning from the reference.
+      requirements:
+      - Preserve source transcript structure and beat order.
+      - Use placeholders/templates such as "{basic_action}", "{intense_action}", "{product}",
+        "{customer_context}" where useful.
+      - Retain at least one source-specific phrase, number, repetition, or contrast
+        in every cut as template or mapped phrase.
+    goalAdapted:
+      role: Shootable adaptation for the user's niche/goal.
+      requirements:
+      - Keep the same source skeleton.
+      - Rewrite copy and scene instructions so the result feels natural for the target
+        niche/goal.
+      - Remain traceable to source beats and timestamps.
+  board_default: sourceFaithful
+  board_variant_switching:
+    v1_behavior: Same recipe, same screen, switch variant in-place.
+    future_behavior: Save adapted as new recipe may be added later.
+    preferred_labels:
+    - Original style
+    - Adapted
+    - Source
+    - Goal
+    - Adapt to my goal
+  reference_playback:
+    v1_required:
+    - Cut/scene-level timestamp jump is required.
+    - Embedded player is not required in v1; opening external YouTube links with t=seconds
+      is acceptable.
+    - Each cut must clearly point back to the original source time range.
+    future_note:
+    - For Instagram/TikTok and richer playback, reference media may come from user-provided
+      mp4 during recipe creation; out of scope for this seed.
+  ui_source_of_truth:
+    policy: Optimistic UI uses latest API response immediately, then reconciles with
+      persisted DB/hydrated state.
+    requirements:
+    - Generated API response must not be overwritten by stale mock/local cached recipe.
+    - If persisted hydrate races with a generated result, prefer latest generatedAt/requestId.
+    - Re-entry/app restart may read persisted recipe after save completes.
+  implementation_priority: vertical_slice
+  validation_link_policy:
+    automated_tests: fixture-based, at least two deterministic fixtures.
+    live_smoke: one real link is enough for acceptance because external APIs are slow/flaky.
+breakdown_information_architecture:
+  principle: Breakdown preserves full analysis; Board remains compact execution-first.
+  required_sections:
+  - id: original_analysis
+    label: Original Analysis / 원본 분석
+    contents:
+    - actual clean transcript
+    - original hook
+    - original storytelling structure
+    - original visual layout
+    - source-specific contrast/repetition/numbers/voice
+    - why the source works
+  - id: extracted_structure
+    label: Extracted Structure / 구조 템플릿
+    contents:
+    - reusable source skeleton
+    - placeholders for replaceable variables
+    - source-faithful mapping
+  - id: apply_to_your_content
+    label: Apply to Your Content / 내 콘텐츠에 적용하기
+    contents:
+    - how the source structure maps to the target niche/goal
+    - what is preserved and what changes
+    - goalAdapted mapping
+  - id: hook
+    label: Hook
+    contents:
+    - original hook
+    - sourceFaithful hook
+    - goalAdapted hook
+  - id: storytelling_structure
+    label: Storytelling Structure
+    contents:
+    - original progression
+    - transformed progression
+    - scene/cut mapping
+  - id: visual_layout
+    label: Visual Layout
+    contents:
+    - source visual beats when available
+    - practical shooting layout
+    - thumbnail/preview/timestamp linkage
+  transcript_rule: A section labeled Transcript must show the actual transcript or
+    transcript excerpts. Analysis prose belongs under Apply to Your Content, Idea
+    Analysis, or Notes.
+backend_contract_requirements:
+  provider_pipeline:
+  - Supadata/SuperData is metadata/transcript/script ingestion first, not a required
+    visual analyzer.
+  - Visual extract is optional enrichment and must not block usable transcript-based
+    results.
+  - LLM generates a small draft only; Go deterministically builds ReferenceAnalysisResponse.
+  - Provider metadata, debug traces, prompts, stack traces, and raw diagnostics remain
+    internal.
+  statuses:
+  - If transcript-derived recipe/cutBoard is usable, return ready or partial_ready
+    even if optional visual extract fails.
+  - Stable app errors such as model_invalid_output must be preserved when truly unrecoverable.
+  canonical_response:
+    top_level_fields:
+    - schemaVersion
+    - status
+    - referenceMedia
+    - breakdown
+    - recipe
+    - cutBoard
+    - generation
+  cut_count:
+  - Do not hard-code exactly 3 cuts.
+  - Normal short-form output may target 3-6 cuts, but count must come from transcript
+    structure and draft evidence.
+  - Investigate and test that no server or UI code forces stale 4-cut or fixed 3-cut
+    output.
+  timestamp_mapping:
+  - Do not synthesize reference timestamps by evenly accumulating generated scene
+    durations when transcript timestamps exist.
+  - Source-faithful cuts must map to actual transcript segment start/end times or
+    documented derived spans.
+  - Each cutBoard item must include a reference time range usable for YouTube t=seconds
+    links.
+ui_requirements:
+  board:
+  - Default to sourceFaithful.
+  - Provide clear variant switching to goalAdapted in the same recipe.
+  - Header cut count must equal cutBoard.items.length for the selected/latest generated
+    result.
+  - Keep copy short, concrete, and creator-facing.
+  - No console/admin/provider/debug language.
+  - No Sandcastle labels, Proof Point label, confidence, prompt, raw provider trace,
+    or box-in-box clutter.
+  breakdown:
+  - Show actual clean transcript in Transcript.
+  - Show original analysis -> extracted structure -> apply to your content -> variants
+    mapping.
+  - Long sections may be collapsed, but data must be present.
+  reference_video:
+  - Cut actions open the original YouTube URL at the cut's source timestamp in v1.
+  - No dead play buttons; unavailable embedded playback must degrade to explicit external
+    timestamp open.
+acceptance_criteria:
+- name: Two-variant generation
+  criteria:
+  - For fixture inputs, backend returns both sourceFaithful and goalAdapted variants.
+  - Board default projection is sourceFaithful.
+  - Goal-adapted projection can be selected without creating a new recipe.
+- name: Source-faithful quality
+  criteria:
+  - Every sourceFaithful cut preserves the original transcript rhetorical structure.
+  - Every sourceFaithful cut retains at least one source-specific phrase, number,
+    repetition, or contrast as template or mapped phrase.
+  - Every sourceFaithful cut links to a concrete source timestamp/transcript span.
+- name: Breakdown correctness
+  criteria:
+  - Breakdown Transcript contains actual clean transcript or excerpts, not analysis
+    prose.
+  - Breakdown includes Original Analysis, Extracted Structure, Apply to Your Content,
+    Hook, Storytelling Structure, and Visual Layout sections or equivalent contract
+    fields.
+  - SourceFaithful and goalAdapted mappings are traceable from the same source skeleton.
+- name: Timestamp and playback
+  criteria:
+  - CutBoard items include source time ranges derived from transcript timestamps when
+    available.
+  - v1 UI can open the original YouTube link at the selected cut timestamp.
+  - Generated duration accumulation is not used as the primary timestamp source when
+    transcript timestamps exist.
+- name: UI freshness
+  criteria:
+  - Immediately after generation, the screen renders the latest API response, not
+    stale mock/cache/previous recipe data.
+  - Header cut count, board cards, breakdown transcript, and selected variant all
+    match the latest generated response.
+  - Later DB hydrate reconciles without overwriting newer generatedAt/requestId data.
+- name: Partial usability
+  criteria:
+  - Transcript success plus optional visual extract failure yields ready or partial_ready
+    when recipe/cutBoard are usable.
+  - Optional provider failures are recorded internally without leaking debug traces
+    to UI.
+- name: Live vertical-slice smoke
+  criteria:
+  - With credentials present, the primary vertical-slice link returns ready or usable
+    partial_ready.
+  - The response is not failed/model_invalid_output.
+  - The result contains transcript-grounded sourceFaithful and goalAdapted variants,
+    real timestamp mapping, and a compact board projection.
+non_goals:
+- Do not implement Instagram/TikTok embedded playback in this seed.
+- Do not require in-app embedded YouTube player for v1 if external timestamp links
+  work.
+- Do not implement Save adapted as new recipe in v1.
+- Do not expose provider traces, prompts, confidence/debug labels, or raw model payloads
+  in UI.
+- Do not move server credentials into Expo public env.
+- Do not commit or push automatically unless explicitly authorized.
+verification_plan:
+  local_tests:
+  - cd services/reference-api && go test ./...
+  - Run focused Expo/domain tests for reference recipe generation and provider mapping.
+  - git diff --check
+  fixture_tests:
+  - Fixture 1: Korean talking-head exercise/physique transcript with 20/40/80 repetition
+      structure.
+  - Fixture 2: a second transcript fixture that verifies transcript timestamp mapping
+      and variant switching.
+  live_smoke:
+    url: https://youtube.com/shorts/ySDpL4wUX7Y?si=mSIY3VG1KRWiLaaH
+    expected: ready or partial_ready with sourceFaithful default board, goalAdapted
+      switchable variant, actual transcript in Breakdown, cut timestamp links.
+  evidence_required:
+  - API response summary: status, title, variant names, cut count, transcript presence,
+      timestamp ranges.
+  - UI evidence or screenshot showing latest response reflected: title/cut count/transcript/variant
+      state.
+  - Test command outputs.
+  - No raw secrets printed.
+metadata:
+  seed_id: parrotkit_reference_recipe_vertical_slice_20260520
+  ambiguity_score: 0.0
+  generated_by: Hermes manual Ouroboros interview recovery
+  status: seed_ready

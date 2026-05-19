@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestClientSendsAPIKeyAndFetchesMetadata(t *testing.T) {
@@ -64,6 +65,59 @@ func TestFetchTranscriptUsesGeneratedWhenNativeEmpty(t *testing.T) {
 	}
 	if len(segments) != 1 || segments[0].Text != "Generated line" || segments[0].StartMs != 300 {
 		t.Fatalf("segments = %#v", segments)
+	}
+}
+
+func TestFetchTranscriptAcceptsStringContent(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"content": "First line. Second line."})
+	}))
+	defer server.Close()
+
+	client := NewClient(Config{BaseURL: server.URL, APIKey: "super-key"})
+	segments, err := client.FetchTranscript(context.Background(), "https://example.com/ref")
+	if err != nil {
+		t.Fatalf("FetchTranscript() error = %v", err)
+	}
+	if len(segments) != 1 || segments[0].Text != "First line. Second line." || segments[0].EndMs != 1000 {
+		t.Fatalf("segments = %#v", segments)
+	}
+}
+
+func TestPollJobHandlesQueuedActiveCompletedAndFailed(t *testing.T) {
+	var completedPolls int
+	completedServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		completedPolls++
+		switch completedPolls {
+		case 1:
+			_ = json.NewEncoder(w).Encode(map[string]any{"status": "queued"})
+		case 2:
+			_ = json.NewEncoder(w).Encode(map[string]any{"status": "active"})
+		default:
+			_ = json.NewEncoder(w).Encode(map[string]any{"status": "completed", "content": "Done"})
+		}
+	}))
+	defer completedServer.Close()
+
+	completedClient := NewClient(Config{BaseURL: completedServer.URL, APIKey: "super-key"})
+	completedClient.pollInterval = time.Millisecond
+	raw, err := completedClient.pollJob(context.Background(), "/jobs/complete")
+	if err != nil {
+		t.Fatalf("pollJob() error = %v", err)
+	}
+	if raw["content"] != "Done" || completedPolls != 3 {
+		t.Fatalf("raw=%#v polls=%d", raw, completedPolls)
+	}
+
+	failedServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "failed", "error": map[string]any{"code": "extract_failed", "message": "cannot extract visuals"}})
+	}))
+	defer failedServer.Close()
+
+	failedClient := NewClient(Config{BaseURL: failedServer.URL, APIKey: "super-key"})
+	failedClient.pollInterval = time.Millisecond
+	if _, err := failedClient.pollJob(context.Background(), "/jobs/fail"); err == nil {
+		t.Fatalf("pollJob() expected failed job error")
 	}
 }
 

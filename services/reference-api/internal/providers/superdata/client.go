@@ -17,9 +17,10 @@ type Config struct {
 }
 
 type Client struct {
-	apiKey     string
-	baseURL    string
-	httpClient *http.Client
+	apiKey       string
+	baseURL      string
+	httpClient   *http.Client
+	pollInterval time.Duration
 }
 
 type Metadata struct {
@@ -44,9 +45,10 @@ type ExtractResult struct {
 
 func NewClient(cfg Config) *Client {
 	return &Client{
-		apiKey:     strings.TrimSpace(cfg.APIKey),
-		baseURL:    strings.TrimRight(cfg.BaseURL, "/"),
-		httpClient: http.DefaultClient,
+		apiKey:       strings.TrimSpace(cfg.APIKey),
+		baseURL:      strings.TrimRight(cfg.BaseURL, "/"),
+		httpClient:   http.DefaultClient,
+		pollInterval: 1500 * time.Millisecond,
 	}
 }
 
@@ -134,7 +136,11 @@ func (c *Client) fetchTranscriptMode(ctx context.Context, sourceURL string, mode
 }
 
 func (c *Client) pollJob(ctx context.Context, path string) (map[string]any, error) {
-	ticker := time.NewTicker(1500 * time.Millisecond)
+	interval := c.pollInterval
+	if interval <= 0 {
+		interval = 1500 * time.Millisecond
+	}
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {
@@ -154,8 +160,10 @@ func (c *Client) pollJob(ctx context.Context, path string) (map[string]any, erro
 			switch stringValue(raw["status"]) {
 			case "", "completed":
 				return raw, nil
+			case "queued", "active":
+				continue
 			case "failed":
-				return nil, fmt.Errorf("superdata job failed")
+				return nil, fmt.Errorf("superdata job failed: %s", jobErrorSummary(raw))
 			}
 		}
 	}
@@ -263,4 +271,23 @@ func stringValue(value any) string {
 func numberValue(value any) float64 {
 	number, _ := value.(float64)
 	return number
+}
+
+func jobErrorSummary(raw map[string]any) string {
+	errorValue, ok := raw["error"].(map[string]any)
+	if !ok {
+		return "unknown"
+	}
+	code := stringValue(errorValue["code"])
+	message := stringValue(errorValue["message"])
+	switch {
+	case code != "" && message != "":
+		return code + ": " + message
+	case code != "":
+		return code
+	case message != "":
+		return message
+	default:
+		return "unknown"
+	}
 }

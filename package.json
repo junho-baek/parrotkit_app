@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:reference-api": "node scripts/dev-reference-api.cjs",
+    "dev:mobile:lan": "npm --prefix parrotkit-app run start:reference-api:lan --",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

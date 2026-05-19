@@ -10,7 +10,9 @@ import (
 type Request struct {
 	Goal           string
 	IDempotencyKey string
+	LanguageHint   string
 	Niche          string
+	ProductContext map[string]string
 	ReferenceURL   string
 }
 
@@ -56,7 +58,7 @@ func ensureBaseFields(response *contracts.ReferenceAnalysisResponse, referenceUR
 		response.SchemaVersion = contracts.SchemaVersion
 	}
 	if response.RequestID == "" {
-		response.RequestID = "req_" + time.Now().UTC().Format("20060102150405")
+		response.RequestID = newRequestID()
 	}
 	if response.GeneratedAt == "" {
 		response.GeneratedAt = time.Now().UTC().Format(time.RFC3339)
@@ -76,7 +78,7 @@ func Failed(referenceURL string, code string, message string, retryable bool, re
 		},
 		GeneratedAt:   time.Now().UTC().Format(time.RFC3339),
 		ReferenceURL:  referenceURL,
-		RequestID:     "req_" + time.Now().UTC().Format("20060102150405"),
+		RequestID:     newRequestID(),
 		SchemaVersion: contracts.SchemaVersion,
 		Status:        contracts.StatusFailed,
 		Generation: contracts.Generation{
@@ -86,4 +88,8 @@ func Failed(referenceURL string, code string, message string, retryable bool, re
 			ProviderPipeline: []string{},
 		},
 	}
+}
+
+func newRequestID() string {
+	return "req_" + time.Now().UTC().Format("20060102150405")
 }

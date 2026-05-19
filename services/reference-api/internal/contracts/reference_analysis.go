@@ -63,11 +63,30 @@ type ReferenceMedia struct {
 }
 
 type Generation struct {
-	FallbackReason   *string  `json:"fallbackReason,omitempty"`
-	FallbackUsed     bool     `json:"fallbackUsed"`
-	MissingArtifacts []string `json:"missingArtifacts"`
-	Model            *string  `json:"model"`
-	ProviderPipeline []string `json:"providerPipeline"`
+	FallbackReason   *string              `json:"fallbackReason,omitempty"`
+	FallbackUsed     bool                 `json:"fallbackUsed"`
+	MissingArtifacts []string             `json:"missingArtifacts"`
+	Model            *string              `json:"model"`
+	ProviderPipeline []string             `json:"providerPipeline"`
+	ProviderTrace    []ProviderTraceEvent `json:"providerTrace,omitempty"`
+}
+
+type ProviderTraceEvent struct {
+	DurationMs             int64    `json:"durationMs"`
+	ErrorCode              string   `json:"errorCode,omitempty"`
+	ErrorMessage           string   `json:"errorMessage,omitempty"`
+	ExtractStatus          string   `json:"extractStatus,omitempty"`
+	MetadataFields         []string `json:"metadataFields,omitempty"`
+	ModelName              string   `json:"modelName,omitempty"`
+	ModelOutputBytes       int      `json:"modelOutputBytes,omitempty"`
+	ModelOutputShape       string   `json:"modelOutputShape,omitempty"`
+	ModelProvider          string   `json:"modelProvider,omitempty"`
+	ParseErrorReason       string   `json:"parseErrorReason,omitempty"`
+	RequestID              string   `json:"requestId"`
+	Stage                  string   `json:"stage"`
+	Status                 string   `json:"status"`
+	TranscriptCharCount    int      `json:"transcriptCharCount,omitempty"`
+	TranscriptSegmentCount int      `json:"transcriptSegmentCount,omitempty"`
 }
 
 type AnalysisError struct {

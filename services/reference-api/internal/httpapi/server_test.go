@@ -23,6 +23,15 @@ func (f fakeAnalyzer) Analyze(ctx context.Context, req analysis.Request) (contra
 	return contracts.ReadyFixture(), nil
 }
 
+type capturingAnalyzer struct {
+	got analysis.Request
+}
+
+func (c *capturingAnalyzer) Analyze(ctx context.Context, req analysis.Request) (contracts.ReferenceAnalysisResponse, error) {
+	c.got = req
+	return contracts.ReadyFixture(), nil
+}
+
 func TestHealthz(t *testing.T) {
 	server := NewServer(Dependencies{
 		AllowDevUnauth: true,
@@ -80,5 +89,28 @@ func TestPostReferenceAnalysisReturnsReady(t *testing.T) {
 	}
 	if !strings.Contains(res.Body.String(), `"schemaVersion":"parrotkit.reference_analysis_response.v1"`) {
 		t.Fatalf("body = %s", res.Body.String())
+	}
+}
+
+func TestPostReferenceAnalysisPassesLanguageHintAndProductContext(t *testing.T) {
+	analyzer := &capturingAnalyzer{}
+	server := NewServer(Dependencies{AllowDevUnauth: true, Analyzer: analyzer, Timeout: time.Second})
+	req := httptest.NewRequest(http.MethodPost, "/v1/reference-analysis", strings.NewReader(`{
+		"referenceUrl":"https://example.com/video",
+		"languageHint":"ko",
+		"productContext":{"product":"serum","audience":"beginners"}
+	}`))
+	res := httptest.NewRecorder()
+
+	server.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("status = %d", res.Code)
+	}
+	if analyzer.got.LanguageHint != "ko" {
+		t.Fatalf("LanguageHint = %q", analyzer.got.LanguageHint)
+	}
+	if analyzer.got.ProductContext["product"] != "serum" || analyzer.got.ProductContext["audience"] != "beginners" {
+		t.Fatalf("ProductContext = %#v", analyzer.got.ProductContext)
 	}
 }

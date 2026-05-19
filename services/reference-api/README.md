@@ -12,6 +12,17 @@ The service keeps Super Data/Supadata and Replicate credentials server-side, the
 
 ## Local Run
 
+From the repo root, start the Go API with root `.env.local` loaded:
+
+```bash
+npm run dev:reference-api
+```
+
+That command hides secret values, defaults `PORT=8787`, and sets
+`PARROTKIT_ALLOW_DEV_UNAUTH=true` for the local process only.
+
+Manual equivalent:
+
 ```bash
 cd services/reference-api
 SUPERDATA_API_KEY="..." \
@@ -78,11 +89,16 @@ EXPO_PUBLIC_PARROTKIT_API_URL="http://localhost:8787"
 EXPO_PUBLIC_REFERENCE_ANALYSIS_DEV_FALLBACK=""
 ```
 
-For a physical phone on the same network, replace `localhost` with the Mac LAN IP:
+For a physical iPhone on the same network, run Expo from the repo root with the
+Go API port:
 
 ```bash
-EXPO_PUBLIC_PARROTKIT_API_URL="http://192.168.0.10:8787"
+PARROTKIT_LAN_IP=192.168.0.10 npm run dev:mobile:lan
 ```
+
+If `PARROTKIT_LAN_IP` is omitted, the script attempts to detect a LAN IPv4
+address. The script refuses `:3000` because reference analysis must call the Go
+API on `:8787`, not the old Next dev server.
 
 Keep `EXPO_PUBLIC_REFERENCE_ANALYSIS_DEV_FALLBACK` blank unless you are deliberately testing the old local fallback board.
 

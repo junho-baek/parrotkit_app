@@ -3,7 +3,11 @@ package analysis
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/junho-baek/parrotkit-app/services/reference-api/internal/contracts"
 	"github.com/junho-baek/parrotkit-app/services/reference-api/internal/providers/superdata"
@@ -20,88 +24,124 @@ type ReplicateClient interface {
 }
 
 type LiveProvider struct {
-	Model     string
-	Replicate ReplicateClient
-	SuperData SuperDataClient
+	Model         string
+	ModelProvider ModelProvider
+	Replicate     ReplicateClient
+	SuperData     SuperDataClient
 }
 
 func (p LiveProvider) AnalyzeReference(ctx context.Context, req Request) (contracts.ReferenceAnalysisResponse, error) {
+	requestID := newRequestID()
+	var trace []contracts.ProviderTraceEvent
+
+	start := time.Now()
 	metadata, metadataErr := p.SuperData.FetchMetadata(ctx, req.ReferenceURL)
+	trace = append(trace, metadataTrace(requestID, start, metadata, metadataErr))
+
+	start = time.Now()
 	transcript, transcriptErr := p.SuperData.FetchTranscript(ctx, req.ReferenceURL)
-	extract, extractErr := p.SuperData.Extract(ctx, req.ReferenceURL, referenceAnalysisSchema(), "Extract ParrotKit cut evidence with time ranges.")
+	trace = append(trace, transcriptTrace(requestID, start, transcript, transcriptErr))
 
-	prompt := BuildPrompt(PromptInput{
-		ExtractJSON:  mustJSON(extract.Raw),
-		Goal:         req.Goal,
-		MetadataJSON: mustJSON(metadata),
-		Niche:        req.Niche,
-		ReferenceURL: req.ReferenceURL,
-		Transcript:   mustJSON(transcript),
-	})
+	start = time.Now()
+	extractCtx, cancelExtract := context.WithTimeout(ctx, 12*time.Second)
+	extract, extractErr := p.SuperData.Extract(extractCtx, req.ReferenceURL, referenceAnalysisSchema(), "Extract ParrotKit cut evidence with time ranges.")
+	cancelExtract()
+	trace = append(trace, extractTrace(requestID, start, extract, extractErr))
 
-	modelText, err := p.Replicate.RunModel(ctx, p.Model, map[string]any{
-		"max_output_tokens": 5000,
-		"prompt":            prompt,
-		"temperature":       0.2,
-	})
-	if err != nil {
-		return Failed(req.ReferenceURL, "model_failed", "This link could not be analyzed. Try another public short-form link.", true, contracts.RecoveryRetry), nil
-	}
-
-	var response contracts.ReferenceAnalysisResponse
-	if err := json.Unmarshal([]byte(extractJSONObject(modelText)), &response); err != nil {
-		return Failed(req.ReferenceURL, "model_invalid_output", "This link could not be analyzed. Try another public short-form link.", true, contracts.RecoveryRetry), nil
-	}
-	ensureBaseFields(&response, req.ReferenceURL)
-	if response.Generation.ProviderPipeline == nil || len(response.Generation.ProviderPipeline) == 0 {
-		response.Generation.ProviderPipeline = []string{"superdata.metadata", "superdata.transcript", "superdata.extract", "replicate.model"}
-	}
-	if response.Generation.MissingArtifacts == nil {
-		response.Generation.MissingArtifacts = []string{}
-	}
+	missingArtifacts := []string{}
 	if metadataErr != nil {
-		response.Generation.MissingArtifacts = appendMissing(response.Generation.MissingArtifacts, "metadata")
+		missingArtifacts = appendMissing(missingArtifacts, "metadata")
 	}
 	if transcriptErr != nil || len(transcript) == 0 {
-		response.Generation.MissingArtifacts = appendMissing(response.Generation.MissingArtifacts, "transcript")
+		failed := Failed(req.ReferenceURL, "transcript_unavailable", "This link could not be analyzed because no transcript was available.", true, contracts.RecoveryRetry)
+		failed.RequestID = requestID
+		failed.Generation.MissingArtifacts = appendMissing(failed.Generation.MissingArtifacts, "transcript")
+		failed.Generation.ProviderTrace = trace
+		return failed, nil
 	}
 	if extractErr != nil || len(extract.Raw) == 0 {
-		response.Generation.MissingArtifacts = appendMissing(response.Generation.MissingArtifacts, "visual_extract")
+		missingArtifacts = appendMissing(missingArtifacts, "visual_extract")
 	}
-	if response.Status == contracts.StatusReady && len(response.Generation.MissingArtifacts) > 0 {
-		response.Status = contracts.StatusPartialReady
+
+	prompt := BuildPrompt(PromptInput{
+		ExtractJSON:    mustJSON(extract.Raw),
+		Goal:           req.Goal,
+		LanguageHint:   req.LanguageHint,
+		MetadataJSON:   mustJSON(metadata),
+		Niche:          req.Niche,
+		ProductContext: mustJSON(req.ProductContext),
+		ReferenceURL:   req.ReferenceURL,
+		Transcript:     mustJSON(transcript),
+	})
+
+	modelProvider := p.effectiveModelProvider()
+	if modelProvider == nil {
+		failed := Failed(req.ReferenceURL, "model_unavailable", "Reference analysis is not available right now.", true, contracts.RecoveryTryLater)
+		failed.RequestID = requestID
+		failed.Generation.ProviderTrace = trace
+		return failed, nil
 	}
-	if response.ReferenceMedia != nil {
-		hydrateReferenceMedia(response.ReferenceMedia, metadata, req.ReferenceURL)
+
+	start = time.Now()
+	modelResult, err := modelProvider.GenerateJSON(ctx, ModelRequest{
+		MaxOutputTokens: 5000,
+		Prompt:          prompt,
+		Temperature:     0.2,
+	})
+	trace = append(trace, modelTrace(requestID, start, modelResult, err))
+	if err != nil {
+		failed := Failed(req.ReferenceURL, "model_failed", "This link could not be analyzed. Try another public short-form link.", true, contracts.RecoveryRetry)
+		failed.RequestID = requestID
+		failed.Generation.ProviderTrace = trace
+		return failed, nil
 	}
+
+	start = time.Now()
+	draft, err := ParseRecipeDraft(modelResult.Text)
+	trace = append(trace, parseTrace(requestID, start, err))
+	if err != nil {
+		failed := Failed(req.ReferenceURL, "model_invalid_output", "This link could not be analyzed. Try another public short-form link.", true, contracts.RecoveryRetry)
+		failed.RequestID = requestID
+		failed.Generation.ProviderTrace = trace
+		return failed, nil
+	}
+
+	response := BuildReferenceAnalysisResponse(ReferenceAnalysisBuildInput{
+		Draft:            draft,
+		Extract:          extract,
+		Metadata:         metadata,
+		MissingArtifacts: missingArtifacts,
+		ModelName:        fallbackString(modelResult.ModelName, p.Model),
+		ModelProvider:    modelResult.ProviderName,
+		ProviderTrace:    trace,
+		Request:          req,
+		RequestID:        requestID,
+		Transcript:       transcript,
+	})
 	if err := response.Validate(); err != nil {
-		return Failed(req.ReferenceURL, "model_invalid_output", "This link could not be analyzed. Try another public short-form link.", true, contracts.RecoveryRetry), nil
+		failed := Failed(req.ReferenceURL, "model_invalid_output", "This link could not be analyzed. Try another public short-form link.", true, contracts.RecoveryRetry)
+		failed.RequestID = requestID
+		failed.Generation.ProviderTrace = append(trace, validationTrace(requestID, err))
+		return failed, nil
 	}
 	return response, nil
 }
 
-func hydrateReferenceMedia(media *contracts.ReferenceMedia, metadata superdata.Metadata, sourceURL string) {
-	if media.SourceURL == "" {
-		media.SourceURL = sourceURL
+func (p LiveProvider) effectiveModelProvider() ModelProvider {
+	if p.ModelProvider != nil {
+		return p.ModelProvider
 	}
-	if media.Platform == "" {
-		media.Platform = metadata.Platform
+	if p.Replicate != nil {
+		return ReplicateModelProvider{Client: p.Replicate, ModelName: p.Model}
 	}
-	if media.Title == nil {
-		media.Title = metadata.Title
-	}
-	if media.CreatorHandle == nil {
-		media.CreatorHandle = metadata.AuthorHandle
-	}
-	if media.DurationSeconds == nil {
-		media.DurationSeconds = metadata.DurationSeconds
-	}
-	if media.ThumbnailURL == nil {
-		media.ThumbnailURL = metadata.ThumbnailURL
-	}
+	return nil
 }
 
 func appendMissing(values []string, value string) []string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return values
+	}
 	for _, existing := range values {
 		if existing == value {
 			return values
@@ -118,25 +158,136 @@ func mustJSON(value any) string {
 	return string(bytes)
 }
 
-func extractJSONObject(text string) string {
-	trimmed := strings.TrimSpace(text)
-	if strings.HasPrefix(trimmed, "{") && strings.HasSuffix(trimmed, "}") {
-		return trimmed
-	}
-	start := strings.Index(trimmed, "{")
-	end := strings.LastIndex(trimmed, "}")
-	if start >= 0 && end > start {
-		return trimmed[start : end+1]
-	}
-	return trimmed
-}
-
 func referenceAnalysisSchema() map[string]any {
 	return map[string]any{
 		"properties": map[string]any{
-			"schemaVersion": map[string]any{"const": contracts.SchemaVersion},
+			"cuts": map[string]any{
+				"items": map[string]any{
+					"properties": map[string]any{
+						"description": map[string]any{"type": "string"},
+						"endMs":       map[string]any{"type": "number"},
+						"startMs":     map[string]any{"type": "number"},
+					},
+					"type": "object",
+				},
+				"type": "array",
+			},
+			"visualSummary": map[string]any{"type": "string"},
 		},
-		"required": []string{"schemaVersion", "status", "referenceMedia", "breakdown", "recipe", "cutBoard", "generation"},
-		"type":     "object",
+		"type": "object",
 	}
+}
+
+func metadataTrace(requestID string, start time.Time, metadata superdata.Metadata, err error) contracts.ProviderTraceEvent {
+	event := traceEvent(requestID, "superdata.metadata", start, err)
+	event.MetadataFields = metadataPresentFields(metadata)
+	return event
+}
+
+func transcriptTrace(requestID string, start time.Time, transcript []superdata.TranscriptSegment, err error) contracts.ProviderTraceEvent {
+	event := traceEvent(requestID, "superdata.transcript", start, err)
+	_, charCount := transcriptSummary(transcript)
+	event.TranscriptSegmentCount = len(transcript)
+	event.TranscriptCharCount = charCount
+	return event
+}
+
+func extractTrace(requestID string, start time.Time, extract superdata.ExtractResult, err error) contracts.ProviderTraceEvent {
+	event := traceEvent(requestID, "superdata.extract", start, err)
+	if err != nil {
+		event.ExtractStatus = "failed"
+		return event
+	}
+	if len(extract.Raw) == 0 {
+		event.ExtractStatus = "empty"
+		return event
+	}
+	if status, ok := extract.Raw["status"].(string); ok && status != "" {
+		event.ExtractStatus = status
+	} else {
+		event.ExtractStatus = "completed"
+	}
+	return event
+}
+
+func modelTrace(requestID string, start time.Time, result ModelResult, err error) contracts.ProviderTraceEvent {
+	event := traceEvent(requestID, "model.generate", start, err)
+	event.ModelName = result.ModelName
+	event.ModelProvider = result.ProviderName
+	event.ModelOutputBytes = len([]byte(result.Text))
+	event.ModelOutputShape = modelOutputShapePreview(result.Text)
+	return event
+}
+
+func parseTrace(requestID string, start time.Time, err error) contracts.ProviderTraceEvent {
+	event := traceEvent(requestID, "model.parse", start, err)
+	var outputErr ModelOutputError
+	if errors.As(err, &outputErr) {
+		event.ParseErrorReason = outputErr.Reason
+	}
+	return event
+}
+
+func validationTrace(requestID string, err error) contracts.ProviderTraceEvent {
+	event := traceEvent(requestID, "response.validate", time.Now(), err)
+	event.DurationMs = 0
+	return event
+}
+
+func traceEvent(requestID string, stage string, start time.Time, err error) contracts.ProviderTraceEvent {
+	event := contracts.ProviderTraceEvent{
+		DurationMs: time.Since(start).Milliseconds(),
+		RequestID:  requestID,
+		Stage:      stage,
+		Status:     "success",
+	}
+	if err != nil {
+		event.Status = "failure"
+		event.ErrorCode = errorCode(err)
+		event.ErrorMessage = summarizeError(err)
+	}
+	return event
+}
+
+func metadataPresentFields(metadata superdata.Metadata) []string {
+	fields := []string{}
+	if metadata.AuthorHandle != nil {
+		fields = append(fields, "authorHandle")
+	}
+	if metadata.DurationSeconds != nil {
+		fields = append(fields, "durationSeconds")
+	}
+	if metadata.Platform != "" {
+		fields = append(fields, "platform")
+	}
+	if metadata.ThumbnailURL != nil {
+		fields = append(fields, "thumbnailUrl")
+	}
+	if metadata.Title != nil {
+		fields = append(fields, "title")
+	}
+	sort.Strings(fields)
+	return fields
+}
+
+func errorCode(err error) string {
+	var outputErr ModelOutputError
+	if errors.As(err, &outputErr) {
+		return outputErr.Code
+	}
+	return "provider_error"
+}
+
+func summarizeError(err error) string {
+	if err == nil {
+		return ""
+	}
+	text := strings.TrimSpace(err.Error())
+	if text == "" {
+		return ""
+	}
+	if len(text) > 160 {
+		text = text[:160]
+	}
+	return fmt.Sprintf("%s", text)
 }

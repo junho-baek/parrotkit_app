@@ -9,26 +9,38 @@ import (
 )
 
 const defaultReplicateModel = "google/gemini-2.5-flash"
+const defaultReferenceModelProvider = "replicate"
 
 type Config struct {
-	AllowDevUnauth    bool
-	Port              string
-	ReplicateAPI      string
-	ReplicateAPIToken string
-	ReplicateModel    string
-	RequestTimeout    time.Duration
-	SuperDataAPI      string
-	SuperDataAPIKey   string
+	AllowDevUnauth         bool
+	AnthropicAPIKey        string
+	GeminiAPIKey           string
+	OpenAIAPIKey           string
+	Port                   string
+	ReferenceModelName     string
+	ReferenceModelProvider string
+	ReplicateAPI           string
+	ReplicateAPIToken      string
+	ReplicateModel         string
+	RequestTimeout         time.Duration
+	SuperDataAPI           string
+	SuperDataAPIKey        string
 }
 
 func Load() (Config, error) {
+	replicateModel := getenvDefault("REPLICATE_REFERENCE_MODEL", defaultReplicateModel)
 	cfg := Config{
-		Port:              getenvDefault("PORT", "8787"),
-		ReplicateAPI:      getenvDefault("REPLICATE_API_BASE_URL", "https://api.replicate.com/v1"),
-		ReplicateAPIToken: strings.TrimSpace(os.Getenv("REPLICATE_API_TOKEN")),
-		ReplicateModel:    getenvDefault("REPLICATE_REFERENCE_MODEL", defaultReplicateModel),
-		RequestTimeout:    timeoutFromEnv("REFERENCE_ANALYSIS_TIMEOUT_MS", 90*time.Second),
-		SuperDataAPI:      getenvDefault("SUPERDATA_API_BASE_URL", "https://api.supadata.ai/v1"),
+		AnthropicAPIKey:        strings.TrimSpace(os.Getenv("ANTHROPIC_API_KEY")),
+		GeminiAPIKey:           strings.TrimSpace(os.Getenv("GEMINI_API_KEY")),
+		OpenAIAPIKey:           strings.TrimSpace(os.Getenv("OPENAI_API_KEY")),
+		Port:                   getenvDefault("PORT", "8787"),
+		ReferenceModelName:     getenvDefault("REFERENCE_MODEL_NAME", replicateModel),
+		ReferenceModelProvider: strings.ToLower(getenvDefault("REFERENCE_MODEL_PROVIDER", defaultReferenceModelProvider)),
+		ReplicateAPI:           getenvDefault("REPLICATE_API_BASE_URL", "https://api.replicate.com/v1"),
+		ReplicateAPIToken:      strings.TrimSpace(os.Getenv("REPLICATE_API_TOKEN")),
+		ReplicateModel:         replicateModel,
+		RequestTimeout:         timeoutFromEnv("REFERENCE_ANALYSIS_TIMEOUT_MS", 90*time.Second),
+		SuperDataAPI:           getenvDefault("SUPERDATA_API_BASE_URL", "https://api.supadata.ai/v1"),
 		SuperDataAPIKey: firstNonEmpty(
 			os.Getenv("SUPERDATA_API_KEY"),
 			os.Getenv("SUPADATA_API_KEY"),
@@ -39,7 +51,7 @@ func Load() (Config, error) {
 	if cfg.SuperDataAPIKey == "" {
 		return Config{}, errors.New("SUPERDATA_API_KEY or SUPADATA_API_KEY is required")
 	}
-	if cfg.ReplicateAPIToken == "" {
+	if cfg.ReferenceModelProvider == "replicate" && cfg.ReplicateAPIToken == "" {
 		return Config{}, errors.New("REPLICATE_API_TOKEN is required")
 	}
 	return cfg, nil

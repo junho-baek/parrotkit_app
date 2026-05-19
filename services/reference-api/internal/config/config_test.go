@@ -4,6 +4,8 @@ import "testing"
 
 func TestLoadPrefersSuperDataKey(t *testing.T) {
 	t.Setenv("PORT", "8787")
+	t.Setenv("REFERENCE_MODEL_NAME", "google/gemini-2.5-flash")
+	t.Setenv("REFERENCE_MODEL_PROVIDER", "replicate")
 	t.Setenv("SUPERDATA_API_KEY", "super-key")
 	t.Setenv("SUPADATA_API_KEY", "legacy-key")
 	t.Setenv("REPLICATE_API_TOKEN", "rep-token")
@@ -28,10 +30,15 @@ func TestLoadPrefersSuperDataKey(t *testing.T) {
 	if cfg.ReplicateModel == "" {
 		t.Fatalf("ReplicateModel should have a default")
 	}
+	if cfg.ReferenceModelProvider != "replicate" || cfg.ReferenceModelName != "google/gemini-2.5-flash" {
+		t.Fatalf("model config = %#v", cfg)
+	}
 }
 
 func TestLoadUsesLegacySupadataAlias(t *testing.T) {
+	t.Setenv("SUPERDATA_API_KEY", "")
 	t.Setenv("SUPADATA_API_KEY", "legacy-key")
+	t.Setenv("SUPADATA_API_TOKEN", "")
 	t.Setenv("REPLICATE_API_TOKEN", "rep-token")
 
 	cfg, err := Load()
@@ -51,5 +58,22 @@ func TestLoadRequiresProviderSecrets(t *testing.T) {
 	_, err := Load()
 	if err == nil {
 		t.Fatalf("Load() expected provider secret error")
+	}
+}
+
+func TestLoadUsesLegacyReplicateModelAsReferenceModelFallback(t *testing.T) {
+	t.Setenv("SUPERDATA_API_KEY", "super-key")
+	t.Setenv("REPLICATE_API_TOKEN", "rep-token")
+	t.Setenv("REPLICATE_REFERENCE_MODEL", "legacy/model")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.ReferenceModelProvider != "replicate" {
+		t.Fatalf("ReferenceModelProvider = %q", cfg.ReferenceModelProvider)
+	}
+	if cfg.ReferenceModelName != "legacy/model" {
+		t.Fatalf("ReferenceModelName = %q", cfg.ReferenceModelName)
 	}
 }
