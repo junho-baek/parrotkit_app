@@ -233,6 +233,7 @@ export type ShootingBoardProjectionItem = {
   referenceUsage: string;
   shotGuide: string | null;
   sourceCutIds: string[];
+  sourceTemplate?: string;
   sourceTimeRangeMs: {
     endMs: number;
     startMs: number;

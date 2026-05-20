@@ -90,6 +90,7 @@ export type ReferenceAnalysisAPICutBoardItem = {
   referenceUsage?: string;
   shotGuide?: string | null;
   sourceCutIds?: string[];
+  sourceTemplate?: string;
   successCriteria?: string[];
 };
 
@@ -399,6 +400,7 @@ function mapApiCutBoardToProjection({
       sourceCutIds: item.sourceCutIds?.filter(Boolean).length
         ? item.sourceCutIds.filter(Boolean)
         : [compactText(item.projectionCutId, `cut-${index + 1}`)],
+      sourceTemplate: item.sourceTemplate?.trim() || undefined,
       sourceTimeRangeMs: {
         endMs,
         startMs,

@@ -170,6 +170,7 @@ type CutBoardItem struct {
 	ReferenceUsage       string            `json:"referenceUsage"`
 	ShotGuide            *string           `json:"shotGuide"`
 	SourceCutIDs         []string          `json:"sourceCutIds"`
+	SourceTemplate       string            `json:"sourceTemplate,omitempty"`
 	SuccessCriteria      []string          `json:"successCriteria"`
 }
 

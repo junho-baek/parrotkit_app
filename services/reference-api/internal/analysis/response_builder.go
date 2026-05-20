@@ -123,6 +123,7 @@ func buildRecipeAndBoard(draft RecipeDraft, media *contracts.ReferenceMedia, tra
 		sourceLine := sourceFaithfulLine(draftScene, transcriptText, index)
 		goalGuide := fallbackString(draftScene.ShootingGuideline, "Film this beat clearly and keep the action easy to repeat.")
 		sourceGuide := sourceFaithfulShootingGuideline(draftScene, transcriptText)
+		sourceTemplate := sourceFaithfulTemplate(transcriptText, index)
 		successCriteria := draftScene.SuccessCriteria
 		if len(successCriteria) == 0 {
 			successCriteria = []string{"The beat is clear and repeatable."}
@@ -157,6 +158,7 @@ func buildRecipeAndBoard(draft RecipeDraft, media *contracts.ReferenceMedia, tra
 			ReferenceUsage:       fallbackString(draftScene.ReferenceUsage, "Use the same structural role without copying the creator's exact content."),
 			ShotGuide:            &goalShotGuide,
 			SourceCutIDs:         []string{cutID},
+			SourceTemplate:       sourceTemplate,
 			SuccessCriteria:      successCriteria,
 		}
 		sourceLineCopy := sourceLine
@@ -174,7 +176,7 @@ func buildRecipeAndBoard(draft RecipeDraft, media *contracts.ReferenceMedia, tra
 			"id":                     cutID,
 			"scene_index":            index + 1,
 			"source_transcript_ids":  transcriptIDsForScene(transcript, index),
-			"source_template":        sourceFaithfulTemplate(transcriptText, index),
+			"source_template":        sourceTemplate,
 			"source_transcript_text": transcriptText,
 			"start_ms":               startMs,
 			"end_ms":                 endMs,

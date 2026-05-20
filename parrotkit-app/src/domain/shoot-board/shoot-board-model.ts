@@ -84,6 +84,7 @@ export type ShootBoardCut = {
   referenceUsage?: string;
   myTakeRelationship?: string;
   sourceCutIds?: string[];
+  sourceTemplate?: string;
   sourceTimeRangeMs?: {
     endMs: number;
     startMs: number;

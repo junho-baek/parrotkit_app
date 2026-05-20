@@ -51,6 +51,7 @@ const projection: ShootingBoardProjection = {
       referenceUsage: 'Match the finished-result first frame.',
       shotGuide: 'Start on the final plate, then cut to reaction.',
       sourceCutIds: ['cut_001'],
+      sourceTemplate: 'I stopped overthinking {product_category} and this finally stuck.',
       sourceTimeRangeMs: { endMs: 5000, startMs: 0 },
       successCriteria: ['Finished result visible immediately'],
     },
@@ -111,6 +112,10 @@ if (cuts[0]?.roleLabel !== '') {
 
 if (cuts[0]?.lineToSay !== projection.items[0]?.lineToSay) {
   throw new Error('Projection lineToSay should become board lineToSay.');
+}
+
+if (cuts[0]?.templateLine !== projection.items[0]?.sourceTemplate) {
+  throw new Error('Projection sourceTemplate with placeholders should become board templateLine.');
 }
 
 if (cuts[0]?.shotAction !== projection.items[0]?.shotGuide) {
