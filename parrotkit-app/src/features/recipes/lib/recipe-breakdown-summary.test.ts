@@ -241,6 +241,28 @@ if (!hook?.body.includes("There were so many requests")) {
   throw new Error("Hook section must preserve Sandcastle hook formula");
 }
 
+const missingNotableLinesSummary = getRecipeBreakdownSummary(
+  {
+    ...recipe,
+    referenceBreakdown: {
+      ...recipe.referenceBreakdown,
+      transcript: {
+        clean: "Live smoke transcript exists but notable lines were omitted.",
+        raw: ["Live smoke transcript exists but notable lines were omitted."],
+      },
+    } as NativeRecipe["referenceBreakdown"],
+  },
+  "en",
+);
+
+const missingNotableTranscript = missingNotableLinesSummary.sections.find(
+  (section) => section.id === "transcript",
+);
+
+if (!missingNotableTranscript?.body.includes("Live smoke transcript exists")) {
+  throw new Error("Breakdown transcript must render when notable_lines is omitted");
+}
+
 const partialSummary = getRecipeBreakdownSummary(
   {
     ...recipe,

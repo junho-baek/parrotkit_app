@@ -68,11 +68,15 @@ function compactText(value: unknown) {
   return String(value ?? "").replace(/\s+/g, " ").trim();
 }
 
-function compactList(values: unknown[]) {
-  return values.map(compactText).filter(Boolean);
+function asList(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
 }
 
-function formatList(values: unknown[]) {
+function compactList(values: unknown) {
+  return asList(values).map(compactText).filter(Boolean);
+}
+
+function formatList(values: unknown) {
   return compactList(values).join("; ");
 }
 
@@ -96,11 +100,12 @@ function getReferenceBreakdownSections(
   breakdown: ReferenceBreakdown,
   copy: (typeof labels)[AppLanguage],
 ): RecipeBreakdownSection[] {
-  const notableLines = breakdown.transcript.notable_lines
+  const notableLines = asList(breakdown.transcript.notable_lines)
     .map((item) => {
-      const timeRange = compactText(item.time_range);
-      const line = compactText(item.line);
-      const reason = compactText(item.why_it_matters);
+      const notableLine = item as Record<string, unknown>;
+      const timeRange = compactText(notableLine.time_range);
+      const line = compactText(notableLine.line);
+      const reason = compactText(notableLine.why_it_matters);
 
       if (!line) {
         return "";
